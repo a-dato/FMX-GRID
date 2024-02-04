@@ -1,0 +1,107 @@
+object frmCopyData: TfrmCopyData
+  Size.Width = 695.000000000000000000
+  Size.Height = 308.000000000000000000
+  Size.PlatformDefault = False
+  object cbSourceTables: TComboBox
+    Position.X = 184.000000000000000000
+    Position.Y = 32.000000000000000000
+    Size.Width = 425.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    object Label1: TLabel
+      Position.X = -132.000000000000000000
+      Size.Width = 120.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.HorzAlign = Trailing
+      TextSettings.Trimming = None
+      Text = 'Source data'
+      TabOrder = 86
+    end
+  end
+  object cbTargetDatabase: TComboBox
+    Position.X = 184.000000000000000000
+    Position.Y = 176.000000000000000000
+    Size.Width = 425.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    object Label2: TLabel
+      Position.X = -132.000000000000000000
+      Size.Width = 120.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.HorzAlign = Trailing
+      TextSettings.Trimming = None
+      Text = 'Target database'
+      TabOrder = 86
+    end
+  end
+  object Memo1: TMemo
+    Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+    DataDetectorTypes = []
+    Position.X = 184.000000000000000000
+    Position.Y = 62.000000000000000000
+    Size.Width = 425.000000000000000000
+    Size.Height = 97.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    Viewport.Width = 421.000000000000000000
+    Viewport.Height = 93.000000000000000000
+  end
+  object Label3: TLabel
+    Position.X = 52.000000000000000000
+    Position.Y = 62.000000000000000000
+    Size.Width = 120.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.HorzAlign = Trailing
+    TextSettings.Trimming = None
+    Text = 'Sql select statement'
+    TabOrder = 86
+  end
+  object edTargetTable: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 87
+    Position.X = 184.000000000000000000
+    Position.Y = 207.000000000000000000
+    Size.Width = 170.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    object Label4: TLabel
+      Position.X = -132.000000000000000000
+      Size.Width = 120.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.HorzAlign = Trailing
+      TextSettings.Trimming = None
+      Text = 'Target table name'
+      TabOrder = 0
+    end
+  end
+  object btnGo: TButton
+    Position.X = 184.000000000000000000
+    Position.Y = 248.000000000000000000
+    TabOrder = 88
+    Text = 'Go'
+    TextSettings.Trimming = None
+  end
+  object btnAbort: TButton
+    Position.X = 274.000000000000000000
+    Position.Y = 248.000000000000000000
+    TabOrder = 89
+    Text = 'Abort'
+    TextSettings.Trimming = None
+  end
+  object btnRefresh: TSpeedButton
+    Position.X = 619.000000000000000000
+    Position.Y = 32.000000000000000000
+    Size.Width = 32.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    StyleLookup = 'refreshtoolbuttonbordered'
+    Text = 'Refresh'
+    TextSettings.Trimming = None
+  end
+end

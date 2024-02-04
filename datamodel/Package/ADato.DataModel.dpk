@@ -1,0 +1,63 @@
+package ADato.DataModel;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$DEFINE TS2}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'A-dato data aware components'}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  ADato.DN4D;
+
+contains
+  ADato.Parser.impl in '..\General\ADato.Parser.impl.pas',
+  ADato.Parser.intf in '..\General\ADato.Parser.intf.pas',
+  ADato.Sortable.Intf in '..\General\ADato.Sortable.Intf.pas',
+  ADato.ListComparer.Impl in '..\General\ADato.ListComparer.Impl.pas',
+  ADato.Data.DatasetDataModel in '..\DataModel\ADato.Data.DatasetDataModel.pas',
+  ADato.Data.DB in '..\DataModel\ADato.Data.DB.pas',
+  ADato.Data.VirtualDatasetDataModel in '..\DataModel\ADato.Data.VirtualDatasetDataModel.pas',
+  ADato.Data.DataModel.impl in '..\DataModel\ADato.Data.DataModel.impl.pas',
+  ADato.Data.DataModel.intf in '..\DataModel\ADato.Data.DataModel.intf.pas',
+  ADato.Data.DataModelView in '..\DataModel\ADato.Data.DataModelView.pas',
+  ADato.Data.DataModelViewDataset in '..\DataModel\ADato.Data.DataModelViewDataset.pas',
+  ADato.Resources in '..\General\ADato.Resources.pas',
+  ADato.TraceEvents.impl in '..\General\ADato.TraceEvents.impl.pas',
+  ADato.TraceEvents.intf in '..\General\ADato.TraceEvents.intf.pas',
+  ADato.Collections.Specialized in '..\General\ADato.Collections.Specialized.pas',
+  ADato.ComponentModel in '..\General\ADato.ComponentModel.pas',
+  ADato.Extensions.impl in '..\General\ADato.Extensions.impl.pas',
+  ADato.Extensions.intf in '..\General\ADato.Extensions.intf.pas',
+  ADato.InsertPosition in '..\DataModel\ADato.InsertPosition.pas',
+  ADato.ObjectModel.List.intf in '..\ObjectModel\ADato.ObjectModel.List.intf.pas',
+  ADato.ObjectModel.intf in '..\ObjectModel\ADato.ObjectModel.intf.pas',
+  ADato.ObjectModel.List.Tracking.intf in '..\ObjectModel\ADato.ObjectModel.List.Tracking.intf.pas';
+
+end.
+
+

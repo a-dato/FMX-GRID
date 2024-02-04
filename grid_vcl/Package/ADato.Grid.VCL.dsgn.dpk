@@ -1,0 +1,61 @@
+package ADato.Grid.VCL.dsgn;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$DEFINE TS2}
+{$ENDIF IMPLICITBUILDING}
+{$DESIGNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  vcl,
+  designide,
+  xmlrtl,
+  vclactnband,
+  vclx,
+  dbrtl,
+  vcldb,
+  dcldb,
+  vcldesigner,
+  dclstd,
+  vclimg,
+  ADato.dn4d,
+  ADato.DataModel,
+  ADato.Grid.VCL;
+
+contains
+  ADato_RowHeightSynchronizer_Reg in 'ADato_RowHeightSynchronizer_Reg.pas',
+  ADato_StyleSheet_Reg in 'ADato_StyleSheet_Reg.pas',
+  ADato.TreeControl.Register in 'ADato.TreeControl.Register.pas',
+  ADato.TreeControl.Design in 'ADato.TreeControl.Design.pas',
+  ADato_AddTreeColumn_Dlg in 'ADato_AddTreeColumn_Dlg.pas',
+  ADato_CollectionEditor_Reg in 'ADato_CollectionEditor_Reg.pas',
+  ADato_TreeControl_Columns_DsgnPage in 'ADato_TreeControl_Columns_DsgnPage.pas',
+  ADato_TreeControl_Dsgn in 'ADato_TreeControl_Dsgn.pas',
+  ADato_PropertyEditor_Reg in 'ADato_PropertyEditor_Reg.pas',
+  ADato_DesignerWithPages in 'ADato_DesignerWithPages.pas';
+
+end.

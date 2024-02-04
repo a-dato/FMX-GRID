@@ -1,0 +1,43 @@
+package ADato.Grid.FMX.dsgn;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$DEFINE TS2}
+{$ENDIF IMPLICITBUILDING}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  fmx,
+  ADato.Grid.VCL.dsgn,
+  ADato.Grid.FMX;
+
+contains
+  FMX.TreeControl.ColumnsProperty in 'FMX.TreeControl.ColumnsProperty.pas',
+  FMXTreeControlColumnsDsgnPage in 'FMXTreeControlColumnsDsgnPage.pas',
+  FMXTreeControlDsgn in 'FMXTreeControlDsgn.pas',
+  ADato.FMX.Grid.Register in 'ADato.FMX.Grid.Register.pas';
+
+end.

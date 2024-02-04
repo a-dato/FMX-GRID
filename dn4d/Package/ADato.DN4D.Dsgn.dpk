@@ -1,0 +1,43 @@
+package ADato.DN4D.Dsgn;
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$DEFINE TS2}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'A-Dato DotNet4Delphi (design)'}
+{$DESIGNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  designide,
+  ADato.DN4D;
+
+contains
+  System.Registration in 'System.Registration.pas',
+  Delphi.Extensions.ListDataset.Register in 'Delphi.Extensions.ListDataset.Register.pas',
+  Delphi.Extensions.VirtualDataset.Register in 'Delphi.Extensions.VirtualDataset.Register.pas',
+  Delphi.Extensions.BaseInterfaceField.Register in 'Delphi.Extensions.BaseInterfaceField.Register.pas';
+
+end.

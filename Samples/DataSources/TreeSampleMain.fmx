@@ -1,0 +1,238 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'Form1'
+  ClientHeight = 487
+  ClientWidth = 757
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  DesignerMasterStyle = 0
+  object FMXTreeControl1: TFMXTreeControl
+    Align = Client
+    Size.Width = 558.000000000000000000
+    Size.Height = 406.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    AcceptsTab = False
+    AcceptsReturn = False
+    AllowUserToAddRows = True
+    AllowUserToDeleteRows = True
+    AutoFitColumns = False
+    Indent = 20
+    AlwaysShowFocus = False
+    IncrementalSearch = False
+    Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
+    ScrollPerRow = False
+    DefaultExpandRows = False
+    HighlightRows = True
+    LayoutColumnsComplete = FMXTreeControl1LayoutColumnsComplete
+    Viewport.Width = 556.000000000000000000
+    Viewport.Height = 379.000000000000000000
+  end
+  object Layout1: TLayout
+    Align = Top
+    Size.Width = 757.000000000000000000
+    Size.Height = 81.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    object Button1: TButton
+      Position.X = 8.000000000000000000
+      Position.Y = 11.000000000000000000
+      Size.Width = 129.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      Text = 'List<ICompany>'
+      TextSettings.Trimming = None
+      OnClick = Button1Click
+      object Button8: TButton
+        Position.Y = 30.000000000000000000
+        Size.Width = 137.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 5
+        Text = 'IModel<ICompany>'
+        TextSettings.Trimming = None
+        OnClick = Button8Click
+      end
+    end
+    object Button2: TButton
+      Position.X = 153.000000000000000000
+      Position.Y = 41.000000000000000000
+      Size.Width = 168.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      Text = 'IEditableModel<ICompany>'
+      TextSettings.Trimming = None
+      OnClick = Button2Click
+    end
+    object Button3: TButton
+      Position.X = 153.000000000000000000
+      Position.Y = 11.000000000000000000
+      Size.Width = 144.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 2
+      Text = 'Hierarchy (IDataModel)'
+      TextSettings.Trimming = None
+      OnClick = Button3Click
+    end
+    object TDataset: TButton
+      Position.X = 305.000000000000000000
+      Position.Y = 11.000000000000000000
+      TabOrder = 3
+      Text = 'TDataset'
+      TextSettings.Trimming = None
+      OnClick = TDatasetClick
+    end
+    object Button9: TButton
+      Position.X = 329.000000000000000000
+      Position.Y = 41.000000000000000000
+      Size.Width = 208.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 4
+      Text = 'IDataModel -> IModel<ICompany>'
+      TextSettings.Trimming = None
+      OnClick = Button9Click
+    end
+  end
+  object Layout2: TLayout
+    Align = Right
+    Position.X = 558.000000000000000000
+    Position.Y = 81.000000000000000000
+    Size.Width = 199.000000000000000000
+    Size.Height = 406.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+    object edNameByBinding: TEdit
+      Touch.InteractiveGestures = [LongTap, DoubleTap]
+      TabOrder = 1
+      Position.X = 8.000000000000000000
+      Position.Y = 24.000000000000000000
+      Size.Width = 183.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      object Label1: TLabel
+        Position.Y = -16.000000000000000000
+        TextSettings.Trimming = None
+        Text = 'Name'
+        TabOrder = 0
+      end
+    end
+    object Button4: TButton
+      Action = acExpand
+      ImageIndex = -1
+      Position.X = 8.000000000000000000
+      Position.Y = 176.000000000000000000
+      TabOrder = 3
+      TextSettings.Trimming = None
+    end
+    object Button5: TButton
+      Action = acCollapse
+      ImageIndex = -1
+      Position.X = 8.000000000000000000
+      Position.Y = 206.000000000000000000
+      TabOrder = 2
+      TextSettings.Trimming = None
+    end
+    object edNameByLiveBinding: TEdit
+      Touch.InteractiveGestures = [LongTap, DoubleTap]
+      TabOrder = 0
+      Position.X = 8.000000000000000000
+      Position.Y = 72.000000000000000000
+      Size.Width = 183.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      object Label2: TLabel
+        Position.Y = -16.000000000000000000
+        TextSettings.Trimming = None
+        Text = 'Name'
+        TabOrder = 0
+      end
+    end
+    object Button6: TButton
+      Position.X = 96.000000000000000000
+      Position.Y = 176.000000000000000000
+      TabOrder = 4
+      Text = 'Insert'
+      TextSettings.Trimming = None
+      OnClick = Button6Click
+      object Button7: TButton
+        Position.X = 8.000000000000000000
+        Position.Y = 32.000000000000000000
+        TabOrder = 5
+        Text = 'Button7'
+        TextSettings.Trimming = None
+        OnClick = Button7Click
+      end
+    end
+  end
+  object ActionList1: TActionList
+    Left = 427
+    Top = 145
+    object acExpand: TAction
+      Text = 'Expand'
+      ShortCut = 16453
+      OnExecute = acExpandExecute
+    end
+    object acCollapse: TAction
+      Text = 'Collapse'
+      ShortCut = 16454
+      OnExecute = acCollapseExecute
+    end
+  end
+  object FDMemTable1: TFDMemTable
+    FetchOptions.AssignedValues = [evMode]
+    FetchOptions.Mode = fmAll
+    ResourceOptions.AssignedValues = [rvSilentMode]
+    ResourceOptions.SilentMode = True
+    UpdateOptions.AssignedValues = [uvCheckRequired, uvAutoCommitUpdates]
+    UpdateOptions.CheckRequired = False
+    UpdateOptions.AutoCommitUpdates = True
+    Left = 64
+    Top = 96
+  end
+  object DatasetDataModel1: TDatasetDataModel
+    DataLinks = <
+      item
+        DataSource = DataSource1
+        KeyField = 'Name'
+      end>
+    Left = 251
+    Top = 97
+    DataModel = 
+      '<DataModel><Columns><Item type="DataModelColumn"><Name>Name</Nam' +
+      'e><DataType>String</DataType></Item></Columns></DataModel>'#13#10
+    object DataModelNaqmeField: TWideStringField
+      FieldName = 'Name'
+      Size = 50
+    end
+  end
+  object DataSource1: TDataSource
+    DataSet = FDMemTable1
+    Left = 152
+    Top = 96
+  end
+  object BindSourceDB1: TBindSourceDB
+    DataSet = DatasetDataModel1
+    ScopeMappings = <>
+    Left = 168
+    Top = 248
+  end
+  object BindingsList1: TBindingsList
+    Methods = <>
+    OutputConverters = <>
+    Left = 68
+    Top = 245
+    object LinkControlToField1: TLinkControlToField
+      Category = 'Quick Bindings'
+      DataSource = BindSourceDB1
+      FieldName = 'Name'
+      Control = edNameByLiveBinding
+      Track = False
+    end
+  end
+end

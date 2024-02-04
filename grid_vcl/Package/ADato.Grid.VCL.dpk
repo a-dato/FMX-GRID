@@ -1,0 +1,61 @@
+package ADato.Grid.VCL;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS OFF}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE RELEASE}
+{$DEFINE TS2}
+{$ENDIF IMPLICITBUILDING}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  ADato.dn4d,
+  ADato.DataModel;
+
+contains
+  ADato.Controls.Tree.Intf in '..\Tree\ADato.Controls.Tree.Intf.pas',
+  ADato.Controls.Tree.PopupMenu in '..\Tree\ADato.Controls.Tree.PopupMenu.pas',
+  ADato.Controls.Tree.SplitterForm in '..\Tree\ADato.Controls.Tree.SplitterForm.pas',
+  ADato.Control.Tree.HighLightLabel in '..\Tree\ADato.Control.Tree.HighLightLabel.pas',
+  ADato.Controls.Tree.Cell.Impl in '..\Tree\ADato.Controls.Tree.Cell.Impl.pas',
+  ADato.Controls.Tree.Editors.Impl in '..\Tree\ADato.Controls.Tree.Editors.Impl.pas',
+  ADato.Controls.Tree.Impl in '..\Tree\ADato.Controls.Tree.Impl.pas',
+  ADato.Components.Css.intf in '..\Css\ADato.Components.Css.intf.pas',
+  ADato.Components.CssStyleSheet in '..\Css\ADato.Components.CssStyleSheet.pas',
+  ADato.Controls.CssControl in '..\Css\ADato.Controls.CssControl.pas',
+  ADato.Components.Css.impl in '..\Css\ADato.Components.Css.impl.pas',
+  ADato_PropertyEditor_impl in '..\General\ADato_PropertyEditor_impl.pas',
+  ADato_Renderer_impl in '..\General\ADato_Renderer_impl.pas',
+  ADato_Renderer_intf in '..\General\ADato_Renderer_intf.pas',
+  ADato_RowHeightSync_Component in '..\General\ADato_RowHeightSync_Component.pas',
+  ADato_RowHeightSync_impl in '..\General\ADato_RowHeightSync_impl.pas',
+  ADato_RowHeightSync_intf in '..\General\ADato_RowHeightSync_intf.pas',
+  Scaling in '..\General\Scaling.pas',
+  ADato_BufferedSurface in '..\General\ADato_BufferedSurface.pas',
+  ADato_CollectionEditor in '..\General\ADato_CollectionEditor.pas',
+  ADato_CollectionEditor_Dialog in '..\General\ADato_CollectionEditor_Dialog.pas',
+  ADato_DotNetControl in '..\General\ADato_DotNetControl.pas';
+
+end.

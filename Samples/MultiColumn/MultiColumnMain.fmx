@@ -1,0 +1,145 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'Form1'
+  ClientHeight = 487
+  ClientWidth = 699
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  DesignerMasterStyle = 0
+  object FMXTreeControl1: TFMXTreeControl
+    Align = Client
+    Size.Width = 500.000000000000000000
+    Size.Height = 446.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    AcceptsTab = False
+    AcceptsReturn = False
+    AllowUserToAddRows = True
+    AllowUserToDeleteRows = True
+    AutoFitColumns = False
+    Indent = 20
+    AlwaysShowFocus = False
+    IncrementalSearch = False
+    Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
+    ScrollPerRow = False
+    DefaultExpandRows = False
+    HighlightRows = True
+    EditStart = FMXTreeControl1EditStart
+    Viewport.Width = 498.000000000000000000
+    Viewport.Height = 419.000000000000000000
+    Columns_ = 
+      '<Columns><Item type="TFMXTreeColumn"><AllowHide>True</AllowHide>' +
+      '<AllowMove>True</AllowMove><AllowResize>True</AllowResize><AutoS' +
+      'izeToContent>True</AutoSizeToContent><Caption>Name</Caption><Fro' +
+      'zen>False</Frozen><MaxWidth>0</MaxWidth><MultilineEdit>False</Mu' +
+      'ltilineEdit><PropertyName>Name</PropertyName><ReadOnly>False</Re' +
+      'adOnly><Selectable>True</Selectable><ShowSortMenu>True</ShowSort' +
+      'Menu><ShowFilterMenu>True</ShowFilterMenu><ShowHierarchy>False</' +
+      'ShowHierarchy><Sort>None</Sort><Visible>True</Visible><Width>0</' +
+      'Width><WidthType>Pixel</WidthType></Item><Item type="TFMXTreeCol' +
+      'umn"><AllowHide>True</AllowHide><AllowMove>True</AllowMove><Allo' +
+      'wResize>True</AllowResize><AutoSizeToContent>True</AutoSizeToCon' +
+      'tent><Caption>Location</Caption><Frozen>False</Frozen><MaxWidth>' +
+      '0</MaxWidth><MultilineEdit>False</MultilineEdit><PropertyName>Lo' +
+      'cation</PropertyName><ReadOnly>False</ReadOnly><Selectable>True<' +
+      '/Selectable><ShowSortMenu>True</ShowSortMenu><ShowFilterMenu>Tru' +
+      'e</ShowFilterMenu><ShowHierarchy>False</ShowHierarchy><Sort>Cell' +
+      'Data</Sort><Visible>True</Visible><Width>0</Width><WidthType>Pix' +
+      'el</WidthType></Item><Item type="TFMXTreeColumn"><AllowHide>True' +
+      '</AllowHide><AllowMove>True</AllowMove><AllowResize>True</AllowR' +
+      'esize><AutoSizeToContent>True</AutoSizeToContent><Caption>Founde' +
+      'd</Caption><Frozen>False</Frozen><MaxWidth>0</MaxWidth><Multilin' +
+      'eEdit>False</MultilineEdit><PropertyName>Founded</PropertyName><' +
+      'ReadOnly>False</ReadOnly><Selectable>True</Selectable><ShowSortM' +
+      'enu>True</ShowSortMenu><ShowFilterMenu>True</ShowFilterMenu><Sho' +
+      'wHierarchy>False</ShowHierarchy><Sort>None</Sort><Visible>True</' +
+      'Visible><Width>0</Width><WidthType>Pixel</WidthType></Item></Col' +
+      'umns>'#13#10
+  end
+  object Layout1: TLayout
+    Align = Top
+    Size.Width = 699.000000000000000000
+    Size.Height = 41.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    object Button2: TButton
+      Position.X = 8.000000000000000000
+      Position.Y = 11.000000000000000000
+      Size.Width = 136.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      Text = 'model<ICompany>'
+      TextSettings.Trimming = None
+      OnClick = Button2Click
+    end
+  end
+  object Layout2: TLayout
+    Align = Right
+    Position.X = 500.000000000000000000
+    Position.Y = 41.000000000000000000
+    Size.Width = 199.000000000000000000
+    Size.Height = 446.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+    object edName: TEdit
+      Touch.InteractiveGestures = [LongTap, DoubleTap]
+      TabOrder = 1
+      Position.X = 8.000000000000000000
+      Position.Y = 24.000000000000000000
+      Size.Width = 183.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      object Label1: TLabel
+        Position.Y = -16.000000000000000000
+        TextSettings.Trimming = None
+        Text = 'Name'
+        TabOrder = 0
+      end
+    end
+    object edLocation: TEdit
+      Touch.InteractiveGestures = [LongTap, DoubleTap]
+      TabOrder = 0
+      Position.X = 8.000000000000000000
+      Position.Y = 81.000000000000000000
+      Size.Width = 183.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      object lblLocation: TLabel
+        Position.Y = -16.000000000000000000
+        TextSettings.Trimming = None
+        Text = 'Location'
+        TabOrder = 0
+      end
+    end
+    object edFounded: TDateEdit
+      Date = 45299.000000000000000000
+      Position.X = 8.000000000000000000
+      Position.Y = 136.000000000000000000
+      Size.Width = 183.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 2
+      object Founded: TLabel
+        Position.Y = -25.000000000000000000
+        TextSettings.Trimming = None
+        Text = 'Founded'
+        TabOrder = 15
+      end
+    end
+  end
+  object ActionList1: TActionList
+    Left = 427
+    Top = 145
+    object acExpand: TAction
+      Text = 'Expand'
+      ShortCut = 16453
+    end
+    object acCollapse: TAction
+      Text = 'Collapse'
+      ShortCut = 16454
+    end
+  end
+end

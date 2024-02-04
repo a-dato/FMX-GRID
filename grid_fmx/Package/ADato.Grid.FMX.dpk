@@ -1,0 +1,54 @@
+package ADato.Grid.FMX;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$DEFINE TS2}
+{$ENDIF IMPLICITBUILDING}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  fmx,
+  xmlrtl,
+  rtl,
+  ADato.Datamodel;
+
+contains
+  ADato.FMX.Controls.ScrollableControl.Impl in '..\Scrollable\ADato.FMX.Controls.ScrollableControl.Impl.pas',
+  ADato.FMX.Controls.ScrollableRowControl.Impl in '..\Scrollable\ADato.FMX.Controls.ScrollableRowControl.Impl.pas',
+  ADato.FMX.Controls.ScrollableRowControl.Intf in '..\Scrollable\ADato.FMX.Controls.ScrollableRowControl.Intf.pas',
+  Adato.FMX.DataModelViewRowLists in '..\Scrollable\Adato.FMX.DataModelViewRowLists.pas',
+  ADato.Controls.FMX.RowHeights.Impl in '..\Tree\ADato.Controls.FMX.RowHeights.Impl.pas',
+  ADato.Controls.FMX.RowHeights.Intf in '..\Tree\ADato.Controls.FMX.RowHeights.Intf.pas',
+  ADato.Controls.FMX.RowHeightsComponent in '..\Tree\ADato.Controls.FMX.RowHeightsComponent.pas',
+  ADato.Controls.FMX.Tree.Cell.Impl in '..\Tree\ADato.Controls.FMX.Tree.Cell.Impl.pas',
+  ADato.Controls.FMX.Tree.Editors.Impl in '..\Tree\ADato.Controls.FMX.Tree.Editors.Impl.pas',
+  ADato.Controls.FMX.Tree.Header.Impl in '..\Tree\ADato.Controls.FMX.Tree.Header.Impl.pas',
+  ADato.Controls.FMX.Tree.Impl in '..\Tree\ADato.Controls.FMX.Tree.Impl.pas',
+  ADato.Controls.FMX.Tree.Intf in '..\Tree\ADato.Controls.FMX.Tree.Intf.pas',
+  ADato.Controls.FMX.Tree.PopupMenu in '..\Tree\ADato.Controls.FMX.Tree.PopupMenu.pas',
+  ADato.FMX.ControlCalculations in '..\Scrollable\ADato.FMX.ControlCalculations.pas';
+
+end.

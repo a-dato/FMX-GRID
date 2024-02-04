@@ -1,0 +1,132 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{1CCD2E41-0295-48E8-BF05-DD69D332C65F}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="dn4d\Package\ADato.DN4D.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="dn4d\Package\ADato.DN4D.Dsgn.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="datamodel\Package\ADato.DataModel.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="datamodel\Package\ADato.DataModel.dsgn.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="grid_vcl\Package\ADato.Grid.VCL.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="grid_vcl\Package\ADato.Grid.VCL.dsgn.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="datamodel\Designer\ADato.DataModelDesigner.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="grid_fmx\Package\ADato.Grid.FMX.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="grid_fmx\Package\ADato.Grid.FMX.dsgn.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="ADato_DN4D">
+        <MSBuild Projects="dn4d\Package\ADato.DN4D.dproj"/>
+    </Target>
+    <Target Name="ADato_DN4D:Clean">
+        <MSBuild Projects="dn4d\Package\ADato.DN4D.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_DN4D:Make">
+        <MSBuild Projects="dn4d\Package\ADato.DN4D.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ADato_DN4D_Dsgn">
+        <MSBuild Projects="dn4d\Package\ADato.DN4D.Dsgn.dproj"/>
+    </Target>
+    <Target Name="ADato_DN4D_Dsgn:Clean">
+        <MSBuild Projects="dn4d\Package\ADato.DN4D.Dsgn.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_DN4D_Dsgn:Make">
+        <MSBuild Projects="dn4d\Package\ADato.DN4D.Dsgn.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ADato_DataModel">
+        <MSBuild Projects="datamodel\Package\ADato.DataModel.dproj"/>
+    </Target>
+    <Target Name="ADato_DataModel:Clean">
+        <MSBuild Projects="datamodel\Package\ADato.DataModel.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_DataModel:Make">
+        <MSBuild Projects="datamodel\Package\ADato.DataModel.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ADato_DataModel_dsgn">
+        <MSBuild Projects="datamodel\Package\ADato.DataModel.dsgn.dproj"/>
+    </Target>
+    <Target Name="ADato_DataModel_dsgn:Clean">
+        <MSBuild Projects="datamodel\Package\ADato.DataModel.dsgn.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_DataModel_dsgn:Make">
+        <MSBuild Projects="datamodel\Package\ADato.DataModel.dsgn.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ADato_Grid_VCL">
+        <MSBuild Projects="grid_vcl\Package\ADato.Grid.VCL.dproj"/>
+    </Target>
+    <Target Name="ADato_Grid_VCL:Clean">
+        <MSBuild Projects="grid_vcl\Package\ADato.Grid.VCL.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_Grid_VCL:Make">
+        <MSBuild Projects="grid_vcl\Package\ADato.Grid.VCL.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ADato_Grid_VCL_dsgn">
+        <MSBuild Projects="grid_vcl\Package\ADato.Grid.VCL.dsgn.dproj"/>
+    </Target>
+    <Target Name="ADato_Grid_VCL_dsgn:Clean">
+        <MSBuild Projects="grid_vcl\Package\ADato.Grid.VCL.dsgn.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_Grid_VCL_dsgn:Make">
+        <MSBuild Projects="grid_vcl\Package\ADato.Grid.VCL.dsgn.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ADato_DataModelDesigner">
+        <MSBuild Projects="datamodel\Designer\ADato.DataModelDesigner.dproj"/>
+    </Target>
+    <Target Name="ADato_DataModelDesigner:Clean">
+        <MSBuild Projects="datamodel\Designer\ADato.DataModelDesigner.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_DataModelDesigner:Make">
+        <MSBuild Projects="datamodel\Designer\ADato.DataModelDesigner.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ADato_Grid_FMX">
+        <MSBuild Projects="grid_fmx\Package\ADato.Grid.FMX.dproj"/>
+    </Target>
+    <Target Name="ADato_Grid_FMX:Clean">
+        <MSBuild Projects="grid_fmx\Package\ADato.Grid.FMX.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_Grid_FMX:Make">
+        <MSBuild Projects="grid_fmx\Package\ADato.Grid.FMX.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ADato_Grid_FMX_dsgn">
+        <MSBuild Projects="grid_fmx\Package\ADato.Grid.FMX.dsgn.dproj"/>
+    </Target>
+    <Target Name="ADato_Grid_FMX_dsgn:Clean">
+        <MSBuild Projects="grid_fmx\Package\ADato.Grid.FMX.dsgn.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_Grid_FMX_dsgn:Make">
+        <MSBuild Projects="grid_fmx\Package\ADato.Grid.FMX.dsgn.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="ADato_DN4D;ADato_DN4D_Dsgn;ADato_DataModel;ADato_DataModel_dsgn;ADato_Grid_VCL;ADato_Grid_VCL_dsgn;ADato_DataModelDesigner;ADato_Grid_FMX;ADato_Grid_FMX_dsgn"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="ADato_DN4D:Clean;ADato_DN4D_Dsgn:Clean;ADato_DataModel:Clean;ADato_DataModel_dsgn:Clean;ADato_Grid_VCL:Clean;ADato_Grid_VCL_dsgn:Clean;ADato_DataModelDesigner:Clean;ADato_Grid_FMX:Clean;ADato_Grid_FMX_dsgn:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="ADato_DN4D:Make;ADato_DN4D_Dsgn:Make;ADato_DataModel:Make;ADato_DataModel_dsgn:Make;ADato_Grid_VCL:Make;ADato_Grid_VCL_dsgn:Make;ADato_DataModelDesigner:Make;ADato_Grid_FMX:Make;ADato_Grid_FMX_dsgn:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

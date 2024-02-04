@@ -1,0 +1,70 @@
+object frmLogin: TfrmLogin
+  Left = 0
+  Top = 0
+  Caption = 'Login'
+  ClientHeight = 129
+  ClientWidth = 323
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  DesignerMasterStyle = 0
+  object edUserName: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 0
+    Position.X = 128.000000000000000000
+    Position.Y = 24.000000000000000000
+    Size.Width = 169.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    object Label1: TLabel
+      Position.X = -88.000000000000000000
+      Position.Y = 3.000000000000000000
+      Size.Width = 80.000000000000000000
+      Size.Height = 17.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.HorzAlign = Trailing
+      TextSettings.Trimming = None
+      Text = 'Username'
+      TabOrder = 0
+    end
+  end
+  object edPassword: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 1
+    Password = True
+    Position.X = 128.000000000000000000
+    Position.Y = 54.000000000000000000
+    Size.Width = 169.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    object Label2: TLabel
+      Position.X = -88.000000000000000000
+      Position.Y = 3.000000000000000000
+      Size.Width = 80.000000000000000000
+      Size.Height = 17.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.HorzAlign = Trailing
+      TextSettings.Trimming = None
+      Text = 'Password'
+      TabOrder = 0
+    end
+  end
+  object Button1: TButton
+    Default = True
+    Position.X = 128.000000000000000000
+    Position.Y = 89.000000000000000000
+    TabOrder = 2
+    Text = 'OK'
+    TextSettings.Trimming = None
+    OnClick = Button1Click
+  end
+  object Button2: TButton
+    Cancel = True
+    Position.X = 217.000000000000000000
+    Position.Y = 89.000000000000000000
+    TabOrder = 3
+    Text = 'Cancel'
+    TextSettings.Trimming = None
+    OnClick = Button2Click
+  end
+end

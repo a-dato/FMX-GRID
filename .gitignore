@@ -1,0 +1,26 @@
+# Delphi compiler-generated binaries (safe to delete)
+*.dcu
+*.exe
+*.rsm
+*.res
+
+# Delphi local files (user-specific info)
+*.local
+*.identcache
+*.projdata
+*.tvsconfig
+*.dsk
+*.vlb
+
+# Delphi history and backups
+__history/
+__recovery/
+*.~*
+
+# Mac generated files
+.DS_Store
+._*
+
+# Ignore vim files:
+*~
+.*.sw?

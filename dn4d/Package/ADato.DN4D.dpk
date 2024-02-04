@@ -1,0 +1,76 @@
+package ADato.DN4D;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$DEFINE TS2}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'A-Dato DotNet4Delphi'}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  vcl,
+  xmlrtl,
+  dbrtl,
+  bindengine,
+  bindcomp;
+
+contains
+  System_ in '..\Source\System_.pas',
+  System.DragDrop.Impl in '..\Source\System.DragDrop.Impl.pas',
+  System.DragDrop.Intf in '..\Source\System.DragDrop.Intf.pas',
+  System.Drawing.Imaging in '..\Source\System.Drawing.Imaging.pas',
+  System.Drawing in '..\Source\System.Drawing.pas',
+  System.Globalization.Interfaces in '..\Source\System.Globalization.Interfaces.pas',
+  System.Globalization in '..\Source\System.Globalization.pas',
+  System.Init in '..\Source\System.Init.pas',
+  System.IO in '..\Source\System.IO.pas',
+  System.Reflection in '..\Source\System.Reflection.pas',
+  System.Resources in '..\Source\System.Resources.pas',
+  System.Runtime.InteropServices in '..\Source\System.Runtime.InteropServices.pas',
+  System.Runtime.Serialization in '..\Source\System.Runtime.Serialization.pas',
+  System.Text in '..\Source\System.Text.pas',
+  System.Windows.Forms in '..\Source\System.Windows.Forms.pas',
+  System_.Threading in '..\Source\System_.Threading.pas',
+  BaseInterfacedComponent in '..\Source\BaseInterfacedComponent.pas',
+  BitConverter in '..\Source\BitConverter.pas',
+  DataObject in '..\Source\DataObject.pas',
+  Delphi.Extensions.BaseInterfaceField in '..\Source\Delphi.Extensions.BaseInterfaceField.pas',
+  Delphi.Extensions.ListDataset in '..\Source\Delphi.Extensions.ListDataset.pas',
+  Delphi.Extensions.Strings in '..\Source\Delphi.Extensions.Strings.pas',
+  Delphi.Extensions.VirtualDataset in '..\Source\Delphi.Extensions.VirtualDataset.pas',
+  System.ClassHelpers in '..\Source\System.ClassHelpers.pas',
+  System.Collections.Generic.Casting in '..\Source\System.Collections.Generic.Casting.pas',
+  System.Collections.Generic in '..\Source\System.Collections.Generic.pas',
+  System.Collections.ListInterface.impl in '..\Source\System.Collections.ListInterface.impl.pas',
+  System.Collections.LiveBindings in '..\Source\System.Collections.LiveBindings.pas',
+  System.Collections.ObjectModel in '..\Source\System.Collections.ObjectModel.pas',
+  System.Collections in '..\Source\System.Collections.pas',
+  System.Collections.Specialized in '..\Source\System.Collections.Specialized.pas',
+  System.ComponentModel in '..\Source\System.ComponentModel.pas';
+
+end.
+

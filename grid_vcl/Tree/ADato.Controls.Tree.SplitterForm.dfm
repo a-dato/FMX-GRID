@@ -1,0 +1,29 @@
+object TreeControlColumnSplitter: TTreeControlColumnSplitter
+  Left = 0
+  Top = 0
+  AlphaBlend = True
+  AlphaBlendValue = 100
+  BorderStyle = bsNone
+  Caption = 'frmSplitter'
+  ClientHeight = 281
+  ClientWidth = 120
+  Color = clMaroon
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  Font.Style = []
+  FormStyle = fsStayOnTop
+  OldCreateOrder = False
+  OnMouseMove = FormMouseMove
+  OnMouseUp = FormMouseUp
+  PixelsPerInch = 96
+  TextHeight = 13
+  object Timer1: TTimer
+    Enabled = False
+    Interval = 100
+    OnTimer = Timer1Timer
+    Left = 32
+    Top = 24
+  end
+end
