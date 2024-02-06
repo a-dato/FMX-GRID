@@ -9,13 +9,16 @@ FMX-Grid provides the following features:
 * Fast scrolling
 * Extendable property model based on .Net type system (object properties can be modified at runtime)
 * Development backed up by a professional team of FMX developers
-* Components used in professional software (Lynx/Lynx-x) in a large user community
+* Components used in professional software (Lynx/Lynx-x) by a large user community
+* Free and commercial versions available
+* Commercial version adds model support and property binding (bind properties to editors for advanced two way syncing)
 
 ## License
-One software license is required per developer.
-Full source code is included, software may be used during development without a license. A valid license is required when this software is part of a application distributed/sold/made available to customers/users outside your own organization. If you have a valid license, software may be distributed royaly-free. Licenses are valid for 12 months, a subscription is required to keep licenses valid. Subscriptons must be renewed after the end date. If you are renewing your license before (or up to 30 days after) the current expiration date, the new expiration date will be calculated based on the original order date.
+FMX-GRID is a free component with source code. This component can be used by any number of developers and offers royalty free distribution of applications.
 
-You may install the product on more than one machine as long as each developer has their own license. This allows you to install it on your work, home and laptop machines. Run-time royalty free.
+FMX-GRID-MODEL is a commercial product. It adds model support and property binding for easy creation of user interfaces. A license is required per developer. Licenses are valid for 12 months, a subscription is required to keep licenses valid. Subscriptons must be renewed after the end date. If you are renewing your license before (or up to 30 days after) the current expiration date, the new expiration date will be calculated based on the original order date. Updates are only available to users with a valid license. 
+
+You may install the product on more than one machine as long as each developer has their own license. This allows you to install it on your work, home and laptop machines. 
 
 Support is only provided to developers with a valid license.
 ## Installation
@@ -26,15 +29,15 @@ Installation steps:
 * Compile all packages
 * Select all design packages, and select 'Install' from the popup menu
 * Add the following directpries to your library path:
-	adato_grid\adato_datamodel\DataModel
-	adato_grid\adato_datamodel\General
-	adato_grid\adato_datamodel\ObjectModel
-	adato_grid\adato_grid_vcl\Css
-	adato_grid\adato_grid_vcl\General
-	adato_grid\adato_grid_vcl\Tree
-	adato_grid\adato_grid_fmx\Scrollable
-	adato_grid\adato_grid_fmx\Tree
-	adato_grid\adato_grid_fmx\Package
+	fmx-grid\datamodel\DataModel
+	fmx-grid\datamodel\General
+	fmx-grid\datamodel\ObjectModel
+	fmx-grid\grid_vcl\Css
+	fmx-grid\grid_vcl\General
+	fmx-grid\grid_vcl\Tree
+	fmx-grid\grid_fmx\Scrollable
+	fmx-grid\grid_fmx\Tree
+	fmx-grid\grid_fmx\Package
 
 ## Demos
 This software comes with sample applications. These applications are available inside directory 'Samples'.

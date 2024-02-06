@@ -405,7 +405,8 @@ begin
   if (self._items.IsReadOnly) then
     ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
   if (CCollection<T>.IsCompatibleObject(value)) then
-    Exit(self.Remove(self.reverseCast(value)));
+    Exit(self.Remove(self.reverseCast(value))) else
+    Exit(False);
 end;
 
 function CCollection<T>.Remove(const item: T): boolean;
