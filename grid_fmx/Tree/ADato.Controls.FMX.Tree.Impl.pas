@@ -43,7 +43,7 @@ uses
   , ADato.ObjectModel.intf,
   ADato.Sortable.Intf,
   FMX.Objects,
-  FMX.Ani, ADato.InsertPosition;
+  FMX.Ani, ADato.InsertPosition, ADato.ObjectModel.TrackInterfaces;
 
 const
   // see also const in TScrollableRowControl<T: IRow>  class
@@ -5974,8 +5974,8 @@ begin
       _model.ObjectModelContext.OnContextChanged.Remove(ObjectModelContextChanged);
     end;
 
-    var ct: IObjectListModelChangeTracking;
-    if (_modelListItemChanged <> nil) and Interfaces.Supports<IObjectListModelChangeTracking>(_model, ct) then
+    var ct: IOnItemChangedSupport;
+    if (_modelListItemChanged <> nil) and Interfaces.Supports<IOnItemChangedSupport>(_model, ct) then
       ct.OnItemChanged.Remove(_modelListItemChanged);
   end;
 
@@ -5992,8 +5992,8 @@ begin
       _model.ObjectModelContext.OnContextChanged.Add(ObjectModelContextChanged);
     end;
 
-    var ct: IObjectListModelChangeTracking;
-    if Interfaces.Supports<IObjectListModelChangeTracking>(_model, ct) then
+    var ct: IOnItemChangedSupport;
+    if Interfaces.Supports<IOnItemChangedSupport>(_model, ct) then
     begin
       if _modelListItemChanged = nil then
         _modelListItemChanged := TObjectListModelItemChangedDelegate.Create(Self);
@@ -9448,25 +9448,29 @@ begin
 
    So we cannot use construction CellControl.StylesData['checkboxcell.IsChecked'] := CheckedFlag; }
 
-   if CellControl.Controls.Count > 0 then
-   begin
-    var checkBoxColumnControl := CellControl.Controls.List[0];
-    if Interfaces.Supports(checkBoxColumnControl, IIsChecked) then
+  var checkBoxColumnControl: TFmxObject := nil;
+
+  if CellControl.Controls.Count > 0 then
+  begin
+    Interfaces.Supports(CellControl.Controls.List[0], IIsChecked, checkBoxColumnControl) ;
+
+    // In case custom style
+    if (checkBoxColumnControl = nil) then
+      checkBoxColumnControl := CellControl.FindStyleResource('check');
+
+    if checkBoxColumnControl is TCheckBox then
     begin
-      if checkBoxColumnControl is TCheckBox then
-      begin
-        var checkBox := TCheckBox(checkBoxColumnControl);
-        checkBox.IsChecked := CheckedFlag;
-        checkBox.OnClick := Checkbox_OnClick;
-      end
-      else if checkboxColumnControl is TRadioButton then
-      begin
-        var radioButton := TRadioButton(checkBoxColumnControl);
-        radioButton.IsChecked := CheckedFlag;
-        radioButton.OnClick := Checkbox_OnClick;
-      end;
+      var checkBox := TCheckBox(checkBoxColumnControl);
+      checkBox.IsChecked := CheckedFlag;
+      checkBox.OnClick := Checkbox_OnClick;
+    end
+    else if checkboxColumnControl is TRadioButton then
+    begin
+      var radioButton := TRadioButton(checkBoxColumnControl);
+      radioButton.IsChecked := CheckedFlag;
+      radioButton.OnClick := Checkbox_OnClick;
     end;
-   end;
+  end;
 
   // Checkboxes are not hidden while editing
   //    if MakeVisible then

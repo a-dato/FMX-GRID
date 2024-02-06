@@ -1,5 +1,4 @@
-{$I ..\..\dn4d\Source\Adato.inc}
-
+{$I Adato.inc}
 unit ADato.ObjectModel.intf;
 
 interface
@@ -147,6 +146,9 @@ type
 
     property  ContainedProperty: _PropertyInfo read get_ContainedProperty;
     property  Bindings: List<IPropertyBinding> read get_Bindings;
+
+    function  GetValue(const obj: CObject; const index: array of CObject): CObject;
+    procedure SetValue(const obj: CObject; const value: CObject; const index: array of CObject; ExecuteTriggers: Boolean = false);
   end;
 
   TGetPickList = reference to function: IList;
