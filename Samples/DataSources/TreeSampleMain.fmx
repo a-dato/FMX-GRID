@@ -11,7 +11,7 @@ object Form1: TForm1
   object FMXTreeControl1: TFMXTreeControl
     Align = Client
     Size.Width = 558.000000000000000000
-    Size.Height = 406.000000000000000000
+    Size.Height = 446.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 1
     AcceptsTab = False
@@ -28,12 +28,12 @@ object Form1: TForm1
     HighlightRows = True
     LayoutColumnsComplete = FMXTreeControl1LayoutColumnsComplete
     Viewport.Width = 556.000000000000000000
-    Viewport.Height = 379.000000000000000000
+    Viewport.Height = 419.000000000000000000
   end
   object Layout1: TLayout
     Align = Top
     Size.Width = 757.000000000000000000
-    Size.Height = 81.000000000000000000
+    Size.Height = 41.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 2
     object Button1: TButton
@@ -46,27 +46,6 @@ object Form1: TForm1
       Text = 'List<ICompany>'
       TextSettings.Trimming = None
       OnClick = Button1Click
-      object Button8: TButton
-        Position.Y = 30.000000000000000000
-        Size.Width = 137.000000000000000000
-        Size.Height = 22.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 5
-        Text = 'IModel<ICompany>'
-        TextSettings.Trimming = None
-        OnClick = Button8Click
-      end
-    end
-    object Button2: TButton
-      Position.X = 153.000000000000000000
-      Position.Y = 41.000000000000000000
-      Size.Width = 168.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 1
-      Text = 'IEditableModel<ICompany>'
-      TextSettings.Trimming = None
-      OnClick = Button2Click
     end
     object Button3: TButton
       Position.X = 153.000000000000000000
@@ -74,7 +53,7 @@ object Form1: TForm1
       Size.Width = 144.000000000000000000
       Size.Height = 22.000000000000000000
       Size.PlatformDefault = False
-      TabOrder = 2
+      TabOrder = 1
       Text = 'Hierarchy (IDataModel)'
       TextSettings.Trimming = None
       OnClick = Button3Click
@@ -82,60 +61,34 @@ object Form1: TForm1
     object TDataset: TButton
       Position.X = 305.000000000000000000
       Position.Y = 11.000000000000000000
-      TabOrder = 3
+      TabOrder = 2
       Text = 'TDataset'
       TextSettings.Trimming = None
       OnClick = TDatasetClick
-    end
-    object Button9: TButton
-      Position.X = 329.000000000000000000
-      Position.Y = 41.000000000000000000
-      Size.Width = 208.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 4
-      Text = 'IDataModel -> IModel<ICompany>'
-      TextSettings.Trimming = None
-      OnClick = Button9Click
     end
   end
   object Layout2: TLayout
     Align = Right
     Position.X = 558.000000000000000000
-    Position.Y = 81.000000000000000000
+    Position.Y = 41.000000000000000000
     Size.Width = 199.000000000000000000
-    Size.Height = 406.000000000000000000
+    Size.Height = 446.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 3
-    object edNameByBinding: TEdit
-      Touch.InteractiveGestures = [LongTap, DoubleTap]
-      TabOrder = 1
-      Position.X = 8.000000000000000000
-      Position.Y = 24.000000000000000000
-      Size.Width = 183.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      object Label1: TLabel
-        Position.Y = -16.000000000000000000
-        TextSettings.Trimming = None
-        Text = 'Name'
-        TabOrder = 0
-      end
-    end
     object Button4: TButton
       Action = acExpand
       ImageIndex = -1
       Position.X = 8.000000000000000000
-      Position.Y = 176.000000000000000000
-      TabOrder = 3
+      Position.Y = 120.000000000000000000
+      TabOrder = 2
       TextSettings.Trimming = None
     end
     object Button5: TButton
       Action = acCollapse
       ImageIndex = -1
-      Position.X = 8.000000000000000000
-      Position.Y = 206.000000000000000000
-      TabOrder = 2
+      Position.X = 96.000000000000000000
+      Position.Y = 120.000000000000000000
+      TabOrder = 1
       TextSettings.Trimming = None
     end
     object edNameByLiveBinding: TEdit
@@ -149,24 +102,8 @@ object Form1: TForm1
       object Label2: TLabel
         Position.Y = -16.000000000000000000
         TextSettings.Trimming = None
-        Text = 'Name'
+        Text = 'TDateset.Name'
         TabOrder = 0
-      end
-    end
-    object Button6: TButton
-      Position.X = 96.000000000000000000
-      Position.Y = 176.000000000000000000
-      TabOrder = 4
-      Text = 'Insert'
-      TextSettings.Trimming = None
-      OnClick = Button6Click
-      object Button7: TButton
-        Position.X = 8.000000000000000000
-        Position.Y = 32.000000000000000000
-        TabOrder = 5
-        Text = 'Button7'
-        TextSettings.Trimming = None
-        OnClick = Button7Click
       end
     end
   end
@@ -192,17 +129,17 @@ object Form1: TForm1
     UpdateOptions.AssignedValues = [uvCheckRequired, uvAutoCommitUpdates]
     UpdateOptions.CheckRequired = False
     UpdateOptions.AutoCommitUpdates = True
-    Left = 64
-    Top = 96
+    Left = 72
+    Top = 200
   end
-  object DatasetDataModel1: TDatasetDataModel
+  object MemtableToDataModel: TDatasetDataModel
     DataLinks = <
       item
         DataSource = DataSource1
         KeyField = 'Name'
       end>
-    Left = 251
-    Top = 97
+    Left = 283
+    Top = 201
     DataModel = 
       '<DataModel><Columns><Item type="DataModelColumn"><Name>Name</Nam' +
       'e><DataType>String</DataType></Item></Columns></DataModel>'#13#10
@@ -213,20 +150,20 @@ object Form1: TForm1
   end
   object DataSource1: TDataSource
     DataSet = FDMemTable1
-    Left = 152
-    Top = 96
+    Left = 160
+    Top = 200
   end
   object BindSourceDB1: TBindSourceDB
-    DataSet = DatasetDataModel1
+    DataSet = MemtableToDataModel
     ScopeMappings = <>
-    Left = 168
-    Top = 248
+    Left = 160
+    Top = 256
   end
   object BindingsList1: TBindingsList
     Methods = <>
     OutputConverters = <>
-    Left = 68
-    Top = 245
+    Left = 76
+    Top = 253
     object LinkControlToField1: TLinkControlToField
       Category = 'Quick Bindings'
       DataSource = BindSourceDB1
