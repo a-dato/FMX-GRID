@@ -8,7 +8,8 @@ uses
   ADato.ObjectModel.List.intf,
   System.Collections.Generic,
   ADato.ObjectModel.intf,
-  ADato.InsertPosition, ADato.ObjectModel.TrackInterfaces;
+  ADato.InsertPosition,
+  ADato.ObjectModel.TrackInterfaces;
 
 type
   IObjectListModelChangeTracking = interface(IObjectListModel)

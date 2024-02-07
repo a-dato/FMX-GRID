@@ -40,13 +40,6 @@ type
     function CreateInstance: CObject;
   end;
 
-  IChangedSupport = interface(IBaseInterface)
-    ['{EE4A8BDA-16EE-4281-9C86-06675DCAEB89}']
-    function get_Changed: Boolean;
-
-    property Changed: Boolean read get_Changed;
-  end;
-
   IEditState = interface(IBaseInterface)
     ['{E64C221B-1C01-412D-A048-07B1C1DBF4C0}']
     function  get_IsChanged: Boolean;

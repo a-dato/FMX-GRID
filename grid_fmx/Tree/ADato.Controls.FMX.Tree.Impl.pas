@@ -4820,7 +4820,7 @@ end;
 
 function TCustomTreeControl.DeleteRow: Boolean;
 begin
-  Result := InternalRemoveRow(True);
+  Result := InternalRemoveRow(_model <> nil);
   if _listComparer <> nil then
     _listComparer.ResetSortedRows(False);
 end;
