@@ -338,7 +338,7 @@ begin
 
   fdConnection.LoginPrompt := False;
 
-
+  // Connect using a thread
   TThread.CreateAnonymousThread(procedure begin
 
     while not fdConnection.Connected do

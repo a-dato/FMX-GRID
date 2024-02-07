@@ -16,9 +16,9 @@ type
   TCreatorFunc_1<T> = reference to function(const Param0: CObject) : T;
   TCreatorFunc_2<T> = reference to function(const Param0, Param1: CObject) : T;
 
-  Factory = class
+  CFactory = class
   protected
-    class var _Instance: Factory;
+    class var _Instance: CFactory;
 
     _dict: Dictionary<PTypeInfo, TValue>;
 
@@ -38,73 +38,73 @@ type
     function  CreateInstance<T, P0>(const Param0: P0) : T; overload;
     function  CreateInstance<T, P0, P1>(const Param0: P0; const Param1: P1) : T; overload;
 
-    class property Instance: Factory read _Instance;
+    class property Instance: CFactory read _Instance;
   end;
 
 implementation
 
-{ Factory }
+{ CFactory }
 
-class constructor Factory.Create;
+class constructor CFactory.Create;
 begin
-  Factory._Instance := Factory.Create;
+  CFactory._Instance := CFactory.Create;
 end;
 
-constructor Factory.Create;
+constructor CFactory.Create;
 begin
   _dict := CDictionary<PTypeInfo, TValue>.Create;
 end;
 
-procedure Factory.RegisterType<T>(const Func: TCreatorFunc<T>);
+procedure CFactory.RegisterType<T>(const Func: TCreatorFunc<T>);
 begin
   _dict[TypeInfo(T)] := TValue.From<TCreatorFunc<T>>(Func);
 end;
 
-procedure Factory.RegisterType<T>(const Func: TCreatorFunc_1<T>);
+procedure CFactory.RegisterType<T>(const Func: TCreatorFunc_1<T>);
 begin
   _dict[TypeInfo(T)] := TValue.From<TCreatorFunc_1<T>>(Func);
 end;
 
-procedure Factory.RegisterType<T>(const Func: TCreatorFunc_2<T>);
+procedure CFactory.RegisterType<T>(const Func: TCreatorFunc_2<T>);
 begin
   _dict[TypeInfo(T)] := TValue.From<TCreatorFunc_2<T>>(Func);
 end;
 
-procedure Factory.RegisterType<T, P0>(const Func: TCreatorFunc<T, P0>);
+procedure CFactory.RegisterType<T, P0>(const Func: TCreatorFunc<T, P0>);
 begin
   _dict[TypeInfo(T)] := TValue.From<TCreatorFunc<T, P0>>(Func);
 end;
 
-procedure Factory.RegisterType<T, P0, P1>(const Func: TCreatorFunc<T, P0, P1>);
+procedure CFactory.RegisterType<T, P0, P1>(const Func: TCreatorFunc<T, P0, P1>);
 begin
   _dict[TypeInfo(T)] := TValue.From<TCreatorFunc<T, P0, P1>>(Func);
 end;
 
-function Factory.CreateInstance<T>: T;
+function CFactory.CreateInstance<T>: T;
 begin
   var func := _dict[TypeInfo(T)].AsType<TCreatorFunc<T>>();
   Result := func();
 end;
 
-function Factory.CreateInstance<T, P0>(const Param0: P0): T;
+function CFactory.CreateInstance<T, P0>(const Param0: P0): T;
 begin
   var func := _dict[TypeInfo(T)].AsType<TCreatorFunc<T, P0>>();
   Result := func(Param0);
 end;
 
-function Factory.CreateInstance<T, P0, P1>(const Param0: P0; const Param1: P1): T;
+function CFactory.CreateInstance<T, P0, P1>(const Param0: P0; const Param1: P1): T;
 begin
   var func := _dict[TypeInfo(T)].AsType<TCreatorFunc<T, P0, P1>>();
   Result := func(Param0, Param1);
 end;
 
-function Factory.CreateInstance<T>(const Param0: CObject): T;
+function CFactory.CreateInstance<T>(const Param0: CObject): T;
 begin
   var func := _dict[TypeInfo(T)].AsType<TCreatorFunc_1<T>>();
   Result := func(Param0);
 end;
 
-function Factory.CreateInstance<T>(const Param0, Param1: CObject): T;
+function CFactory.CreateInstance<T>(const Param0, Param1: CObject): T;
 begin
   var func := _dict[TypeInfo(T)].AsType<TCreatorFunc_2<T>>();
   Result := func(Param0, Param1);
