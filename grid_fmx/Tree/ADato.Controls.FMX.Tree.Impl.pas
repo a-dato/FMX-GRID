@@ -9452,7 +9452,8 @@ begin
 
   if CellControl.Controls.Count > 0 then
   begin
-    Interfaces.Supports(CellControl.Controls.List[0], IIsChecked, checkBoxColumnControl) ;
+    if Interfaces.Supports(CellControl.Controls.List[0], IIsChecked) then
+      checkBoxColumnControl := CellControl.Controls.List[0];
 
     // In case custom style
     if (checkBoxColumnControl = nil) then
