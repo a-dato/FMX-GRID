@@ -46,6 +46,8 @@ uses
   FMX.Ani, ADato.InsertPosition, ADato.ObjectModel.TrackInterfaces;
 
 const
+  USE_TREE_CACHE = True;
+
   // see also const in TScrollableRowControl<T: IRow>  class
   STYLE_TREE = 'FMXTreeControlstyle';
   STYLE_CELL = 'cell';
@@ -681,6 +683,10 @@ type
       write set_Selected;
 
     property TreeControl: ITreeControl read get_TreeControl;
+    property OnInitCell: TOnInitCell read get_OnInitCell write set_OnInitCell;
+    property OnHeaderApplyStyleLookup: TNotifyEvent
+      read  get_OnHeaderApplyStyleLookup
+      write set_OnHeaderApplyStyleLookup;
   {$IFDEF DELPHI}
   published
   // Warning! For these properties to save correctly in FMX file from RAD Designer,
@@ -766,10 +772,12 @@ type
     property WidthType: TColumnWidthType
       read  get_WidthType
       write set_WidthType;
-    property OnInitCell: TOnInitCell read get_OnInitCell write set_OnInitCell;
-    property OnHeaderApplyStyleLookup: TNotifyEvent
-      read  get_OnHeaderApplyStyleLookup
-      write set_OnHeaderApplyStyleLookup;
+
+// This should not be visible (published) in a COLUMN editor, moved into public.
+//    property OnInitCell: TOnInitCell read get_OnInitCell write set_OnInitCell;
+//    property OnHeaderApplyStyleLookup: TNotifyEvent
+//      read  get_OnHeaderApplyStyleLookup
+//      write set_OnHeaderApplyStyleLookup;
   end;
 
   TFMXTreeCheckboxColumn = {$IFDEF DOTNET}public{$ENDIF} class(
@@ -4413,7 +4421,13 @@ begin
         RemoveRowsFromView;
         View.ClearSort;
         _contentBounds.Right := 0;
-        _contentBounds.Bottom := 0;
+
+       // _contentBounds.Bottom := 0;
+       { Commented: If ContentBounds.Bottom is reset here. But later, in InternalAlign, Scrollbox resets maxTarget,
+         which resets ViewportY too. Without correct ViewPortY we cannnot not set new correct ContentBounds and clip.
+         As a result issue - DataChanged does nor save toprow position (any row - cached or not) and always scrolls to the row0.
+         ContentBounds will be recalculated correclty, related to a new data in UpdateContents. Alex. }
+
         _lastSize := TSizeF.Create(0, 0);  // reset to call AutofitColumns again
       	cellChanged := True;
       end;
@@ -5043,7 +5057,8 @@ begin
     if _View.IsDataModelView then
       rowLevel := (Interfaces.ToInterface(DataItem) as IDataRowView).Row.Level;
 
-    treeRow := View.CreateRow(DataItem, ViewRowIndex, False, rowLevel);
+    treeRow := CreateRow(DataItem, ViewRowIndex, rowLevel);
+    //treeRow := View.CreateRow(DataItem, ViewRowIndex, False, rowLevel);
 
     DoRowLoading(treeRow);
 
@@ -10192,6 +10207,8 @@ begin
 
   _DataModelView.CurrencyManager.CurrentRowChanged.Add(CurrentRowChanged);
   _DataModelView.CurrencyManager.TopRowChanged.Add(TopRowChanged);
+
+  _CacheRows := USE_TREE_CACHE;
 end;
 
 destructor TTreeDataModelViewRowList.Destroy;
@@ -11885,6 +11902,7 @@ begin
     CollectionNotification.CollectionChanged.Add(RowHeightsCollectionChanged);
 
   // InitializeColumnPropertiesFromColumns;
+  _CacheRows := USE_TREE_CACHE;
 end;
 
 procedure TTreeRowList.CreateDefaultColumns(const AList: ITreeColumnList);

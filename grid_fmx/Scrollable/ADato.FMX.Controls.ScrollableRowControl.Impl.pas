@@ -264,7 +264,8 @@ type
     // If Row is visible in a View - method will do nothing, if row is not in a View - Row will be created and
     // positioned related to the scrolling direction
     function InitTemporaryRow(const DataItem: CObject; ViewRowIndex: Integer): T; virtual;
-    // Create a new temporary row without controls 
+    // Create a new temporary row without controls
+    function CreateRow(const Data: CObject; AIndex: Integer; const ARowLevel: integer = 0): T;
     function GetRow(Index: Integer; CreateIfNotExistInView: Boolean): T;
     // GetRow: Returns a row from the View, if it exists in a View now or if AlwaysReturnRow = True - create a new temporary row without controls
     function GetRowAt(Y: single): IRow;
@@ -326,6 +327,7 @@ type
      • AutoFitColumns never changes Column.Visible property. Only user can change it. When Autofit hides some column, it
        changes Column.IsShowing: boolean (Visible = true and IsShowing = false). For example user can add some columns
        in design time and set Visible=False - AutoFitColumns skips them}
+    property Current: Integer read get_Current write set_Current;
     property TopRow: Integer read GetTopRow write SetTopRow;
     property MultiSelect: Boolean read _MultiSelect write _MultiSelect;
     property ShowKeyboardCursorRectangle: Boolean read _ShowKeyboardCursorRectangle write _ShowKeyboardCursorRectangle;
@@ -350,6 +352,7 @@ type
       See also CellLoadingEventArgs.}
     property ShowVScrollBar: Boolean read _ShowVScrollBar write SetShowVScrollBar;
     property ShowHScrollBar: Boolean read _ShowHScrollBar write SetShowHScrollBar;
+    property ContentBounds: TRectF read _contentBounds; 
   end;
 
    // base class from which inherited all Views: TTreeRowList, TTreeDataModelViewRowList and TGanttDatamodelViewRowList.
@@ -369,6 +372,7 @@ type
     function CreateRowClass(const Data: CObject; AIndex: Integer; IsTemporaryRow: Boolean): T; virtual; abstract;
     function HasChildren(const DataItem: CObject): boolean; overload; virtual;
     function HasChildren(const ARow: T): Boolean; overload; virtual;
+    procedure DoOnCacheRowBeforeHide(const ARow: IRow; var CanCache: Boolean); virtual;
   public
     constructor Create;
     destructor Destroy; override;
@@ -460,6 +464,16 @@ begin
   ShowVScrollBar := True;
   ShowHScrollBar := True;
  end;
+
+function TScrollableRowControl<T>.CreateRow(const Data: CObject; AIndex: Integer; const ARowLevel: integer = 0): T;
+begin
+  inc(FUpdating);
+  try
+    Result := _View.CreateRow(Data, AIndex, False, ARowLevel);
+  finally
+    dec(FUpdating);
+  end;
+end;
 
 destructor TScrollableRowControl<T>.Destroy;
 begin
@@ -1607,7 +1621,12 @@ begin
     if lCount = -1 then
       lCount := _View.Count - start;
 
-    _View.RemoveRange(start, lCount);
+    inc(FUpdating);  /// this will prevent calling InternalAlign, while hiding-showing a row from cache (when changing row.Control.Visible)
+    try
+      _View.RemoveRange(start, lCount);
+    finally
+      dec(FUpdating);
+    end;
   end;
 
   if MakeViewNil then
@@ -2800,6 +2819,11 @@ begin
   inherited;
 end;
 
+procedure TBaseViewList<T>.DoOnCacheRowBeforeHide(const ARow: IRow; var CanCache: Boolean);
+begin
+  //
+end;
+
 function TBaseViewList<T>.IsDataModelView: Boolean;
 begin
   Result := _IsDataModelView;
@@ -2894,10 +2918,16 @@ end;
 procedure TBaseViewList<T>.RemoveAt(index: Integer);
 begin
   if _CacheRows then
-   begin
-     var removeRow: IRow := Self[index];
-     _CacheList.Add(removeRow);
-      removeRow.Control.Visible := False;
+  begin
+    var [unsafe] removedRow: IRow := Self[index];
+    var CanCache := True;
+  //  DoOnCacheRowBeforeHide(removedRow, CanCache);
+
+   // if CanCache then
+    begin
+      _CacheList.Add(removedRow);
+      removedRow.Control.Visible := False;
+    end;
   end;
 
   inherited;
@@ -2909,15 +2939,27 @@ begin
 
   // save rows before removing from View to re-use them later
   if _CacheRows then
+  begin
+    //for var i := Self.Count - 1 downto Index do // - With this line only Tree\Gantt shows empty rows and freezing wghile scrolling
     for var i := Index to Self.Count - 1 do
     begin
       if processedCount = Count {Count - is an argument, not View.Count!}  then break;
 
-      var removeRow: IRow := Self[i];
-      _CacheList.Add(removeRow);
-      removeRow.Control.Visible := False;
+      var [unsafe] removedRow: IRow := Self[i];
+      var CanCache := True;
+      DoOnCacheRowBeforeHide(removedRow, CanCache);
+
+      if CanCache then
+      begin
+        _CacheList.Add(removedRow);
+        removedRow.Control.Visible := False;
+      end;
+
+      //RemoveAt(i); 
+
       inc(processedCount);
     end;
+   end;
 
   inherited;
 end;

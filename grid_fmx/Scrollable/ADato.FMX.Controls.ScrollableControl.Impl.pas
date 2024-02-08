@@ -155,7 +155,11 @@ type
     constructor Create(AOwner: TComponent); override;
     procedure ScrollByAllocBounds(DeltaX, DeltaY: Single); 
     procedure ScrollByAllocBoundsVPX(NewViewportX: Single); inline;
-    property ContentBounds: TRectF read _contentBounds;
+    { property ContentBounds: TRectF read _contentBounds;
+      Moved into child class TScrollableRowControl<T: IRow>
+      In this class this "ContentBounds" is mixed with ContentBounds from ScrollBox class, which is updated later
+      That's why InternalAlign here did not work correctly, and DataChanged does nor save toprow position, possibly other issues.
+      Alex}
 {$IFDEF DEBUG} // remove it later after tests. 10.10.23 Alex
     function GetCB: TRectF;
     function GetVPMax: Single;
@@ -526,60 +530,6 @@ begin
   inherited ViewportPosition := Value;
 {$ENDIF}
 end;
-
-//procedure TScrollableControl.SetViewportPositionWithCorrection(const Value: TPointF);
-//// This function cannot extend ContentBounds, VPX will not be applied if X is out of bounds.
-//// Use ScrollByAllocBounds instead.
-//var
-//  X: Single;
-//begin
-//  if Value = ViewportPosition then Exit;
-//
-//  X := Value.X;
-//
-//{$IFDEF MSWINDOWS}
-//{ Correct (adjust) the X value, so FMX will only round it up (not round down).
-//  There is an issue when user uses DPI > 100% in Windows. FMX does not set exact X Viewport.
-//  Instead of 280, it sets 279.88, because it rounds number. This may set inccorrect date in Timebar -
-//  instead of 1 Oct 00:00 - 29 Sep 23:58m then Date.Trunc = 29 Sep.
-//  Corrected value: 280 > 280.04 > FMX value  }
-//  if (Scene <> nil) and (X <> 0) then
-//  begin
-//    var sc := Scene.GetSceneScale;
-//
-//    if sc > 1 then
-//    begin
-//      var fr := Abs( Frac(X * sc) );
-//
-//      if X > 0 then
-//      begin
-//
-//        if (fr < 0.5) then
-//        begin
-//          fr := 0.5 - fr;
-//          X := X + fr;
-//          // in this case X * ratio will be rounded UP. So final value for VPX "280" will be "280.5" instead of 279.88
-//        end;
-//      end
-//      else  // X < 0
-//      begin
-//        // in this case value will be rounded DOWN. Because value is negative so - if we would round it UP -
-//        // date will be decreased: -60 (7 Oct 00:00) > -60.123 (6 Oct 29:50), so RoundDown: -60 < -59.75
-//        if (fr >= 0.5) then
-//        begin
-//          fr := fr - 0.5;
-//          X := X + fr;
-//        end;
-//      end;
-//    end;
-//
-//    var X2 := Round(X * sc) / sc;  // check here, same code in Viewport
-//  end;
-//{$ENDIF}
-//
-//  inherited ViewportPosition := PointF(X, Value.Y);
-//end;
-
 
 // related to DO_NOT_ROUND_VIEWPORT_VALUES. Copied from TCustomScrollBox.DoRealign without changes,
 // to call own TScrollableControl.InternalAlign;
