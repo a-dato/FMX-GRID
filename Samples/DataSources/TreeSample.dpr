@@ -4,7 +4,8 @@ uses
   System.StartUpCopy,
   FMX.Forms,
   TreeSampleMain in 'TreeSampleMain.pas' {Form1},
-  ADato.ObjectModel.DataModel.impl in '..\..\adato_datamodel\ObjectModel\ADato.ObjectModel.DataModel.impl.pas';
+  ADato.ObjectModel.DataModel.impl in '..\..\adato_datamodel\ObjectModel\ADato.ObjectModel.DataModel.impl.pas',
+  ApplicationObjects in '..\SharedFiles\ApplicationObjects.pas';
 
 {$R *.res}
 
