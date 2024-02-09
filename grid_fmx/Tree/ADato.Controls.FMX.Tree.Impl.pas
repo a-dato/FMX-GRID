@@ -5071,9 +5071,6 @@ begin
       treeRowHeight := AMinHeight;
     end;
 
-//    rowHeight := treeRowHeight;
-//    // do not use treeRowHeight var below anymore, - treeRow.Height can be changed in cellLoading events.
-
     isCachedRow := treeRowClass.Control <> nil;
 
     if not isCachedRow then
@@ -5099,10 +5096,6 @@ begin
     // Negotiate the final height of the row. This will init and add a row in another paired control (Gantt or Tree)
     if not _SkipRowHeightNegotiation and (_RowHeights <> nil) then
     begin
-//      var topRowHeight: Single := 0.0;
-//      if _View.Count > 0 then
-//        topRowHeight := _View[0].Height;
-
       _RowHeights.NegotiateRowHeight(Self, treeRow, {var} rowHeight);
 
       // When we apply value to treeRow.Height, it also applies for Row.Control. But if treeRow.Height was set in

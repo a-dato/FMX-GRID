@@ -579,15 +579,17 @@ begin
       _topIndex := TopIndex;
       _index := _viewRow.ViewIndex;
 
-//    // KV: 3-1-2012
-//    // Always use _dataModel.RowIndex(ARow) to access the buffer!!
-//    begin
-//      _topIndex := TopIndex;
-//      _index := _dataModel.RowIndex(ARow);
-
       if (_index - _topIndex = ActiveRecord) then
       begin
+        {$IFDEF DEBUG}
+        try
+          _var := Fields[AColumn.Index].Value;
+        except
+          _var := Fields[AColumn.Index].Value;
+        end;
+        {$ELSE}
         _var := Fields[AColumn.Index].Value;
+        {$ENDIF}
 
         Result := _var;
 
