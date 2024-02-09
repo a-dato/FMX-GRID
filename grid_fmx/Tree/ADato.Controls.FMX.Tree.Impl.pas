@@ -6939,25 +6939,19 @@ begin
 
     vkEscape:
     begin
-      Key := 0;
-
       if _editor is TDropDownEditor then
         TDropDownEditor(_editor).SaveData := False;
 
-     // TThread.ForceQueue(nil, procedure begin
-         EditorEnd(False); //EndEdit(False);
-    //  end);
+      // EditorEnd will free edit control, Key must be cleared to stop any key handling
+      Key := 0;
+      EditorEnd(False);
     end;
 
     vkReturn:
     begin
-      // Need to call EndEdit here, because RowIndex or ColumnIndex were not changed and SelectCell will not not call EndEdit
-    //  TThread.ForceQueue(nil, procedure begin
-       // EndEdit;
-        EditorEnd(True);
-   //   end);
-
-//      Key := 0;
+      // EditorEnd will free edit control, Key must be cleared to stop any key handling
+      Key := 0;
+      EditorEnd(True);
     end;
   end;
 end;
