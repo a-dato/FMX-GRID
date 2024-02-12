@@ -19,7 +19,8 @@ uses
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys,
   FireDAC.Phys.MSSQL, FireDAC.Phys.MSSQLDef, FireDAC.FMXUI.Wait, FireDAC.DApt,
   FMX.Grid.Style, Fmx.Bind.Grid, Data.Bind.Grid, FMX.ScrollBox, FMX.Grid,
-  ADato.Controls.FMX.Tree.Intf, System.ComponentModel, ApplicationObjects;
+  ADato.Controls.FMX.Tree.Intf, System.ComponentModel, ApplicationObjects,
+  ADato.Data.DataModelViewDataset;
 
 type
   TForm1 = class(TForm)
@@ -40,9 +41,15 @@ type
     edNameByLiveBinding: TEdit;
     Label2: TLabel;
     DataModelNaqmeField: TWideStringField;
-    BindSourceDB1: TBindSourceDB;
+    BindSourceMemTableToDataModel: TBindSourceDB;
     BindingsList1: TBindingsList;
     LinkControlToField1: TLinkControlToField;
+    HierarchyToTDataset: TDataModelViewDataset;
+    BindSourceHierarchyToDataset: TBindSourceDB;
+    BindingsList2: TBindingsList;
+    LinkControlToField2: TLinkControlToField;
+    edDataModelName: TEdit;
+    Label1: TLabel;
     procedure acCollapseExecute(Sender: TObject);
     procedure acExpandExecute(Sender: TObject);
     procedure Button1Click(Sender: TObject);
@@ -53,6 +60,7 @@ type
 
   protected
     procedure SetupMemTable;
+    procedure SetupDataModelViewDataset;
 
     procedure TreeControlAddingNew(Sender: TObject; Args: AddingNewEventArgs);
 
@@ -94,6 +102,14 @@ begin
   _companyDataModel := TAppObjects.CreateCompanyDataModel;
   FMXTreeControl1.AddingNew := TreeControlAddingNew;
   FMXTreeControl1.DataModelView := _companyDataModel.DefaultView;
+
+  // Prepare for data aware components
+  // TDataModelViewDataset presents an IDataModel/IDataModelView as a TDataset
+  // Live binding is used to link field DataModelViewDataset1.Name to edit control edDataModelName
+
+  SetupDataModelViewDataset;
+  HierarchyToTDataset.DataModelView := _companyDataModel.DefaultView;
+  HierarchyToTDataset.Open;
 end;
 
 procedure TForm1.TreeControlAddingNew(Sender: TObject; Args: AddingNewEventArgs);
@@ -139,6 +155,16 @@ begin
   // Are we dealing with a hierarchycal data view?
   if FMXTreeControl1.DataModelView <> nil then
     FMXTreeControl1.Columns[0].ShowHierarchy := True;
+end;
+
+procedure TForm1.SetupDataModelViewDataset;
+begin
+  HierarchyToTDataset.Close;
+  HierarchyToTDataset.Fields.Clear;
+
+  var s := TVariantField.Create(HierarchyToTDataset);
+  s.FieldName := 'Name';
+  s.DataSet := HierarchyToTDataset;
 end;
 
 procedure TForm1.SetupMemTable;

@@ -142,6 +142,7 @@
         <DCCReference Include="..\ObjectModel\ADato.ObjectModel.List.intf.pas"/>
         <DCCReference Include="..\ObjectModel\ADato.ObjectModel.intf.pas"/>
         <DCCReference Include="..\ObjectModel\ADato.ObjectModel.List.Tracking.intf.pas"/>
+        <DCCReference Include="..\ObjectModel\ADato.ObjectModel.TrackInterfaces.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
