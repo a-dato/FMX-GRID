@@ -6549,6 +6549,7 @@ begin
 
   _isClearing := True;
   try
+    _Column := 0;
     ClearSelections;
 
     // Keep objects in place, data of the same type may be reloaded
