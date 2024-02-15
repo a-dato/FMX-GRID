@@ -156,7 +156,6 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
       Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowFocusRectangle, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
       ScrollPerRow = False
       DefaultExpandRows = False
-      DefaultRowHeight = 20.000000000000000000
       HighlightRows = True
       CellChanged = DataGridCellChanged
       EditStart = DataGridEditStart

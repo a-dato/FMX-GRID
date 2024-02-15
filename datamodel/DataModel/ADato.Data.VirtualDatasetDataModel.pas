@@ -174,6 +174,7 @@ type
     procedure InternalPost; override;
     procedure InternalRefresh; override;
     procedure OpenCursor(InfoQuery: Boolean = False); override;
+    procedure SetActive(Value: Boolean); override;
     procedure DoAfterScroll; override;
     procedure DoAfterOpen; override;
 
@@ -585,7 +586,11 @@ begin
         try
           _var := Fields[AColumn.Index].Value;
         except
-          _var := Fields[AColumn.Index].Value;
+          try
+            _var := Fields[AColumn.Index].Value;
+          except
+            _var := Null;
+          end;
         end;
         {$ELSE}
         _var := Fields[AColumn.Index].Value;
@@ -792,7 +797,13 @@ end;
 procedure TCustomVirtualDatasetDataModel.OpenCursor(InfoQuery: Boolean = False);
 begin
   inherited;
-  if not InfoQuery then
+end;
+
+procedure TCustomVirtualDatasetDataModel.SetActive(Value: Boolean);
+begin
+  inherited;
+
+  if Value then
   begin
     _dataModel.FillDataModel;
     Resync([]);
@@ -899,45 +910,58 @@ var
   end;
 
 begin
+  _ColumnsUpdated := True;
+
+  _columns := _mediator.Columns;
+  _columns.Clear;
   sl := TStringList.Create;
   try
-    _ColumnsUpdated := True;
-
     GetFieldNames(sl);
-
-    _columns := _mediator.Columns;
-    _newColumns := TDataModel.CreateDataModelColumnCollection(Self);
-
-    ColumnsChanged := sl.Count <> _columns.Count;
-
-    for i:=0 to sl.Count-1 do
+    for i := 0 to sl.Count - 1 do
     begin
-      column := _columns.FindByName(sl[i]);
-
-      if column = nil then
-      begin
-        column := CreateColumn(sl[i]);
-        ColumnsChanged := True;
-      end
-      else
-      begin
-        ColumnsChanged := ColumnsChanged or (column.Index <> i);
-        SetDataType(column);
-      end;
-
-      _newColumns.Add(column);
+      column := CreateColumn(sl[i]);
+      _columns.Add(column);
     end;
-
-    if ColumnsChanged then
-    begin
-      _columns.Clear;
-      for i:=0 to _newColumns.Count-1 do
-        _columns.Add(_newColumns[i]);
-    end;
-
   finally
     sl.Free;
   end;
+
+
+//    GetFieldNames(sl);
+//
+//    _columns := _mediator.Columns;
+//    _newColumns := TDataModel.CreateDataModelColumnCollection(Self);
+//
+//    ColumnsChanged := sl.Count <> _columns.Count;
+//
+//    for i:=0 to sl.Count-1 do
+//    begin
+//      column := _columns.FindByName(sl[i]);
+//
+//      if column = nil then
+//      begin
+//        column := CreateColumn(sl[i]);
+//        ColumnsChanged := True;
+//      end
+//      else
+//      begin
+//        ColumnsChanged := ColumnsChanged or (column.Index <> i);
+//        SetDataType(column);
+//      end;
+//
+//      _newColumns.Add(column);
+//    end;
+//
+//    if ColumnsChanged then
+//    begin
+//      _columns.Clear;
+//      for i:=0 to _newColumns.Count-1 do
+//        _columns.Add(_newColumns[i]);
+//    end;
+
+//  finally
+//    sl.Free;
+//  end;
 end;
 
 procedure TCustomVirtualDatasetDataModel.DoAfterOpen;

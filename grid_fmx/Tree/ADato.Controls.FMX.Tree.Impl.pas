@@ -4453,6 +4453,9 @@ begin
       InitLayout;
       InitHeaderColumnControls;
       TryAssignDefaultCheckboxColumn;
+
+      _Column := CMath.Min(_Column, Layout.Columns.Count - 1);
+
       cellChanged := True;
     end
     else if _InternalState * [TreeState.ColumnsChanged] <> [] then

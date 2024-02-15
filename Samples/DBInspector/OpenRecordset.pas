@@ -76,6 +76,9 @@ type
 
 implementation
 
+uses
+  System.TypInfo;
+
 {$R *.fmx}
 
 procedure TOpenRecordSetFrame.acAbortExecute(Sender: TObject);
@@ -205,7 +208,7 @@ begin
       if TheQuery.Active then
       begin
         DatasetDataModel1.Open;
-        DataGrid.DataModelView := DatasetDataModel1.DataModelView;;
+        DataGrid.DataModelView := DatasetDataModel1.DataModelView;
       end;
 
       if fdConnection.Messages <> nil then
