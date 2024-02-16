@@ -358,7 +358,7 @@ begin
 
     var v: PVariant := PVariant(vb);
 
-    if not VarIsNull(v^) then
+    if not VarIsNull(v^) and not VarIsEmpty(v^) then
     begin
       var vd := FindVarData(v^);
 

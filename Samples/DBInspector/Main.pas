@@ -345,6 +345,7 @@ begin
     try
       fdConnection.Connected := True;
     except
+      // Retry connecting, this time with a Login prompt
       if not fdConnection.LoginPrompt then
         fdConnection.LoginPrompt := True
       else
@@ -951,7 +952,10 @@ begin
 
     {$IFDEF DEBUG}
     if FileExists('Inspector.ini') then
-      FDManager.ConnectionDefFileName := 'Inspector.ini' else
+      FDManager.ConnectionDefFileName := 'Inspector.ini'
+    else if FileExists('D:\Synology\A-dato shared\Development\DBInspector\Inspector.ini') then
+      FDManager.ConnectionDefFileName := 'D:\Synology\A-dato shared\Development\DBInspector\Inspector.ini'
+    else
       FDManager.ConnectionDefFileName := '..\..\Inspector.ini';
     {$ELSE}
     // Look in current directory

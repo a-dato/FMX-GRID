@@ -31,6 +31,8 @@ Installation steps:
 * Compile all packages
 * Select all design packages, and select 'Install' from the popup menu
 * Add the following directpries to your library path:
+	fmx-grid\dn4d\Source
+	fmx-grid\datamodel\Package
 	fmx-grid\datamodel\DataModel
 	fmx-grid\datamodel\General
 	fmx-grid\datamodel\ObjectModel

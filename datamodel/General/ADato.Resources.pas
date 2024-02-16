@@ -51,7 +51,8 @@ type
     class function CantAddSelf: CString;
     class function EndAtText: CString;
     class function EveryText: CString;
-    class function DaterangeRequired: CString;
+    class function StartInvalidInPrepareDateRange: CString;
+    class function StopInvalidInPrepareDateRange: CString;
     class function DayNumberNames: CString;
     class function DayOfMonthNames: CString;
     class function NoDataToCopy: CString;
@@ -183,7 +184,8 @@ Resourcestring
   SConstraintRequiresADate = 'The constraint set for this task requires a constraint date.';
   SConstraintViolation = 'Scheduler could not meet with constraint ''{0}'' set on date {1:f}.';
   SCriticalChainHasChanged = 'The critical chain of your project has changed, therefore exisiting buffers may be invalid.';
-  SDaterangeRequired = 'Prepare range cannot be unlimited when rules are set.';
+  SStartInvalidInPrepareDateRange = 'Start date cannot be set to MinValue when calling Prepare date range and rules are set.';
+  SStopInvalidInPrepareDateRange = 'Stop date cannot be set to MaxValue when calling Prepare date range and rules are set.';
   // 	Comma separated list with day number names
   SDayNumberNames = '1st,2nd,3rd,4th,5th,6th,7th,8th,9th,10th,11th,12th,13th,14th,15th,16th,17th,18th,19th,20th,21st,22nd,23rd,24th,25th,26th,27th,28th,29th,30th,31th';
 	// Comma separated list with day in month names (2nd tuesday in march)
@@ -374,9 +376,14 @@ begin
   Result := SDataModelViewDatasetNoDataModel;
 end;
 
-class function ADatoResources.DaterangeRequired: CString;
+class function ADatoResources.StartInvalidInPrepareDateRange: CString;
 begin
-  Result := SDaterangeRequired;
+  Result := SStartInvalidInPrepareDateRange;
+end;
+
+class function ADatoResources.StopInvalidInPrepareDateRange: CString;
+begin
+  Result := SStopInvalidInPrepareDateRange;
 end;
 
 class function ADatoResources.DayNumberNames: CString;
