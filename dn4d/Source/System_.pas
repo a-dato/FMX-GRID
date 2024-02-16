@@ -553,7 +553,7 @@ type
     class function Equals(const objA, objB: IBaseInterface): Boolean; overload; static;
     class function Equals(const objA: CObject; const Value: string): Boolean; overload; static;
     class function Equals(const objA: CString; const Value: string): Boolean; overload; static;
-    function  GetType(CSharpStrict: Boolean = False): &Type;
+    function  GetType(StrictTyping: Boolean = False): &Type;
     function  GetHashCode: Integer;
     function  GetItem(const Index: Integer) : CObject;
     function  IsNull: Boolean; inline;
@@ -9562,11 +9562,11 @@ begin
   Result := a.FValue.GetReferenceToRawData = b.FValue.GetReferenceToRawData;
 end;
 
-function CObject.GetType(CSharpStrict: Boolean = False): &Type;
+function CObject.GetType(StrictTyping: Boolean = False): &Type;
 begin
   CheckNullReference(Self);
 
-  if CSharpStrict and (&Type.GetTypeCode(FValue.TypeInfo) = TypeCode.Interface) then
+  if not StrictTyping and (&Type.GetTypeCode(FValue.TypeInfo) = TypeCode.Interface) then
   begin
     // Comply with C# way of operation, calling GetType on an interface will return
     // the type of the object implementing the interface

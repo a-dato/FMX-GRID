@@ -859,7 +859,6 @@ var
   i: Integer;
   column: IDataModelColumn;
   _columns: IDataModelColumnCollection;
-  _newColumns : IDataModelColumnCollection;
   ColumnsChanged: Boolean;
 
   procedure SetDataType(columnToUpdate: IDataModelColumn);
