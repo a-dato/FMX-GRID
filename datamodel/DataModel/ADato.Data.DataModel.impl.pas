@@ -2134,7 +2134,7 @@ begin
   end
   else if CanAccessProperties and (Row.Data <> nil) then
   begin
-    t := Row.Data.GetType;
+    t := Row.Data.GetType(True);
     prop := t.GetProperty(Column.Name);
     if prop <> nil then
       Result := prop.GetValue(Row.Data, []);
@@ -2712,7 +2712,7 @@ begin
   end
   else if CanAccessProperties and (Row.Data <> nil) then
   begin
-    t := Row.Data.GetType;
+    t := Row.Data.GetType(True);
     prop := t.GetProperty(Column.Name);
     if prop <> nil then
     begin
