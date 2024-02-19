@@ -53,7 +53,7 @@ object frmInspector: TfrmInspector
       Size.Width = 257.000000000000000000
       Size.Height = 281.000000000000000000
       Size.PlatformDefault = False
-      TabIndex = 2
+      TabIndex = 0
       TabOrder = 2
       TabPosition = PlatformDefault
       Sizes = (
@@ -68,7 +68,7 @@ object frmInspector: TfrmInspector
           item
           end>
         TextSettings.Trimming = None
-        IsSelected = False
+        IsSelected = True
         Size.Width = 51.000000000000000000
         Size.Height = 26.000000000000000000
         Size.PlatformDefault = False
@@ -97,6 +97,34 @@ object frmInspector: TfrmInspector
           HighlightRows = True
           Viewport.Width = 255.000000000000000000
           Viewport.Height = 228.000000000000000000
+          Columns_ = 
+            '<Columns><Item type="TFMXTreeColumn"><AllowHide>True</AllowHide>' +
+            '<AllowMove>True</AllowMove><AllowResize>True</AllowResize><AutoS' +
+            'izeToContent>True</AutoSizeToContent><Caption>Name</Caption><Fro' +
+            'zen>False</Frozen><MaxWidth>0</MaxWidth><MultilineEdit>False</Mu' +
+            'ltilineEdit><PropertyName>Name</PropertyName><ReadOnly>False</Re' +
+            'adOnly><Selectable>True</Selectable><ShowSortMenu>False</ShowSor' +
+            'tMenu><ShowFilterMenu>False</ShowFilterMenu><ShowHierarchy>False' +
+            '</ShowHierarchy><Sort>None</Sort><Visible>True</Visible><Width>0' +
+            '</Width><WidthType>Pixel</WidthType></Item><Item type="TFMXTreeC' +
+            'olumn"><AllowHide>True</AllowHide><AllowMove>True</AllowMove><Al' +
+            'lowResize>True</AllowResize><AutoSizeToContent>True</AutoSizeToC' +
+            'ontent><Caption>TypeName</Caption><Frozen>False</Frozen><MaxWidt' +
+            'h>0</MaxWidth><MultilineEdit>False</MultilineEdit><PropertyName>' +
+            'TypeName</PropertyName><ReadOnly>False</ReadOnly><Selectable>Tru' +
+            'e</Selectable><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>' +
+            'False</ShowFilterMenu><ShowHierarchy>False</ShowHierarchy><Sort>' +
+            'None</Sort><Visible>True</Visible><Width>0</Width><WidthType>Pix' +
+            'el</WidthType></Item><Item type="TFMXTreeColumn"><AllowHide>True' +
+            '</AllowHide><AllowMove>True</AllowMove><AllowResize>True</AllowR' +
+            'esize><AutoSizeToContent>True</AutoSizeToContent><Caption>Size</' +
+            'Caption><Frozen>False</Frozen><MaxWidth>0</MaxWidth><MultilineEd' +
+            'it>False</MultilineEdit><PropertyName>Size</PropertyName><ReadOn' +
+            'ly>False</ReadOnly><Selectable>True</Selectable><ShowSortMenu>Fa' +
+            'lse</ShowSortMenu><ShowFilterMenu>False</ShowFilterMenu><ShowHie' +
+            'rarchy>False</ShowHierarchy><Sort>None</Sort><Visible>True</Visi' +
+            'ble><Width>0</Width><WidthType>Pixel</WidthType></Item></Columns' +
+            '>'#13#10
         end
       end
       object tbIndexes: TTabItem
@@ -141,7 +169,7 @@ object frmInspector: TfrmInspector
           item
           end>
         TextSettings.Trimming = None
-        IsSelected = True
+        IsSelected = False
         Size.Width = 79.000000000000000000
         Size.Height = 26.000000000000000000
         Size.PlatformDefault = False
@@ -680,7 +708,7 @@ object frmInspector: TfrmInspector
         Position.Y = -17.000000000000000000
         TextSettings.Trimming = None
         Text = 'Saved Connections'
-        TabOrder = 86
+        TabOrder = 85
       end
     end
     object cbDataBases: TComboBox
@@ -699,7 +727,7 @@ object frmInspector: TfrmInspector
         Position.Y = -18.000000000000000000
         TextSettings.Trimming = None
         Text = 'Database'
-        TabOrder = 86
+        TabOrder = 85
       end
     end
     object SpeedButton4: TSpeedButton

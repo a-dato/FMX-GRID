@@ -59,11 +59,11 @@ object frmCopyData: TfrmCopyData
     TextSettings.HorzAlign = Trailing
     TextSettings.Trimming = None
     Text = 'Sql select statement'
-    TabOrder = 86
+    TabOrder = 85
   end
   object edTargetTable: TEdit
     Touch.InteractiveGestures = [LongTap, DoubleTap]
-    TabOrder = 87
+    TabOrder = 86
     Position.X = 184.000000000000000000
     Position.Y = 207.000000000000000000
     Size.Width = 170.000000000000000000
@@ -83,7 +83,7 @@ object frmCopyData: TfrmCopyData
   object btnGo: TButton
     Position.X = 184.000000000000000000
     Position.Y = 248.000000000000000000
-    TabOrder = 88
+    TabOrder = 87
     Text = 'Go'
     TextSettings.Trimming = None
   end

@@ -115,6 +115,7 @@ type
     passwords: TStringList;
     OpenRecordSetCount: INteger;
 
+    procedure AddEmptyTab;
     procedure Clear(ClearConnection: Boolean);
     procedure Connect(ConnectionName: string; DataBaseName: string = '');
     procedure Disconnect;
@@ -175,6 +176,10 @@ type
 
   public
     constructor Create(const AName: string; AItemType: TDBItemType);
+
+  published
+    property Name: string read get_Name;
+    property ItemType: TDBItemType read get_ItemType;
   end;
 
   TDBColumn = class(TDBItem, IDBColumn)
@@ -190,6 +195,10 @@ type
   public
     constructor Create(const AName: string; AItemType: TDBItemType; const ATypeName: string; const ADataType: &Type; ASize: Integer);
 
+  published
+    property DataType: &Type read get_DataType;
+    property Size: Integer read get_Size;
+    property TypeName: string read get_TypeName;
   end;
 
 var
@@ -237,7 +246,6 @@ end;
 
 procedure TfrmInspector.acMoveDataExecute(Sender: TObject);
 begin
-  // Convert 'Add' tab into a tab with record set
   var tab := tcRecordSets.Tabs[tcRecordSets.TabCount - 1];
   UpdateTabText(tab, 'Copy Data');
   tab.OnClick := nil;
@@ -247,18 +255,15 @@ begin
   var frame := TfrmCopyData.Create(Tab);
   frame.Name := 'CopyData_' + OpenRecordSetCount.ToString;
   frame.Align := TAlignLayout.Client;
-  frame.RefreshConnections;
 
   tab.AddObject(frame);
   tab.TagObject := frame;
   tab.StyleLookup := 'CloseButtonStyle';
   (tab as TStyledControl).StylesData['CloseButton.OnClick'] := TValue.From<TNotifyEvent>(TabCloseButtonClicked);
 
-  var newTab := TTabItem.Create(tcRecordSets);
-  newTab.Text := '+';
-  newTab.Index := tab.Index + 1;
-  newTab.OnClick := tbAddNewTabClick;
-  tcRecordSets.AddObject(newTab);
+  frame.RefreshConnections;
+
+  AddEmptyTab;
 end;
 
 procedure TfrmInspector.FormCreate(Sender: TObject);
@@ -995,6 +1000,11 @@ begin
   InitializeFrameForTab(tab);
   UpdateConnectionForTab(tab, True);
 
+  AddEmptyTab;
+end;
+
+procedure TfrmInspector.AddEmptyTab;
+begin
   var newTab := TTabItem.Create(tcRecordSets);
   newTab.Text := '+';
   newTab.Index := tab.Index + 1;

@@ -36,12 +36,16 @@ uses
 
 { TfrmCopyData }
 
+// Connections are loaded from open tabs
 procedure TfrmCopyData.RefreshConnections;
 begin
   var parent := Self.Parent;
 
-  while not (parent is TTabControl) do
+  while (parent <> nil) and not (parent is TTabControl) do
     parent := parent.Parent;
+
+  if parent = nil then
+    Exit;
 
   var tc := parent as TTabControl;
 
