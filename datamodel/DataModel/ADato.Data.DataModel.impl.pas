@@ -1963,6 +1963,7 @@ begin
     r.UpdateTable(nil);
 
   Rows.Clear;
+  AutoCreatedRows.Clear;
   _keys.Clear;
   OnListReset;
 end;
