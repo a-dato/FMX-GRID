@@ -523,12 +523,16 @@ begin
     // Get last row
     lRow := Self[Count - 1];
 
+    nextdrv := nil;
     if continueFromLastRowInView then
+    begin
       // The next row is still in view, rows should be appended after the last
       // row in the current view
       // MUST use _datamodelview.FindRow(drv.Row) here because instance of drv has been freed!
-      nextdrv := _datamodelview.Next(_datamodelview.FindRow(lRow.DataItem.GetValue<IDataRowView>.Row))
-    else
+      var thisdrv := _datamodelview.FindRow(lRow.DataItem.GetValue<IDataRowView>.Row);
+      if thisdrv <> nil then
+        nextdrv := _datamodelview.Next(thisdrv)
+    end else
       // The next row is not in view, rows should be appended from the next sibling
       // of the clicked row
       // MUST use _datamodelview.FindRow(drv.Row) here because instance of drv has been freed!

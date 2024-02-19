@@ -46,6 +46,8 @@ uses
   FMX.Ani, ADato.InsertPosition, ADato.ObjectModel.TrackInterfaces;
 
 const
+  USE_TREE_CACHE = True;
+
   // see also const in TScrollableRowControl<T: IRow>  class
   STYLE_TREE = 'FMXTreeControlstyle';
   STYLE_CELL = 'cell';
@@ -681,6 +683,10 @@ type
       write set_Selected;
 
     property TreeControl: ITreeControl read get_TreeControl;
+    property OnInitCell: TOnInitCell read get_OnInitCell write set_OnInitCell;
+    property OnHeaderApplyStyleLookup: TNotifyEvent
+      read  get_OnHeaderApplyStyleLookup
+      write set_OnHeaderApplyStyleLookup;
   {$IFDEF DELPHI}
   published
   // Warning! For these properties to save correctly in FMX file from RAD Designer,
@@ -766,10 +772,12 @@ type
     property WidthType: TColumnWidthType
       read  get_WidthType
       write set_WidthType;
-    property OnInitCell: TOnInitCell read get_OnInitCell write set_OnInitCell;
-    property OnHeaderApplyStyleLookup: TNotifyEvent
-      read  get_OnHeaderApplyStyleLookup
-      write set_OnHeaderApplyStyleLookup;
+
+// This should not be visible (published) in a COLUMN editor, moved into public.
+//    property OnInitCell: TOnInitCell read get_OnInitCell write set_OnInitCell;
+//    property OnHeaderApplyStyleLookup: TNotifyEvent
+//      read  get_OnHeaderApplyStyleLookup
+//      write set_OnHeaderApplyStyleLookup;
   end;
 
   TFMXTreeCheckboxColumn = {$IFDEF DOTNET}public{$ENDIF} class(
@@ -4413,7 +4421,13 @@ begin
         RemoveRowsFromView;
         View.ClearSort;
         _contentBounds.Right := 0;
-        _contentBounds.Bottom := 0;
+
+       // _contentBounds.Bottom := 0;
+       { Commented: If ContentBounds.Bottom is reset here. But later, in InternalAlign, Scrollbox resets maxTarget,
+         which resets ViewportY too. Without correct ViewPortY we cannnot not set new correct ContentBounds and clip.
+         As a result issue - DataChanged does nor save toprow position (any row - cached or not) and always scrolls to the row0.
+         ContentBounds will be recalculated correclty, related to a new data in UpdateContents. Alex. }
+
         _lastSize := TSizeF.Create(0, 0);  // reset to call AutofitColumns again
       	cellChanged := True;
       end;
@@ -4439,6 +4453,9 @@ begin
       InitLayout;
       InitHeaderColumnControls;
       TryAssignDefaultCheckboxColumn;
+
+      _Column := CMath.Min(_Column, Layout.Columns.Count - 1);
+
       cellChanged := True;
     end
     else if _InternalState * [TreeState.ColumnsChanged] <> [] then
@@ -5043,7 +5060,8 @@ begin
     if _View.IsDataModelView then
       rowLevel := (Interfaces.ToInterface(DataItem) as IDataRowView).Row.Level;
 
-    treeRow := View.CreateRow(DataItem, ViewRowIndex, False, rowLevel);
+    treeRow := CreateRow(DataItem, ViewRowIndex, rowLevel);
+    //treeRow := View.CreateRow(DataItem, ViewRowIndex, False, rowLevel);
 
     DoRowLoading(treeRow);
 
@@ -5055,9 +5073,6 @@ begin
       treeRowClass.Height := AMinHeight;
       treeRowHeight := AMinHeight;
     end;
-
-//    rowHeight := treeRowHeight;
-//    // do not use treeRowHeight var below anymore, - treeRow.Height can be changed in cellLoading events.
 
     isCachedRow := treeRowClass.Control <> nil;
 
@@ -5084,10 +5099,6 @@ begin
     // Negotiate the final height of the row. This will init and add a row in another paired control (Gantt or Tree)
     if not _SkipRowHeightNegotiation and (_RowHeights <> nil) then
     begin
-//      var topRowHeight: Single := 0.0;
-//      if _View.Count > 0 then
-//        topRowHeight := _View[0].Height;
-
       _RowHeights.NegotiateRowHeight(Self, treeRow, {var} rowHeight);
 
       // When we apply value to treeRow.Height, it also applies for Row.Control. But if treeRow.Height was set in
@@ -6538,6 +6549,7 @@ begin
 
   _isClearing := True;
   try
+    _Column := 0;
     ClearSelections;
 
     // Keep objects in place, data of the same type may be reloaded
@@ -6924,25 +6936,19 @@ begin
 
     vkEscape:
     begin
-      Key := 0;
-
       if _editor is TDropDownEditor then
         TDropDownEditor(_editor).SaveData := False;
 
-     // TThread.ForceQueue(nil, procedure begin
-         EditorEnd(False); //EndEdit(False);
-    //  end);
+      // EditorEnd will free edit control, Key must be cleared to stop any key handling
+      Key := 0;
+      EditorEnd(False);
     end;
 
     vkReturn:
     begin
-      // Need to call EndEdit here, because RowIndex or ColumnIndex were not changed and SelectCell will not not call EndEdit
-    //  TThread.ForceQueue(nil, procedure begin
-       // EndEdit;
-        EditorEnd(True);
-   //   end);
-
-//      Key := 0;
+      // EditorEnd will free edit control, Key must be cleared to stop any key handling
+      Key := 0;
+      EditorEnd(True);
     end;
   end;
 end;
@@ -10193,6 +10199,8 @@ begin
 
   _DataModelView.CurrencyManager.CurrentRowChanged.Add(CurrentRowChanged);
   _DataModelView.CurrencyManager.TopRowChanged.Add(TopRowChanged);
+
+  _CacheRows := USE_TREE_CACHE;
 end;
 
 destructor TTreeDataModelViewRowList.Destroy;
@@ -11886,6 +11894,7 @@ begin
     CollectionNotification.CollectionChanged.Add(RowHeightsCollectionChanged);
 
   // InitializeColumnPropertiesFromColumns;
+  _CacheRows := USE_TREE_CACHE;
 end;
 
 procedure TTreeRowList.CreateDefaultColumns(const AList: ITreeColumnList);

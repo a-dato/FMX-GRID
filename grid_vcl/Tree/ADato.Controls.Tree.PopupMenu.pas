@@ -18,6 +18,7 @@ uses
   Generics.Defaults;
 
 type
+  {$M+}
   IFilterItem = interface(IBaseInterface)
     function  get_Data: CObject;
     procedure set_Data(const Value: CObject);
@@ -38,6 +39,7 @@ type
       read  get_Checked
       write set_Checked;
   end;
+  {$M-}
 
   TfrmPopupMenu = class(TForm)
     pnlFilterOptions: TPanel;

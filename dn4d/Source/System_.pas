@@ -553,7 +553,7 @@ type
     class function Equals(const objA, objB: IBaseInterface): Boolean; overload; static;
     class function Equals(const objA: CObject; const Value: string): Boolean; overload; static;
     class function Equals(const objA: CString; const Value: string): Boolean; overload; static;
-    function  GetType: &Type;
+    function  GetType(StrictTyping: Boolean = False): &Type;
     function  GetHashCode: Integer;
     function  GetItem(const Index: Integer) : CObject;
     function  IsNull: Boolean; inline;
@@ -9335,7 +9335,7 @@ begin
         begin
           if ATypeInfo.Kind = tkInteger then
           begin
-            i := CEnum.GetOrdValue(GetType, FValue.DataSize, FValue.GetReferenceToRawData^);
+            i := CEnum.GetOrdValue(GetType(False), FValue.DataSize, FValue.GetReferenceToRawData^);
             TValue.Make(i, ATypeInfo, value_t);
             Result := value_t.TryCast(ATypeInfo, Value);
           end
@@ -9562,11 +9562,11 @@ begin
   Result := a.FValue.GetReferenceToRawData = b.FValue.GetReferenceToRawData;
 end;
 
-function CObject.GetType: &Type;
+function CObject.GetType(StrictTyping: Boolean = False): &Type;
 begin
   CheckNullReference(Self);
 
-  if &Type.GetTypeCode(FValue.TypeInfo) = TypeCode.Interface then
+  if not StrictTyping and (&Type.GetTypeCode(FValue.TypeInfo) = TypeCode.Interface) then
   begin
     // Comply with C# way of operation, calling GetType on an interface will return
     // the type of the object implementing the interface

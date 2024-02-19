@@ -116,6 +116,7 @@ type
     procedure UpdatePropertyBindingValues; overload;
     procedure UpdatePropertyBindingValues(const APropertyName: CString); overload;
     procedure AddTriggersAsLinks(const ACustomProperty: ICustomProperty; const AccessoryProperties: List<_PropertyInfo>);
+    function  HasBindings: Boolean;
 
     property Context: CObject read get_Context write set_Context;
     {$IFDEF DELPHI}

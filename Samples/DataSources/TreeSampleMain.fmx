@@ -80,7 +80,7 @@ object Form1: TForm1
       ImageIndex = -1
       Position.X = 8.000000000000000000
       Position.Y = 120.000000000000000000
-      TabOrder = 2
+      TabOrder = 3
       TextSettings.Trimming = None
     end
     object Button5: TButton
@@ -88,14 +88,14 @@ object Form1: TForm1
       ImageIndex = -1
       Position.X = 96.000000000000000000
       Position.Y = 120.000000000000000000
-      TabOrder = 1
+      TabOrder = 2
       TextSettings.Trimming = None
     end
     object edNameByLiveBinding: TEdit
       Touch.InteractiveGestures = [LongTap, DoubleTap]
-      TabOrder = 0
+      TabOrder = 1
       Position.X = 8.000000000000000000
-      Position.Y = 72.000000000000000000
+      Position.Y = 74.000000000000000000
       Size.Width = 183.000000000000000000
       Size.Height = 22.000000000000000000
       Size.PlatformDefault = False
@@ -103,6 +103,21 @@ object Form1: TForm1
         Position.Y = -16.000000000000000000
         TextSettings.Trimming = None
         Text = 'TDateset.Name'
+        TabOrder = 0
+      end
+    end
+    object edDataModelName: TEdit
+      Touch.InteractiveGestures = [LongTap, DoubleTap]
+      TabOrder = 0
+      Position.X = 8.000000000000000000
+      Position.Y = 28.000000000000000000
+      Size.Width = 183.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      object Label1: TLabel
+        Position.Y = -16.000000000000000000
+        TextSettings.Trimming = None
+        Text = 'IDataModel.Name'
         TabOrder = 0
       end
     end
@@ -129,8 +144,8 @@ object Form1: TForm1
     UpdateOptions.AssignedValues = [uvCheckRequired, uvAutoCommitUpdates]
     UpdateOptions.CheckRequired = False
     UpdateOptions.AutoCommitUpdates = True
-    Left = 72
-    Top = 200
+    Left = 88
+    Top = 240
   end
   object MemtableToDataModel: TDatasetDataModel
     DataLinks = <
@@ -138,8 +153,8 @@ object Form1: TForm1
         DataSource = DataSource1
         KeyField = 'Name'
       end>
-    Left = 283
-    Top = 201
+    Left = 299
+    Top = 241
     DataModel = 
       '<DataModel><Columns><Item type="DataModelColumn"><Name>Name</Nam' +
       'e><DataType>String</DataType></Item></Columns></DataModel>'#13#10
@@ -150,25 +165,49 @@ object Form1: TForm1
   end
   object DataSource1: TDataSource
     DataSet = FDMemTable1
-    Left = 160
-    Top = 200
+    Left = 176
+    Top = 240
   end
-  object BindSourceDB1: TBindSourceDB
+  object BindSourceMemTableToDataModel: TBindSourceDB
     DataSet = MemtableToDataModel
     ScopeMappings = <>
-    Left = 160
-    Top = 256
+    Left = 176
+    Top = 296
   end
   object BindingsList1: TBindingsList
     Methods = <>
     OutputConverters = <>
-    Left = 76
-    Top = 253
+    Left = 356
+    Top = 301
     object LinkControlToField1: TLinkControlToField
       Category = 'Quick Bindings'
-      DataSource = BindSourceDB1
+      DataSource = BindSourceMemTableToDataModel
       FieldName = 'Name'
       Control = edNameByLiveBinding
+      Track = False
+    end
+  end
+  object HierarchyToTDataset: TDataModelViewDataset
+    FollowTopRow = False
+    Left = 96
+    Top = 65
+  end
+  object BindSourceHierarchyToDataset: TBindSourceDB
+    DataSet = HierarchyToTDataset
+    ScopeMappings = <>
+    Left = 248
+    Top = 64
+  end
+  object BindingsList2: TBindingsList
+    Methods = <>
+    OutputConverters = <>
+    Left = 388
+    Top = 61
+    object LinkControlToField2: TLinkControlToField
+      Category = 'Quick Bindings'
+      DataSource = BindSourceHierarchyToDataset
+      FieldName = 'Name'
+      Control = edDataModelName
       Track = False
     end
   end

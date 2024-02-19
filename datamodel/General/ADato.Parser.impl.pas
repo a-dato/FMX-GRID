@@ -563,7 +563,9 @@ type
     function GetEvalVal(const Eval: CObject): CObject;
     procedure DeleteEvals;
     procedure GetNextChar;
-    function CheckEquals(ContextType: &Type): Boolean;
+
+    function GetTypeFromContex(const Context: CObject) : &Type;
+    function CheckEquals(const ContextType: &Type): Boolean;
 
     // Utility math functions
     function fmod(x, y: extended): extended;
@@ -724,7 +726,7 @@ uses
   System.Rtti, 
   System.TypInfo,
   {$ENDIF}
-  ADato.Resources;
+  ADato.Resources, System.ClassHelpers;
 
 function TParser.fmod(x, y: extended): extended;
 begin
@@ -1574,9 +1576,12 @@ begin
   if FContextChanged then
   begin
     FContextChanged := False;
-    if (FContextProperties = nil) or (not CheckEquals(Context.GetType) and not FContextTypeOverwrite) then
+
+    var tp := GetTypeFromContex(Context);
+
+    if (FContextProperties = nil) or (not CheckEquals(tp) and not FContextTypeOverwrite) then
     begin
-      FContextType := Context.GetType;
+      FContextType := tp;
       FContextProperties := CDictionary<CString, _PropertyInfo>.Create;
     end;
   end;
@@ -2653,11 +2658,17 @@ begin
     RaiseError(CString.Format(ADatoResources.FunctionError, Name));
 end;
 
-function TParser.CheckEquals(ContextType: &Type): Boolean;
+function TParser.GetTypeFromContex(const Context: CObject) : &Type;
+begin
+  if Context.IsInterface then
+    Result := Context.AsType<TObject>.GetType else
+    Result := Context.GetType;
+end;
+
+function TParser.CheckEquals(const ContextType: &Type): Boolean;
 begin
   if FContextType = nil then
-    Exit(false)
-  else
+    Exit(false) else
     Result := FContextType.Equals(ContextType);
 end;
 
@@ -2675,7 +2686,7 @@ begin
   var thisType: &Type;
   if FContextTypeOverwrite then
     thisType := FContextType else
-    thisType := FContext.GetType;
+    thisType := GetTypeFromContex(FContext);
 
   _expression := FExpression;
   _expressionIndex := -1; // Before first character !!
@@ -2711,7 +2722,7 @@ end;
 procedure TParser.set_Context(const Value: CObject);
 begin
   FContext := Value;
-  FContextChanged := (FContext <> nil) and not CheckEquals(FContext.GetType);
+  FContextChanged := (FContext <> nil) and not CheckEquals(GetTypeFromContex(FContext));
 end;
 
 function TParser.get_ContextType: &Type;

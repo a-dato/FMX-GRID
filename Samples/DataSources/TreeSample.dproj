@@ -277,7 +277,7 @@
             <Form>Form1</Form>
             <FormType>fmx</FormType>
         </DCCReference>
-        <DCCReference Include="..\..\adato_datamodel\ObjectModel\ADato.ObjectModel.DataModel.impl.pas"/>
+        <DCCReference Include="..\SharedFiles\ApplicationObjects.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
