@@ -78,7 +78,8 @@ destructor TBaseDataModelViewList<T>.Destroy;
 begin
   // Remove all event handlers before calling ApplySort(...)
   _DataModelView.RowPropertiesChanged.Remove(RowPropertiesChanged);
-  _DataModelView.DataModel.ListChanged.Remove(DataModelListChanged);
+  if (_DataModelView.DataModel <> nil) then
+    _DataModelView.DataModel.ListChanged.Remove(DataModelListChanged);
   _DataModelView := nil;
 
   inherited;
