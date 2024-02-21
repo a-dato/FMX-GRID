@@ -601,9 +601,8 @@ begin
   var scrolledPx := Abs(_VPYStart - _VPY_End);
 
   var scrolledPercent := scrolledPx * 100 / _contentBounds.Height;
-  var newIsFastScrolling:= (scrolledPercent > 0) and (scrolledPercent >= _fastScrollingScrolledPercentage);
+  _isFastScrolling := (scrolledPercent > 0) and (scrolledPercent >= _fastScrollingScrolledPercentage);;
 
-  _isFastScrolling := newIsFastScrolling;
   _VPYStart := _VPY_End;
 
   _fastScrollStartTime := 0;
@@ -961,7 +960,6 @@ begin
   end;
 end;
 
-
 function TScrollableRowControl<T>.NegotiateRowHeight(Sender: TObject; ARow: IRow; var AHeight: Single): Boolean;
 var
   addedRow: IRow;
@@ -1016,7 +1014,7 @@ begin
       // - row is returned related to collapsed children. View.DataList[4] - will return Row 6 (4 + 2 (children we collapsed)
 
       addedRow := InitRow(obj, ARow.Index, -1000 {Y Position}, AHeight);
-      { Set Y = -1000, to place control outside of the visible area. Fix issue: First row is incorrect.
+      { Set Y = -1000, to place control outside of the visible area. Fixed issue: First row is incorrect.
         E.g. Row8 instead of row0.
         Before it was "Y = 0".  Another control from Negotiate (Gantt) created all rows in the position Y = 0
         and row8 remains to stay at the old position (Y = 0) (because it is out of View in Tree), and overlaps Row0.   }
@@ -1342,6 +1340,14 @@ begin
 
     Position := Position + row.Height;
   end;
+
+ { Workaround for the issue: user quickly scrolls Tree\Gantt, - some rows, which are out of view, are not destroyed.
+   This is related to NegotiateRowHeight list, control initiates row and adds it into _NegotiateInitiatedRows list,
+   UpdateContent will add them into the View later with correct index and reposition correctly.
+   But if user scrolls quickly, control initiates such rows but View does not add them, because they are already out of
+   visible area. Destroy them all here. At this stage _NegotiateInitiatedRows.Count should be 0 }
+  if not _SkipRowHeightNegotiation and (_NegotiateInitiatedRows <> nil) and (_NegotiateInitiatedRows.Count > 0) then
+    _NegotiateInitiatedRows.Clear;
 end;
 
 procedure TScrollableRowControl<T>.AnimateAddRow(const ARow: T; Position: Single; Delay: Single = 0;
@@ -2940,7 +2946,6 @@ begin
   // save rows before removing from View to re-use them later
   if _CacheRows then
   begin
-    //for var i := Self.Count - 1 downto Index do // - With this line only Tree\Gantt shows empty rows and freezing wghile scrolling
     for var i := Index to Self.Count - 1 do
     begin
       if processedCount = Count {Count - is an argument, not View.Count!}  then break;
@@ -2955,7 +2960,7 @@ begin
         removedRow.Control.Visible := False;
       end;
 
-      //RemoveAt(i); 
+      //RemoveAt(i);
 
       inc(processedCount);
     end;
