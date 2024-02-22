@@ -133,6 +133,7 @@ type
   IDataRowView = Interface;
   IRowProperties = Interface;
 
+  TGetRowObjectType = procedure(const Row: IDataRow; var AType: &Type) of object;
   TGetRowPropertiesFunc = reference to function (const Value: IDataRow): IRowProperties;
   TValidatePosition = reference to function (const SrcRow, DestRow: IDataRowView; Position: InsertPosition; AutoUpdateCardType: Boolean; DoShowMessage: Boolean) : Boolean;
 
@@ -590,6 +591,8 @@ type
     {$IFDEF DELPHI}
     // Events
     function  get_DataModelChanged: EventHandler;
+    function  get_GetRowObjectType : TGetRowObjectType;
+    procedure set_GetRowObjectType(const Value: TGetRowObjectType);
     function  get_ListChanged: ListChangedEventHandler;
     function  get_RowMoving: RowMovingEventHandler;
     function  get_RowMoved: RowMovedEventHandler;
@@ -674,11 +677,13 @@ type
     //
     {$IFDEF DELPHI}
     property DataModelChanged: EventHandler read  get_DataModelChanged;
+    property GetRowObjectType: TGetRowObjectType read get_GetRowObjectType write set_GetRowObjectType;
     property ListChanged: ListChangedEventHandler read get_ListChanged;
     property RowMoving: RowMovingEventHandler read get_RowMoving;
     property RowMoved: RowMovedEventHandler read get_RowMoved;
     {$ELSE}
     event DataModelChanged: EventHandler;
+    event GetRowObjectType : TGetRowObjectType;
     event ListChanged: ListChangedEventHandler;
     event RowMoving: RowMovingEventHandler;
     event RowMoved: RowMovedEventHandler;

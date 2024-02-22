@@ -413,6 +413,7 @@ type
 
   protected
     _DataModelChanged : EventHandler;
+    _GetRowObjectType : TGetRowObjectType;
     _ListChanged      : ListChangedEventHandler;
     _RowMoved         : RowMovedEventHandler;
     _RowMoving        : RowMovingEventHandler;
@@ -436,6 +437,8 @@ type
     // Events
     {$IFDEF DELPHI}
     function  get_DataModelChanged: EventHandler;
+    function  get_GetRowObjectType : TGetRowObjectType;
+    procedure set_GetRowObjectType(const Value: TGetRowObjectType);
     function  get_ListChanged: ListChangedEventHandler;
     function  get_RowMoving: RowMovingEventHandler;
     function  get_RowMoved: RowMovedEventHandler;
@@ -474,6 +477,7 @@ type
     // Class methods
     procedure AddExpressionSamples(const List: IList);
     function  CanAccessProperties: Boolean; virtual;
+    function  DoGetRowObjectType(const ARow: IDataRow) : &Type; virtual;
     function  FindColumnByName(const PropertyName: CString): IDatamodelColumn;
     function  InternalAdd(const Row: IDataRow; const Location: IDataRow; const Position: InsertPosition) : Integer;
     function  InternalAddNew(const Location: IDataRow; const Position: InsertPosition): Integer;
@@ -2019,6 +2023,13 @@ begin
   Result := True;
 end;
 
+function TDataModel.DoGetRowObjectType(const ARow: IDataRow) : &Type;
+begin
+  if Assigned(_GetRowObjectType) then
+    _GetRowObjectType(ARow, {var} Result) else
+    Result := ARow.Data.GetType;
+end;
+
 function TDataModel.FindColumnByName(const PropertyName: CString): IDatamodelColumn;
 begin
   Result := _Columns.FindByName(PropertyName);
@@ -2135,7 +2146,7 @@ begin
   end
   else if CanAccessProperties and (Row.Data <> nil) then
   begin
-    t := Row.Data.GetType(True);
+    t := DoGetRowObjectType(Row);
     prop := t.GetProperty(Column.Name);
     if prop <> nil then
       Result := prop.GetValue(Row.Data, []);
@@ -2713,7 +2724,7 @@ begin
   end
   else if CanAccessProperties and (Row.Data <> nil) then
   begin
-    t := Row.Data.GetType(True);
+    t := DoGetRowObjectType(Row);
     prop := t.GetProperty(Column.Name);
     if prop <> nil then
     begin
@@ -2779,6 +2790,16 @@ begin
   if _DataModelChanged = nil then
     _DataModelChanged := EventHandlerDelegate.Create;
   Result := _DataModelChanged;
+end;
+
+function TDataModel.get_GetRowObjectType : TGetRowObjectType;
+begin
+  Result := _GetRowObjectType;
+end;
+
+procedure TDataModel.set_GetRowObjectType(const Value: TGetRowObjectType);
+begin
+  _GetRowObjectType := Value;
 end;
 
 function TDataModel.get_ListChanged: ListChangedEventHandler;
