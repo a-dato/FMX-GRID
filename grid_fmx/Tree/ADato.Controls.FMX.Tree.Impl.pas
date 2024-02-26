@@ -600,6 +600,10 @@ type
      (not among all cells in the column!). Column use this width in case if _AutoSizeToContent = true. }
     _Tag            : CObject;
     _IsShowing: boolean;
+     { AutofitColumns can hide some columns. IsShowing shows whether column is visible or not.
+       AutofitColumns does not change Column.Visible property in this case. Only user can change Visible property.
+       For example, user can add a column in Design time and set Column.Visible = false.
+       _IsShowing - by Autofit proc. Visible has higher priority and resets _IsShowing}
   public
     // Property getters setters
     function  get_AllowHide: Boolean;
@@ -9251,8 +9255,15 @@ begin
       t.RefreshControl([TreeState.ColumnsChanged, TreeState_DataChanged]);
   end;
 
-  // Visible can be changed only by user. _IsShowing - by Autofit proc. Visible has higher priority and resets _IsShowing
-  _IsShowing := {$IFDEF SUPERAPP}_IsShowing and{$ENDIF} _visible; // please do not use this construction "_IsShowing and _visible;' - cannot make invisible column visible, because _IsShowing = False.
+
+  //_IsShowing := {$IFDEF SUPERAPP}_IsShowing and{$ENDIF} _visible;
+  { Please do not use this construction "_IsShowing and _visible;'
+    it does not allow to make column Visible = true in case if it was set Visible = False earlier.
+    because _IsShowing is always False, so IsShowing (False) := _IsShowing (False) and _visible (true); }
+
+   // Visible can be changed only by user. _IsShowing - by AutofitColumns proc.
+   // Visible has higher priority and RESETS _IsShowing
+  _IsShowing := _visible;
 end;
 
 function TFMXTreeColumn.ToString: CString;
@@ -12513,7 +12524,7 @@ begin
 
   if (NewItem <> nil) then
   begin
-    var ownerPos: Integer := -1;
+    var ownerPos: Integer;
     if _Current = -1 then
       ownerPos := 0
     else if Position = InsertPosition.Before then

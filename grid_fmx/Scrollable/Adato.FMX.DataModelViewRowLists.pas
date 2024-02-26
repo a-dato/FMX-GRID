@@ -320,7 +320,7 @@ begin
   src := SrcRow.DataItem.AsType<IDataRowView>.Row; // (Interfaces.ToInterface(Source.DataItem) as IDataRowView).Row;
   dest := DestRow.DataItem.AsType<IDataRowView>.Row; // (Interfaces.ToInterface(Destination.DataItem) as IDataRowView).Row;
 
-  var dmMovePos: InsertPosition;
+  var dmMovePos: InsertPosition := InsertPosition.After;
   case Position of
     TMovePosition.Below:  dmMovePos := InsertPosition.After;
     TMovePosition.Above:  dmMovePos := InsertPosition.Before;

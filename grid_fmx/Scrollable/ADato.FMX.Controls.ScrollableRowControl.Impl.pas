@@ -2927,9 +2927,9 @@ begin
   begin
     var [unsafe] removedRow: IRow := Self[index];
     var CanCache := True;
-  //  DoOnCacheRowBeforeHide(removedRow, CanCache);
+    DoOnCacheRowBeforeHide(removedRow, CanCache);
 
-   // if CanCache then
+    if CanCache then
     begin
       _CacheList.Add(removedRow);
       removedRow.Control.Visible := False;
