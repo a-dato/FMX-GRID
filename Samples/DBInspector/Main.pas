@@ -98,12 +98,14 @@ type
     procedure acViewSourceExecute(Sender: TObject);
     procedure cbConnectionsChange(Sender: TObject);
     procedure cbDataBasesChange(Sender: TObject);
+    procedure DBColumnsCopyToClipboard(Sender: TObject);
     procedure DBIndexesCellChanged(Sender: TCustomTreeControl; e:
         CellChangedEventArgs);
     procedure fdConnectionLogin(AConnection: TFDCustomConnection; AParams:
         TFDConnectionDefParams);
     procedure DBTablesCellChanged(Sender: TCustomTreeControl; e:
         CellChangedEventArgs);
+    procedure DBTablesCopyToClipboard(Sender: TObject);
     procedure edSearchChangeTracking(Sender: TObject);
     procedure fdConnectionAfterConnect(Sender: TObject);
     procedure tbAddNewTabClick(Sender: TObject);
@@ -115,7 +117,7 @@ type
     passwords: TStringList;
     OpenRecordSetCount: INteger;
 
-    procedure AddEmptyTab;
+    procedure AddEmptyTab(TabIndex: Integer);
     procedure Clear(ClearConnection: Boolean);
     procedure Connect(ConnectionName: string; DataBaseName: string = '');
     procedure Disconnect;
@@ -208,7 +210,8 @@ implementation
 
 {$R *.fmx}
 
-uses Login, FireDAC.VCLUI.ConnEdit, System.Rtti, System.Math, CopyData;
+uses Login, FireDAC.VCLUI.ConnEdit, System.Rtti, System.Math, CopyData,
+  FMX.Clipboard, FMX.Platform;
 
 procedure TfrmInspector.acAddConnectionExecute(Sender: TObject);
 var
@@ -263,7 +266,7 @@ begin
 
   frame.RefreshConnections;
 
-  AddEmptyTab;
+  AddEmptyTab(tab.Index + 1);
 end;
 
 procedure TfrmInspector.FormCreate(Sender: TObject);
@@ -1000,16 +1003,54 @@ begin
   InitializeFrameForTab(tab);
   UpdateConnectionForTab(tab, True);
 
-  AddEmptyTab;
+  AddEmptyTab(tab.Index + 1);
 end;
 
-procedure TfrmInspector.AddEmptyTab;
+procedure TfrmInspector.AddEmptyTab(TabIndex: Integer);
 begin
   var newTab := TTabItem.Create(tcRecordSets);
   newTab.Text := '+';
-  newTab.Index := tab.Index + 1;
+  newTab.Index := TabIndex;
   newTab.OnClick := tbAddNewTabClick;
   tcRecordSets.AddObject(newTab);
+end;
+
+procedure TfrmInspector.DBColumnsCopyToClipboard(Sender: TObject);
+begin
+  var sb: StringBuilder := CStringBuilder.Create;
+  for var row in DBColumns.SelectedRows do
+  begin
+    var item: IDbItem;
+    if row.DataItem.TryGetValue<IDBItem>(item) then
+    begin
+      if sb.Length > 0 then
+        sb.Append(', ');
+      sb.Append(item.Name);
+    end;
+  end;
+
+  var cb: IFMXExtendedClipboardService;
+  if TPlatformServices.Current.SupportsPlatformService(IFMXExtendedClipboardService, IInterface(cb)) then
+    cb.SetText(sb.ToString);
+end;
+
+procedure TfrmInspector.DBTablesCopyToClipboard(Sender: TObject);
+begin
+  var sb: StringBuilder := CStringBuilder.Create;
+  for var row in DBTables.SelectedRows do
+  begin
+    var item: IDbItem;
+    if row.DataItem.TryGetValue<IDBItem>(item) then
+    begin
+      if sb.Length > 0 then
+        sb.Append(', ');
+      sb.Append(item.Name);
+    end;
+  end;
+
+  var cb: IFMXExtendedClipboardService;
+  if TPlatformServices.Current.SupportsPlatformService(IFMXExtendedClipboardService, IInterface(cb)) then
+    cb.SetText(sb.ToString);
 end;
 
 procedure TfrmInspector.Timer1Timer(Sender: TObject);

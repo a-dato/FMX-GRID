@@ -36,6 +36,7 @@ object frmInspector: TfrmInspector
       DefaultExpandRows = False
       HighlightRows = True
       CellChanged = DBTablesCellChanged
+      OnCopyToClipboard = DBTablesCopyToClipboard
       Viewport.Width = 255.000000000000000000
       Viewport.Height = 236.000000000000000000
     end
@@ -95,6 +96,7 @@ object frmInspector: TfrmInspector
           ScrollPerRow = False
           DefaultExpandRows = False
           HighlightRows = True
+          OnCopyToClipboard = DBColumnsCopyToClipboard
           Viewport.Width = 255.000000000000000000
           Viewport.Height = 228.000000000000000000
           Columns_ = 
@@ -708,7 +710,7 @@ object frmInspector: TfrmInspector
         Position.Y = -17.000000000000000000
         TextSettings.Trimming = None
         Text = 'Saved Connections'
-        TabOrder = 85
+        TabOrder = 86
       end
     end
     object cbDataBases: TComboBox
@@ -727,7 +729,7 @@ object frmInspector: TfrmInspector
         Position.Y = -18.000000000000000000
         TextSettings.Trimming = None
         Text = 'Database'
-        TabOrder = 85
+        TabOrder = 86
       end
     end
     object SpeedButton4: TSpeedButton

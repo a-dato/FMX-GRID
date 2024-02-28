@@ -7705,6 +7705,9 @@ begin
   if ssCtrl in Shift then
   begin
     case Integer(Key) of
+      vkC: CopyToClipboard;
+      vkV: PasteFromClipboard;
+
       vkEnd:
       begin
         var selectableClmn: ITreeLayoutColumn := nil;
