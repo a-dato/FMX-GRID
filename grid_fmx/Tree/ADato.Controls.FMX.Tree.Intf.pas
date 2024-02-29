@@ -830,7 +830,7 @@ type
     procedure set_Width(Value: Single);
   {$ENDIF}
 
-    function CalculateControlSize(const Cell: ITreeCell; DefaultRowHeight: Single) : TSizeF;
+    function CalculateControlSize(const Cell: ITreeCell; InitialRowHeight: Single) : TSizeF;
 
     property Column: ITreeColumn
       read  {$IFDEF DELPHI}get_Column{$ENDIF};
@@ -1447,7 +1447,6 @@ type
     function  get_Current: Integer;
     procedure set_Current(Value: Integer);
     function  get_CurrentViewAsList: IList;
-    function  get_DefaultRowHeight: Single;
     function  get_EditItem: CObject;
     function  get_DataItem(const Index: Integer) : CObject;
     function  get_Key(const Row: ITreeRow) : CObject;
@@ -1459,8 +1458,6 @@ type
     procedure set_IsExpanded(const ARow: ITreeRow; Value: Boolean);
     function  get_IsSelected(const ARow: ITreeRow): Boolean;
     procedure set_IsSelected(const ARow: ITreeRow; Value: Boolean);
-    function  get_RowHeight(const DataRow: CObject): Single;
-    procedure set_RowHeight(const DataRow: CObject; Value: Single);
 
     procedure ClearSort;
     function BaseListCount: Integer;
@@ -1514,10 +1511,6 @@ type
     property IsSelected[const ARow: ITreeRow]: Boolean
       read  {$IFDEF DELPHI}get_IsSelected{$ENDIF}
       write {$IFDEF DELPHI}set_IsSelected{$ENDIF};
-    property RowHeight[const DataRow: CObject]: Single
-      read  {$IFDEF DELPHI}get_RowHeight{$ENDIF}
-      write {$IFDEF DELPHI}set_RowHeight{$ENDIF};
-    property DefaultRowHeight: Single read {$IFDEF DELPHI}get_DefaultRowHeight{$ENDIF};
     property TreeControl: ITreeControl read get_TreeControl;
   end;
 
