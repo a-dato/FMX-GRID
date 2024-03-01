@@ -68,8 +68,10 @@ type
 
   IRowList<T: IRow> = interface(List<T>)
     ['{89868911-1648-4ACA-9C76-D17D7B2496D0}']
-    function  get_TopRow: Integer;
-    function  get_DataList: IList;
+    function get_RowHeight(const DataRow: CObject): Single;
+    procedure set_RowHeight(const DataRow: CObject; Value: Single);
+    function get_TopRow: Integer;
+    function get_DataList: IList;
     procedure SortInternalList;
     function Transpose(Index: Integer) : Integer;
     function get_RowCount: integer;
@@ -93,6 +95,7 @@ type
 
     property RowCount: integer read get_RowCount;
     property TopRow: Integer read {$IFDEF DELPHI}get_TopRow{$ENDIF};
+    property RowHeight[const DataRow: CObject]: Single read {$IFDEF DELPHI}get_RowHeight{$ENDIF} write {$IFDEF DELPHI}set_RowHeight{$ENDIF};
   end;
 
   // View.Count holds the current number of rows of the VIEW (=number of visible rows on screen).

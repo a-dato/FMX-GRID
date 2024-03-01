@@ -28,7 +28,6 @@ uses
   ADato.Controls.FMX.Tree.Cell.Impl,
   ADato.Controls.FMX.Tree.PopupMenu,
   ADato.Controls.FMX.RowHeights.Intf,
-  ADato.Controls.FMX.RowHeights.Impl,
   System.JSON,
   System.Collections.ObjectModel,
   ADato.Collections.Specialized,
@@ -336,7 +335,6 @@ type
                                   const Data: CObject; const RequestValueForSorting: Boolean; out FormatApplied: Boolean) : CObject; overload;
   protected
     // Use object reference here so that we can access internal members
-    _treeControl    : TCustomTreeControl;
 
     // Holds the data from which this TreeRowList fetches data
     _data           : IList;
@@ -352,7 +350,7 @@ type
     _IsNewItem      : Boolean;
     _columnPropertyInfos: PropertyInfoArray;
     _current        : Integer;
-    _rowHeights     : IFMXRowHeightCollection;
+
     _sortComplete   : Boolean;
     _ListSupportsNotifyCollectionChanged : Boolean;
     _updateCount    : Integer;
@@ -378,11 +376,8 @@ type
     procedure set_IsExpanded(const ARow: ITreeRow; Value: Boolean);
     function  get_IsSelected(const ARow: ITreeRow): Boolean;
     procedure set_IsSelected(const ARow: ITreeRow; Value: Boolean);
-    function  get_RowHeight(const DataRow: CObject): Single;
-    procedure set_RowHeight(const DataRow: CObject; Value: Single);
     function  get_RowCount: Integer; override;
     function  get_TreeControl: ITreeControl;
-    function  get_DefaultRowHeight: Single;
     function  IsDataRowExpanded(ARowData: IDataRow): Boolean; // not used
 
     // ICellPropertiesProvider implementation
@@ -462,8 +457,6 @@ type
     _savedItemIndex : Integer;
     _EditItem       : IDataRowView;
     _filterDescriptions : List<IListFilterDescription>;
-    _rowHeights     : IFMXRowHeightCollection;
-
     procedure BeginUpdate;
     procedure EndUpdate;
 
@@ -476,16 +469,11 @@ type
     function  get_Key(const Row: ITreeRow) : CObject;
     function  get_ListHoldsOrdinalType: Boolean;
     function  get_DataList: IList; override;
-    // function  get_IsExpanded(const ARow: ITreeRow): Boolean;
-    // procedure set_IsExpanded(const ARow: ITreeRow; Value: Boolean);
     function  get_IsSelected(const ARow: ITreeRow): Boolean;
     procedure set_IsSelected(const ARow: ITreeRow; Value: Boolean);
-    function  get_RowHeight(const DataRow: CObject): Single;
-    procedure set_RowHeight(const DataRow: CObject; Value: Single);
     function  get_SortDescriptions: List<IListSortDescription>;
     function  get_RowCount: Integer; override;
     function  get_TreeControl: ITreeControl;
-    function  get_DefaultRowHeight: single;
 
     // ICellPropertiesProvider implementation
     function DataType(const Cell: ITreeCell) : &Type;
@@ -513,7 +501,8 @@ type
     procedure SortInternalList; override;
     function  CreateRowClass(const Data: CObject; AIndex: Integer; IsTemporaryRow: Boolean): ITreeRow; override;
   public
-    constructor Create(TreeControl: TCustomTreeControl; const Data: IDataModelView; const RowHeights: IFMXRowHeightCollection);
+    constructor Create(TreeControl: TCustomTreeControl; const Data: IDataModelView;
+      const RowHeights: IFMXRowHeightCollection);
     destructor  Destroy; override;
 
     procedure ClearSort;
@@ -893,7 +882,7 @@ type
     function  get_Width: Single;
     procedure set_Width(Value: Single);
 
-    function CalculateControlSize(const Cell: ITreeCell; DefaultRowHeight: Single) : TSizeF;
+    function CalculateControlSize(const Cell: ITreeCell; InitialRowHeight: Single) : TSizeF;
   public
     constructor Create(const AColumn: ITreeColumn; AIndex: Integer);
 
@@ -1222,7 +1211,6 @@ type
 
     function ColumnXToCellX(ColumnIndex: integer): single;
     procedure SetIndent(Value: integer);
-    function GetDefaultRowHeight: single;
     procedure DoAutoFitColumns(out NeedRepaint: boolean);
     procedure ProcessPercentageColumns(PctColumnsCount: integer; IsColumnChanged: boolean; AvailableSpace,
       TotalPercentageColWidths: single);
@@ -1230,7 +1218,6 @@ type
     function GetVScrollBarWidth: single;
     [Result: Unsafe] function GetCellPropertiesProvider: ICellPropertiesProvider;
     function GetDefaultExpandRows: Boolean;
-    procedure SetDefaultExpandRows(Value: Boolean);
     procedure CreateDefaultComparer;
     procedure AdjustVScrollbarHeight;
     procedure AfterViewPortPositionChanged(const OldViewportPosition, NewViewportPosition: TPointF);
@@ -1299,8 +1286,9 @@ type
     _FrozenLineStroke: TStrokeBrush;
     _GridLineStroke: TStrokeBrush;
 
-    _DefaultRowHeight: Single;
-    _RowHeights     : IFMXRowHeightCollection;
+    _RowHeightsGlobal: IFMXRowHeightCollection;
+    // Global _RowHeights to synch. height between controls (Tree\Gantt). In case if it is nil, each View has own
+    // internal _RowHeights (to save user custom row height values), in TBaseViewList<T: IRow> in the ADato.FMX.Controls.ScrollableRowControl.Impl unit.
 
     _SortingChangedMustBeCalled : Boolean;
     _listComparer       : IListComparer;
@@ -1493,8 +1481,6 @@ type
     procedure ObjectModelContextChanged(const Sender: IObjectModelContext; const Context: CObject);
     function  get_RowLoaded: RowLoadedEvent;
     procedure set_RowLoaded(const Value: RowLoadedEvent);
-    function  get_DefaultRowHeight: Single;
-    procedure set_DefaultRowHeight(const Value: Single);
     function  get_Row: ITreeRow;
     function  get_Size: TSizeF;
     function  get_SortColumns: CString;
@@ -1680,9 +1666,8 @@ type
     property IndexedData[const Row: Integer; const Column: Integer]: CObject read get_IndexedData write set_IndexedData;
     property Model: IObjectListModel read get_Model write set_Model;
     property Options: TreeOptions read get_Options write set_Options;
-    property DefaultRowHeight: Single read get_DefaultRowHeight write set_DefaultRowHeight;
     property HeaderHeight: Single read GetHeaderHeight write _HeaderHeight;
-    property RowHeights: IFMXRowHeightCollection read _RowHeights write set_RowHeights;
+    property RowHeights: IFMXRowHeightCollection read _RowHeightsGlobal write set_RowHeights;
     property SortColumns: CString read  get_SortColumns write set_SortColumns;
     property SortDescriptions: List<IListSortDescription> read get_SortDescriptions;
 
@@ -1751,7 +1736,7 @@ type
     property Indent: integer read _Indent write SetIndent;
     // Default indent in pixels from the left (Parent > Children) for all children rows (Level > 0) in hierarchy mode
     // To set a custom indent for each level, change e.Cell.Indent in CellLoading event
-    property DefaultExpandRows: Boolean read GetDefaultExpandRows write SetDefaultExpandRows;
+    property DefaultExpandRows: Boolean read GetDefaultExpandRows; 
     // Only for hierarchy mode (DataModelView). Affects Row.IsExpanded, View.IsExpanded(Row)
   end;
 
@@ -1782,8 +1767,7 @@ type
     property ScrollPerRow;
     property SortColumns;
     property RowHeights;
-    property DefaultExpandRows;
-    property DefaultRowHeight;
+    property FixedRowHeight;
     property TabStop;
     property HighlightRows;
     //
@@ -2356,8 +2340,8 @@ begin
     DoColumnChangedByUser(nil, col.Column);
     THeaderRowList(HeaderRows).LastResizedColumnByUser := hi.LayoutColumnIndex;
 
-    if _RowHeights <> nil then
-      _RowHeights.Clear;
+    if _RowHeightsGlobal <> nil then
+      _RowHeightsGlobal.Clear;
 
     // DataChanged tells the tree to reload all it's data
     RefreshControl([TreeState.DataChanged]);
@@ -3799,15 +3783,6 @@ begin
   Exit(-1);
 end;
 
-function TCustomTreeControl.GetDefaultRowHeight: single;
-begin
-  // Main const is in TFMXRowHeightCollection.DEFAULT_ROW_HEIGHT -
-  if _RowHeights = nil then
-    Result := View.DefaultRowHeight
-  else
-    Result := _RowHeights.DefaultRowHeight;
-end;
-
 function TCustomTreeControl.DoCellItemClicked(const Cell: ITreeCell; const CellChanged: Boolean) : Boolean;
 var
   args: CellItemClickedEventArgs;
@@ -4374,13 +4349,13 @@ end;
 
 procedure TCustomTreeControl.ClearRowHeights;
 begin
-  if _RowHeights <> nil then
+  if _RowHeightsGlobal <> nil then
   begin
-    (_RowHeights as IUpdatableObject).BeginUpdate;
+    (_RowHeightsGlobal as IUpdatableObject).BeginUpdate;
     try
-      _RowHeights.Clear
+      _RowHeightsGlobal.Clear
     finally
-    (_RowHeights as IUpdatableObject).EndUpdate;
+    (_RowHeightsGlobal as IUpdatableObject).EndUpdate;
     end;
   end
   else if _view <> nil then
@@ -4606,16 +4581,16 @@ begin
 
   // If we have a property name, then test for DataList first and then DataModelView
   if not CString.IsNullOrEmpty(_DataPropertyName) and (DataList <> nil) then
-    _View := TTreeRowList.Create(Self, DataList, _itemType, _RowHeights) as ITreeRowList
+    _View := TTreeRowList.Create(Self, DataList, _itemType, _RowHeightsGlobal) as ITreeRowList
 
   // If we do not have a property name, then test for DataModelView first and then for DataList
   else
     if Interfaces.Supports(_data, IDataModelView, dataModelView) then
-      _View := TTreeDataModelViewRowList.Create(Self, dataModelView, _RowHeights) as ITreeRowList
+      _View := TTreeDataModelViewRowList.Create(Self, dataModelView, _RowHeightsGlobal) as ITreeRowList
   // Finally test for DataList again
     else
       if DataList <> nil then
-        _View := TTreeRowList.Create( Self, DataList, _itemType, _RowHeights) as ITreeRowList;
+        _View := TTreeRowList.Create( Self, DataList, _itemType, _RowHeightsGlobal) as ITreeRowList;
 
   { Changed to function GetCellPropertiesProvider instead of saving in a variable. Because saving increases
     RefCount for _View, and _View := nil does not destroy View and Rows in Reset. }
@@ -5101,9 +5076,9 @@ begin
       treeRowClass.Height := rowHeight;
 
     // Negotiate the final height of the row. This will init and add a row in another paired control (Gantt or Tree)
-    if not _SkipRowHeightNegotiation and (_RowHeights <> nil) then
+    if not _SkipRowHeightNegotiation and (_RowHeightsGlobal <> nil) then
     begin
-      _RowHeights.NegotiateRowHeight(Self, treeRow, {var} rowHeight);
+      _RowHeightsGlobal.NegotiateRowHeight(Self, treeRow, {var} rowHeight);
 
       // When we apply value to treeRow.Height, it also applies for Row.Control. But if treeRow.Height was set in
       // another control, - it did not affected Row.Control.Height in a current control. So apply it.
@@ -5116,8 +5091,9 @@ begin
     DoRowLoaded(treeRow);
 
     {$IFDEF DEBUG}
-    if rowHeight <> treeRowClass.Height then
-      raise Exception.Create('Not allowed to change the height of a row in RowLoaded. Please see the comment.');
+    if _RowHeightsGlobal <> nil then
+      if rowHeight <> treeRowClass.Height then
+        raise Exception.Create('Not allowed to change the height of a row in RowLoaded. Please see the comment.');
     {$ENDIF}
 
     { Do not allow to change height of the row in RowLoaded event (Kees), because if we use DoRowLoaded AFTER NegotiateRowHeight -
@@ -5244,7 +5220,7 @@ begin
 
     // if CellControl.Height was not changed in InitCellStyles and it is still default - adjust it to text width:
     if size = treeCell.Control.Size.Size then
-      size := layoutColumn.CalculateControlSize(treeCell, GetDefaultRowHeight) else
+      size := layoutColumn.CalculateControlSize(treeCell, INITIAL_ROW_HEIGHT) else
       size := treeCell.Control.Size.Size;
 
 
@@ -5797,7 +5773,9 @@ begin
   Data := Value;
 
   // re-apply saved value for the new DataModelView
-  DefaultExpandRows := _DefaultExpandRows;
+
+  // DefaultExpandRows := _DefaultExpandRows;
+  // commented by Alex, because property SetDefaultExpandRows was commented (not by me)
 end;
 
 procedure TCustomTreeControl.set_DataPropertyName(const Value: CString);
@@ -6289,52 +6267,43 @@ begin
   if hiddenColumnExists then
     RefreshControl([TreeState.ColumnsChanged, TreeState_DataChanged]);
 end;
-
-procedure TCustomTreeControl.SetDefaultExpandRows(Value: Boolean);
-//var
-//  DM: IDataModelView;
-//  NewFlags: RowFlags;
-begin
-//  _DefaultExpandRows := Value;
 //
-//  DM := DataModelView;
-//  if DM = nil then exit;
+//procedure TCustomTreeControl.SetDefaultExpandRows(Value: Boolean);
+////var
+////  DM: IDataModelView;
+////  NewFlags: RowFlags;
+//begin
+////  _DefaultExpandRows := Value;
+////
+////  DM := DataModelView;
+////  if DM = nil then exit;
+////
+////  var CurrentFlags := DM.DefaultRowProperties.Flags;
+////
+////  if Value then
+////    NewFlags := CurrentFlags + [RowFlag.Expanded]
+////  else
+////    NewFlags := CurrentFlags - [RowFlag.Expanded];
+////
+////  if NewFlags <> CurrentFlags then
+////    DM.DefaultRowProperties := TRowProperties.Create(NewFlags)
+//end;
 //
-//  var CurrentFlags := DM.DefaultRowProperties.Flags;
-//
-//  if Value then
-//    NewFlags := CurrentFlags + [RowFlag.Expanded]
-//  else
-//    NewFlags := CurrentFlags - [RowFlag.Expanded];
-//
-//  if NewFlags <> CurrentFlags then
-//    DM.DefaultRowProperties := TRowProperties.Create(NewFlags)
-end;
-
-function TCustomTreeControl.get_DefaultRowHeight : Single;
-begin
-  Result := _DefaultRowHeight;
-end;
-
-procedure TCustomTreeControl.set_DefaultRowHeight(const Value: Single);
-begin
-  _DefaultRowHeight := Value;
-end;
 
 procedure TCustomTreeControl.set_RowHeights(const Value: IFMXRowHeightCollection);
 begin
   RefreshControl([TreeState.Refresh]);
 
   {$IFDEF DELPHI}
-  ReferenceInterface(_RowHeights, opRemove);
+  ReferenceInterface(_RowHeightsGlobal, opRemove);
   {$ENDIF}
 
-  _RowHeights := Value;
-  if _RowHeights <> nil then
-    _RowHeights.AddNegotiateProc(NegotiateRowHeight);
+  _RowHeightsGlobal := Value;
+  if _RowHeightsGlobal <> nil then
+    _RowHeightsGlobal.AddNegotiateProc(NegotiateRowHeight);
 
   {$IFDEF DELPHI}
-  ReferenceInterface(_RowHeights, opInsert);
+  ReferenceInterface(_RowHeightsGlobal, opInsert);
   {$ENDIF}
 end;
 
@@ -7128,8 +7097,7 @@ begin
           var clmnIndex := _Layout.ColumnToCellIndex(treeCell.Column);
 
           // calc cell width and height
-          NewCellSize := _Layout.Columns[clmnIndex].CalculateControlSize(treeCell,
-            GetDefaultRowHeight);
+          NewCellSize := _Layout.Columns[clmnIndex].CalculateControlSize(treeCell, INITIAL_ROW_HEIGHT);
 
           UpdateColumnWidthAndCells(clmnIndex, NewCellSize.Width, TreeCell.ColSpan,
             [TUpdateColumnReason.UpdateRows, TUpdateColumnReason.UpdateHeader{, TUpdateColumnReason.HeaderSizing}]);
@@ -7626,8 +7594,8 @@ begin
   begin
     // make sure that also not visible rows get updated
     // the width-change can make rows appear again, and then the cells should have the correct width
-//    for i := 0 to _View.Count - 1 do
-    for i := 0 to Self.RowCount - 1 do
+    for i := 0 to _View.Count - 1 do
+    // Returned back _View.Count, because of performance issue, see c5482. Alex.   //for i := 0 to Self.RowCount - 1 do
       ResizeRepositionCells(Self.Rows[i]);
 
     // usually if _NegotiateInitiatedRows list has rows, View is empty, rows will be moved a little bit later to the View without
@@ -7645,7 +7613,7 @@ begin
   var Column :=  _Layout.Columns[ColumnIndex];
 
   if Column.Column.Frozen then
-    Result := Column.Left // + ViewportPosition.X
+    Result := Column.Left + ViewportPosition.X // please do not comment, or frozen cells will be shifted. Alex.
   else
     Result := Column.Left;
 end;
@@ -9781,11 +9749,11 @@ begin
   _Width := Value;
 end;
 
-function TTreeLayoutColumn.CalculateControlSize(const Cell: ITreeCell; DefaultRowHeight: Single): TSizeF;
+function TTreeLayoutColumn.CalculateControlSize(const Cell: ITreeCell; InitialRowHeight: Single): TSizeF;
 begin
   // for cells in a column header and data cells in rows
 
-  Result.Height := DefaultRowHeight;
+  Result.Height := InitialRowHeight;
   Result.Width := 0;
 
    // Get textControl from a cell
@@ -9846,9 +9814,9 @@ begin
   if fmxColumn._AutoSizeToContent and textControlExists then
   begin
     var textHeight := TextControlHeight(textControl, textControl.TextSettings, textControl.Text, -1, -1, Result.Width - 3 {margins});
-    if textHeight > DefaultRowHeight then
+    if textHeight > InitialRowHeight then
       Result.Height := Ceil(textHeight) + EXTRA_CELL_HEIGHT else
-      Result.Height := DefaultRowHeight;
+      Result.Height := InitialRowHeight;
   end;
 end;
 
@@ -10193,23 +10161,10 @@ end;
 
 constructor TTreeDataModelViewRowList.Create(TreeControl: TCustomTreeControl; const Data: IDataModelView;
   const RowHeights : IFMXRowHeightCollection);
-var
-  CollectionNotification: INotifyCollectionChanged;
 begin
-  inherited Create(TreeControl, Data);
-
-  if (RowHeights = nil) and (TreeControl.DefaultRowHeight = 0) then
-    _RowHeights := TFMXRowHeightCollection.Create else
-    _RowHeights := RowHeights;
-
-  if Interfaces.Supports(_RowHeights, INotifyCollectionChanged, CollectionNotification) then
-    CollectionNotification.CollectionChanged.Add(RowHeightsCollectionChanged);
-
-//  if (_DataModelView.DataModel <> nil) then
-//    _DataModelView.DataModel.ListChanged.Add(DataModelListChanged);
+  inherited Create(TreeControl, Data, RowHeights);
 
   _DataModelView.ViewChanged.Add(DataModelViewChanged);
- // _DataModelView.RowPropertiesChanged.Add(RowPropertiesChanged);
 
   _DataModelView.CurrencyManager.CurrentRowChanged.Add(CurrentRowChanged);
   _DataModelView.CurrencyManager.TopRowChanged.Add(TopRowChanged);
@@ -10682,13 +10637,6 @@ begin
   Result := False;
 end;
 
-function TTreeDataModelViewRowList.get_RowHeight(const DataRow: CObject): Single;
-begin
-  if _RowHeights <> nil then
-    Result := _RowHeights[DataRow] else
-    Result := TFMXTreeControl(_Control).DefaultRowHeight;
-end;
-
 function TTreeDataModelViewRowList.InsertRow(Position: InsertPosition): Boolean;
 var
   location: IDataRow;
@@ -10882,12 +10830,6 @@ begin
   Exit(_savedItemIndex);
 end;
 
-function TTreeDataModelViewRowList.get_DefaultRowHeight: single;
-begin
-  if _rowHeights <> nil then
-    Result := _rowHeights.DefaultRowHeight else
-    Result := TFMXTreeControl(_Control).DefaultRowHeight;
-end;
 
 function TTreeDataModelViewRowList.get_EditItem: CObject;
 begin
@@ -10904,14 +10846,6 @@ procedure TTreeDataModelViewRowList.set_IsSelected(
   Value: Boolean);
 begin
 
-end;
-
-procedure TTreeDataModelViewRowList.set_RowHeight(
-  const DataRow: CObject;
-  Value: Single);
-begin
-  if _RowHeights <> nil then
-    _RowHeights[DataRow] := Value;
 end;
 
 function TTreeDataModelViewRowList.get_SortDescriptions: List<IListSortDescription>;
@@ -11578,6 +11512,62 @@ end;
 
 {$REGION 'TTreeRowList'}
 
+constructor TTreeRowList.Create(
+  TreeControl: TCustomTreeControl;
+  const Data: IList;
+  const ItemType: &Type;
+  const RowHeights: IFMXRowHeightCollection);
+
+var
+  CollectionNotification: INotifyCollectionChanged;
+begin
+  inherited Create(TreeControl, RowHeights);
+
+  _data := Data;
+  _itemType := ItemType;
+
+  _Current := -1;
+
+  // Install event handler on data list
+  if Interfaces.Supports(_data, INotifyCollectionChanged, CollectionNotification) then
+  begin
+    CollectionNotification.CollectionChanged.Add(DataCollectionChanged);
+    _ListSupportsNotifyCollectionChanged := True;
+  end else
+    _ListSupportsNotifyCollectionChanged := False;
+
+//  if (RowHeights = nil) and (TreeControl.FixedRowHeight = 0) then
+//    _RowHeights := TFMXRowHeightCollection.Create else
+//    _RowHeights := RowHeights;
+//
+//  if Interfaces.Supports(_RowHeights, INotifyCollectionChanged, CollectionNotification) then
+//    CollectionNotification.CollectionChanged.Add(RowHeightsCollectionChanged);
+
+  // InitializeColumnPropertiesFromColumns;
+  _CacheRows := USE_TREE_CACHE;
+end;
+
+procedure TTreeRowList.BeforeDestruction;
+var
+  CollectionNotification: INotifyCollectionChanged;
+
+begin
+  inherited;
+
+  if _data <> nil then
+  begin
+    if Interfaces.Supports(_data, INotifyCollectionChanged, CollectionNotification) then
+      CollectionNotification.CollectionChanged.Remove(DataCollectionChanged);
+  end;
+
+  if (_RowHeights <> nil) and
+      Interfaces.Supports(_RowHeights, INotifyCollectionChanged, CollectionNotification)
+  then
+    CollectionNotification.CollectionChanged.Remove(RowHeightsCollectionChanged);
+
+  //ApplySort(nil, nil);
+end;
+
 function TTreeRowList.AbsParent(const ARow: ITreeRow): ITreeRow;
 begin
   Result := nil;
@@ -11620,25 +11610,26 @@ var
 begin
   if _ColumnPropertyInfos <> nil then Exit;
 
-  if _treeControl.Model <> nil then
-    typeData := _treeControl.Model.ObjectModel.GetType
+  var treeControl := (_Control as TFMXTreeControl);
+  if treeControl.Model <> nil then
+    typeData := treeControl.Model.ObjectModel.GetType
 
   else if not _itemType.IsUnknown then
     typeData := _itemType
 
   else
   begin
-    if (TreeOption.AssumeObjectTypesDiffer in _treeControl.Options) or (_data.Count = 0) then Exit;
+    if (TreeOption.AssumeObjectTypesDiffer in treeControl.Options) or (_data.Count = 0) then Exit;
     typeData := _data[0].GetType;
   end;
 
   _listHoldsOrdinalType := not (&Type.GetTypeCode(typeData) in [TypeCode.&Object, TypeCode.&Interface, TypeCode.&Array]);
 
-  SetLength(_ColumnPropertyInfos, _treeControl.Columns.Count);
+  SetLength(_ColumnPropertyInfos, treeControl.Columns.Count);
 
-  for i := 0 to _treeControl.Columns.Count - 1 do
+  for i := 0 to treeControl.Columns.Count - 1 do
   begin
-    c := _treeControl.Columns[i] as ITreeColumn;
+    c := treeControl.Columns[i] as ITreeColumn;
 
     if not CString.IsNullOrEmpty(c.PropertyName) and not c.PropertyName.Equals(COLUMN_SHOW_DEFAULT_OBJECT_TEXT) then
     begin
@@ -11649,9 +11640,10 @@ begin
       except
         on E: Exception do
           raise Exception.Create(CString.Format(
-            'Exception in a call to TypeData.GetProperty: TreeName: {0}, Propname: ''{1}'', Typename: {2}, Message: [{3}]', [_treeControl.Name, c.PropertyName, TypeData.Name, E.Message]));
+            'Exception in a call to TypeData.GetProperty: TreeName: {0}, Propname: ''{1}'', Typename: {2}, Message: [{3}]',
+            [treeControl.Name, c.PropertyName, TypeData.Name, E.Message]));
       end;
-      if (_ColumnPropertyInfos[i] = nil) and (TreeOption.CheckPropertyNames in _treeControl.Options) then
+      if (_ColumnPropertyInfos[i] = nil) and (TreeOption.CheckPropertyNames in treeControl.Options) then
         raise ArgumentException.Create(CString.Format('A property named ''{0}'' does not exist in object of type ''{1}''.', c.PropertyName, TypeData.Name));
     end;
   end;
@@ -11668,27 +11660,6 @@ begin
   Result := inherited _Release;
 end;
 {$ENDIF}
-
-procedure TTreeRowList.BeforeDestruction;
-var
-  CollectionNotification: INotifyCollectionChanged;
-
-begin
-  inherited;
-
-  if _data <> nil then
-  begin
-    if Interfaces.Supports(_data, INotifyCollectionChanged, CollectionNotification) then
-      CollectionNotification.CollectionChanged.Remove(DataCollectionChanged);
-  end;
-
-  if (_RowHeights <> nil) and
-      Interfaces.Supports(_RowHeights, INotifyCollectionChanged, CollectionNotification)
-  then
-    CollectionNotification.CollectionChanged.Remove(RowHeightsCollectionChanged);
-
-  //ApplySort(nil, nil);
-end;
 
 procedure TTreeRowList.BeginRowEdit(const DataItem: CObject);
 begin
@@ -11781,6 +11752,8 @@ var
   o: CObject;
 
 begin
+  var treeControl := TFMXTreeControl(_Control);
+
   if (_UpdateCount = 0) and (e <> nil) and (e.Action = NotifyCollectionChangedAction.Remove) then
   begin
     if (_EditItem <> nil) then
@@ -11789,7 +11762,7 @@ begin
       begin
         if CObject.Equals(o, _EditItem) then
         begin
-          _treeControl.CancelEdit;
+          treeControl.CancelEdit;
           break;
         end;
       end;
@@ -11797,20 +11770,13 @@ begin
   end;
 
   // Need more inteligent control here, not all rows need reloading (see above)!
-  _treeControl.RefreshControl([TreeState.DataChanged, TreeState.CellChanged]);
+  treeControl.RefreshControl([TreeState.DataChanged, TreeState.CellChanged]);
 end;
 
 procedure TTreeRowList.DataCollectionChangedInternal(ARow: ITreeRow; DataIndex: Integer);
 begin
   // Do a full refresh for now, later we might decide to refresh updated rows only
-  _treeControl.RefreshControl([TreeState.DataChanged, TreeState.CellChanged]);
-//  if ARow.Index < Count then
-//  begin
-//    // ARow.DataItem := _data[DataIndex];
-//    // set_Item(ARow.Index, nil);
-//    _treeControl.RefreshControl([TreeState.DataRowChanged, TreeState.CellChanged]);
-//  end else
-//  _treeControl.RefreshControl([TreeState.DataChanged, TreeState.CellChanged]);
+  TFMXTreeControl(_Control).RefreshControl([TreeState.DataChanged, TreeState.CellChanged]);
 end;
 
 function TTreeRowList.DataType(const Cell: ITreeCell): &Type;
@@ -11826,10 +11792,9 @@ end;
 function TTreeRowList.DeleteRow: Boolean;
 var
   i: Integer;
-  // wasNewItem: Boolean;
-
 begin
-  // wasNewItem := False;
+  var treeControl := TFMXTreeControl(_Control);
+
   inc(_UpdateCount);
   try
     if (_Current >= 0) and (_Current < _data.Count) then
@@ -11842,7 +11807,7 @@ begin
       begin
         var wasNewItem := _IsNewItem;
         // dec(_UpdateCount); // CancelEdit checks on _UpdateCount
-        _treeControl.CancelEdit;
+        treeControl.CancelEdit;
         if wasNewItem then
           Exit;
       end;
@@ -11851,7 +11816,7 @@ begin
       _data.RemoveAt(i);
 
       // Current view has been reset due to removal of row
-      if (TreeState.DataBindingChanged in _treeControl._InternalState) or (_data = nil) then
+      if (TreeState.DataBindingChanged in treeControl._InternalState) or (_data = nil) then
         Exit;
 
       if _Current >= _data.Count then
@@ -11874,43 +11839,6 @@ begin
   Result := CString.Empty;
 end;
 
-constructor TTreeRowList.Create(
-  TreeControl: TCustomTreeControl;
-  const Data: IList;
-  const ItemType: &Type;
-  const RowHeights: IFMXRowHeightCollection);
-
-var
-  CollectionNotification: INotifyCollectionChanged;
-
-begin
-  inherited Create;
-
-  _treeControl := TreeControl;
-  _data := Data;
-  _itemType := ItemType;
-
-  _Current := -1;
-
-  // Install event handler on data list
-  if Interfaces.Supports(_data, INotifyCollectionChanged, CollectionNotification) then
-  begin
-    CollectionNotification.CollectionChanged.Add(DataCollectionChanged);
-    _ListSupportsNotifyCollectionChanged := True;
-  end else
-    _ListSupportsNotifyCollectionChanged := False;
-
-  if (RowHeights = nil) and (TreeControl.DefaultRowHeight = 0) then
-    _RowHeights := TFMXRowHeightCollection.Create else
-    _RowHeights := RowHeights;
-
-  if Interfaces.Supports(_RowHeights, INotifyCollectionChanged, CollectionNotification) then
-    CollectionNotification.CollectionChanged.Add(RowHeightsCollectionChanged);
-
-  // InitializeColumnPropertiesFromColumns;
-  _CacheRows := USE_TREE_CACHE;
-end;
-
 procedure TTreeRowList.CreateDefaultColumns(const AList: ITreeColumnList);
 var
   typeData: &Type;
@@ -11920,16 +11848,18 @@ var
   dummy: CObject;
 
 begin
-  if _treeControl.Model <> nil then
-    typeData := _treeControl.Model.ObjectModel.GetType else
+  var treeControl := TFMXTreeControl(_Control);
+
+  if treeControl.Model <> nil then
+    typeData := treeControl.Model.ObjectModel.GetType else
     typeData := _data.InnerType;
 
-  if not typeData.Equals(_treeControl._ColumnPropertiesTypeData) then
+  if not typeData.Equals(treeControl._ColumnPropertiesTypeData) then
   begin
     BeginUpdate;
     try
-     _treeControl.Columns.Clear;
-      _treeControl._ColumnPropertiesTypeData := typeData;
+      treeControl.Columns.Clear;
+      treeControl._ColumnPropertiesTypeData := typeData;
       _ColumnPropertyInfos := typeData.GetProperties;
 
       for i := 0 to High(_ColumnPropertyInfos) do
@@ -11953,7 +11883,7 @@ begin
     end;
   end;
 
-  if _treeControl.Columns.Count = 0 then
+  if treeControl.Columns.Count = 0 then
   begin
     col := TFMXTreeColumn.Create;
     col.PropertyName := COLUMN_SHOW_DEFAULT_OBJECT_TEXT;
@@ -11968,13 +11898,15 @@ var
   item: IListSortDescription;
   treeSort: ITreeSortDescription;
 begin
-  if (_treeControl.ListComparer <> nil) and (_treeControl.ListComparer.SortDescriptions <> nil) then
+  var treeControl := TFMXTreeControl(_Control);
+
+  if (treeControl.ListComparer <> nil) and (treeControl.ListComparer.SortDescriptions <> nil) then
   begin
-    for item in _treeControl.ListComparer.SortDescriptions do
+    for item in treeControl.ListComparer.SortDescriptions do
     begin
       if Interfaces.Supports(item, ITreeSortDescription, treeSort) and Interfaces.Supports(treeSort, IlistSortDescriptionWithComparer, cmp) and (cmp.Comparer = nil) then
       begin
-        cmp.Comparer := _treeControl.DoSortingGetComparer(cmp, True);
+        cmp.Comparer := treeControl.DoSortingGetComparer(cmp, True);
         if cmp.Comparer = nil then
         begin
           if (treeSort.LayoutColumn = nil) or (treeSort.LayoutColumn.Column = nil) then
@@ -11985,51 +11917,16 @@ begin
     end;
   end;
 
-  _treeControl.RefreshControl([TreeState.SortChanged]);
+  treeControl.RefreshControl([TreeState.SortChanged]);
 end;
-
-//procedure TTreeRowList.ApplySort(const sorts: List<IListSortDescription>; const filters: List<IListFilterDescription>);
-//var
-//  item: IListSortDescription;
-//  treeSort: ITreeSortDescription;
-//
-//begin
-//  if (_sortDescriptions = nil) and (sorts = nil) and
-//     (_filterDescriptions = nil) and (filters = nil)
-//  then
-//    Exit;
-//
-//  _sortDescriptions := sorts;
-//  _filterDescriptions := filters;
-//
-//  if _sortDescriptions <> nil then
-//  begin
-//    for item in _sortDescriptions do
-//    begin
-//      if not Interfaces.Supports(item, ITreeSortDescription, treeSort) then
-//         continue;
-//
-//      if (treeSort.TreeSortType in [SortType.ColumnCellComparer, SortType.RowComparer]) and (treeSort.Comparer = nil) then
-//      begin
-//        treeSort.Comparer := _treeControl.DoSortingGetComparer(treeSort, True);
-//        if treeSort.Comparer = nil then
-//        begin
-//          if (treeSort.LayoutColumn = nil) or (treeSort.LayoutColumn.Column = nil) then
-//            raise ArgumentException.Create('SortType.ColumnCellComparer requires a comparer') else
-//            raise ArgumentException.Create(CString.Format('SortType.ColumnCellComparer requires a comparer (column {0})', treeSort.LayoutColumn.Column.Caption));
-//        end;
-//      end;
-//    end;
-//  end;
-//
-//  _treeControl.RefreshControl([TreeState.SortChanged]);
-//end;
 
 procedure TTreeRowList.SortInternalList;
 var
   cnt: Integer;
   savedPos: Integer;
 begin
+  var treeControl := TFMXTreeControl(_Control);
+
   // ::NEW SORTING:: added test on _sortComplete
   // Fix for Error report from Ad dated 2013-02-06, 20:32:52
   if _sortComplete or (_data = nil) then
@@ -12040,10 +11937,10 @@ begin
   cnt := _data.Count;
   savedPos := _Current;
 
-  if (cnt > 0) and (_treeControl.ListComparer <> nil) then
+  if (cnt > 0) and (treeControl.ListComparer <> nil) then
     // calling SortedRows now will create SortedRows if needed, triggers comparer and sort items
-    if _treeControl.ListComparer.SortedRows <> nil then
-      cnt := _treeControl.ListComparer.SortedRows.Count;
+    if treeControl.ListComparer.SortedRows <> nil then
+      cnt := treeControl.ListComparer.SortedRows.Count;
 
   // ::NEW SORTING:: Dissabled, current position is set in  Initialize
   // Check positions
@@ -12058,12 +11955,13 @@ end;
 
 function TTreeRowList.Transpose(RowIndex: Integer) : Integer;
 begin
+  var treeControl := TFMXTreeControl(_Control);
   Result := RowIndex;
 
-  if not interfaces.Supports(_data, IComparableList) and (_treeControl.ListComparer <> nil) and (_treeControl.ListComparer.SortedRows <> nil) then
+  if not interfaces.Supports(_data, IComparableList) and (treeControl.ListComparer <> nil) and (treeControl.ListComparer.SortedRows <> nil) then
   begin
-    if (_treeControl.ListComparer.SortedRows.Count > RowIndex) then
-      Result := _treeControl.ListComparer.SortedRows[RowIndex] //{.IndexOf}(RowIndex) else -
+    if (treeControl.ListComparer.SortedRows.Count > RowIndex) then
+      Result := treeControl.ListComparer.SortedRows[RowIndex] //{.IndexOf}(RowIndex) else -
        // fixed: mixed internal View indexes (which goes from 0) with global indexes which SortedRows contains inside.
        // SortedRows[i] - where i must be View index, in fact SortedRows contains full View list from 0 to SortedRows.Count
        // and Tree just loads these rows into the real View, part by part, while scrolling.
@@ -12075,9 +11973,10 @@ end;
 
 procedure TTreeRowList.ClearSort;
 begin
+  var treeControl := TFMXTreeControl(_Control);
   _sortComplete := False;
-  if _treeControl.ListComparer <> nil then
-    _treeControl.ListComparer.ResetSortedRows(False);
+  if treeControl.ListComparer <> nil then
+    treeControl.ListComparer.ResetSortedRows(False);
 end;
 
 function TTreeRowList.CreateRowClass(const Data: CObject; AIndex: Integer; IsTemporaryRow: Boolean): ITreeRow;
@@ -12117,7 +12016,7 @@ begin
     dataIndex := -1;
 
     // Do not update list when a Model is used
-    if _treeControl.Model = nil then
+    if TFMXTreeControl(_Control).Model = nil then
     begin
       var i := Row.Index - get_TopRow;
       if not _listHoldsOrdinalType and not CObject.Equals(Self[i].DataItem, _EditItem) then
@@ -12187,8 +12086,9 @@ function TTreeRowList.GetColumnValues(const Column: ITreeLayoutColumn; Filtered:
   begin
     aDataItem := nil;
 
-    if (_treeControl.ListComparer <> nil) then
-       SortedRows := _treeControl.ListComparer.SortedRows
+    var treeControl := TFMXTreeControl(_Control);
+    if (treeControl.ListComparer <> nil) then
+       SortedRows := treeControl.ListComparer.SortedRows
     else
       SortedRows := nil;
 
@@ -12330,7 +12230,7 @@ function TTreeRowList.GetFormattedData(const Cell: ITreeCell; const Content: ICe
 begin
   FormatApplied := False;
 
-  if Assigned(_treeControl.CellFormatting) then
+  if Assigned( TFMXTreeControl(_Control).CellFormatting ) then
   begin
     if IsEditOrNew(Cell.Row) then
     begin
@@ -12361,11 +12261,12 @@ var
   args: CellFormattingEventArgs;
 begin
   FormatApplied := False;
+  var treeControl := TFMXTreeControl(_Control);
 
-  if Assigned(_treeControl.CellFormatting) then
+  if Assigned(treeControl.CellFormatting) then
   begin
     AutoObject.Guard(CellFormattingEventArgs.Create(Cell, Content, DataItem, Data, RequestValueForSorting), args);
-    _treeControl.CellFormatting(_treeControl, args);
+    treeControl.CellFormatting(treeControl, args);
     Result := args.Value;
     FormatApplied := args.FormattingApplied;
   end else
@@ -12412,61 +12313,6 @@ begin
   Result := _listHoldsOrdinalType;
 end;
 
-function TTreeRowList.get_RowHeight(const DataRow: CObject): Single;
-begin
-  if _RowHeights <> nil then
-    Result := _RowHeights[DataRow] else
-    Result := _treeControl.DefaultRowHeight;
-end;
-
-(*  Moved into TBaseViewList<T> class
-
-function TTreeRowList.IndexOf(const ARow: ITreeRow): Integer;
-begin
-  Result := ARow.Index;
-end;  *)
-
-(*   Used TBaseViewList<T>.IndexOf(const DataItem: CObject): Integer; instead
-
-function TTreeRowList.IndexOf(const DataItem: CObject): Integer;
-begin
-  Assert(_sortComplete);
-  if Count = 0 then Exit(-1);
-
-  Result := _data.IndexOf(DataItem);
-
-  // added by Alex:
-  if Result = -1 then Exit
-  else
-  begin
-    Result := Result - get_TopRow;
-
-    // While NegotiateRowHeight, Control2 may not have this row (from Control1) in a view
-    if Result > Count - 1 then Exit(-1);
-  end;
-   //----- end
-         {
-   incorrect, "_data" holds the data from which this TreeRowList fetches data into View.
-   If View.Count = 0 but data.Count <> 0 - it returns an index. But should not.
-   We cannot use "Result := inherited IndexOf(DataItem) (CList);" because TTreeRowList is CList<ITreeRow> not for example string
-   like _data - CList<string>, (btw type of list comes from Tree.Set_data) - will be an error 'Cannot cast CObject from 'CString' to 'TObject'.
-   So search it with own code. }
-
-//   Result := -1;
-//   for var i := 0 to Count - 1 do
-//     if Self[i].DataItem = DataItem then Exit(i);
-
-  // The reason of this method - to return the View index of the DataItem. TBaseDataModelViewList<T>.FindRowByData returns View index.
-  // If data was filtered and this DataItem was hidden by filter - it will not exists in the current View already.
-  // Why need to search it in the SortedRows which will return the index from the _data list, not from View?
-//  if not interfaces.Supports(Self {_data}, IComparableList) and (_treeControl.ListComparer <> nil) and (_treeControl.ListComparer.SortedRows <> nil) then
-//  begin
-//    Result := _data.IndexOf(DataItem);
-//    if (_treeControl.ListComparer.SortedRows.Count > Result) then
-//      Result := _treeControl.ListComparer.SortedRows.IndexOf(Result);
-//  end;
-end;  *)
-
 function TTreeRowList.FindDataIndexByData(AData: CObject): integer;
 begin
   // Transpose is important!!!!
@@ -12474,15 +12320,6 @@ begin
   // 2. Items also can be re-ordered and get another another itemindex
   Result := Transpose(_data.IndexOf(AData));
 end;
-
-//
-//function TTreeRowList.FindRow(const ARow: ITreeRow): Integer;
-//begin
-//  if ARow <> nil then
-//    Result := IndexOf(ARow.DataItem) - get_TopRow else
-//    Result := -1;
-//end;
-
 
 function TTreeRowList.InsertRow(Position: InsertPosition): Boolean;
 var
@@ -12492,15 +12329,16 @@ var
 begin
   Result := False;
   NewItem := nil;
+  var treeControl := TFMXTreeControl(_Control);
 
   // Insertion handled by external model?
-  var supportsEditable := Interfaces.Supports<IEditableModel>(_treeControl.Model);
+  var supportsEditable := Interfaces.Supports<IEditableModel>(treeControl.Model);
   if supportsEditable then
-    NewItem := _treeControl.Model.ObjectContext
+    NewItem := treeControl.Model.ObjectContext
 
   else begin
     // Let tree call AddingNew event handler
-    if not _treeControl.DoAddingNew(NewItem) then
+    if not treeControl.DoAddingNew(NewItem) then
       Exit;
 
     if (NewItem = nil) then
@@ -12538,14 +12376,14 @@ begin
     _EditItem := NewItem;
     _IsNewItem := True;
 
-    if (_treeControl.ListComparer <> nil) and (_treeControl.ListComparer.SortedRows <> nil) then
+    if (treeControl.ListComparer <> nil) and (treeControl.ListComparer.SortedRows <> nil) then
     begin
       if not supportsEditable then
         _data.Add(NewItem);
 
       // IComparableList takes care of it's own sorting in this case
       if not interfaces.Supports<IComparableList>(_data) then
-        _treeControl.ListComparer.SortedRows.Insert(ownerPos, _data.Count - 1);
+        treeControl.ListComparer.SortedRows.Insert(ownerPos, _data.Count - 1);
 
       _Current := _data.IndexOf(NewItem);
     end else
@@ -12561,7 +12399,7 @@ begin
       // Call event handler
       DataCollectionChanged(Self, nil);
 
-    _treeControl.RefreshControl([TreeState.AlignViewToCurrent]);
+    treeControl.RefreshControl([TreeState.AlignViewToCurrent]);
     Result := True;
   end;
 end;
@@ -12789,7 +12627,7 @@ begin
   if Value <> _Current then
   begin
      _Current := Value;
-    _treeControl.RefreshControl([TreeState.AlignViewToCurrent]);
+    TFMXTreeControl(_Control).RefreshControl([TreeState.AlignViewToCurrent]);
   end;
 end;
 
@@ -12801,13 +12639,6 @@ end;
 function TTreeRowList.get_SavedItemIndex: Integer;
 begin
   Exit(_savedItemIndex);
-end;
-
-function TTreeRowList.get_DefaultRowHeight: Single;
-begin
-  if _rowHeights <> nil then
-    Result := _rowHeights.DefaultRowHeight else
-    Result := _treeControl.DefaultRowHeight;
 end;
 
 function TTreeRowList.get_EditItem: CObject;
@@ -12830,23 +12661,19 @@ begin
 
 end;
 
-procedure TTreeRowList.set_RowHeight(const DataRow: CObject; Value: Single);
-begin
-  if _RowHeights <> nil then
-    _RowHeights[DataRow] := Value;
-end;
-
 function TTreeRowList.get_RowCount: Integer;
 begin
-  if (_treeControl.ListComparer <> nil) and (_treeControl.ListComparer.SortedRows <> nil) then
-    Result := _treeControl.ListComparer.SortedRows.Count
+  var treeControl := TFMXTreeControl(_Control);
+
+  if (treeControl.ListComparer <> nil) and (treeControl.ListComparer.SortedRows <> nil) then
+    Result := treeControl.ListComparer.SortedRows.Count
   else
     Result := _data.Count;
 end;
 
 function TTreeRowList.get_TreeControl: ITreeControl;
 begin
-  Result := _treeControl;
+  Result := TFMXTreeControl(_Control);
 end;
 
 {$ENDREGION}

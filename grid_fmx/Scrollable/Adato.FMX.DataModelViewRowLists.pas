@@ -4,7 +4,7 @@ interface
 
 uses
   ADato.FMX.Controls.ScrollableRowControl.Impl, ADato.FMX.Controls.ScrollableRowControl.Intf,
-  ADato.Data.DataModel.impl, ADato.Data.DataModel.intf,
+  ADato.Data.DataModel.impl, ADato.Data.DataModel.intf, ADato.Controls.FMX.RowHeights.Intf,
   System.Types, System.Collections.Generic, System.ComponentModel, System_,
   ADato.InsertPosition;
 
@@ -13,7 +13,6 @@ type
   strict private
     procedure RowPropertiesChanged(Sender: TObject; Args: RowPropertiesChangedEventArgs);
   protected
-    _Control: TScrollableRowControl<T>;  // Gantt or Tree
     _DataModelView: IDataModelView; // Holds the dataModel from which this TreeRowList fetches data
   protected // some interfaces are defined in child classes but implemented here in parent:
     function get_Current: Integer; override;
@@ -26,7 +25,8 @@ type
     // IDataModel CollectionChanged event
     procedure DataModelListChanged(Sender: TObject; e: ListChangedEventArgs); virtual; abstract;
   public
-    constructor Create(AControl: TScrollableRowControl<T>; const AData: IDataModelView);
+    constructor Create(AControl: TScrollableRowControl<T>; const AData: IDataModelView;
+      const ARowHeights: IFMXRowHeightCollection);
     destructor Destroy; override;
     property Current: Integer read get_Current write set_Current;
   public // interface
@@ -59,15 +59,15 @@ implementation
 
 { TBaseDataModelViewList<T> }
 
-constructor TBaseDataModelViewList<T>.Create(AControl: TScrollableRowControl<T>; const AData: IDataModelView);
+constructor TBaseDataModelViewList<T>.Create(AControl: TScrollableRowControl<T>; const AData: IDataModelView;
+  const ARowHeights: IFMXRowHeightCollection);
 begin
-  inherited Create;
+  inherited Create(AControl, ARowHeights);
 
   if AData.DataModel = nil then
     raise ArgumentException.Create('DataModelView.DataModel must be set');
 
   _IsDataModelView := True;
-  _Control := AControl;
   _DataModelView := AData;
 
   _DataModelView.DataModel.ListChanged.Add(DataModelListChanged);

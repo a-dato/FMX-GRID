@@ -24,8 +24,7 @@ object Form1: TForm1
     IncrementalSearch = False
     Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
     ScrollPerRow = False
-    DefaultExpandRows = False
-    HighlightRows = True
+        HighlightRows = True
     LayoutColumnsComplete = FMXTreeControl1LayoutColumnsComplete
     Viewport.Width = 556.000000000000000000
     Viewport.Height = 419.000000000000000000

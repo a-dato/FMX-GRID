@@ -13,7 +13,7 @@ uses
   ADato.Data.DataModel.intf,
   System.Collections.Generic,
   System.ComponentModel,
-  ADato.FMX.Controls.ScrollableRowControl.Intf {IRow, remove it later when we will change it to global data index};
+  ADato.FMX.Controls.ScrollableRowControl.Intf;
 
 type
   TFMXRowHeightCollection = {$IFDEF DOTNET}public{$ENDIF} class(
@@ -22,9 +22,8 @@ type
     IUpdatableObject,
     INotifyCollectionChanged )
   strict private const
-    DEFAULT_ROW_HEIGHT = 25;  // before 22, before: 18. See also TCustomTreeControl.GetDefaultRowHeight. There is only one constant!
+    //DEFAULT_ROW_HEIGHT = 25; // Moved into ADato.Controls.FMX.RowHeights.Intf with name INITIAL_ROW_HEIGHT
   strict private
-    _defaultRowHeight: Single;
     _rowHeights: Dictionary<CObject, Single>;
     _UpdateCount: Integer;
     _ViewportY: integer;
@@ -35,9 +34,6 @@ type
   strict private
     procedure BeginUpdate;
     procedure EndUpdate;
-
-    function  get_DefaultRowHeight: Single;
-    procedure set_DefaultRowHeight(const Value: Single);
     function  get_RowHeight(const DataRow: CObject): Single;
     procedure set_RowHeight(const DataRow: CObject; Value: Single);
     function  get_ViewportY: integer;
@@ -47,7 +43,6 @@ type
     procedure Clear;
     procedure AddNegotiateProc(AProc: TNegotiateRowHeightProc);
     function NegotiateRowHeight(Sender: TObject; ARow: IRow; var AHeight: Single): Boolean;
-    property DefaultRowHeight: Single read get_DefaultRowHeight write set_DefaultRowHeight;
     property RowHeight[const DataRow: CObject] : Single read  get_RowHeight write set_RowHeight;
   end;
 
@@ -58,7 +53,6 @@ implementation
 procedure TFMXRowHeightCollection.AfterConstruction;
 begin
   inherited;
-  _defaultRowHeight := DEFAULT_ROW_HEIGHT;
   _RowHeights := CDictionary<CObject, Single>.Create;
   _ProcList := CList<TNegotiateRowHeightProc>.Create;
 end;
@@ -114,10 +108,6 @@ begin
   Result := _CollectionChanged;
 end;
 
-function TFMXRowHeightCollection.get_DefaultRowHeight: Single;
-begin
-  Result := _defaultRowHeight;
-end;
 
 function TFMXRowHeightCollection.get_ViewportY: integer;
 begin
@@ -139,37 +129,14 @@ end;
 
 function TFMXRowHeightCollection.get_RowHeight(const DataRow: CObject): Single;
 var
-//  b: Boolean;
-//  da: CObject;
   DW: Single;
-//  dr: IDataRow;
-//  t: &Type;
-//  i: Integer;
-//  s: CString;
-
 begin
-//  {$IFDEF DEBUG}
-//  t := DataRow.GetType;
-//  if t.ToString = 'TDataRow' then
-//  begin
-//    dr := IBaseInterface(DataRow) as IDataRow;
-//    if _RowHeights.TryGetValue(dr.Data, DW) then
-//      Result := DW else
-//      Result := 15;
-//
-//    Exit;
-//  end;
-//  {$ENDIF}
   Assert(DataRow <> nil);
 
   if _RowHeights.TryGetValue(DataRow, DW) then
-    Result := DW else
-    Result := _defaultRowHeight;
-end;
-
-procedure TFMXRowHeightCollection.set_DefaultRowHeight(const Value: Single);
-begin
-  _defaultRowHeight := Value;
+    Result := DW
+  else
+    Result := INITIAL_ROW_HEIGHT;
 end;
 
 procedure TFMXRowHeightCollection.set_RowHeight(

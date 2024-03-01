@@ -12,6 +12,7 @@ uses
   System.Collections.Generic, FMX.Types, SysUtils, System.Rtti,
   ADato.FMX.Controls.ScrollableControl.Impl,
   ADato.FMX.Controls.ScrollableRowControl.Intf,
+  ADato.Controls.FMX.RowHeights.Intf, ADato.Controls.FMX.RowHeights.Impl,
   System.Collections, System.Generics.Collections;
 
 const
@@ -166,6 +167,7 @@ type
     _isFastScrolling: Boolean;
     procedure DoFastScrollingStopped; virtual;
   protected
+    _FixedRowHeight: Single;
     _NegotiateInitiatedRows: TList<T>; // newly added rows in NegotiateRowHeight, which will be repositioned later
       // and added into View without calling InitRow for the second time
     _SkipRowHeightNegotiation: Boolean;
@@ -330,6 +332,7 @@ type
     property Current: Integer read get_Current write set_Current;
     property TopRow: Integer read GetTopRow write SetTopRow;
     property MultiSelect: Boolean read _MultiSelect write _MultiSelect;
+    property FixedRowHeight: Single read _FixedRowHeight write _FixedRowHeight;
     property ShowKeyboardCursorRectangle: Boolean read _ShowKeyboardCursorRectangle write _ShowKeyboardCursorRectangle;
     // Default = False
     property ScrollPerRow: Boolean read _ScrollPerRow write _ScrollPerRow;
@@ -352,7 +355,7 @@ type
       See also CellLoadingEventArgs.}
     property ShowVScrollBar: Boolean read _ShowVScrollBar write SetShowVScrollBar;
     property ShowHScrollBar: Boolean read _ShowHScrollBar write SetShowHScrollBar;
-    property ContentBounds: TRectF read _contentBounds; 
+    property ContentBounds: TRectF read _contentBounds;
   end;
 
    // base class from which inherited all Views: TTreeRowList, TTreeDataModelViewRowList and TGanttDatamodelViewRowList.
@@ -361,11 +364,15 @@ type
     _CacheList: TList<T>;
     function FindRowInCache(aAltRow, aWithFiller: Boolean; ALevel: integer): T;
   strict protected
+    _Control: TScrollableRowControl<T>;  // Gantt or Tree
     _CacheRows: Boolean; // default = true
     _IsDataModelView: Boolean;
+    _rowHeights: IFMXRowHeightCollection;
     function get_TopRow: Integer; virtual;
     function get_DataList: IList; virtual; abstract;
     function get_Current: Integer; virtual; abstract;
+    function get_RowHeight(const DataRow: CObject): Single;
+    procedure set_RowHeight(const DataRow: CObject; Value: Single);
     procedure SortInternalList; virtual; abstract;
     function Transpose(Index: Integer): Integer; virtual;
     function get_RowCount: integer; virtual; abstract;
@@ -374,7 +381,7 @@ type
     function HasChildren(const ARow: T): Boolean; overload; virtual;
     procedure DoOnCacheRowBeforeHide(const ARow: IRow; var CanCache: Boolean); virtual;
   public
-    constructor Create;
+    constructor Create(Control: TScrollableRowControl<T>; const RowHeights: IFMXRowHeightCollection);
     destructor Destroy; override;
     function CreateRow(const Data: CObject; AIndex: Integer; const IsTemporaryRow: Boolean = False;
       const ARowLevel: integer = 0): T;
@@ -1027,7 +1034,9 @@ begin
 
     var addedRowHeight := addedRow.Height;
 
-    if addedRowHeight > AHeight then
+    // Do not take row height from the dest. control if FixedRowHeight specified in dest. control.
+    // E.g. If Gantt asks for row height in Tree and Tree.FixedRowHeight <> 0 - Gantt will use own (or default) height
+    if (FixedRowHeight = 0) and (addedRowHeight > AHeight) then
     begin
       Result := True;
       AHeight := addedRowHeight;
@@ -2813,10 +2822,20 @@ end;
 
 {$REGION 'TBaseViewList<T>'}
 
-constructor TBaseViewList<T>.Create;
+constructor TBaseViewList<T>.Create(Control: TScrollableRowControl<T>; const RowHeights: IFMXRowHeightCollection);
 begin
-  inherited;
+  inherited Create;
   _CacheRows := USE_ROW_CACHE;
+  _Control := Control;
+
+  // Do not create always, create it when setting a custom height only
+  // if (RowHeights = nil) and (TreeControl.FixedRowHeight = 0) 
+  //   _RowHeights := TFMXRowHeightCollection.Create
+  //  else
+  _RowHeights := RowHeights; // global RowHeights list, if exists
+
+  //if Interfaces.Supports(_RowHeights, INotifyCollectionChanged, CollectionNotification) then
+  //  CollectionNotification.CollectionChanged.Add(RowHeightsCollectionChanged);
 end;
 
 destructor TBaseViewList<T>.Destroy;
@@ -2967,6 +2986,25 @@ begin
    end;
 
   inherited;
+end;
+
+function TBaseViewList<T>.get_RowHeight(const DataRow: CObject): Single;
+begin
+  if _Control.FixedRowHeight > 0 then
+    Result := _Control.FixedRowHeight
+  else
+    if _RowHeights <> nil then
+      Result := _RowHeights[DataRow]
+    else
+      Result := INITIAL_ROW_HEIGHT;
+end;
+
+procedure TBaseViewList<T>.set_RowHeight(const DataRow: CObject; Value: Single);
+begin
+  if _RowHeights = nil then
+    _RowHeights := TFMXRowHeightCollection.Create; // may be global RowHeights also
+
+  _RowHeights[DataRow] := Value;
 end;
 
 function TBaseViewList<T>.get_TopRow: Integer;
