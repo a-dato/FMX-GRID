@@ -9114,7 +9114,7 @@ begin
 
       TypeCode.Object:
       begin
-        if ATypeInfo.Kind = tkClass then
+        if ATypeInfo.Kind in [tkClass, tkInterface] then
         begin
           if FValue.TryAsType<IAutoObject>(a) then
             value_t := a.&Object else
