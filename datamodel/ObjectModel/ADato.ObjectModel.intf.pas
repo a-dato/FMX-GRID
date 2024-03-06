@@ -1,4 +1,4 @@
-{$I Adato.inc}
+{$I ..\..\dn4d\Source\Adato.inc}
 unit ADato.ObjectModel.intf;
 
 interface

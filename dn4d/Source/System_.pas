@@ -9360,18 +9360,48 @@ begin
         end;
 
     TypeCode.Variant:
-        // Variant -> Interface
-        if ATypeInfo.Kind = tkInterface then
+      // Variant -> Interface
+      if ATypeInfo.Kind = tkInterface then
+      begin
+        var v := FValue.AsVariant;
+        if VarIsNull(v) then
+          Result := True  // result is a nil interface
+        else if Interfaces.Supports(IInterface(v), TGUID(ATypeInfo.TypeData.IntfGuid), ii) then
         begin
-          var v := FValue.AsVariant;
-          if VarIsNull(v) then
-            Result := True  // result is a nil interface
-          else if Interfaces.Supports(IInterface(v), TGUID(ATypeInfo.TypeData.IntfGuid), ii) then
-          begin
-            TValue.Make(@ii, ATypeInfo, value_t);
-            Result := value_t.TryCast(ATypeInfo, Value);
-          end;
-       end;
+          TValue.Make(@ii, ATypeInfo, value_t);
+          Result := value_t.TryCast(ATypeInfo, Value);
+        end;
+      end
+      // Variant -> CDateTime
+      else if ATypeInfo = TypeInfo(CDateTime) then
+      begin
+        var v := FValue.AsVariant;
+        if VarIsNull(v) then
+        begin
+          Value := TValue.From<CDateTime>(CDateTime.MinValue);
+          Result := True;
+        end
+        else
+        begin
+          Value := TValue.From<CDateTime>(CDateTime.Create(Int64(v)));
+          Result := True;
+        end;
+      end
+      // Variant -> CTimeSpan
+      else if ATypeInfo = TypeInfo(CTimeSpan) then
+      begin
+        var v := FValue.AsVariant;
+        if VarIsNull(v) then
+        begin
+          Value := TValue.From<CTimeSpan>(CTimeSpan.Zero);
+          Result := True;
+        end
+        else
+        begin
+          Value := TValue.From<CTimeSpan>(CTimeSpan.Create(Int64(v)));
+          Result := True;
+        end;
+      end;
     end;
   end;
 end;
