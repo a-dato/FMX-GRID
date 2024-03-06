@@ -5204,10 +5204,10 @@ begin
       (treeRowClass.Control as TStyledControl).ApplyStyleLookup;
     end;
 
-    InitCellStyles(treeCell);
-
     // Calculate size of the cell
     var size: TSizeF := treeCell.Control.Size.Size;
+
+    InitCellStyles(treeCell);
 
     var OptionalHeaderResizing : TUpdateColumnReason := TUpdateColumnReason.TNone;
     if (HeaderRows <> nil) and FMXColumn.AllowResize and

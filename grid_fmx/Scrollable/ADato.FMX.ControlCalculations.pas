@@ -7,7 +7,8 @@ uses
   FMX.StdCtrls,
   FMX.Memo,
   FMX.Objects,
-  FMX.Graphics;
+  FMX.Graphics,
+  FMX.TextLayout;
 
   function TextControlWidth(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinWidth: Single = -1; MaxWidth: Single = -1; TextHeight: Single = -1): Single;
   function TextControlHeight(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinHeight: Single = -1; MaxHeight: Single = -1; TextWidth: Single = -1): Single;
@@ -20,35 +21,30 @@ uses
   System.Types,
   System.Math,
 
-  FMX.Types,
-  FMX.TextLayout;
+  FMX.Types;
 
 function TextControlWidth(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinWidth: Single = -1; MaxWidth: Single = -1; TextHeight: Single = -1): Single;
 begin
-  if TextControl.Canvas = nil then
-    Result := Settings.Font.Size + 10
-  else begin
-    var layout: TTextLayout := TTextLayoutManager.TextLayoutByCanvas(TextControl.Canvas.ClassType).Create(TextControl.Canvas);
+  var layout := TTextLayoutManager.DefaultTextLayout.Create;
+  try
+    Layout.BeginUpdate;
     try
-      Layout.BeginUpdate;
-      try
-        Layout.TopLeft := PointF(6, 6);
-        Layout.MaxSize := PointF(9999, IfThen(TextHeight <> -1, TextHeight, TextControl.Height));
-        Layout.WordWrap := False; // we want the full text width
-        Layout.HorizontalAlign := TTextAlign.Leading;
-        Layout.VerticalAlign := TTextAlign.Leading;
-        Layout.Font := Settings.Font;
-        Layout.Color := TextControl.Canvas.Fill.Color;
-        Layout.RightToLeft := False; // TFillTextFlag.RightToLeft in Flags;
-        Layout.Text := Text;
-      finally
-        Layout.EndUpdate;
-      end;
-
-      Result := Layout.TextRect.Right + 6;
+      Layout.TopLeft := PointF(6, 6);
+      Layout.MaxSize := PointF(9999, IfThen(TextHeight <> -1, TextHeight, TextControl.Height));
+      Layout.WordWrap := False; // we want the full text width
+      Layout.HorizontalAlign := TTextAlign.Leading;
+      Layout.VerticalAlign := TTextAlign.Leading;
+      Layout.Font := Settings.Font;
+//      Layout.Color := Settings.FontColor;
+      Layout.RightToLeft := False; // TFillTextFlag.RightToLeft in Flags;
+      Layout.Text := Text;
     finally
-      Layout.Free;
+      Layout.EndUpdate;
     end;
+
+    Result := Layout.TextRect.Right + 6;
+  finally
+    Layout.Free;
   end;
 
   if MinWidth <> -1 then
