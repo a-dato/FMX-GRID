@@ -7595,8 +7595,11 @@ begin
     // make sure that also not visible rows get updated
     // the width-change can make rows appear again, and then the cells should have the correct width
     for i := 0 to _View.Count - 1 do
-    // Returned back _View.Count, because of performance issue, see c5482. Alex.   //for i := 0 to Self.RowCount - 1 do
-      ResizeRepositionCells(Self.Rows[i]);
+      ResizeRepositionCells(_View[i]);
+
+    // Returned back _View.Count, because of performance issue, see c5482. Alex.
+    //for i := 0 to Self.RowCount - 1 do
+    //  ResizeRepositionCells(Self.Rows[i]);
 
     // usually if _NegotiateInitiatedRows list has rows, View is empty, rows will be moved a little bit later to the View without
     // re-initialization. But need to update controls there also
