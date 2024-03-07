@@ -5586,7 +5586,7 @@ end;
 procedure TCustomTreeControl.ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
   const ATopRowMinHeight: Single = 0);
 begin
-  if SaveTopRow and (_View <> nil) then
+  if not Full and (_View <> nil) then
     _currentPosition := View.Current;
 
   inherited;  // this will View := nil if Full = True
