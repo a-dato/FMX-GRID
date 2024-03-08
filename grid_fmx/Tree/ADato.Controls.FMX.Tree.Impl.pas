@@ -9231,7 +9231,7 @@ begin
   end;
 
 
-  //_IsShowing := {$IFDEF SUPERAPP}_IsShowing and{$ENDIF} _visible;
+  //_IsShowing := {$IFDEF LYNXX}_IsShowing and{$ENDIF} _visible;
   { Please do not use this construction "_IsShowing and _visible;'
     it does not allow to make column Visible = true in case if it was set Visible = False earlier.
     because _IsShowing is always False, so IsShowing (False) := _IsShowing (False) and _visible (true); }
@@ -11079,7 +11079,7 @@ function TTreeCell.GetFormattedData(const Content: ICellContent; const Data: COb
 begin
  // Result := Data;
 
-//  {$IFDEF SUPERAPP}
+//  {$IFDEF LYNXX}
 //  if _Row.Owner is TTreeRowList then
 //  {$ELSE}
 //  Please check
