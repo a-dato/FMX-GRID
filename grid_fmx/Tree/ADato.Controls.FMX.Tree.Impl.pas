@@ -12852,7 +12852,7 @@ procedure TObjectListModelItemChangedDelegate.Removed(const Value: CObject; cons
 begin
   if _UpdateCount = 0 then
   begin
-    _Owner.RefreshControl([TreeState.AlignViewToCurrent]);
+    _Owner.RefreshControl([TreeState.DataChanged, TreeState.AlignViewToCurrent]);
   end;
 end;
 
