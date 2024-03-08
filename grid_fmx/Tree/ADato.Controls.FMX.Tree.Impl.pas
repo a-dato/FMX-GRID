@@ -358,6 +358,7 @@ type
     procedure BeginUpdate;
     function  BaseListCount: Integer;
     procedure EndUpdate;
+    function  GetItemType: &Type;
     procedure InitializeColumnPropertiesFromColumns;
     procedure SortInternalList; override;
     function  Transpose(RowIndex: Integer) : Integer; override;
@@ -5586,7 +5587,7 @@ end;
 procedure TCustomTreeControl.ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
   const ATopRowMinHeight: Single = 0);
 begin
-  if _View <> nil then
+  if not Full and (_View <> nil) then
     _currentPosition := View.Current;
 
   inherited;  // this will View := nil if Full = True
@@ -11604,6 +11605,20 @@ begin
     (_RowHeights as IUpdatableObject).EndUpdate;
 end;
 
+function TTreeRowList.GetItemType: &Type;
+begin
+  var tree := (_Control as TFMXTreeControl);
+  if tree.Model <> nil then
+    Result := tree.Model.ObjectModel.GetType
+  else if not _itemType.IsUnknown then
+    Result := _itemType
+  else
+  begin
+    if (TreeOption.AssumeObjectTypesDiffer in tree.Options) or (_data.Count = 0) then Exit;
+    Result := _data[0].GetType;
+  end;
+end;
+
 procedure TTreeRowList.InitializeColumnPropertiesFromColumns;
 var
   typeData: &Type;
@@ -11614,17 +11629,7 @@ begin
   if _ColumnPropertyInfos <> nil then Exit;
 
   var treeControl := (_Control as TFMXTreeControl);
-  if treeControl.Model <> nil then
-    typeData := treeControl.Model.ObjectModel.GetType
-
-  else if not _itemType.IsUnknown then
-    typeData := _itemType
-
-  else
-  begin
-    if (TreeOption.AssumeObjectTypesDiffer in treeControl.Options) or (_data.Count = 0) then Exit;
-    typeData := _data[0].GetType;
-  end;
+  typeData := GetItemType;
 
   _listHoldsOrdinalType := not (&Type.GetTypeCode(typeData) in [TypeCode.&Object, TypeCode.&Interface, TypeCode.&Array]);
 
@@ -11853,9 +11858,7 @@ var
 begin
   var treeControl := TFMXTreeControl(_Control);
 
-  if treeControl.Model <> nil then
-    typeData := treeControl.Model.ObjectModel.GetType else
-    typeData := _data.InnerType;
+  typeData := GetItemType;
 
   if not typeData.Equals(treeControl._ColumnPropertiesTypeData) then
   begin

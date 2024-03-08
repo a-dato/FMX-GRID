@@ -543,6 +543,9 @@ begin
   // Activate insert mode
   SetState(dsInsert);
 
+  // Prepare for insert
+  InternalInsert;
+
   // Notify client
   DoOnNewRecord;
 
