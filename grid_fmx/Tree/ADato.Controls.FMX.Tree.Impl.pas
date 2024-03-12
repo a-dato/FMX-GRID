@@ -286,6 +286,8 @@ type
     _IsTemporaryRow : Boolean;
     _BackgroundRect : TRectangle; // cache it, because all frozen cells need this fill color from row style. All rows have background rectangle in style
   protected
+    procedure ResetRowData(const ADataItem: CObject; AIndex: Integer); override;
+  protected
     [unsafe] _Owner   : ITreeRowList;
     procedure UpdatePlusMinusFillerState; // in all cells
     function  get_Cells: ITreeCellList;
@@ -658,7 +660,7 @@ type
     procedure set_MultilineEdit(Value: Boolean);
   protected
     function  CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell; virtual;
-    function  CreateControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; virtual;
+    function  CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; virtual;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False); virtual;
   public
     constructor Create; override;
@@ -787,7 +789,7 @@ type
     function  CheckedItems: List<CObject>;
     procedure Checkbox_OnClick(Sender: TObject);
     function  CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell; override;
-    function  CreateControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; override;
+    function  CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; override;
     function  HasSelection: Boolean;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean); override;
     function  MakeRadioDict(const KeepSelectedKey: CObject) : Boolean;
@@ -1900,6 +1902,9 @@ uses
   ADato.ListComparer.Impl,
   FMX.ActnList, FMX.Text,
   ADato.FMX.ControlCalculations;
+
+const
+  INITIAL_CELL_HEIGHT = 0; // will be resized later anyway
 
 resourcestring
   STreeSortDescriptionCanNotBeSorte = 'TreeSortDescription can not be sorted in current state. Use IListSortDescription / IListSortByProperty instead';
@@ -5041,7 +5046,6 @@ begin
       rowLevel := (Interfaces.ToInterface(DataItem) as IDataRowView).Row.Level;
 
     treeRow := CreateRow(DataItem, ViewRowIndex, rowLevel);
-    //treeRow := View.CreateRow(DataItem, ViewRowIndex, False, rowLevel);
 
     DoRowLoading(treeRow);
 
@@ -5183,7 +5187,7 @@ begin
       because user should re-use it. See also TCellLoading = (NeedControl, [..]) in Tree.intf}
 
     if treeCell.Control = nil then
-      treeCell.Control := FMXColumn.CreateControl(Self, treeCell); //  TTextCellItem.Create \ TCheckboxCellItem
+      treeCell.Control := FMXColumn.CreateCellControl(Self, treeCell); //  TTextCellItem.Create \ TCheckboxCellItem
 
     // Cell.Indent (need before layoutColumn.CalculateControlSize)
     if _View.IsDataModelView then   //if DataModelView <> nil then
@@ -8775,9 +8779,10 @@ begin
   Result := TTreeCell.Create(TreeRow, Self, Index);
 end;
 
-function TFMXTreeColumn.CreateControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
+function TFMXTreeColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
   Result := TTextCellItem.Create(AOwner, Cell);
+  Result.Height := INITIAL_CELL_HEIGHT;
 end;
 
 procedure TFMXTreeColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
@@ -9408,9 +9413,10 @@ begin
   Result := TTreeCheckboxCell.Create(TreeRow, Self, Index);
 end;
 
-function TFMXTreeCheckboxColumn.CreateControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
+function TFMXTreeCheckboxColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
   Result := TCheckboxCellItem.Create(AOwner, Cell);
+  Result.Height := INITIAL_CELL_HEIGHT;
 end;
 
 procedure TFMXTreeCheckboxColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean);
@@ -11219,6 +11225,15 @@ begin
   _Index := AIndex;
   _IsTemporaryRow := IsTemporaryRow;
   _Cells := TTreeCellList.Create;
+end;
+
+procedure TTreeRow.ResetRowData(const ADataItem: CObject; AIndex: Integer);
+begin
+  for var i := 0 to Cells.Count - 1 do // for var cell in Cells
+    Cells[i].Control.Height := INITIAL_CELL_HEIGHT;
+
+
+  inherited;
 end;
 
 function TTreeRow.AbsParent: ITreeRow;
