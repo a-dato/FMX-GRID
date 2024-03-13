@@ -3112,8 +3112,12 @@ procedure TRow.ResetRowData(const ADataItem: CObject; AIndex: Integer);
 begin
   _DataItem := ADataItem;
   _Index := AIndex;
-  _Control.Opacity := 1;
-  _Control.Visible := True;
+
+  if _Control <> nil then // Will be nil on Temp rows
+  begin
+    _Control.Opacity := 1;
+    _Control.Visible := True;
+  end;
 end;
 
 function TRow.Equals(const Other: IRow): Boolean;

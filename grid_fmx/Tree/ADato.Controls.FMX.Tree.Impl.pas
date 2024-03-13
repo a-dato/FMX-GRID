@@ -2419,7 +2419,14 @@ begin
     if filter <> nil then
       // Show filter values which already exist for this column
       _frmHeaderPopupMenu.LoadFilterItems(dataValues, comparer, filter.Values, // Current selected items in filter Tree
-                                filter.ShowEmptyValues, filter.LayoutColumn.Column.Sort = SortType.DisplayText)
+                                filter.ShowEmptyValues,
+                                {$IFNDEF FIX_KV}
+                                False // Allways use value from cell data to update filter
+                                      // This prevents issues with type mismatch
+                                {$ELSE}
+                                filter.LayoutColumn.Column.Sort = SortType.DisplayText
+                                {$ENDIF}
+                                )
     else
       _frmHeaderPopupMenu.LoadFilterItems(dataValues, comparer, nil, False, False);
 
@@ -2497,6 +2504,14 @@ var
 
     for var filterItem in _frmHeaderPopupMenu.SelectedFilters do
     begin
+      {$IFNDEF FIX_KV}
+      // Data holds the value to filter. This value has the same type as data being shown
+      // in the cell.
+      // Ignore column.Column.Sort = SortType.DisplayText here, when we do need this,
+      // then it should be added in method GetColumnValues so that the Dictionary holds
+      // the DisplayText as key
+      filterValues.Add(filterItem.Data);
+      {$ELSE}
       // NO_VALUE is marked as OBSOLETE in code, so I commented it
       //if CString.Equals(filterItem.Caption, NO_VALUE) then
       // includeEmptyValues := True  else
@@ -2504,6 +2519,7 @@ var
         filterValues.Add(filterItem.Caption)
       else
         filterValues.Add(filterItem.Data);
+      {$ENDIF}
     end;
 
     if (filterValues.Count > 0) then //or includeEmptyValues then
@@ -12094,8 +12110,7 @@ function TTreeRowList.GetColumnValues(const Column: ITreeLayoutColumn; Filtered:
 
     var treeControl := TFMXTreeControl(_Control);
     if (treeControl.ListComparer <> nil) then
-       SortedRows := treeControl.ListComparer.SortedRows
-    else
+      SortedRows := treeControl.ListComparer.SortedRows else
       SortedRows := nil;
 
     if Filtered and ( SortedRows <> nil) then
@@ -12120,7 +12135,7 @@ var
   stringData: Dictionary<CString, Byte>;
   displayText: CString;
   formatApplied: Boolean;
-  begin
+begin
   if _data.Count = 0 then
   begin
     Result := CDictionary<CObject, CString>.Create;
@@ -12134,64 +12149,53 @@ var
     stringData := CDictionary<CString, Byte>.Create();
 
   var rowIndex := 0;
+  var tmpRow: ITreeRow;
+  var tmpCell: ITreeCell;
   while GetNextRow(rowIndex, dataItem) do
   begin
     cellData := GetCellData(dataItem, Column.Column.PropertyName, columnIndex);
 
     if cellData = nil then
     begin
-      //  Temporary solution, waiting answer..
-      // Row may not exist in View
-      if rowIndex <= Self.Count - 1 then
+      if tmpRow = nil then
       begin
-        var cell := Self[rowIndex].Cells[columnIndex];
-        cellData := DoGetFormattedData(cell, contentItem, dataItem, nil, True {Return cell data}, formatApplied);
-      end
-    else
-      exit; { Temporary solution, it does not make sense to continue because View.Count-1 < rowIndex - so to get CustomData
-              from  OnCellFormatting need a "cell", but to get cell need to create a temporary row.. Need to discuss.  }
+        tmpRow := TFMXTreeControl(_Control).InitTemporaryRow(dataItem, rowIndex);
+        tmpCell := tmpRow.Cells[columnIndex];
+      end;
+
+      tmpRow.ResetRowData(dataItem, rowIndex);
+      cellData := DoGetFormattedData(tmpCell, contentItem, dataItem, nil, True {Return cell data}, formatApplied);
     end;
 
-    // Previous block can return cellData = nil
-    if cellData <> nil then
-      displayText := cellData.ToString
-    else
-      displayText := nil;
-
-     (*
-    else
-    begin
-      // maybe there is only text in the cell, no data!
-        var formattedData: CObject := DoGetFormattedData(cell, contentItem, dataItem, cellData, False {Return formatted}, formatApplied);
-      if formattedData = nil then
-        formattedData := cellData;
-
-      displayText := formattedData.ToString
-    end
-    else
-      begin
-        cellData := nil;
-        displayText := nil;
-        end; }   *)
+    {$IFNDEF FIX_KV}
+    // Maybe we want to look at filter.LayoutColumn.Column.Sort = SortType.DisplayText
+    // and convert cellData (which holds the cell value in it's original type) to text
+    // cellData := cellData.ToString;
+    {$ENDIF}
 
     if not Result.ContainsKey(cellData) then
     begin
+      // Previous block can return cellData = nil
+      if cellData <> nil then
+        displayText := cellData.ToString else
+        displayText := nil;
+
       if displayText <> nil then
       begin
         if SkipDuplicates then
         begin
-        if not stringData.ContainsKey(displayText) then
-        begin
-          stringData.Add(displayText, 0);
+          if not stringData.ContainsKey(displayText) then
+          begin
+            stringData.Add(displayText, 0);
+            Result.Add(cellData, displayText);
+          end;
+        end else
           Result.Add(cellData, displayText);
-        end;
-      end else
-        Result.Add(cellData, displayText);
+      end;
     end;
 
-      inc(rowIndex);
+    inc(rowIndex);
   end;
-end;
 end;
 
 function TTreeRowList.GetCellData(

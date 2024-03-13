@@ -293,6 +293,11 @@ begin
 
   for kv in Data do
   begin
+    {$IFNDEF FIX_KV}
+    // Ignore column.Column.Sort = SortType.DisplayText
+    Assert(CompareText = False);
+    checked := (Selected <> nil) and Selected.Contains(kv.Key);
+    {$ELSE}
     //if SelectEmptyValue and CString.Equals(kv.Value, NO_VALUE) then
     //  checked := True
     //else
@@ -300,7 +305,7 @@ begin
       checked := (Selected <> nil) and Selected.Contains(kv.Value)
     else
       checked := (Selected <> nil) and Selected.Contains(kv.Key);
-
+    {$ENDIF}
     item := TFilterItem.Create(kv.Value, checked, kv.Key);
     items.Add(item);
   end;
