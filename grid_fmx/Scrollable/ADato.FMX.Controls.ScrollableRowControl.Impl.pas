@@ -1543,7 +1543,7 @@ begin
       // During scrolling by draggin lift, while LMB is pressed, user may move cursor out of the scrollbar area,
       // move it back to v. scrollbar, change only X. Or without this we can click on any other control on a screen.
       begin
-		{$IFNDEF SUPERAPP}
+		{$IFNDEF LYNXX}
         var WinCursorPos: TPoint;
         GetCursorPos(WinCursorPos);
 

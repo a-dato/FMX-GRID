@@ -286,6 +286,8 @@ type
     _IsTemporaryRow : Boolean;
     _BackgroundRect : TRectangle; // cache it, because all frozen cells need this fill color from row style. All rows have background rectangle in style
   protected
+    procedure ResetRowData(const ADataItem: CObject; AIndex: Integer); override;
+  protected
     [unsafe] _Owner   : ITreeRowList;
     procedure UpdatePlusMinusFillerState; // in all cells
     function  get_Cells: ITreeCellList;
@@ -658,7 +660,7 @@ type
     procedure set_MultilineEdit(Value: Boolean);
   protected
     function  CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell; virtual;
-    function  CreateControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; virtual;
+    function  CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; virtual;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False); virtual;
   public
     constructor Create; override;
@@ -787,7 +789,7 @@ type
     function  CheckedItems: List<CObject>;
     procedure Checkbox_OnClick(Sender: TObject);
     function  CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell; override;
-    function  CreateControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; override;
+    function  CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; override;
     function  HasSelection: Boolean;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean); override;
     function  MakeRadioDict(const KeepSelectedKey: CObject) : Boolean;
@@ -1900,6 +1902,9 @@ uses
   ADato.ListComparer.Impl,
   FMX.ActnList, FMX.Text,
   ADato.FMX.ControlCalculations;
+
+const
+  INITIAL_CELL_HEIGHT = 0; // will be resized later anyway
 
 resourcestring
   STreeSortDescriptionCanNotBeSorte = 'TreeSortDescription can not be sorted in current state. Use IListSortDescription / IListSortByProperty instead';
@@ -3968,18 +3973,21 @@ begin
   inherited;
   NeedRepaint := False;
 
-  if AutoFitColumns then
+  // percentage columns:
+  var AvailableSpace: single := 0;
+  var TotalPercentageColWidths: single := 0;
+  var PercentageColumnsCount : integer := 0;
+  CalcAvailableSpaceForPercentageColumns(AvailableSpace, TotalPercentageColWidths, PercentageColumnsCount);
+
+  // (PercentageColumnsCount = 0) - do not use AutoFitColumns in case if there are PercentageColumns exist.
+  // Percentage columns already automatically adjust width to the Control.
+  if AutoFitColumns and (PercentageColumnsCount = 0) then
   begin
     if _lastSize <> Size.Size then
-    DoAutoFitColumns(NeedRepaint)
+      DoAutoFitColumns(NeedRepaint)
   end
   else // process only percentage columns
     begin
-      var AvailableSpace: single := 0;
-      var TotalPercentageColWidths: single := 0;
-      var PercentageColumnsCount : integer := 0;
-      CalcAvailableSpaceForPercentageColumns(AvailableSpace, TotalPercentageColWidths, PercentageColumnsCount);
-
       if PercentageColumnsCount > 0 {1} then
         ProcessPercentageColumns(PercentageColumnsCount, False, AvailableSpace, TotalPercentageColWidths)
     end;
@@ -5041,7 +5049,6 @@ begin
       rowLevel := (Interfaces.ToInterface(DataItem) as IDataRowView).Row.Level;
 
     treeRow := CreateRow(DataItem, ViewRowIndex, rowLevel);
-    //treeRow := View.CreateRow(DataItem, ViewRowIndex, False, rowLevel);
 
     DoRowLoading(treeRow);
 
@@ -5183,7 +5190,7 @@ begin
       because user should re-use it. See also TCellLoading = (NeedControl, [..]) in Tree.intf}
 
     if treeCell.Control = nil then
-      treeCell.Control := FMXColumn.CreateControl(Self, treeCell); //  TTextCellItem.Create \ TCheckboxCellItem
+      treeCell.Control := FMXColumn.CreateCellControl(Self, treeCell); //  TTextCellItem.Create \ TCheckboxCellItem
 
     // Cell.Indent (need before layoutColumn.CalculateControlSize)
     if _View.IsDataModelView then   //if DataModelView <> nil then
@@ -8435,7 +8442,7 @@ begin
       ViewportPosition := PointF(_lastUpdatedViewportPosition.X, ViewportPosition.Y);
 
      // After user resized a column and Hscrollbar appeared, Tree draws 2
-     // H. scroll bars on top of each other -it just do not clear HScrollBar canvas.
+     // H. scroll bars on top of each other - it just does not clear HScrollBar canvas.
       HScrollBar.Repaint;
    end;
 
@@ -8779,9 +8786,10 @@ begin
   Result := TTreeCell.Create(TreeRow, Self, Index);
 end;
 
-function TFMXTreeColumn.CreateControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
+function TFMXTreeColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
   Result := TTextCellItem.Create(AOwner, Cell);
+  Result.Height := INITIAL_CELL_HEIGHT;
 end;
 
 procedure TFMXTreeColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
@@ -9235,7 +9243,7 @@ begin
   end;
 
 
-  //_IsShowing := {$IFDEF SUPERAPP}_IsShowing and{$ENDIF} _visible;
+  //_IsShowing := {$IFDEF LYNXX}_IsShowing and{$ENDIF} _visible;
   { Please do not use this construction "_IsShowing and _visible;'
     it does not allow to make column Visible = true in case if it was set Visible = False earlier.
     because _IsShowing is always False, so IsShowing (False) := _IsShowing (False) and _visible (true); }
@@ -9412,9 +9420,10 @@ begin
   Result := TTreeCheckboxCell.Create(TreeRow, Self, Index);
 end;
 
-function TFMXTreeCheckboxColumn.CreateControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
+function TFMXTreeCheckboxColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
   Result := TCheckboxCellItem.Create(AOwner, Cell);
+  Result.Height := INITIAL_CELL_HEIGHT;
 end;
 
 procedure TFMXTreeCheckboxColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean);
@@ -11083,7 +11092,7 @@ function TTreeCell.GetFormattedData(const Content: ICellContent; const Data: COb
 begin
  // Result := Data;
 
-//  {$IFDEF SUPERAPP}
+//  {$IFDEF LYNXX}
 //  if _Row.Owner is TTreeRowList then
 //  {$ELSE}
 //  Please check
@@ -11223,6 +11232,14 @@ begin
   _Index := AIndex;
   _IsTemporaryRow := IsTemporaryRow;
   _Cells := TTreeCellList.Create;
+end;
+
+procedure TTreeRow.ResetRowData(const ADataItem: CObject; AIndex: Integer);
+begin
+  for var i := 0 to Cells.Count - 1 do // for var cell in Cells
+    Cells[i].Control.Height := INITIAL_CELL_HEIGHT;
+
+  inherited;
 end;
 
 function TTreeRow.AbsParent: ITreeRow;

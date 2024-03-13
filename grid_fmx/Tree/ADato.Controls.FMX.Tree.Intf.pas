@@ -1613,7 +1613,7 @@ type
   {$ENDIF}
 
     function  CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell;
-    function  CreateControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
+    function  CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
 
     //function GetTabStops: SingleArray;
