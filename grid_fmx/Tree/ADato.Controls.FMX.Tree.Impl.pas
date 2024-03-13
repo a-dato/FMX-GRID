@@ -3973,18 +3973,21 @@ begin
   inherited;
   NeedRepaint := False;
 
-  if AutoFitColumns then
+  // percentage columns:
+  var AvailableSpace: single := 0;
+  var TotalPercentageColWidths: single := 0;
+  var PercentageColumnsCount : integer := 0;
+  CalcAvailableSpaceForPercentageColumns(AvailableSpace, TotalPercentageColWidths, PercentageColumnsCount);
+
+  // (PercentageColumnsCount = 0) - do not use AutoFitColumns in case if there are PercentageColumns exist.
+  // Percentage columns already automatically adjust width to the Control.
+  if AutoFitColumns and (PercentageColumnsCount = 0) then
   begin
     if _lastSize <> Size.Size then
-    DoAutoFitColumns(NeedRepaint)
+      DoAutoFitColumns(NeedRepaint)
   end
   else // process only percentage columns
     begin
-      var AvailableSpace: single := 0;
-      var TotalPercentageColWidths: single := 0;
-      var PercentageColumnsCount : integer := 0;
-      CalcAvailableSpaceForPercentageColumns(AvailableSpace, TotalPercentageColWidths, PercentageColumnsCount);
-
       if PercentageColumnsCount > 0 {1} then
         ProcessPercentageColumns(PercentageColumnsCount, False, AvailableSpace, TotalPercentageColWidths)
     end;
@@ -8435,7 +8438,7 @@ begin
       ViewportPosition := PointF(_lastUpdatedViewportPosition.X, ViewportPosition.Y);
 
      // After user resized a column and Hscrollbar appeared, Tree draws 2
-     // H. scroll bars on top of each other -it just do not clear HScrollBar canvas.
+     // H. scroll bars on top of each other - it just does not clear HScrollBar canvas.
       HScrollBar.Repaint;
    end;
 
@@ -11231,7 +11234,6 @@ procedure TTreeRow.ResetRowData(const ADataItem: CObject; AIndex: Integer);
 begin
   for var i := 0 to Cells.Count - 1 do // for var cell in Cells
     Cells[i].Control.Height := INITIAL_CELL_HEIGHT;
-
 
   inherited;
 end;
