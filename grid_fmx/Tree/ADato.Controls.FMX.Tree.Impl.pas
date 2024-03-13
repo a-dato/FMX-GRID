@@ -6191,8 +6191,7 @@ end;
 function TCustomTreeControl.get_RowCount: Integer;
 begin
   if _View <> nil then
-    Result := View.RowCount
-  else
+    Result := View.RowCount else
     Result := 0;
 end;
 
@@ -7791,11 +7790,16 @@ begin
         else  // Set as current (active) cell
           begin
             if (Key = vkLeft) or ((Key = vkTab) and (ssShift in Shift)) then
-              dec(nextColumnIndex)
-            else
+              dec(nextColumnIndex) else
               inc(nextColumnIndex);  // Tab and Right
 
-            SelectCell(Current, nextColumnIndex, False, True, True);
+            if IsCellSelectable(Current, nextColumnIndex) then
+              SelectCell(Current, nextColumnIndex, False, True, True)
+            else if Key = vkTab then
+            begin // If tabbing and no column to the right selectable execute default behavior: Focus is on different control outside of the Tree
+              inherited;
+              Exit;
+            end;
           end;
 
         Key := 0;
