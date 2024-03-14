@@ -276,9 +276,7 @@ type
 
   TExpandCollapsePanel = class;
 
-  TTreeRow = {$IFDEF DOTNET}public{$ENDIF} class(TRow,
-    ITreeRow,
-    IOverwritableTreeRow)
+  TTreeRow = {$IFDEF DOTNET}public{$ENDIF} class(TRow, ITreeRow)
   private
     _Cells          : ITreeCellList;
     // Bools
@@ -359,6 +357,7 @@ type
 
     procedure BeginUpdate;
     function  BaseListCount: Integer;
+    function  DataItemToData(const DataItem: CObject) : CObject;
     procedure EndUpdate;
     function  GetItemType: &Type;
     procedure InitializeColumnPropertiesFromColumns;
@@ -460,9 +459,10 @@ type
     _savedItemIndex : Integer;
     _EditItem       : IDataRowView;
     _filterDescriptions : List<IListFilterDescription>;
+
     procedure BeginUpdate;
     procedure EndUpdate;
-
+    function  DataItemToData(const DataItem: CObject) : CObject;
     procedure GetCellContentItem(const CellIndex: Integer; out Cell: ITreeCell; out Content: ICellContent);
     function  get_CurrentViewAsList: IList;
     function  get_SavedDataItem: CObject;
@@ -661,6 +661,7 @@ type
   protected
     function  CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell; virtual;
     function  CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; virtual;
+    function  GetCellText(const Cell: ITreeCell): CString;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False); virtual;
   public
     constructor Create; override;
@@ -2400,7 +2401,9 @@ begin
     // Dummy descriptor
     var descriptor := TTreeSortDescriptionWithComparer.Create(Self, LayoutColumn, ListSortDirection.Ascending);
     comparer := DoSortingGetComparer(descriptor as IListSortDescriptionWithComparer, False);
-  end else begin
+  end
+  else
+  begin
     dataValues := nil;
     comparer := nil;
   end;
@@ -2446,15 +2449,6 @@ var
   filterDescriptions:  List<IListFilterDescription>; //List<ITreeFilterDescription>;
   treeFilter: ITreeFilterDescription;
   treeSort: ITreeSortDescription;
-//var
-//  column: ITreeLayoutColumn;
-//  descriptor: IListSortDescription;
-//  DropDownMenu: TfrmPopupMenu;
-//  filterItem: IFilterItem;
-//  filterText: CString;
-//  filterValues: List<CObject>;
-//  includeEmptyValues: Boolean;
-  // sortingChanged: Boolean;
 
   procedure RemoveFilter(const Filter: IListFilterDescription);
   begin
@@ -2509,22 +2503,15 @@ var
 
     for var filterItem in _frmHeaderPopupMenu.SelectedFilters do
     begin
-      {$IFNDEF FIX_KV}
-      // Data holds the value to filter. This value has the same type as data being shown
-      // in the cell.
-      // Ignore column.Column.Sort = SortType.DisplayText here, when we do need this,
-      // then it should be added in method GetColumnValues so that the Dictionary holds
-      // the DisplayText as key
-      filterValues.Add(filterItem.Data);
-      {$ELSE}
-      // NO_VALUE is marked as OBSOLETE in code, so I commented it
-      //if CString.Equals(filterItem.Caption, NO_VALUE) then
-      // includeEmptyValues := True  else
-      if (column.Column.Sort = SortType.DisplayText) then
-        filterValues.Add(filterItem.Caption)
-      else
-        filterValues.Add(filterItem.Data);
-      {$ENDIF}
+      filterValues.Add(filterItem.Text);
+
+//      // NO_VALUE is marked as OBSOLETE in code, so I commented it
+//      //if CString.Equals(filterItem.Caption, NO_VALUE) then
+//      // includeEmptyValues := True  else
+//      if (column.Column.Sort = SortType.DisplayText) then
+//        filterValues.Add(filterItem.Caption)
+//      else
+//        filterValues.Add(filterItem.Data);
     end;
 
     if (filterValues.Count > 0) then //or includeEmptyValues then
@@ -5908,16 +5895,16 @@ end;
 procedure TCustomTreeControl.set_DataItem(const Value: CObject);
 var
   isEqual: Boolean;
-  drv: IDataRowView;
+
 begin
   _currentDataItem := Value;
 
-  if DataItem = nil then
-    isEqual := (Value = nil)
-  else if DataItem.TryAsType<IDataRowView>(drv) then
-    isEqual := CObject.Equals(drv.Row.Data, Value)
+  if Value = nil then
+    isEqual := DataItem = nil
+  else if View <> nil then
+    isEqual := CObject.Equals(View.DataItemToData(DataItem), Value)
   else
-    isEqual := CObject.Equals(DataItem, Value);
+    isEqual := False;
 
   if not isEqual then
     RefreshControl([TreeState.AlignViewToCurrent]);
@@ -8808,39 +8795,31 @@ begin
   Result.Height := INITIAL_CELL_HEIGHT;
 end;
 
-procedure TFMXTreeColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
+function TFMXTreeColumn.GetCellText(const Cell: ITreeCell): CString;
+begin
+  var formatApplied: Boolean;
+  var cellData := Cell.GetFormattedData(nil, Cell.Data, False, formatApplied {out});
 
-  function GetTextData: CString;
-  var
-    formatApplied: boolean;
-    displayValue: CObject;
-    formatSpec: CString;
+  if not formatApplied then
   begin
-    Result := nil;
+    if cellData.GetType.IsDateTime and CDateTime(cellData).Equals(CDateTime.MinValue) then
+      cellData := nil
 
-    var cellData := Cell.GetFormattedData(nil, Cell.Data, False, formatApplied {out});
-
-    if formatApplied then
+    else if not CString.IsNullOrEmpty(_Format) or (_FormatProvider <> nil) then
     begin
-      if cellData <> nil then
-        Result := cellData.ToString else
-        Result := CString.Empty;
-    end
-    else if cellData <> nil then
-    begin
-      if cellData.GetType.IsDateTime and (CDateTime(cellData).Equals(CDateTime.MinValue)) then
-        displayValue := nil else
-        displayValue := cellData;
-
+      var formatSpec: CString;
       if not CString.IsNullOrEmpty(_Format) then
         formatSpec := CString.Concat('{0:', _Format, '}') else
         formatSpec := '{0}';
 
-      Result := CString.Format(_FormatProvider, formatSpec, [displayValue]);
-    end else
-      Result := CString.Empty;
+      cellData := CString.Format(_FormatProvider, formatSpec, [cellData]);
+    end;
   end;
 
+  Result := cellData.ToString(True);
+end;
+
+procedure TFMXTreeColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
 begin
   if not (Cell.Control is TStyledControl) then exit;
 
@@ -8849,7 +8828,7 @@ begin
 
   if textControl <> nil then
   begin
-    textControl.Text := CStringToString(GetTextData);
+    textControl.Text := CStringToString(GetCellText(Cell));
 
     if MakeVisible then
     begin
@@ -9567,7 +9546,7 @@ end;
 function TTreeSortDescription.GetSortableValue(const AObject: CObject): CObject;
 var
   cell: ITreeCell;
-  formattingApplied: Boolean;
+
 begin
   if get_SortType = ADato.Controls.FMX.Tree.Intf.SortType.PropertyValue then
   begin
@@ -9592,24 +9571,48 @@ begin
     if get_LayoutColumn = nil then
       raise Exception.Create('Layout column not accessible');
 
-    (_row as IOverwritableTreeRow).DataItem := AObject;
+    _row.ResetRowData(AObject, -1);
 
     cell := _row.Cells[_LayoutColumn.Index];
 
     case _SortType of
-      ADato.Controls.FMX.Tree.Intf.SortType.Displaytext:
-        Result := cell.GetFormattedData(nil, cell.Data, False, formattingApplied {out});
-      ADato.Controls.FMX.Tree.Intf.SortType.CellData:
+      ADato.Controls.FMX.Tree.Intf.SortType.Displaytext, ADato.Controls.FMX.Tree.Intf.SortType.CellData:
+        Result := cell.Column.GetCellText(cell);
+
+      ADato.Controls.FMX.Tree.Intf.SortType.ColumnCellComparer:
       begin
-        Result := cell.Data;
-        if Result = nil then
-          Result := cell.GetFormattedData(nil, nil, True, formattingApplied {out});
-      end;
-      ADato.Controls.FMX.Tree.Intf.SortType.ColumnCellComparer: begin
         if not CString.IsNullOrEmpty(_LayoutColumn.Column.PropertyName) then
           Result := (_tree as TFMXTreeControl).TreeRowList.GetCellData(_row, cell) else
-          Result := cell.GetFormattedData(nil, cell.Data, True, formattingApplied {out});
+          Result := cell.Column.GetCellText(cell);
       end;
+
+//      ADato.Controls.FMX.Tree.Intf.SortType.Displaytext:
+//      begin
+//        Result := cell.GetFormattedData(nil, cell.Data, False, formattingApplied {out});
+//
+//        if not formattingApplied and (not CString.IsNullOrEmpty(cell.Column.Format) or (cell.Column.FormatProvider <> nil)) then
+//        begin
+//          var formatSpec: CString;
+//          if not CString.IsNullOrEmpty(cell.Column.Format) then
+//            formatSpec := CString.Concat('{0:', cell.Column.Format, '}') else
+//            formatSpec := '{0}';
+//
+//          Result := CString.Format(cell.Column.FormatProvider, formatSpec, [Result]);
+//        end else
+//          Result := Result.ToString;
+//      end;
+//      ADato.Controls.FMX.Tree.Intf.SortType.CellData:
+//      begin
+//        Result := cell.Data;
+//        if Result = nil then
+//          Result := cell.GetFormattedData(nil, nil, True, formattingApplied {out});
+//      end;
+//      ADato.Controls.FMX.Tree.Intf.SortType.ColumnCellComparer:
+//      begin
+//        if not CString.IsNullOrEmpty(_LayoutColumn.Column.PropertyName) then
+//          Result := (_tree as TFMXTreeControl).TreeRowList.GetCellData(_row, cell) else
+//          Result := cell.GetFormattedData(nil, cell.Data, True, formattingApplied {out});
+//      end;
     end;
   end;
 end;
@@ -10158,11 +10161,15 @@ begin
     (_RowHeights as IUpdatableObject).EndUpdate;
 end;
 
+function TTreeDataModelViewRowList.DataItemToData(const DataItem: CObject) : CObject;
+begin
+  Result := DataItem.AsType<IDataRowView>.Row.Data;
+end;
 
 procedure TTreeDataModelViewRowList.BeginRowEdit(const DataItem: CObject);
 begin
 //  _EditItem := (Interfaces.ToInterface(DataItem) as IDataRowView).Row;
-  _EditItem := Interfaces.ToInterface(DataItem) as IDataRowView;
+  _EditItem := DataItem.AsType<IDataRowView>;
   _dataModelView.DataModel.BeginEdit(_EditItem.Row);
 end;
 
@@ -10459,8 +10466,7 @@ var
 begin
   propName := cell.column.PropertyName;
   if not CString.IsNullOrEmpty(propName) then
-    Result := _dataModelView.DataModel.DisplayFormat( propName,
-                                                      (Interfaces.ToInterface(Cell.Row.DataItem) as IDataRowView).Row);
+    Result := _dataModelView.DataModel.DisplayFormat( propName, Cell.Row.DataItem.AsType<IDataRowView>.Row);
 end;
 
 function TTreeDataModelViewRowList.EditFormat(const Cell: ITreeCell): CString;
@@ -10489,7 +10495,7 @@ begin
   if not CString.IsNullOrEmpty(name) then
   begin
     if CString.Equals(name, COLUMN_SHOW_DEFAULT_OBJECT_TEXT) then
-      Result := Row.DataItem.GetValue<IDataRowView>.Row.Data else
+      Result := Row.DataItem.AsType<IDataRowView>.Row.Data else
       Result := _dataModelView.DataModel.GetPropertyValue(name, Row.DataItem.GetValue<IDataRowView>.Row)
   end else
     Result := nil;
@@ -10593,8 +10599,7 @@ end;
 
 function TTreeDataModelViewRowList.GetCellData(const DataItem: CObject; const PropertyName: CString; const ColumnIndex: Integer): CObject;
 begin
-  Result := _dataModelView.DataModel.GetPropertyValue(  PropertyName,
-                                                        (Interfaces.ToInterface(DataItem) as IDataRowView).Row);
+  Result := _dataModelView.DataModel.GetPropertyValue(  PropertyName, DataItem.AsType<IDataRowView>.Row);
 end;
 
 function TTreeDataModelViewRowList.GetFormattedDataEditing(
@@ -10604,13 +10609,10 @@ function TTreeDataModelViewRowList.GetFormattedDataEditing(
   const RequestValueForSorting: Boolean;
   out FormatApplied: Boolean) : CObject;
 
-var
-  rowDataItem: IDataRowView;
-
 begin
   if Assigned(TFMXTreeControl(_Control).CellFormatting) then
   begin
-    rowDataItem := Interfaces.ToInterface(Cell.Row.DataItem) as IDataRowView;
+    var rowDataItem := Cell.Row.DataItem.AsType<IDataRowView>;
     if (_EditItem <> nil) and CObject.Equals(rowDataItem, _EditItem) then
       Result := GetFormattedData(Cell, Content, _EditItem.Row, Data, RequestValueForSorting, FormatApplied) else
       Result := GetFormattedData(Cell, Content, rowDataItem.Row, Data, RequestValueForSorting, FormatApplied);
@@ -11253,7 +11255,11 @@ end;
 procedure TTreeRow.ResetRowData(const ADataItem: CObject; AIndex: Integer);
 begin
   for var i := 0 to Cells.Count - 1 do // for var cell in Cells
-    Cells[i].Control.Height := INITIAL_CELL_HEIGHT;
+  begin
+    var c := Cells[i].Control;
+    if c <> nil then
+      c.Height := INITIAL_CELL_HEIGHT;
+  end;
 
   inherited;
 end;
@@ -11631,6 +11637,11 @@ begin
   if _data <> nil then
     Result := _data.Count else
     Result := 0;
+end;
+
+function TTreeRowList.DataItemToData(const DataItem: CObject) : CObject;
+begin
+  Result := DataItem;
 end;
 
 procedure TTreeRowList.EndUpdate;
@@ -12149,13 +12160,10 @@ function TTreeRowList.GetColumnValues(const Column: ITreeLayoutColumn; Filtered:
   end;
 
 var
-  cellData: CObject;
   columnIndex: Integer;
-  contentItem: ICellData;
   dataItem: CObject;
   stringData: Dictionary<CString, Byte>;
-  displayText: CString;
-  formatApplied: Boolean;
+
 begin
   if _data.Count = 0 then
   begin
@@ -12170,49 +12178,28 @@ begin
     stringData := CDictionary<CString, Byte>.Create();
 
   var rowIndex := 0;
-  var tmpRow: ITreeRow;
-  var tmpCell: ITreeCell;
+  var tmpRow: ITreeRow := TFMXTreeControl(_Control).InitTemporaryRow(dataItem, rowIndex);
+  var tmpCell: ITreeCell := tmpRow.Cells[columnIndex];
+
   while GetNextRow(rowIndex, dataItem) do
   begin
-    cellData := GetCellData(dataItem, Column.Column.PropertyName, columnIndex);
+    tmpRow.ResetRowData(dataItem, rowIndex);
+    var data := tmpCell.Data;
+    var text := Column.Column.GetCellText(tmpCell);
 
-    if cellData = nil then
+    if text <> nil then
     begin
-      if tmpRow = nil then
+      if SkipDuplicates then
       begin
-        tmpRow := TFMXTreeControl(_Control).InitTemporaryRow(dataItem, rowIndex);
-        tmpCell := tmpRow.Cells[columnIndex];
-      end;
-
-      tmpRow.ResetRowData(dataItem, rowIndex);
-      cellData := DoGetFormattedData(tmpCell, contentItem, dataItem, nil, True {Return cell data}, formatApplied);
-    end;
-
-    {$IFNDEF FIX_KV}
-    // Maybe we want to look at filter.LayoutColumn.Column.Sort = SortType.DisplayText
-    // and convert cellData (which holds the cell value in it's original type) to text
-    // cellData := cellData.ToString;
-    {$ENDIF}
-
-    if not Result.ContainsKey(cellData) then
-    begin
-      // Previous block can return cellData = nil
-      if cellData <> nil then
-        displayText := cellData.ToString else
-        displayText := nil;
-
-      if displayText <> nil then
-      begin
-        if SkipDuplicates then
+        if not stringData.ContainsKey(text) then
         begin
-          if not stringData.ContainsKey(displayText) then
-          begin
-            stringData.Add(displayText, 0);
-            Result.Add(cellData, displayText);
-          end;
-        end else
-          Result.Add(cellData, displayText);
-      end;
+          stringData.Add(text, 0);
+          if data = nil then // Not all cells actually contain data
+            Result.Add(text, text) else
+            Result.Add(data, text);
+        end;
+      end else
+        Result.Add(data, text);
     end;
 
     inc(rowIndex);

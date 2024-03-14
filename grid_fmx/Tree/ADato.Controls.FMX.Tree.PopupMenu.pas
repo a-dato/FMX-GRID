@@ -77,8 +77,8 @@ type
   IFilterItem = interface(IBaseInterface)
     function  get_Data: CObject;
     procedure set_Data(const Value: CObject);
-    function  get_Caption: CString;
-    procedure set_Caption(const Value: CString);
+    function  get_Text: CString;
+    procedure set_Text(const Value: CString);
     function  get_Checked: Boolean;
     procedure set_Checked(const Value: Boolean);
 
@@ -86,9 +86,9 @@ type
       read  get_Data
       write set_Data;
 
-    property Caption: CString
-      read  get_Caption
-      write set_Caption;
+    property Text: CString
+      read  get_Text
+      write set_Text;
 
     property Checked: Boolean
       read  get_Checked
@@ -99,19 +99,19 @@ type
   TFilterItem = class(TBaseInterfacedObject, IFilterItem)
   protected
     _Data: CObject;
-    _Caption: CString;
+    _Text: CString;
     _Checked: Boolean;
     function  get_Data: CObject;
     procedure set_Data(const Value: CObject);
-    function  get_Caption: CString;
-    procedure set_Caption(const Value: CString);
+    function  get_Text: CString;
+    procedure set_Text(const Value: CString);
     function  get_Checked: Boolean;
     procedure set_Checked(const Value: Boolean);
   public
-    constructor Create(const Caption: CString; const Checked: Boolean; const Data: CObject);
+    constructor Create(const Data: CObject; const Text: CString; const Checked: Boolean);
   published
     property Data: CObject read  get_Data write set_Data;
-    property Caption: CString read  get_Caption write set_Caption;
+    property Text: CString read  get_Text write set_Text;
     property Checked: Boolean read  get_Checked write set_Checked;
   end;
   {$M-}
@@ -163,8 +163,8 @@ end;
 
 procedure TfrmPopupMenu.ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters, ShowItemSortOptions, ShowItemAddColumAfter,
       ShowItemHideColumn: Boolean);
-{ • ShowItemFilters - Tree and filters search box
-  • ShowItemSortOptions - Sort items(2), Clear Filter, Clear All (Filter + Sort) }
+{ • ShowItemFilters - Tree and filters search box, Clear Filter
+  • ShowItemSortOptions - Sort items(2), Clear All (Filter + Sort) }
 
   procedure CalculateMenuHeight;
   var
@@ -197,7 +197,7 @@ begin
   // ShowItemSortOptions
   lbiSortSmallToLarge.Visible := ShowItemSortOptions;
   lbiSortLargeToSmall.Visible := ShowItemSortOptions;
-  lbiClearFilter.Visible := ShowItemSortOptions;
+  lbiClearFilter.Visible := ShowItemFilters;
   lbiClearSortAndFilter.Visible := ShowItemSortOptions;
 
   lbiAddColumnAfter.Visible := ShowItemAddColumAfter;
@@ -276,7 +276,7 @@ begin
   tree.Columns.Add(column);
 
   var column1 := TFMXTreeColumn.Create;
-  column1.PropertyName := 'Caption';
+  column1.PropertyName := 'Text';
   column1.ReadOnly := True;
   column1.Width := 10; // Just to see it in case if Autosize goes wrong
   tree.Columns.Add(column1);
@@ -296,7 +296,7 @@ begin
     {$IFNDEF FIX_KV}
     // Ignore column.Column.Sort = SortType.DisplayText
     Assert(CompareText = False);
-    checked := (Selected <> nil) and Selected.Contains(kv.Key);
+    checked := (Selected <> nil) and Selected.Contains(kv.Value);
     {$ELSE}
     //if SelectEmptyValue and CString.Equals(kv.Value, NO_VALUE) then
     //  checked := True
@@ -306,17 +306,17 @@ begin
     else
       checked := (Selected <> nil) and Selected.Contains(kv.Key);
     {$ENDIF}
-    item := TFilterItem.Create(kv.Value, checked, kv.Key);
+    item := TFilterItem.Create(kv.Key, kv.Value, checked);
     items.Add(item);
   end;
-                 { Not sure if we need to sort it?
+
   items.Sort(
       function (const x, y: IFilterItem): Integer
       begin
         if Comparer <> nil then
           Result := Comparer.Compare(x.Data, y.Data) else
-          Result := CString.Compare(x.Caption, y.Caption);
-      end);       }
+          Result := CObject.Compare(x.Data, y.Data);
+      end);
 
   (_TreeControl as TFMXTreeControl).DataList := items as IList;
 end;
@@ -407,17 +407,16 @@ end;
 
 { TFilterItem }
 
-constructor TFilterItem.Create(const Caption: CString; const Checked: Boolean;
-  const Data: CObject);
+constructor TFilterItem.Create(const Data: CObject; const Text: CString; const Checked: Boolean);
 begin
-  _Caption := Caption;
-  _Checked := Checked;
   _Data := Data;
+  _Text := Text;
+  _Checked := Checked;
 end;
 
-function TFilterItem.get_Caption: CString;
+function TFilterItem.get_Text: CString;
 begin
-  Result := _Caption;
+  Result := _Text;
 end;
 
 function TFilterItem.get_Checked: Boolean;
@@ -430,9 +429,9 @@ begin
   Result := _Data;
 end;
 
-procedure TFilterItem.set_Caption(const Value: CString);
+procedure TFilterItem.set_Text(const Value: CString);
 begin
-  _Caption := Value;
+  _Text := Value;
 end;
 
 procedure TFilterItem.set_Checked(const Value: Boolean);

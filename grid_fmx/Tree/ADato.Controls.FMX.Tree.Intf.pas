@@ -1418,16 +1418,6 @@ type
     property BackgroundColor: TAlphaColor read get_BackgroundColor;
   end;
 
-  IOverwritableTreeRow = interface(IBaseInterface)
-    ['{F301DCE4-5020-4EFA-9CAA-F59B3374E588}']
-    function  get_DataItem: CObject;
-    procedure set_DataItem(const Value: CObject);
-
-    property DataItem: CObject
-      read  {$IFDEF DELPHI}get_DataItem{$ENDIF}
-      write {$IFDEF DELPHI}set_DataItem{$ENDIF};
-  end;
-
   ITreeRowList = {$IFDEF DOTNET}public{$ENDIF} interface(IRowList<ITreeRow>)
     ['{A05CD697-1E0F-42F4-A1AF-FF467A14A5A9}']
     {$IFDEF DELPHI}
@@ -1436,11 +1426,12 @@ type
     function GetFormattedData(const Cell: ITreeCell; const Content: ICellContent; const DataItem: CObject;
       const Data: CObject; const FormatForPopupMenu: Boolean; out FormatApplied: Boolean) : CObject;
 
-    function GetColumnValues(const Column: ITreeLayoutColumn; Filtered: Boolean;
-      SkipDuplicates: Boolean): Dictionary<CObject, CString>;
+    function  GetColumnValues(const Column: ITreeLayoutColumn; Filtered: Boolean; SkipDuplicates: Boolean): Dictionary<CObject, CString>;
     procedure ApplySort(const Sorts: List<IListSortDescription>; const Filters: List<IListFilterDescription>);
     function  CanEdit(const Cell: ITreeCell): Boolean;
     procedure CreateDefaultColumns(const AList: ITreeColumnList);
+    // Gets the data out of the DataItem
+    function  DataItemToData(const DataItem: CObject) : CObject;
     function  GetCellData(const row: ITreeRow; const cell: ITreeCell) : CObject; overload;
     function  GetCellData(const DataItem: CObject; const PropertyName: CString; const ColumnIndex: Integer): CObject; overload;
     procedure SetCellData(const row: ITreeRow; const cell: ITreeCell; const Data : CObject);
@@ -1614,6 +1605,7 @@ type
 
     function  CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell;
     function  CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
+    function  GetCellText(const Cell: ITreeCell): CString;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
 
     //function GetTabStops: SingleArray;
