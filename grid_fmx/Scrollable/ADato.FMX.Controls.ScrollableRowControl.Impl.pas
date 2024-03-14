@@ -404,6 +404,7 @@ type
     function IndexOf(const ARow: T): Integer; override;
     function IndexOf(const DataItem: CObject): Integer; override;
     function IsDataModelView: Boolean;
+    procedure ClearRowCache;
   end;
 
   TRow = class(TBaseInterfacedObject, IRow, IFreeNotification)
@@ -2869,6 +2870,12 @@ begin
     Result.ResetRowData(Data, AIndex)
   else
     Result := CreateRowClass(Data, AIndex, IsTemporaryRow);
+end;
+
+procedure TBaseViewList<T>.ClearRowCache;
+begin
+  if _CacheList <> nil then
+    _CacheList.Clear;
 end;
 
 function TBaseViewList<T>.FindRowByDataIndex(ADataIndex: Integer): Integer;

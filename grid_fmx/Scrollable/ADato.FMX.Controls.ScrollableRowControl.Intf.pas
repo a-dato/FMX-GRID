@@ -78,6 +78,7 @@ type
     function CreateRow(const Data: CObject; AIndex: Integer; const IsTemporaryRow: Boolean = False;
       const ARowLevel: integer = 0): T;
     function IsDataModelView: Boolean;
+    procedure ClearRowCache;
     function FindRowByData(const ARow: T): Integer;
     { Get row index in a View by data of row. If it does not exists in a View returns -1.
       Need this method for ease of use: View.FindRowByData(Row) - and will be triggered proper variant

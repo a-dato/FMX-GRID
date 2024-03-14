@@ -4445,6 +4445,9 @@ begin
       // reset horizontal scroll bar to 0 when ColumnsChanged
        ViewportPosition := TPointF.Create(0, ViewportPosition.Y);
       _lastUpdatedViewportPosition.X := 0;
+
+      View.ClearRowCache;  // rebuild cache, because Row.Cells.Count <> Layout.Columns.Count
+
       InitLayout;
       InitHeaderColumnControls;
       _contentBounds.Right := 0;
@@ -5275,6 +5278,7 @@ begin
   treeRowClass.Control.Width := w;
   if w > _contentBounds.Right then
     _contentBounds := TRectF.Create(_contentBounds.Left, _contentBounds.Top, w, _contentBounds.Bottom);
+  // Later, in DoAutoFitColumns, column can be fit in Tree width and _contentBounds can be changed
 end;
 
 function TCustomTreeControl.InitTemporaryRow(const DataItem: CObject; ViewRowIndex: Integer): ITreeRow;
@@ -12131,10 +12135,8 @@ function TTreeRowList.GetColumnValues(const Column: ITreeLayoutColumn; Filtered:
 
 var
   columnIndex: Integer;
-  contentItem: ICellData;
   dataItem: CObject;
   stringData: Dictionary<CString, Byte>;
-  formatApplied: Boolean;
 begin
   if _data.Count = 0 then
   begin
