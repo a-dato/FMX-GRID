@@ -2428,13 +2428,7 @@ begin
       // Show filter values which already exist for this column
       _frmHeaderPopupMenu.LoadFilterItems(dataValues, comparer, filter.Values, // Current selected items in filter Tree
                                 filter.ShowEmptyValues,
-                                {$IFNDEF FIX_KV}
-                                False // Allways use value from cell data to update filter
-                                      // This prevents issues with type mismatch
-                                {$ELSE}
-                                filter.LayoutColumn.Column.Sort = SortType.DisplayText
-                                {$ENDIF}
-                                )
+                                filter.LayoutColumn.Column.Sort = SortType.DisplayText)
     else
       _frmHeaderPopupMenu.LoadFilterItems(dataValues, comparer, nil, False, False);
 
@@ -2503,15 +2497,12 @@ var
 
     for var filterItem in _frmHeaderPopupMenu.SelectedFilters do
     begin
-      filterValues.Add(filterItem.Text);
-
-//      // NO_VALUE is marked as OBSOLETE in code, so I commented it
-//      //if CString.Equals(filterItem.Caption, NO_VALUE) then
-//      // includeEmptyValues := True  else
-//      if (column.Column.Sort = SortType.DisplayText) then
-//        filterValues.Add(filterItem.Caption)
-//      else
-//        filterValues.Add(filterItem.Data);
+      // NO_VALUE is marked as OBSOLETE in code, so I commented it
+      //if CString.Equals(filterItem.Caption, NO_VALUE) then
+      // includeEmptyValues := True  else
+      if (column.Column.Sort = SortType.DisplayText) then
+        filterValues.Add(filterItem.Text) else
+        filterValues.Add(filterItem.Data);
     end;
 
     if (filterValues.Count > 0) then //or includeEmptyValues then
@@ -9546,7 +9537,7 @@ end;
 function TTreeSortDescription.GetSortableValue(const AObject: CObject): CObject;
 var
   cell: ITreeCell;
-
+  formattingApplied: Boolean;
 begin
   if get_SortType = ADato.Controls.FMX.Tree.Intf.SortType.PropertyValue then
   begin
@@ -9576,8 +9567,15 @@ begin
     cell := _row.Cells[_LayoutColumn.Index];
 
     case _SortType of
-      ADato.Controls.FMX.Tree.Intf.SortType.Displaytext, ADato.Controls.FMX.Tree.Intf.SortType.CellData:
+      ADato.Controls.FMX.Tree.Intf.SortType.Displaytext:
         Result := cell.Column.GetCellText(cell);
+
+      ADato.Controls.FMX.Tree.Intf.SortType.CellData:
+      begin
+        Result := cell.Data;
+        if Result = nil then
+          Result := cell.GetFormattedData(nil, nil, True, formattingApplied {out});
+      end;
 
       ADato.Controls.FMX.Tree.Intf.SortType.ColumnCellComparer:
       begin
@@ -9585,34 +9583,6 @@ begin
           Result := (_tree as TFMXTreeControl).TreeRowList.GetCellData(_row, cell) else
           Result := cell.Column.GetCellText(cell);
       end;
-
-//      ADato.Controls.FMX.Tree.Intf.SortType.Displaytext:
-//      begin
-//        Result := cell.GetFormattedData(nil, cell.Data, False, formattingApplied {out});
-//
-//        if not formattingApplied and (not CString.IsNullOrEmpty(cell.Column.Format) or (cell.Column.FormatProvider <> nil)) then
-//        begin
-//          var formatSpec: CString;
-//          if not CString.IsNullOrEmpty(cell.Column.Format) then
-//            formatSpec := CString.Concat('{0:', cell.Column.Format, '}') else
-//            formatSpec := '{0}';
-//
-//          Result := CString.Format(cell.Column.FormatProvider, formatSpec, [Result]);
-//        end else
-//          Result := Result.ToString;
-//      end;
-//      ADato.Controls.FMX.Tree.Intf.SortType.CellData:
-//      begin
-//        Result := cell.Data;
-//        if Result = nil then
-//          Result := cell.GetFormattedData(nil, nil, True, formattingApplied {out});
-//      end;
-//      ADato.Controls.FMX.Tree.Intf.SortType.ColumnCellComparer:
-//      begin
-//        if not CString.IsNullOrEmpty(_LayoutColumn.Column.PropertyName) then
-//          Result := (_tree as TFMXTreeControl).TreeRowList.GetCellData(_row, cell) else
-//          Result := cell.GetFormattedData(nil, cell.Data, True, formattingApplied {out});
-//      end;
     end;
   end;
 end;
@@ -12161,9 +12131,10 @@ function TTreeRowList.GetColumnValues(const Column: ITreeLayoutColumn; Filtered:
 
 var
   columnIndex: Integer;
+  contentItem: ICellData;
   dataItem: CObject;
   stringData: Dictionary<CString, Byte>;
-
+  formatApplied: Boolean;
 begin
   if _data.Count = 0 then
   begin
@@ -12184,6 +12155,7 @@ begin
   while GetNextRow(rowIndex, dataItem) do
   begin
     tmpRow.ResetRowData(dataItem, rowIndex);
+
     var data := tmpCell.Data;
     var text := Column.Column.GetCellText(tmpCell);
 
@@ -12194,7 +12166,7 @@ begin
         if not stringData.ContainsKey(text) then
         begin
           stringData.Add(text, 0);
-          if data = nil then // Not all cells actually contain data
+          if data = nil then // Not all cells have data
             Result.Add(text, text) else
             Result.Add(data, text);
         end;

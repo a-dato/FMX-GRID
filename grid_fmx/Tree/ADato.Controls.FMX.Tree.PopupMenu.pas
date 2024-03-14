@@ -293,19 +293,13 @@ begin
 
   for kv in Data do
   begin
-    {$IFNDEF FIX_KV}
-    // Ignore column.Column.Sort = SortType.DisplayText
-    Assert(CompareText = False);
-    checked := (Selected <> nil) and Selected.Contains(kv.Value);
-    {$ELSE}
     //if SelectEmptyValue and CString.Equals(kv.Value, NO_VALUE) then
     //  checked := True
     //else
     if CompareText then
-      checked := (Selected <> nil) and Selected.Contains(kv.Value)
-    else
+      checked := (Selected <> nil) and Selected.Contains(kv.Value) else
       checked := (Selected <> nil) and Selected.Contains(kv.Key);
-    {$ENDIF}
+
     item := TFilterItem.Create(kv.Key, kv.Value, checked);
     items.Add(item);
   end;
@@ -313,8 +307,15 @@ begin
   items.Sort(
       function (const x, y: IFilterItem): Integer
       begin
-        if Comparer <> nil then
-          Result := Comparer.Compare(x.Data, y.Data) else
+        if CompareText then
+        begin
+          if Comparer <> nil then
+            Result := Comparer.Compare(x.Text, y.Text) else
+            Result := CObject.Compare(x.Text, y.Text);
+        end
+        else if Comparer <> nil then
+          Result := Comparer.Compare(x.Data, y.Data)
+        else
           Result := CObject.Compare(x.Data, y.Data);
       end);
 

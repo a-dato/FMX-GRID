@@ -3113,7 +3113,7 @@ begin
   _DataItem := ADataItem;
   _Index := AIndex;
 
-  if _Control <> nil then // Will be nil on Temp rows
+  if _Control <> nil then // Will be nil with Temp rows
   begin
     _Control.Opacity := 1;
     _Control.Visible := True;
