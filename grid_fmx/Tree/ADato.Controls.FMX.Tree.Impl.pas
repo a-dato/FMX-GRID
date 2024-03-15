@@ -4708,11 +4708,12 @@ begin
     headertop := headertop + RowHeader.Height;
   end;
 
-  if (_listComparer <> nil) and (TreeRowList <> nil) then
-  begin
-    TreeRowList.ApplySort(_listComparer.SortDescriptions, _listComparer.FilterDescriptions);
-    OnSortApplied;
-  end;
+  // KV: 15/03/2024 Sorting has already been applied in Initialize
+//  if (_listComparer <> nil) and (TreeRowList <> nil) then
+//  begin
+//    TreeRowList.ApplySort(_listComparer.SortDescriptions, _listComparer.FilterDescriptions);
+//    OnSortApplied;
+//  end;
 end;
 
 function TCustomTreeControl.InternalInsertRow(Position: InsertPosition): Boolean;

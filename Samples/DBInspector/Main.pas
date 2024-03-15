@@ -211,7 +211,8 @@ implementation
 {$R *.fmx}
 
 uses Login, FireDAC.VCLUI.ConnEdit, System.Rtti, System.Math, CopyData,
-  FMX.Clipboard, FMX.Platform;
+  FMX.Clipboard, FMX.Platform, FMX.Platform.Win, Winapi.Windows,
+  Winapi.Messages;
 
 procedure TfrmInspector.acAddConnectionExecute(Sender: TObject);
 var
