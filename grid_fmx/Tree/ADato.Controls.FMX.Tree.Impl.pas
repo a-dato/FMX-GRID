@@ -8796,7 +8796,7 @@ begin
   var formatApplied: Boolean;
   var cellData := Cell.GetFormattedData(nil, Cell.Data, False, formatApplied {out});
 
-  if not formatApplied then
+  if not formatApplied and (cellData <> nil) then
   begin
     if cellData.GetType.IsDateTime and CDateTime(cellData).Equals(CDateTime.MinValue) then
       cellData := nil
