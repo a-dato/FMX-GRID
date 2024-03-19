@@ -148,7 +148,7 @@ type
   public
     constructor Create; {$IFDEF DELPHI}overload;{$ENDIF}
     constructor Create(const collection: IEnumerable<T>); {$IFDEF DELPHI}overload;{$ENDIF}
-    constructor Create(const list: List<T>); {$IFDEF DELPHI}overload;{$ENDIF}
+    constructor Create(const list: IList<T>); {$IFDEF DELPHI}overload;{$ENDIF}
 
   {$IFDEF DELPHI}
     destructor Destroy; override;
@@ -445,7 +445,7 @@ begin
   inherited;
 end;
 
-constructor CObservableCollectionEx<T>.Create(const list: List<T>);
+constructor CObservableCollectionEx<T>.Create(const list: IList<T>);
 begin
   _MonitorPropertyChangedEvents := True;
   inherited;

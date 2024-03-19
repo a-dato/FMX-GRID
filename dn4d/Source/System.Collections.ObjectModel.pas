@@ -1,4 +1,5 @@
 {$I Adato.inc}
+
 unit System.Collections.ObjectModel;
 
 interface
@@ -169,7 +170,7 @@ type
     // Methods
     public constructor Create; overload;
     public constructor Create(const collection: IEnumerable<T>);  overload;
-    public constructor Create(const list: List<T>);  overload;
+    public constructor Create(const list: IList<T>); overload;
 
     protected function BlockReentrancy: IDisposable;
     protected procedure CheckReentrancy;
@@ -521,7 +522,7 @@ begin
     end
 end;
 
-constructor CObservableCollection<T>.Create(const list: List<T>);
+constructor CObservableCollection<T>.Create(const list: IList<T>);
 begin
   inherited Create;
   self._monitor := SimpleMonitor<T>.Create;
