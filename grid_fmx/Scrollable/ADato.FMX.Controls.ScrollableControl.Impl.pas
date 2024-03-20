@@ -282,7 +282,7 @@ end;
 
 procedure TScrollableControl.MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
 begin
-  // do NOT scroll horizontal if there are less rows than tree.height
+  // do NOT scroll horizontally if there are less rows than tree.height
   if (ssHorizontal in Shift) or (ssShift in Shift) then
     inherited MouseWheel([ssHorizontal], WheelDelta, Handled)
   else if (ContentLayout <> nil) and (ContentBounds.Height > ContentLayout.Height) then
@@ -819,8 +819,10 @@ begin
 {$IFnDEF DO_NOT_ROUND_VIEWPORT_VALUES}
       LViewportPosition := TPointF.Create((LViewportPosition * LScale).Round) / LScale;
 {$ENDIF}
-      if ContentSizeChanged or ContentPosChanged or not hpFLastViewportPosition.EqualsTo(LViewportPosition,
-        TEpsilon.Position) then
+    //if ContentSizeChanged or ContentPosChanged or
+      if (ContentSizeChanged or ContentPosChanged) and // there is a bug in FMX, should be "and", with "or" it goes
+                                                       // with the same ViewportValue (old value = new). Alex.
+        not hpFLastViewportPosition.EqualsTo(LViewportPosition, TEpsilon.Position) then
         try
           ViewportPositionChange(hpFLastViewportPosition, LViewportPosition, ContentSizeChanged or ContentPosChanged);
         finally

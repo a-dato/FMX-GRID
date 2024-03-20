@@ -119,8 +119,10 @@ type
       constructor Create(NewRect: TRectangle; aParent: TControl);
       destructor Destroy; override;
       procedure StartAnimation;
+      procedure StopAnimation;
       procedure SetForNewRow(Row: IRow);
       property IsHighlighted: boolean read _IsHighlighted;
+      property Animation: TColorAnimation read _ColorAnim;
     end;
 
   strict private  // Highlight rows on hover and selection
@@ -262,6 +264,7 @@ type
     procedure set_Column(Value: Integer); virtual; // current column (current active cell) changed
     function GetCurrentCell: Integer; virtual;
     function GetHeaderHeight: Single; virtual; abstract;
+
     procedure AlignViewToRow(RowGlobalIndex: integer; SavedTopRow: T);
     // If Row is visible in a View - method will do nothing, if row is not in a View - Row will be created and
     // positioned related to the scrolling direction
@@ -312,7 +315,7 @@ type
     // ARowDataViewIndex = View.Row.Index, they match. Do not mix with View index which starts from 0
     property Animate: Boolean read _Animate write _Animate;
     // use animation: selecting row, future actions. Default = true
-    property HighlightRows: Boolean read _HighlightRows write _HighlightRows;
+    property HighlightRows: Boolean read _HighlightRows write _HighlightRows default True;
     // Mouse Hover Highlight
 
   { property View: IRowList<T> read get_View; // Each inherited class has own View with needed type and
@@ -353,8 +356,8 @@ type
       to define what is "FastScrolling".  For example user specifies 10%, if user will scroll >= 10% during 50 ms, - control will set flag
       IsFastScrolling in CellLoading (CellLoading is in a Tree only) event as True. In this case user may show some part of a data.
       See also CellLoadingEventArgs.}
-    property ShowVScrollBar: Boolean read _ShowVScrollBar write SetShowVScrollBar;
-    property ShowHScrollBar: Boolean read _ShowHScrollBar write SetShowHScrollBar;
+    property ShowVScrollBar: Boolean read _ShowVScrollBar write SetShowVScrollBar default True;
+    property ShowHScrollBar: Boolean read _ShowHScrollBar write SetShowHScrollBar default True;
     property ContentBounds: TRectF read _contentBounds;
   end;
 
@@ -580,6 +583,29 @@ begin
   end;
 
   DetectFastScrolling;
+
+  if HighlightRows then
+  begin
+    var isRunningAnimation := _Highlight1.Animation.Running or _Highlight2.Animation.Running;
+
+    if isRunningAnimation then
+    begin
+      _Highlight1.StopAnimation;
+      _Highlight2.StopAnimation;
+
+      TThread.ForceQueue(nil, procedure
+      begin
+        Repaint;
+      end);
+      {Workaround for the rendering issue with wheel: C5503: When highlighting animation is in progress and user starts
+       to scroll with wheel, rows start to jumble. Even if I stop animation in the same time, in ViewportPositionChange.
+       FMX redraws only small rectagle, one row, part where hightlighting animation is working now,
+       but not all the Tree control, at the same time scrollbar moves. If user moves cursor after this -
+       Tree will be redrawn as it should.
+       We cannot call Repaint without ForceQueue, because at this time TCustomForm has FDrawing = True, we're already
+       in Paint method. So, do delayed Repaint only if highlighting animation is working. Alex. }
+    end;
+  end;
 end;
 
 procedure TScrollableRowControl<T>.DetectFastScrolling;
@@ -2744,7 +2770,7 @@ end;
 procedure TScrollableRowControl<T>.THighlightRect.SetForNewRow(Row: IRow);
 // set position of [unhighlighted] rectangle for a new row
 begin
-  // make highlight invisible during scrolling
+ // make highlight invisible during scrolling
   if Row = nil then
   begin
     _Rectangle.Visible := False;
@@ -2782,6 +2808,12 @@ begin
   _IsHighlighted := not _IsHighlighted;
 
   _ColorAnim.Start;
+end;
+
+procedure TScrollableRowControl<T>.THighlightRect.StopAnimation;
+begin
+  _ColorAnim.Stop;
+  _Rectangle.Visible := False;
 end;
 
 {$ENDREGION}

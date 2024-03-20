@@ -11231,6 +11231,10 @@ procedure TTreeRow.ResetRowData(const ADataItem: CObject; AIndex: Integer);
 begin
   for var i := 0 to Cells.Count - 1 do // for var cell in Cells
   begin
+    var cell := Cells[i];
+    if cell = nil then
+      Continue;
+
     var c := Cells[i].Control;
     if c <> nil then
       c.Height := INITIAL_CELL_HEIGHT;
@@ -11442,7 +11446,10 @@ begin
     if (cell <> nil) and cell.Column.ShowHierarchy then
     begin
       var filler := FindFillerControl(cell.Control);
-      Assert(filler <> nil);
+      if filler = nil then
+        Continue;
+
+      //Assert(filler <> nil);
 
       filler.StylesData['collapse.Visible'] := isExpanded;
       filler.StylesData['expand.Visible'] := not isExpanded;
