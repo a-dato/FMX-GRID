@@ -21,7 +21,7 @@ type
 
   IAddRange<T> = interface(IBaseInterface)
     ['{63730843-530A-462A-9AE9-D10F62899BF6}']
-    procedure AddRange(const col: ICollection<T>);
+    procedure AddRange(const col: IEnumerable<T>);
   end;
 
   ILookup<T> = interface(IBaseInterface)
