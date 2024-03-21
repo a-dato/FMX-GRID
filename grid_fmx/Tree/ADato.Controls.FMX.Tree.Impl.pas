@@ -7799,7 +7799,7 @@ begin
               dec(nextColumnIndex) else
               inc(nextColumnIndex);  // Tab and Right
 
-            if IsCellSelectable(Current, nextColumnIndex) then
+            if (nextColumnIndex >= 0) and IsCellSelectable(Current, nextColumnIndex) then
               SelectCell(Current, nextColumnIndex, False, True, True)
             else if Key = vkTab then
             begin // If tabbing and no column to the right selectable execute default behavior: Focus is on different control outside of the Tree
