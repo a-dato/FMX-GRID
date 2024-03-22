@@ -586,12 +586,15 @@ begin
 
   if HighlightRows then
   begin
-    var isRunningAnimation := _Highlight1.Animation.Running or _Highlight2.Animation.Running;
+    var isRunningAnimation := ((_Highlight1 <> nil) and _Highlight1.Animation.Running) or ((_Highlight2 <> nil) and _Highlight2.Animation.Running);
 
     if isRunningAnimation then
     begin
-      _Highlight1.StopAnimation;
-      _Highlight2.StopAnimation;
+      if _Highlight1 <> nil then
+        _Highlight1.StopAnimation;
+
+      if _Highlight2 <> nil then
+        _Highlight2.StopAnimation;
 
       TThread.ForceQueue(nil, procedure
       begin
