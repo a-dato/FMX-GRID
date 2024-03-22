@@ -584,7 +584,7 @@ begin
 
   DetectFastScrolling;
 
-  if HighlightRows then
+  if HighlightRows and Assigned(_Highlight1) and Assigned(_Highlight2) then
   begin
     var isRunningAnimation := ((_Highlight1 <> nil) and _Highlight1.Animation.Running) or ((_Highlight2 <> nil) and _Highlight2.Animation.Running);
 
@@ -598,7 +598,8 @@ begin
 
       TThread.ForceQueue(nil, procedure
       begin
-        Repaint;
+        if Scene <> nil then // control may be already destroyed
+          Repaint;
       end);
       {Workaround for the rendering issue with wheel: C5503: When highlighting animation is in progress and user starts
        to scroll with wheel, rows start to jumble. Even if I stop animation in the same time, in ViewportPositionChange.
