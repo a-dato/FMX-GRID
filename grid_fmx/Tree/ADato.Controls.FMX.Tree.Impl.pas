@@ -8119,8 +8119,10 @@ begin
   _listComparer.ApplySort(Sorts, Filters);
 
   // force to rebuild contentBounds
-  _contentBounds.Top := 0;
-  _contentBounds.Bottom := 0;
+  //_contentBounds.Top := 0;
+  //_contentBounds.Bottom := 0;
+  RefreshControl([TreeState_DataChanged]);
+  // fully rebuild Tree with new data and ContentBounds or we have issue 5528 with CB and scrrolling
 end;
 
 procedure TCustomTreeControl.OnSortApplied;
