@@ -45,10 +45,11 @@ type
     public
       FilterText: Cstring;
     end;
-
+  private
+    const TREE_COLUMN_NAME_TEXT = 'Text';
   strict private
-    _comparerTreeFilter: TComparerTreeFilter;
-    _filters: List<IListFilterDescription>;
+    //_comparerTreeFilter: TComparerTreeFilter;
+    //_filters: List<IListFilterDescription>;
 
     _FilterBorder: TRectangle;
     _EbSearch: TEdit;
@@ -276,7 +277,7 @@ begin
   tree.Columns.Add(column);
 
   var column1 := TFMXTreeColumn.Create;
-  column1.PropertyName := 'Text';
+  column1.PropertyName := TREE_COLUMN_NAME_TEXT;
   column1.ReadOnly := True;
   column1.Width := 10; // Just to see it in case if Autosize goes wrong
   tree.Columns.Add(column1);
@@ -351,17 +352,25 @@ end;
 
 procedure TfrmPopupMenu.OnSearchEditBoxChanging(Sender: TObject);
 begin
-  if _comparerTreeFilter = nil then
-  begin
-//    _comparerTreeFilter := TComparerTreeFilter.Create;
-//
-//    var filter := TTreeFilterDescriptionForText(layoutColumn.Column.PropertyName, filterText) // CListFilterDescriptionForComparer.Create(_comparerTreeFilter);
-//    _filters := CList<IListFilterByComparer>.Create;
-//    _filters.Add(filter);
-  end;
+//  if _comparerTreeFilter = nil then
+//  begin
+////    _comparerTreeFilter := TComparerTreeFilter.Create;
+////
+////    var filter := TTreeFilterDescriptionForText(layoutColumn.Column.PropertyName, filterText) // CListFilterDescriptionForComparer.Create(_comparerTreeFilter);
+////    _filters := CList<IListFilterByComparer>.Create;
+////    _filters.Add(filter);
+//  end;
 
-  _comparerTreeFilter.FilterText := _EbSearch.Text.ToLower;
-  TFMXTreeControl(_TreeControl).ApplySort(nil, _filters);
+//_comparerTreeFilter.FilterText := _EbSearch.Text.ToLower;
+
+  var filters := CList<IListFilterDescription>.Create;
+
+  var filterByText: IListFilterDescriptionForText := TTreeFilterDescriptionForText.Create(_TreeControl as ITreeControl,
+    _EbSearch.Text {will be compared to case-insensitive internally}, TREE_COLUMN_NAME_TEXT);
+
+  filters.Add(filterByText);
+
+  TFMXTreeControl(_TreeControl).ApplySort(nil, filters);
 end;
 
 procedure TfrmPopupMenu.BtnApplyFilterClick(Sender: TObject);
