@@ -476,6 +476,8 @@ procedure TCustomVirtualDatasetDataModel.DataModelViewChanged(
   Sender: TObject;
   Args: EventArgs);
 begin
+  if _updateCount > 0 then Exit;
+  
   ClearBuffers;
 end;
 
@@ -528,32 +530,37 @@ var
   Index: Integer;
 
 begin
-  // Insert new row in DataModel without raising event
-  Index := _mediator.inheritedAddNew(Location, Position);
+  inc(_updateCount);
+  try
+    // Insert new row in DataModel without raising event
+    Index := _mediator.inheritedAddNew(Location, Position);
 
-  // We need an updated record count, therefore force a (re)Fill on the default view.
-  _dataModel.DefaultView.Fill;
+    // We need an updated record count, therefore force a (re)Fill on the default view.
+    _dataModel.DefaultView.Fill;
 
-  // Resync buffers with new view
-  Resync([]);
+    // Resync buffers with new view
+    Resync([]);
 
-  // Select newly inserted row
-  Row := _mediator.Rows[Index];
+    // Select newly inserted row
+    Row := _mediator.Rows[Index];
 
-  // Activate insert mode
-  SetState(dsInsert);
+    // Activate insert mode
+    SetState(dsInsert);
 
-  // Prepare for insert
-  InternalInsert;
+    // Prepare for insert
+    InternalInsert;
 
-  // Notify client
-  DoOnNewRecord;
+    // Notify client
+    DoOnNewRecord;
 
-  // Notify everyone about change in data
-  // We need to optimize here!!
-  // DefaultView will be build twice!
-  _mediator.OnListChanged(ListChangedType.ItemAdded, Index);
-  
+    // Notify everyone about change in data
+    // We need to optimize here!!
+    // DefaultView will be build twice!
+    _mediator.OnListChanged(ListChangedType.ItemAdded, Index);
+  finally
+    dec(_updateCount);
+  end;
+
   Result := Row;
 end;
 

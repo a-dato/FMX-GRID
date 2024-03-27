@@ -38,7 +38,7 @@ type
 
   EVirtualDatasetError = class(Exception);
     PVariantList = ^TVariantList;
-    TVariantList = array [0 .. 0] of OleVariant;
+    TVariantList = array [0 .. 0] of Variant;
 
   TDeleteRecordEvent = procedure(Sender: TCustomVirtualDataset;
     Index: Integer) of object;
@@ -326,7 +326,8 @@ begin
   try
     if FField.DataType = ftWideMemo then
     begin
-      var v: Variant := TEncoding.Unicode.GetString(Bytes, 0, Size);
+      var s: string := TEncoding.Unicode.GetString(Bytes, 0, Size);
+      var v: Variant := s;
 
       // vb Must hold a pointer to a Variant
       var vb: TValueBuffer;
@@ -353,31 +354,46 @@ begin
   if FField.DataType in [ftBlob..ftTypedBinary, ftVariant, ftWideMemo] then
   begin
     var vb: TValueBuffer;
-    SetLength(vb, SizeOf(Variant));
+    SetLength(vb, SizeOf(PVariant));
     FDataSet.GetFieldData(FField, vb, True);
 
     var v: PVariant := PVariant(vb);
 
     if not VarIsNull(v^) and not VarIsEmpty(v^) then
     begin
-      var vd := FindVarData(v^);
-
-      if vd.VType = varOleStr then
+      if FField.DataType = ftWideMemo then
       begin
-        var i := Length(vd.VOleStr);
-        if FField.DataType = ftWideMemo then
-          i := i * sizeof(widechar);
-
-        Write(vd.VOleStr[0], i);
+        var s := string(v^);
+        var b := TEncoding.Unicode.GetBytes(s);
+        Write(b, Length(b));
         Position := 0;
-      end else
+      end
+      else
       begin
         var s := VarArrayHighBound(v^, 1) + 1;
-        inherited Write(vd.VPointer, s);
+        inherited Write(FindVarData(v^).VPointer, s);
         Position := 0;
       end;
 
-      VarClear(v^);
+
+//      var vd := FindVarData(v^);
+//
+//      if vd.VType = varOleStr then
+//      begin
+//        var i := Length(vd.VOleStr);
+//        if FField.DataType = ftWideMemo then
+//          i := i * sizeof(widechar);
+//
+//        Write(vd.VOleStr[0], i);
+//        Position := 0;
+//      end else
+//      begin
+//        var s := VarArrayHighBound(v^, 1) + 1;
+//        inherited Write(vd.VPointer, s);
+//        Position := 0;
+//      end;
+
+      // VarClear(v^);
     end;
   end;
 end;
@@ -608,7 +624,7 @@ end;
 function TCustomVirtualDataset.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
 var
   RecBuf: TRecBuf;
-  Data: OleVariant;
+  Data: Variant;
 
   procedure VarToBuffer;
   var
@@ -667,7 +683,6 @@ var
           VarArrayUnlock(Data);
         end;
       end;
-
       ftInterface:
         begin
           TempBuff := BytesOf(@Data, SizeOf(IUnknown));
@@ -682,9 +697,8 @@ var
         TDBBitConverter.UnsafeFrom<Int64>(TVarData(Data).VInt64, Buffer);
       ftBlob..ftTypedBinary, ftVariant, ftWideMemo:
       begin
-        SetLength(TempBuff, SizeOf(Variant));
-        PVariant(TempBuff)^ := Data;
-        Move(TempBuff[0], Buffer[0], SizeOf(Variant));
+        var pv: PVariant := @(PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index]);
+        PVariant(Buffer) := pv;
       end;
       ftTimeStamp: TDBBitConverter.UnsafeFrom<TSQLTimeStamp>(VarToSqlTimeStamp(Data), Buffer);
       ftTimeStampOffset: TDBBitConverter.UnsafeFrom<TSQLTimeStampOffset>(VarToSqlTimeStampOffset(Data), Buffer);
@@ -733,8 +747,6 @@ begin
     if VarIsEmpty(v) then
       Data := Null
     else if VarType(v) = varInt64 then
-      // Conversion of Variant to OleVariant impliciteley converts from Int64 to Integer
-      // Using explicit cast prevents that!
       Data := Int64(v)
     else
       Data := v;
@@ -1225,8 +1237,6 @@ begin
       BufferToVar(Data);
 
     if varType(Data) = varInt64 then
-      // Conversion of Variant to OleVariant implicitley converts from Int64 to Integer.
-      // Using a cast prevents that!
       PVariantList(RecBuf + sizeof(TArrayRecInfo))[Field.Index] := Int64(Data) else
       PVariantList(RecBuf + sizeof(TArrayRecInfo))[Field.Index] := Data;
 

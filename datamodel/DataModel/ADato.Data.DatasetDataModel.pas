@@ -606,7 +606,8 @@ end;
 
 procedure TDatasetLink.RelocateDataset(Row: IDataRow);
 begin
-  if FSyncedWith = Row then Exit;
+  if FSyncedWith = Row then
+    Exit;
 
   FSyncedWith := nil;
 
@@ -643,6 +644,7 @@ begin
       bm := Row.Data.AsType<IMasterDetailKey>.Key.AsType<TBookmark>;
 
     DetailDataset.GotoBookmark(bm);
+    FSyncedWith := Row;
   end;
 end;
 
@@ -1022,23 +1024,18 @@ var
   end;
 
   procedure UpdateKeyValue;
-  var
-    v: Variant;
   begin
     if Row.Data <> nil then
       _mediator.Keys.Remove(Row.Data);
 
-    // Get new key value
-    v := _dataset[_datalink.KeyField];
-
-    if VarIsNull(v) then
-      EzDatasetError(ADatoResources.NoKey, Self);
-
     var key: CObject;
 
-    if SelfReferencing then
-      key := v;
-      key := CObject.From<IMasterDetailKey>(MasterDetailKey.Create(_row.Level, v));
+    if _datalink.KeyField <> '' then
+      key := _dataset[_datalink.KeyField] else
+      key := CObject.From<TBookmark>(_dataset.GetBookmark);
+
+    if not SelfReferencing then
+      key := CObject.From<IMasterDetailKey>(MasterDetailKey.Create(_row.Level, key));
 
     Row.Data := key;
     _mediator.Keys.Add(Row.Data, Row);

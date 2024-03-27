@@ -11,8 +11,8 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
     Size.Height = 80.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 1
-    Viewport.Width = 856.000000000000000000
-    Viewport.Height = 80.000000000000000000
+    Viewport.Width = 852.000000000000000000
+    Viewport.Height = 76.000000000000000000
   end
   object Layout1: TLayout
     Align = Top
@@ -117,13 +117,13 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
     Size.Height = 51.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 0
-    Viewport.Width = 856.000000000000000000
-    Viewport.Height = 51.000000000000000000
+    Viewport.Width = 852.000000000000000000
+    Viewport.Height = 47.000000000000000000
     object lblExecutionLog: TLabel
       Align = Left
       StyledSettings = [Family, Style]
       Size.Width = 120.000000000000000000
-      Size.Height = 50.000000000000000000
+      Size.Height = 47.000000000000000000
       Size.PlatformDefault = False
       TextSettings.Font.Size = 9.000000000000000000
       TextSettings.FontColor = claGray
@@ -155,7 +155,6 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
       IncrementalSearch = False
       Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowFocusRectangle, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
       ScrollPerRow = False
-      HighlightRows = True
       CellChanged = DataGridCellChanged
       EditStart = DataGridEditStart
       Viewport.Width = 854.000000000000000000
@@ -173,13 +172,13 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
       Size.PlatformDefault = False
       TabOrder = 0
       OnKeyDown = DataEditorKeyDown
-      Viewport.Width = 856.000000000000000000
-      Viewport.Height = 63.000000000000000000
+      Viewport.Width = 852.000000000000000000
+      Viewport.Height = 59.000000000000000000
       object lblCellEditor: TLabel
         Align = Left
         StyledSettings = [Family, Style]
         Size.Width = 120.000000000000000000
-        Size.Height = 50.000000000000000000
+        Size.Height = 59.000000000000000000
         Size.PlatformDefault = False
         TextSettings.Font.Size = 9.000000000000000000
         TextSettings.FontColor = claGray
