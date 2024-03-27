@@ -7799,7 +7799,7 @@ begin
               dec(nextColumnIndex) else
               inc(nextColumnIndex);  // Tab and Right
 
-            if IsCellSelectable(Current, nextColumnIndex) then
+            if (nextColumnIndex >= 0) and IsCellSelectable(Current, nextColumnIndex) then
               SelectCell(Current, nextColumnIndex, False, True, True)
             else if Key = vkTab then
             begin // If tabbing and no column to the right selectable execute default behavior: Focus is on different control outside of the Tree
@@ -8119,8 +8119,10 @@ begin
   _listComparer.ApplySort(Sorts, Filters);
 
   // force to rebuild contentBounds
-  _contentBounds.Top := 0;
-  _contentBounds.Bottom := 0;
+  //_contentBounds.Top := 0;
+  //_contentBounds.Bottom := 0;
+  RefreshControl([TreeState_DataChanged]);
+  // fully rebuild Tree with new data and ContentBounds or we have issue 5528 with CB and scrrolling
 end;
 
 procedure TCustomTreeControl.OnSortApplied;
