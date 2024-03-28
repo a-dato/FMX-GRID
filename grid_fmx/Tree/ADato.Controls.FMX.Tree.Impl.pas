@@ -8118,13 +8118,15 @@ begin
     CreateDefaultComparer;
 
   _currentDataItem := nil;
-  _listComparer.ApplySort(Sorts, Filters);
 
  { A quick fix without changing other parts, so ApplySort works in DVM mode.
    Possibly _ListComparer should be inside a View. _ListComparer saves current filters (per columns)
-   which affects status of some elements, see AllowClearColumnFilter. Alex.}
+   which affects status of some elements, see AllowClearColumnFilter.
+   Apply before _listComparer.ApplySort(Sorts, Filters), to update Sort Indicators. Alex.}
   if View.IsDataModelView then
     View.ApplySort(Sorts, Filters);
+
+  _listComparer.ApplySort(Sorts, Filters);
 
   RefreshControl([TreeState_DataChanged]);
   // fully rebuild Tree with new data and ContentBounds or we have issue 5528 with CB and scrolling
