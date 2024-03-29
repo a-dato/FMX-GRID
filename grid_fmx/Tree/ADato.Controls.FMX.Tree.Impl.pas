@@ -2495,6 +2495,7 @@ var
     var column := Layout.Columns[_popupMenuColumnIndex];
     filter := GetColumnFilter(column);
 
+    // load selected (checked) rows from the Tree in Popup menu
     for var filterItem in _frmHeaderPopupMenu.SelectedFilters do
     begin
       // NO_VALUE is marked as OBSOLETE in code, so I commented it
@@ -3726,7 +3727,8 @@ begin
                   var
                     fltr: ITreeFilterDescription;
                   begin
-                    Result := Interfaces.Supports(x, ITreeFilterDescription, fltr) and CObject.ReferenceEquals(fltr.LayoutColumn, Column);
+                    Result := Interfaces.Supports(x, ITreeFilterDescription, fltr)
+                              and CObject.ReferenceEquals(fltr.LayoutColumn, Column);
                   end) as ITreeFilterDescription
   else
     Result := nil;
@@ -5897,7 +5899,7 @@ begin
 
   if Value = nil then
     isEqual := DataItem = nil
-  else if View <> nil then
+  else if _View <> nil then
     isEqual := CObject.Equals(View.DataItemToData(DataItem), Value)
   else
     isEqual := False;
@@ -6745,7 +6747,7 @@ end;
 
 procedure TCustomTreeControl.AlignViewToCurrent(const SavedTopRow: ITreeRow);
 begin
-  if View = nil then Exit;
+  if _View = nil then Exit;
 
   var current := View.Current;
   if current = -1 then Exit;
@@ -6958,7 +6960,7 @@ begin
    So _header and controls in _HeaderRows[0].Cells are freed but not niled! Also changing Parent calls ApplyStyle again.
 
    If  View <> nil - ApplyStyle was called more than once.}
-  if View <> nil then
+  if _View <> nil then
   begin
     ResetView;
     //_View := nil; will be niled in Reset
@@ -8116,13 +8118,18 @@ begin
     CreateDefaultComparer;
 
   _currentDataItem := nil;
+
+ { A quick fix without changing other parts, so ApplySort works in DVM mode.
+   Possibly _ListComparer should be inside a View. _ListComparer saves current filters (per columns)
+   which affects status of some elements, see AllowClearColumnFilter.
+   Apply before _listComparer.ApplySort(Sorts, Filters), to update Sort Indicators. Alex.}
+  if View.IsDataModelView then
+    View.ApplySort(Sorts, Filters);
+
   _listComparer.ApplySort(Sorts, Filters);
 
-  // force to rebuild contentBounds
-  //_contentBounds.Top := 0;
-  //_contentBounds.Bottom := 0;
   RefreshControl([TreeState_DataChanged]);
-  // fully rebuild Tree with new data and ContentBounds or we have issue 5528 with CB and scrrolling
+  // fully rebuild Tree with new data and ContentBounds or we have issue 5528 with CB and scrolling
 end;
 
 procedure TCustomTreeControl.OnSortApplied;
@@ -10895,7 +10902,7 @@ begin             {
     Result := 0; }
 
   if _dataModelView <> nil then
-    Result := (_dataModelView as IList).Count
+    Result :=   (_dataModelView as IList).Count
   else
     Result := 0;
 end;
