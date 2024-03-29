@@ -695,11 +695,14 @@ var
         end;
       ftLargeInt:
         TDBBitConverter.UnsafeFrom<Int64>(TVarData(Data).VInt64, Buffer);
-      ftBlob..ftTypedBinary, ftVariant, ftWideMemo:
+      ftBlob..ftTypedBinary, ftWideMemo:
       begin
         var pv: PVariant := @(PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index]);
         PVariant(Buffer) := pv;
       end;
+      ftVariant:
+        PVariant(Buffer)^ := PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index];
+
       ftTimeStamp: TDBBitConverter.UnsafeFrom<TSQLTimeStamp>(VarToSqlTimeStamp(Data), Buffer);
       ftTimeStampOffset: TDBBitConverter.UnsafeFrom<TSQLTimeStampOffset>(VarToSqlTimeStampOffset(Data), Buffer);
 

@@ -703,12 +703,16 @@ begin
   end else
     VariantData := Convert.ToVariant(Data);
 
-  if ((VarType(VariantData) = varOleStr) or (VarType(VariantData) = varString)) and (VariantData = '') then
-    Field.Clear
-  else if (Field.FieldKind = fkLookup) then
-    UpdateLookupValue
-  else
+  if (Field.FieldKind = fkLookup) then
+    UpdateLookupValue else
     Field.Value := VariantData;
+
+//  if ((VarType(VariantData) = varOleStr) or (VarType(VariantData) = varString)) and (VariantData = '') then
+//    Field.Clear
+//  else if (Field.FieldKind = fkLookup) then
+//    UpdateLookupValue
+//  else
+//    Field.Value := VariantData;
 end;
 
 

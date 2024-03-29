@@ -33,7 +33,7 @@ type
   end;
 
   UpdateFlag = (ApplyUpdate, IgnoreUpdate);
-  IUpdatableObjectWithUpdateFlag = interface
+  IUpdateableObjectWithUpdateFlag = interface
     ['{76AEEAE0-1A5F-4552-835C-3C3C41421485}']
 
     {$IFDEF GDM_INTF}
