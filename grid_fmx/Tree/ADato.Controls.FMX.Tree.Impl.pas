@@ -580,6 +580,7 @@ type
     _FormatProvider : IFormatProvider;
     _Width          : Single;
     _WidthType      : TColumnWidthType;
+    _MinWidth       : Single;
     _MaxWidth       : Single;
     _IsMaxWidthSetForAutoWrap : Boolean;
     {Internal flag for the workaround:
@@ -651,6 +652,8 @@ type
     procedure set_Width(const Value: Single);
     function  get_MaxWidth: Single;
     procedure set_MaxWidth(const Value: Single);
+    function  get_MinWidth: Single;
+    procedure set_MinWidth(const Value: Single);
     function  get_WidthType: TColumnWidthType;
     procedure set_WidthType(const Value: TColumnWidthType);
     procedure set_Visible(Value : Boolean); virtual;
@@ -717,6 +720,7 @@ type
       read  get_Hint
       write set_Hint;
 
+    property MinWidth: single read _MinWidth write _MinWidth;
     property MaxWidth: single read _MaxWidth write _MaxWidth;
     property MultilineEdit: Boolean read get_MultilineEdit write set_MultilineEdit;
 
@@ -769,12 +773,6 @@ type
     property WidthType: TColumnWidthType
       read  get_WidthType
       write set_WidthType;
-
-// This should not be visible (published) in a COLUMN editor, moved into public.
-//    property OnInitCell: TOnInitCell read get_OnInitCell write set_OnInitCell;
-//    property OnHeaderApplyStyleLookup: TNotifyEvent
-//      read  get_OnHeaderApplyStyleLookup
-//      write set_OnHeaderApplyStyleLookup;
   end;
 
   TFMXTreeCheckboxColumn = {$IFDEF DOTNET}public{$ENDIF} class(
@@ -3337,6 +3335,10 @@ begin
   if (MaxWidth <> COLUMN_MAX_WIDTH_NOT_USED) and (NewWidth > MaxWidth) then
      NewWidth:= MaxWidth;
 
+  var MinWidth := Column.MinWidth;
+  if (MinWidth <> 0) and (NewWidth < MinWidth) then
+     NewWidth:= MinWidth;
+
   if Assigned(_ColumnChangingByUser) then
   begin
     AutoObject.Guard(ColumnChangedByUserEventArgs.Create(HitInfo, Column, NewWidth, NewPosition), e);
@@ -4106,7 +4108,15 @@ begin
             PctColumns[PIndex].FreeSpace := NewColumnWidth - TreeColumn._LongestCellWidth;
         end;
 
-      Assert(PctColumns[PIndex].FinalWidth <> 0);
+      // Apply MinWidth
+      if PctColumns[PIndex].FinalWidth < TreeColumn.MinWidth then
+      begin
+        PctColumns[PIndex].FinalWidth := TreeColumn.MinWidth;
+        if PctColumns[PIndex].FreeSpace <> 0 then
+          PctColumns[PIndex].FreeSpace := TreeColumn.MinWidth - - TreeColumn._LongestCellWidth;
+      end;
+
+      //Assert(PctColumns[PIndex].FinalWidth <> 0);
       inc(PIndex);
     end;
   end;
@@ -5234,10 +5244,13 @@ begin
 
    // at this stage "size" can be custom control size or from CalculateControlSize.
 
-   // Width of the column is the minimum width, even if AutoSizeToContent = True.
-   // pay attention that ITreeColumn.Width (const design-time width) <> TTreeLayoutColumn.Width (real time value)
-   if (size.Width < FMXColumn.Width) and (FMXColumn.MaxWidth = COLUMN_MAX_WIDTH_NOT_USED) then
-     size.Width := FMXColumn.Width;
+   if (FMXColumn.MinWidth <> 0) and (size.Width < FMXColumn.MinWidth) then
+     size.Width := FMXColumn.MinWidth
+   else
+     // "Width" of the column is the minimum width (if MinWidth = 0), even if AutoSizeToContent = True.
+     // pay attention that ITreeColumn.Width (const design-time width) <> TTreeLayoutColumn.Width (real time value)
+     if (size.Width < FMXColumn.Width) and (FMXColumn.MaxWidth = COLUMN_MAX_WIDTH_NOT_USED) then
+       size.Width := FMXColumn.Width;
 
     // Never decrease _LongestCellWidth value
     if FMXColumn._LongestCellWidth < size.Width then
@@ -8738,6 +8751,7 @@ begin
     _Enabled := _src.Enabled;
     _Caption := _src.Caption;
     _Hint := _src.Hint;
+    _MinWidth := _src.MinWidth;
     _MaxWidth := _src.MaxWidth;
     _MultilineEdit := _src.MultilineEdit;
     _frozen := _src.Frozen;
@@ -8945,6 +8959,16 @@ end;
 function TFMXTreeColumn.get_IsShowing: Boolean;
 begin
   Result := _IsShowing;
+end;
+
+function TFMXTreeColumn.get_MinWidth: Single;
+begin
+  Result := _MinWidth;
+end;
+
+procedure TFMXTreeColumn.set_MinWidth(const Value: Single);
+begin
+  _MinWidth := Value;
 end;
 
 function TFMXTreeColumn.get_MaxWidth: Single;
@@ -9792,7 +9816,6 @@ begin
   // combining AutoSizeToContent and TWidthType (2) = 4 modes. Read details in ADato.Controls.FMX.Tree.Intf.pas unit
   else if fmxColumn._AutoSizeToContent then
   begin
-    // At this stage TText have set real width of a text, use it:
     if textControlExists then
       Result.Width := TextControlWidth(TextControl, TextControl.TextSettings, TextControl.Text) + EXTRA_CELL_AUTO_WIDTH;
 
@@ -9826,9 +9849,12 @@ begin
     end;
   end;
 
-  // process MaxWidth
+  // process Min\Max Width
   if (fmxColumn._MaxWidth <> COLUMN_MAX_WIDTH_NOT_USED) and (Result.Width > fmxColumn._MaxWidth) then
     Result.Width := fmxColumn._MaxWidth;
+
+  if (fmxColumn._MinWidth <> 0) and (Result.Width < fmxColumn._MinWidth) then
+    Result.Width := fmxColumn._MinWidth;
 
   // Need auto height?
   if fmxColumn._AutoSizeToContent and textControlExists then

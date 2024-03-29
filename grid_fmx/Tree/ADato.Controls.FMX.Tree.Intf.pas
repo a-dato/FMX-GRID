@@ -1596,6 +1596,8 @@ type
     procedure set_Width(const Value: Single);
     function  get_MaxWidth: Single;
     procedure set_MaxWidth(const Value: Single);
+    function  get_MinWidth: Single;
+    procedure set_MinWidth(const Value: Single);
     function  get_WidthType: TColumnWidthType;
     procedure set_WidthType(const Value: TColumnWidthType);
     function  get_IsShowing: Boolean;
@@ -1729,6 +1731,7 @@ type
       write {$IFDEF DELPHI}set_Width{$ENDIF};
     {  Width: initial value which never changes. To get the current width of a column use ITreeLayoutColumn.Width.
        This field holds the design value as set by the developer. For Percentage column type - holds percentage value.   }
+    property MinWidth: Single read get_MinWidth write set_MinWidth; // in pixels, works in percentage mode too
     property MaxWidth: Single
       read  {$IFDEF DELPHI}get_MaxWidth{$ENDIF}
       write {$IFDEF DELPHI}set_MaxWidth{$ENDIF};
