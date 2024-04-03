@@ -132,13 +132,15 @@ type
 {$IFDEF DELPHI}
   TreeOptionFlag = (
     TreeOption_ReadOnly,
-    TreeOption_ShowHeaders,
     TreeOption_AutoCommit,
     TreeOption_AllowCellSelection,
     TreeOption_AlternatingRowBackground,
     TreeOption_AssumeObjectTypesDiffer,
+    TreeOption_ShowCheckboxes,
     TreeOption_ShowDragImage,
     TreeOption_ShowDragEffects,
+    TreeOption_ShowGrid,
+    TreeOption_ShowHeaders,
     TreeOption_CheckPropertyNames,
     TreeOption_MultiSelect,
     TreeOption_GoRowSelection,
@@ -154,7 +156,6 @@ type
     TreeOption_PreserveRowHeights,
     TreeOption_HideVScrollBar,
     TreeOption_HideHScrollBar,
-    TreeOption_ShowGrid,
     TreeOption_DragDropRows
     );
 
@@ -166,8 +167,10 @@ type
     AllowCellSelection: TreeOptionFlag = TreeOption_AllowCellSelection;
     AlternatingRowBackground: TreeOptionFlag = TreeOption_AlternatingRowBackground;
     AssumeObjectTypesDiffer: TreeOptionFlag = TreeOption_AssumeObjectTypesDiffer;
+    ShowCheckboxes: TreeOptionFlag = TreeOption_ShowCheckboxes;
     ShowDragImage: TreeOptionFlag = TreeOption_ShowDragImage;
     ShowDragEffects: TreeOptionFlag = TreeOption_ShowDragEffects;
+    ShowGrid: TreeOptionFlag = TreeOption_ShowGrid;
     CheckPropertyNames: TreeOptionFlag = TreeOption_CheckPropertyNames;
     MultiSelect: TreeOptionFlag = TreeOption_MultiSelect;
     GoRowSelection: TreeOptionFlag = TreeOption_GoRowSelection;
@@ -183,7 +186,6 @@ type
     PreserveRowHeights: TreeOptionFlag = TreeOption_PreserveRowHeights;
     HideVScrollBar: TreeOptionFlag = TreeOption_HideVScrollBar;
     HideHScrollBar: TreeOptionFlag = TreeOption_HideHScrollBar;
-    ShowGrid: TreeOptionFlag = TreeOption_ShowGrid;
     DragDropRows: TreeOptionFlag = TreeOption_DragDropRows;
   end;
 
@@ -1371,6 +1373,8 @@ type
     {$IFDEF DELPHI}
     ['{7CEE36C0-298A-4B74-9FD9-189BB1A197C0}']
     function  get_Cells: ITreeCellList;
+    function  get_Checked: Boolean;
+    procedure set_Checked(const Value: Boolean);
     function  get_Enabled: Boolean;
     procedure set_Enabled(const Value: Boolean);
     function  get_IsExpanded: Boolean;
@@ -1399,6 +1403,9 @@ type
   { In hierarchy mode each Row.DataItem contains IDataRowView (unlike other  modes (DataList)).
     So to save custom data user should use IDataRowView > IDataRow > Data: CObject.
     TreeRow.DataItem.AsType<IDataRowView>.Row.Data }
+
+    property Checked: Boolean read get_Checked write set_Checked;
+    // related to TreeOption_ShowCheckboxes
 
     property Enabled: Boolean
       read  {$IFDEF DELPHI}get_Enabled{$ENDIF}
@@ -1589,8 +1596,6 @@ type
     procedure set_StyleLookup(const Value: string);
     function  get_Tag: CObject;
     procedure set_Tag(const Value: CObject);
-    function  get_TabStops: CString;
-    procedure set_TabStops(const Value: CString);
     function  get_TreeControl: ITreeControl;
     function  get_Width: Single;
     procedure set_Width(const Value: Single);
@@ -1719,11 +1724,6 @@ type
     property Tag: CObject
       read {$IFDEF DELPHI}get_Tag{$ENDIF}
       write {$IFDEF DELPHI}set_Tag{$ENDIF};
-
-    property TabStops: CString
-      read {$IFDEF DELPHI}get_TabStops{$ENDIF}
-      write {$IFDEF DELPHI}set_TabStops{$ENDIF};
-
     property TreeControl: ITreeControl
       read  {$IFDEF DELPHI}get_TreeControl{$ENDIF};
     property Width: Single

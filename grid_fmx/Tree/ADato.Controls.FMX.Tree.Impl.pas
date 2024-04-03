@@ -84,7 +84,7 @@ const
     Tree will render empty cells\rows. To show a default text from a dataobject in cells,
     set column.PropertyName := COLUMN_SHOW_DEFAULT_OBJECT_TEXT }
   INDENT_LAST_COLUMN_FROM_RIGHT = 4; // while DoAutoFitColumns or processing percentage columns
-
+  CHECKBOX_COLUMN_WIDTH = 19;  // 20 
 
 type
   // to access private field of TCustomScrollBox
@@ -154,9 +154,9 @@ type
                                 const Data: CObject;
                                 const RequestValueForSorting: Boolean;
                                 out FormatApplied: Boolean) : CObject; virtual;
-    property Column: ITreeColumn read get_Column;
-    property Index: Integer read  get_Index;
-    property Row: ITreeRow read  get_Row;
+    property Column: ITreeColumn read _Column;
+    property Index: Integer read _Index;
+    property Row: ITreeRow read _Row;
     property Control: TControl read _Control;
     property Indent: Single read _Indent;
     property BackgroundColor: TAlphaColor read get_BackgroundColor write set_BackgroundColor;
@@ -282,7 +282,7 @@ type
     // Bools
     _Enabled        : Boolean;
     _IsTemporaryRow : Boolean;
-    _BackgroundRect : TRectangle; // cache it, because all frozen cells need this fill color from row style. All rows have background rectangle in style
+    _BackgroundRect : TRectangle;
   protected
     procedure ResetRowData(const ADataItem: CObject; AIndex: Integer); override;
   protected
@@ -303,6 +303,8 @@ type
     function  get_Owner: ITreeRowList;
     function  get_BackgroundColor: TAlphaColor;
     function  get_DataIndex: Integer; override;
+    function  get_Checked: Boolean;
+    procedure set_Checked(const Value: Boolean);
   public
     constructor Create( const AOwner: ITreeRowList;
                         const ADataItem: CObject;
@@ -319,11 +321,12 @@ type
     function  IsEditOrNew: Boolean;
     function  Level: Integer; override;
     function  Parent: ITreeRow;
-    property Cells: ITreeCellList read  get_Cells;
+    property Cells: ITreeCellList read _Cells;
     property DataItem: CObject read  get_DataItem;
     property Height: Single read  get_Height write set_Height;
     property Top: Single read  get_Top write set_Top;
     property IsExpanded: Boolean read get_IsExpanded write set_IsExpanded;
+    property Checked: Boolean read get_Checked write set_Checked;
   end;
 
   TTreeRowList = {$IFDEF DOTNET}public{$ENDIF} class(TBaseViewList<ITreeRow>,
@@ -645,8 +648,6 @@ type
     procedure set_StyleLookup(const Value: string);
     function  get_Tag: CObject;
     procedure set_Tag(const Value: CObject);
-    function  get_TabStops: CString; virtual;
-    procedure set_TabStops(const Value: CString); virtual;
     function  get_TreeControl: ITreeControl;
     function  get_Width: Single;
     procedure set_Width(const Value: Single);
@@ -712,59 +713,22 @@ type
 
     property Format: CString read  get_Format write set_Format;
 
-    property Frozen: Boolean
-      read  get_Frozen
-      write set_Frozen;
-
-    property Hint: CString
-      read  get_Hint
-      write set_Hint;
-
+    property Frozen: Boolean read _frozen write set_Frozen;
+    property Hint: CString read _Hint write set_Hint;
     property MinWidth: single read _MinWidth write _MinWidth;
     property MaxWidth: single read _MaxWidth write _MaxWidth;
     property MultilineEdit: Boolean read get_MultilineEdit write set_MultilineEdit;
-
-    property PropertyName: CString
-      read  get_PropertyName
-      write set_PropertyName;
-
-    property ReadOnly: Boolean
-      read  get_ReadOnly
-      write set_ReadOnly;
-
-    property Selectable: Boolean
-      read get_Selectable
-      write set_Selectable;
-
-    property ShowSortMenu: Boolean
-      read get_ShowSortMenu
-      write set_ShowSortMenu;
-
-    property ShowFilterMenu: Boolean
-      read get_ShowFilterMenu
-      write set_ShowFilterMenu;
-
-    property ShowHierarchy: Boolean read get_ShowHierarchy write set_ShowHierarchy;
-
-    property Sort: SortType
-      read get_Sort
-      write set_Sort;
-
-    property StyleLookup: string  // set custom style for all cells in a column
-      read get_StyleLookup
-      write set_StyleLookup;
-
-    property TabStops: CString
-      read  get_TabStops
-      write set_TabStops;
-
-    property Tag: CObject
-      read get_Tag
-      write set_Tag;
-
-    property Visible: Boolean
-      read  get_Visible
-      write set_Visible;
+    property PropertyName: CString read _PropertyName write set_PropertyName;
+    property ReadOnly: Boolean read  _ReadOnly write _ReadOnly;
+    property Selectable: Boolean read _selectable write set_Selectable;
+    property ShowSortMenu: Boolean read _ShowSortMenu write _ShowSortMenu;
+    property ShowFilterMenu: Boolean read _ShowFilterMenu write _ShowFilterMenu;
+    property ShowHierarchy: Boolean read _ShowHierarchy write _ShowHierarchy;
+    property Sort: SortType read _Sort write _Sort;
+    property StyleLookup: string read _StyleLookup write _StyleLookup;
+    // set custom style for all cells in a column
+    property Tag: CObject read _Tag write _Tag;
+    property Visible: Boolean read  _visible write set_Visible;
 
     property Width: Single
       read  get_Width
@@ -862,6 +826,7 @@ type
     function  ColumnLayoutToJSON(const SystemLayout: TJSONObject): TJSONObject;
     procedure RestoreColumnLayoutFromJSON(const Value: TJSONObject);
     function Add(const Value: CObject): Integer; override;
+    procedure Insert(index: Integer; const value: CObject); override;
   public
     constructor Create(const Owner: ITreeControl); {$IFDEF DELPHI}overload;{$ENDIF} virtual;
     constructor Create(const Owner: ITreeControl; const col: IEnumerable<ITreeColumn>); {$IFDEF DELPHI}overload; virtual;{$ENDIF}
@@ -1523,7 +1488,7 @@ type
     procedure EditorLeave(const Sender: ICellEditor; e: EventArgs);  virtual;
     function  EditorParseValue(const Sender: ICellEditor; var AValue: CObject): Boolean;
 
-    function  TryChangeCheckbox(KeyIsSpace: Boolean): Boolean;
+    //function  TryChangeCheckbox(KeyIsSpace: Boolean): Boolean;
     procedure TryAssignDefaultCheckboxColumn;
 
     procedure UpdateEditImageState(const Row: ITreeRow; const State: ContentState);
@@ -1620,7 +1585,6 @@ type
     function  FindControl(AControl: TControl) : ITreeCell;
     procedure DoRecreateHandle;
     procedure RefreshControl(Flags: TreeStates; const Force: boolean = False);
-    function  ToggleCellCheckbox : Boolean;
     function  SelectCell( RowIndex, ColumnIndex: Integer;
                           IsMouseSelection: Boolean;
                           DoFindSelectableCell: Boolean;
@@ -1660,14 +1624,14 @@ type
     property AlwaysShowFocus: Boolean read _alwaysShowFocus write set_AlwaysShowFocus;
     property DataModelView: IDataModelView read  get_DataModelView write set_DataModelView;
     property DataList: IList read get_DataList write set_DataList;
-    property DataPropertyName: CString read get_DataPropertyName write set_DataPropertyName;
-    property DefaultColumns: Boolean read  get_DefaultColumns;
-    property Columns: ITreeColumnList read get_ColumnList; // stored DoStoreColumns;
-    property ContentBounds: TRectF read get_ContentBounds;
+    property DataPropertyName: CString read _DataPropertyName write set_DataPropertyName;
+    property DefaultColumns: Boolean read _defaultColumns;
+    property Columns: ITreeColumnList read _columns;  // stored DoStoreColumns;
+    //property ContentBounds: TRectF read get_ContentBounds; There is same in parent class
     property FilterDescriptions: List<IListFilterDescription> read get_FilterDescriptions;
     property IndexedData[const Row: Integer; const Column: Integer]: CObject read get_IndexedData write set_IndexedData;
-    property Model: IObjectListModel read get_Model write set_Model;
-    property Options: TreeOptions read get_Options write set_Options;
+    property Model: IObjectListModel read _model write set_Model;
+    property Options: TreeOptions read _Options write set_Options;
     property HeaderHeight: Single read GetHeaderHeight write _HeaderHeight;
     property RowHeights: IFMXRowHeightCollection read _RowHeightsGlobal write set_RowHeights;
     property SortColumns: CString read  get_SortColumns write set_SortColumns;
@@ -1738,7 +1702,7 @@ type
     property Indent: integer read _Indent write SetIndent;
     // Default indent in pixels from the left (Parent > Children) for all children rows (Level > 0) in hierarchy mode
     // To set a custom indent for each level, change e.Cell.Indent in CellLoading event
-    property DefaultExpandRows: Boolean read GetDefaultExpandRows; 
+    property DefaultExpandRows: Boolean read GetDefaultExpandRows;
     // Only for hierarchy mode (DataModelView). Affects Row.IsExpanded, View.IsExpanded(Row)
   end;
 
@@ -3505,58 +3469,6 @@ begin
   end;
 end;
 
-//procedure TCustomTreeControl.DoIncrementalSearch(const Key: Keys);
-//var
-//  endindex: Integer;
-//  i: Integer;
-//  o: CObject;
-//  restart: Boolean;
-//  startindex: Integer;
-//
-//begin
-//  if _View = nil then
-//    Exit;
-//
-//  startindex := Current;
-//  endindex := _View.Count - 1;
-//
-//  if Environment.TickCount - _IncrementalSearchTicks < 500 then
-//  begin
-//    _IncrementalSearchString := _IncrementalSearchString + Char(Integer(Key));
-//    i := startindex; // Search from current line
-//  end
-//  else
-//  begin
-//    _IncrementalSearchString := Char(Integer(Key));
-//    i := startindex + 1; // Continue search on next line
-//  end;
-//
-//  _IncrementalSearchTicks := Environment.TickCount;
-//
-//  while True do
-//  begin
-//    while i <= endindex do
-//    begin
-//      o := _View.GetCellData(_View[i], _View[i].Cells[Column]);
-//
-//      if (o <> nil) and o.ToString.StartsWith(_IncrementalSearchString, True) and
-//          ((Current = i) or SelectCell(i, Column, False, False, True)) then
-//        break;
-//
-//      inc(i);
-//    end;
-//
-//    // Continue from first item when there is no match
-//    if (i > endindex) and (startindex > 0) then
-//    begin
-//      i := 0;
-//      endindex := startindex;
-//      startindex := 0;
-//    end else
-//      break;
-//  end;
-//end;
-
 procedure TCustomTreeControl.DoRowLoading(const Row: ITreeRow);
 var
   args: RowLoadingEventArgs;
@@ -3801,43 +3713,6 @@ begin
   end;
 end;
 
-function TCustomTreeControl.ToggleCellCheckbox : Boolean;
-//var
-//  args: CellMouseEventArgs;
-//  cell: ITreeCell;
-//  checkbox: ICellCheckbox;
-//  i: Integer;
-begin
-  Result := False;
-//
-//  cell := Self.Cell;
-//
-//  for i := 0 to cell.Content.Count - 1 do
-//  begin
-//    if Interfaces.Supports(cell.Content[i], ICellCheckbox, checkbox) then
-//    begin
-//      if Assigned(checkbox.OnClick) then
-//      begin
-//        AutoObject.Guard( CellMouseEventArgs.Create(nil,
-//                                                    -1,
-//                                                    TMouseButton.None,
-//                                                    0,
-//                                                    -1,
-//                                                    -1),
-//                          args);
-//
-//        args.ActiveContent := checkbox;
-//        ImageClicked(checkbox, args);
-//
-//      end else
-//        UpdateCellValue(cell, not checkbox.Checked);
-//
-//      Result := True;
-//      Exit;
-//    end;
-//  end;
-end;
-
 procedure TCustomTreeControl.TryAssignDefaultCheckboxColumn;
 begin
   if get_DefaultCheckBoxColumn <> nil then
@@ -3861,58 +3736,58 @@ begin
     set_DefaultCheckBoxColumn(checkboxColumn);
 end;
 
-function TCustomTreeControl.TryChangeCheckbox(KeyIsSpace: Boolean): Boolean;
-var
-  cell: ITreeCell;
-  checkboxColumn: ITreeCheckboxColumn;
-  clmn: ITreeLayoutColumn;
-begin
-  Result := False;
-  if not KeyIsSpace or not Enabled then
-    Exit(False);
-
-  Initialize;
-  UpdateContents(False);
-
-  if (_View = nil) or (Current < 0) then
-    Exit(False);
-
-  var r := Row;
-
-  if (r = nil) or not r.Enabled then
-    Exit(False);
-
-  cell := r.Cells[Column];
-  if not cell.Column.Enabled then
-    Exit(False);
-
-  checkboxColumn := nil;
-
-  if Interfaces.Supports(_columns[Column], ITreeCheckboxColumn, checkboxColumn) then
-  begin
-    checkboxColumn.Checked[row.DataItem] := not checkboxColumn.Checked[row.DataItem].AsType<Boolean>;
-    Result := True;
-  end
-
-  // if cannot edit cell, try to find a checkbox cell in row if RowSelection is turned on
-  else if not TreeRowList.CanEdit(cell) and (TreeOption.GoRowSelection in _Options) and (_DefaultCheckBoxColumn <> nil) and (_Layout <> nil) then
-  begin
-    for var o in _Layout.Columns do
-    begin
-      clmn := o.AsType<ITreeLayoutColumn>;
-      if CObject.Equals(clmn.Column, _DefaultCheckBoxColumn) then
-      begin
-        cell := r.Cells[clmn.Index];
-        _DefaultCheckBoxColumn.Checked[row.DataItem] := not _DefaultCheckBoxColumn.Checked[row.DataItem].AsType<Boolean>;
-        Result := True;
-        Break;
-      end;
-    end;
-  end;
-
-  if Result then
-    DoCellItemClicked(cell, True);
-end;
+//function TCustomTreeControl.TryChangeCheckbox(KeyIsSpace: Boolean): Boolean;
+//var
+//  cell: ITreeCell;
+//  checkboxColumn: ITreeCheckboxColumn;
+//  clmn: ITreeLayoutColumn;
+//begin
+//  Result := False;
+//  if not KeyIsSpace or not Enabled then
+//    Exit(False);
+//
+//  Initialize;
+//  UpdateContents(False);
+//
+//  if (_View = nil) or (Current < 0) then
+//    Exit(False);
+//
+//  var r := Row;
+//
+//  if (r = nil) or not r.Enabled then
+//    Exit(False);
+//
+//  cell := r.Cells[Column];
+//  if not cell.Column.Enabled then
+//    Exit(False);
+//
+//  checkboxColumn := nil;
+//
+//  if Interfaces.Supports(_columns[Column], ITreeCheckboxColumn, checkboxColumn) then
+//  begin
+//    checkboxColumn.Checked[row.DataItem] := not checkboxColumn.Checked[row.DataItem].AsType<Boolean>;
+//    Result := True;
+//  end
+//
+//  // if cannot edit cell, try to find a checkbox cell in row if RowSelection is turned on
+//  else if not TreeRowList.CanEdit(cell) and (TreeOption.GoRowSelection in _Options) and (_DefaultCheckBoxColumn <> nil) and (_Layout <> nil) then
+//  begin
+//    for var o in _Layout.Columns do
+//    begin
+//      clmn := o.AsType<ITreeLayoutColumn>;
+//      if CObject.Equals(clmn.Column, _DefaultCheckBoxColumn) then
+//      begin
+//        cell := r.Cells[clmn.Index];
+//        _DefaultCheckBoxColumn.Checked[row.DataItem] := not _DefaultCheckBoxColumn.Checked[row.DataItem].AsType<Boolean>;
+//        Result := True;
+//        Break;
+//      end;
+//    end;
+//  end;
+//
+//  if Result then
+//    DoCellItemClicked(cell, True);
+//end;
 
 function TCustomTreeControl.TryHandleTab(Shift: TShiftState): Boolean;
 begin
@@ -4378,6 +4253,19 @@ begin
 end;
 
 procedure TCustomTreeControl.Initialize;
+
+  procedure ShowCheckBoxColumn;
+  begin
+    // Is there a checkbox column? We need to check only Column0, if user uses other custom checkbox columns,
+    // he should not enable flag ShowCheckboxes, this is related only to this feature.
+    if (Columns.Count > 0) and (Columns[0] is TFMXTreeCheckboxColumn) then Exit;
+
+    var column := TFMXTreeCheckboxColumn.Create;
+    column.AutoSizeToContent := false;
+    column.Width := CHECKBOX_COLUMN_WIDTH;
+    Columns.Insert(0, column);
+  end;
+
 var
   cellChanged: Boolean;
   ri: Integer;
@@ -4444,6 +4332,9 @@ begin
         _defaultColumns := True;
       end;
 
+
+      if TreeOption.ShowCheckboxes in Options then
+        ShowCheckBoxColumn;
       InitLayout;
       InitHeaderColumnControls;
       TryAssignDefaultCheckboxColumn;
@@ -5184,7 +5075,7 @@ begin
     var treeCell: ITreeCell;
     // not a cell control. Check if cell with cell control already exists - in case if we're using a cache (default)
     if (treeRowClass._Cells.Count > 0) and (columnIndex in [0..treeRowClass._Cells.Count-1]) then
-      treeCell := treeRowClass._Cells[columnIndex] else
+      treeCell := treeRowClass._Cells[columnIndex] else // while using cache (default), tree reuses old ITreeCell
       treeCell := FMXColumn.CreateTreeCell(treeRow, columnIndex);
 
     // load Data into the cell, create cell control
@@ -6590,19 +6481,26 @@ var
   rowIndex      : Integer;
   stopEdit      : Boolean;
   Value         : CObject;
-
 begin
-  if (TreeOption.ReadOnly in _Options) then
+  if  (Cell.Column is TFMXTreeCheckboxColumn) then
+  begin
+    { Process checkbox cells separately, without creating an Editor. Because EndRowEdit calls DataChanged, so this
+      part will prevent updating Tree after clicking the checkbox.
+     Note: TreeOption.ReadOnly and Column.ReadOnly makes checkboxes disabled, user cannot change them with a mouse or
+     with a Space key.
+     User can change checkboxes programmatically here. Use "Row.Checked" property. }
+    Cell.Data := NewValue;
     Exit;
+  end
+  else // noncheckbox cells
+    if (TreeOption.ReadOnly in _Options) or not TreeRowList.CanEdit(Cell) then Exit;
 
-  // Cell being edited
-  // cell := _View[Current].Cells[Column];
+//
+//  if (TreeOption.ReadOnly in _Options) then
+//    Exit;
+//  if not (Cell.Column is TFMXTreeCheckboxColumn) and not TreeRowList.CanEdit(Cell) then
+//    Exit;
 
-  //  TFMXTreeCheckboxColumn should update its checkbox value even if ReadOnly = true (Canedit = false)
-  if not (Cell.Column is TFMXTreeCheckboxColumn) and not TreeRowList.CanEdit(Cell) then
-    Exit;
-
-  // row := _View[Current];
   row := Cell.Row;
 
   stopEdit := True;
@@ -6629,9 +6527,6 @@ begin
   doCancel := False;
   if not doCancel then
   begin
-//    // We at least need to refresh the screen after updating
-//    RefreshControl([TreeState.Refresh]);
-
     BeginUpdate;
     try
       if DoEndEdit(Cell, Value, stopEdit) then
@@ -6749,7 +6644,7 @@ begin
   // Cell being edited
   var cell : ITreeCell := r.Cells[Column];
 
-  if not cell.Column.Enabled then
+  if not cell.Column.Enabled or (cell.Column is TFMXTreeCheckboxColumn) then
     Exit;
 
   if not TreeRowList.CanEdit(cell) or not BeginEdit then
@@ -7685,6 +7580,19 @@ begin
 end;
 
 procedure TCustomTreeControl.KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+
+  procedure InvertCurrrentRowCheckBox;
+  { User cannot change checkboxes with keyboard if TreeOption.ReadOnly\Column.ReadOnly [here]
+    but can change programmatically via Row.Checked [not here]. }
+  begin
+    var currentRow := Row;
+    if (currentRow = nil) or (TreeOption.ReadOnly in Options) then Exit;
+
+    // Note: It works only with std checkbox column, which has Column index 0.
+    if (Columns.Count > 0) and (Columns[0] is TFMXTreeCheckboxColumn) and not Columns[0].ReadOnly then
+      currentRow.Checked := not currentRow.Checked;
+  end;
+
 begin
  // inherited; moved to the bottom
 
@@ -7885,11 +7793,19 @@ begin
              ClearActiveCell;
         end;
 
+      // "Space" key:
+      else
+        if (Key = vkSpace) {non-Windows?} or
+         // Windows only:
+         ( (Key = 0) and (Ord(KeyChar) = vkSpace) ) {same as = ' ', code 32 } then
+          InvertCurrrentRowCheckBox
+
+      // any letter key:
       else
         if ((Key = 0) and (KeyChar <> ''))  // Treated as user pressed a printable character or digit.
            {$IFDEF MSWINDOWS} or (Key = VK_F2){$ENDIF} then
         begin
-           if not TryChangeCheckbox(Key = 0) and not IsEditing and (_Editor = nil) then //(_Editor <> nil) then
+           if {not TryChangeCheckbox(Key = 0) and} not IsEditing and (_Editor = nil) then
            begin
              EditActiveCell(True);
 
@@ -8588,6 +8504,12 @@ begin
   Value.AsType<TFMXTreeColumn>._treeControl :=  _treeControl;
 end;
 
+procedure TFMXTreeColumnList.Insert(index: Integer; const value: CObject);
+begin
+  inherited;
+  Value.AsType<TFMXTreeColumn>._treeControl :=  _treeControl;
+end;
+
 function TFMXTreeColumnList.ColumnLayoutToJSON(const SystemLayout: TJSONObject): TJSONObject;
 var
   arr: TJSONArray;
@@ -8735,7 +8657,7 @@ begin
     ReIndexColumns(0);
 end;
 
-{ TFMXTreeColumn }
+{$REGION 'TFMXTreeColumn'}
 
 procedure TFMXTreeColumn.Assign(const Source: CObject);
 var
@@ -8770,7 +8692,7 @@ begin
     _Tag := _src.Tag;
     _Width := _src.Width;
     _WidthType := _src.WidthType;
-    set_TabStops(_src.TabStops);
+    // set_TabStops(_src.TabStops); 
   end;
 end;
 
@@ -9114,6 +9036,7 @@ begin
   _StyleLookup := Value;
 end;
 
+{
 procedure TFMXTreeColumn.set_TabStops(const Value: CString);
 //var
 //  s: CString;
@@ -9133,6 +9056,7 @@ begin
 //    OnPropertyChanged('TabStops');
 //  end;
 end;
+}
 
 function  TFMXTreeColumn.get_Selected: Boolean;
 begin
@@ -9149,6 +9073,7 @@ begin
   _Tag := Value;
 end;
 
+{
 function TFMXTreeColumn.get_TabStops: CString;
 //var
 //  i: Integer;
@@ -9165,6 +9090,7 @@ begin
 //    end;
 //  end;
 end;
+}
 
 function TFMXTreeColumn.get_TreeControl: ITreeControl;
 begin
@@ -9282,6 +9208,8 @@ begin
   Result := _Caption;
 end;
 
+{$ENDREGION}
+
 { TTreeIndicatorColumn }
 
 procedure TTreeIndicatorColumn.Assign(const Source: CObject);
@@ -9306,14 +9234,15 @@ begin
   _selectable := False;
 end;
 
-{ TFMXTreeCheckboxColumn }
+
+{$REGION 'TFMXTreeCheckboxColumn'}
+
 constructor TFMXTreeCheckboxColumn.Create;
 begin
   inherited;
   _allowMultiSelect := True;
   _checked := CDictionary<CObject, CObject>.Create;
-  _ReadOnly := True;
-  _Width := 20; //
+  _Width := CHECKBOX_COLUMN_WIDTH;
 end;
 
 function TFMXTreeCheckboxColumn.CheckedItems: List<CObject>;
@@ -9378,7 +9307,7 @@ begin
       if not _allowMultiSelect then
         MakeRadioDict(DataItem);
 
-    Self.TreeControl.RefreshControl([TreeState.DataChanged]);
+   // Self.TreeControl.RefreshControl([TreeState.DataChanged]);
   end;
 end;
 
@@ -9457,7 +9386,8 @@ begin
   if Cell.Control = nil then exit;
   CellControl := Cell.Control as TStyledControl;
 
-  var CheckedFlag: Boolean := False;
+  var CheckedFlag := False;
+  var CheckboxEnabled := not ( (TreeOption.ReadOnly in Cell.Column.TreeControl.Options) or Cell.Column.ReadOnly );
 
   // Cell.Data calls TTreeCheckboxCell.get_Data;
   if (Cell.Data = nil {datamodelview}) or not Cell.Data.TryAsType<Boolean>(CheckedFlag) then
@@ -9491,6 +9421,7 @@ begin
     if checkBoxColumnControl is TCheckBox then
     begin
       var checkBox := TCheckBox(checkBoxColumnControl);
+      checkBox.Enabled := CheckboxEnabled;
       checkBox.IsChecked := CheckedFlag;
       checkBox.OnClick := Checkbox_OnClick;
     end
@@ -9501,10 +9432,6 @@ begin
       radioButton.OnClick := Checkbox_OnClick;
     end;
   end;
-
-  // Checkboxes are not hidden while editing
-  //    if MakeVisible then
-  //      (Cell.Control as TStyledControl).FindStyleResource('check').Visible := True;
 end;
 
 procedure TFMXTreeCheckboxColumn.Checkbox_OnClick(Sender: TObject);
@@ -9526,6 +9453,8 @@ begin
        tree.UpdateCellValue(cell, not check.IsChecked);
     end;
 end;
+
+{$ENDREGION}
 
 
 { TTreeSortDescription }
@@ -11354,6 +11283,33 @@ end;
 function TTreeRow.get_Cells: ITreeCellList;
 begin
   Result := _Cells;
+end;
+
+function TTreeRow.get_Checked: Boolean;
+begin
+  Result := False;
+
+  if Cells.Count > 1 then // if Tree has checkboxes, it usually has checkbox column + other column(s), so min 2 columns
+  begin
+    var Cell := Cells[0];
+    if not (Cell.Column is TFMXTreeCheckboxColumn) then Exit;
+
+    // only first Column (cell0) can contain a checkbox
+    if (Cell.Data <> nil) then
+      Cell.Data.TryAsType<Boolean>(Result);
+    // Cell.Data calls TTreeCheckboxCell.get_Data > TreeCheckboxColumn.GetCheckedStateFromDictionary([[Row.DataItem]], Result)
+  end;
+end;
+
+procedure TTreeRow.set_Checked(const Value: Boolean);
+begin
+  if Cells.Count > 1 then
+  begin
+    var cell := Cells[0];
+    if not (cell.Column is TFMXTreeCheckboxColumn) then Exit;
+
+    TCustomTreeControl(_Owner.TreeControl).UpdateCellValue(cell, Value);
+  end;
 end;
 
 function TTreeRow.get_DataIndex: Integer;
