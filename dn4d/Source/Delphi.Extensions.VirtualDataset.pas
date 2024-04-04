@@ -701,7 +701,8 @@ var
         PVariant(Buffer) := pv;
       end;
       ftVariant:
-        PVariant(Buffer)^ := PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index];
+        TDBBitConverter.UnsafeFromVariant(PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index], Buffer, 0);
+        // PVariant(Buffer)^ := PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index];
 
       ftTimeStamp: TDBBitConverter.UnsafeFrom<TSQLTimeStamp>(VarToSqlTimeStamp(Data), Buffer);
       ftTimeStampOffset: TDBBitConverter.UnsafeFrom<TSQLTimeStampOffset>(VarToSqlTimeStampOffset(Data), Buffer);
