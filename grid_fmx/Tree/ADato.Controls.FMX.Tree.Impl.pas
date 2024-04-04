@@ -3950,6 +3950,8 @@ var
   end;
 
 begin
+  if AvailableSpace <= 0 then Exit; // Possibly HScrollbox may be showing
+
   Assert(PctColumnsCount > 0);
   SetLength(PctColumns, PctColumnsCount);
   var PIndex := 0;
@@ -4261,6 +4263,7 @@ procedure TCustomTreeControl.Initialize;
     var column := TFMXTreeCheckboxColumn.Create;
     column.AutoSizeToContent := false;
     column.Width := CHECKBOX_COLUMN_WIDTH;
+    column.Frozen := True; // Because AlignViewToCell changes H. scroll and "hides" checkbox.
     Columns.Insert(0, column);
   end;
 
@@ -4448,11 +4451,6 @@ begin
         lTopRow := InitRow( _View.DataList[CMath.Max(0, _view.Transpose(OldTopRowIndex))], OldTopRowIndex, OldTopRowY);
         View.Add(lTopRow);
       end;
-
-    //{$IFDEF DEBUG}
-    //if (_InternalState * [TreeState.RowHeightsChanged]) <> [] then
-    //  ResetView(False, True {save top row (but reload it)});
-    //{$ENDIF}
 
     if _RowAnimationsCountNow = 0 then // when not expanding\collapsing
       if not (TreeState.RowHeightsChanged in _InternalState) then
@@ -6677,7 +6675,7 @@ begin
   var widthToEndOfColumn := widthToBeginOfColumn + _Layout.Columns[_Column].Width;
 
   var scrollValue := HScrollBar.Value;
-  if widthToBeginOfColumn <= (ViewPortPosition.X + _FrozenLineXPosition) then
+  if (widthToBeginOfColumn <= (ViewPortPosition.X + _FrozenLineXPosition)) or (_Layout.Columns[_Column].Width >= Width) then
     scrollValue := widthToBeginOfColumn - _FrozenLineXPosition
   else if widthToEndOfColumn > Width + ViewPortPosition.X then
     scrollValue := widthToEndOfColumn - Width;
@@ -11341,6 +11339,8 @@ end;
 
 procedure TTreeRow.set_Height(const Value: Single);
 begin
+  if DataItem = nil then Exit;  // E.g. when TemporaryRow + RowLoaded which sets height
+
   if _Owner.RowHeight[DataItem] <> Value then
     _Owner.RowHeight[DataItem] := Value;
 
