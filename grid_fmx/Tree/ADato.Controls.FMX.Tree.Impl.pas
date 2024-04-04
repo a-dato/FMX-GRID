@@ -3846,21 +3846,19 @@ begin
   inherited;
   NeedRepaint := False;
 
-  // percentage columns:
-  var AvailableSpace: single := 0;
-  var TotalPercentageColWidths: single := 0;
-  var PercentageColumnsCount : integer := 0;
-  CalcAvailableSpaceForPercentageColumns(AvailableSpace, TotalPercentageColWidths, PercentageColumnsCount);
-
-  // (PercentageColumnsCount = 0) - do not use AutoFitColumns in case if there are PercentageColumns exist.
-  // Percentage columns already automatically adjust width to the Control.
-  if AutoFitColumns and (PercentageColumnsCount = 0) then
+  if AutoFitColumns {and (PercentageColumnsCount = 0) } then
   begin
     if _lastSize <> Size.Size then
       DoAutoFitColumns(NeedRepaint)
   end
   else // process only percentage columns
     begin
+       // percentage columns:
+      var AvailableSpace: single := 0;
+      var TotalPercentageColWidths: single := 0;
+      var PercentageColumnsCount : integer := 0;
+      CalcAvailableSpaceForPercentageColumns(AvailableSpace, TotalPercentageColWidths, PercentageColumnsCount);
+
       if PercentageColumnsCount > 0 {1} then
         ProcessPercentageColumns(PercentageColumnsCount, False, AvailableSpace, TotalPercentageColWidths)
     end;
