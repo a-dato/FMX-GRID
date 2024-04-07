@@ -4438,7 +4438,9 @@ begin
       AlignViewToCurrent(nil) //AlignViewToCurrent(top_row);
     else
       // list of rows should start from TopRow, check if _view contains rows for rows can be filtered out
-      if (TreeState.DataChanged in _InternalState) and (lTopRow <> nil) and (_view.Count > 0) then
+      if (TreeState.DataChanged in _InternalState) and (lTopRow <> nil) then
+      { "and (_view.Count > 0) then" - I'm not sure we need this part, View can be cleared before and we need to restore
+        saved (especially for such case) TopRow. Alex. }
       begin
        { Workaround for case: Select row50 (just to show  that case is not related to selected row status), scroll to
          the TOP ROW = 600, full refresh (TreeState_DataChanged). Result: Tree draws from row0.
@@ -7590,8 +7592,6 @@ procedure TCustomTreeControl.KeyDown(var Key: Word; var KeyChar: WideChar; Shift
   end;
 
 begin
- // inherited; moved to the bottom
-
   if (_View = nil) or (ssAlt in Shift) then
     Exit;
 
@@ -12385,10 +12385,10 @@ begin
     end;
 
     if not _ListSupportsNotifyCollectionChanged then
-      // Call event handler
       DataCollectionChanged(Self, nil);
 
-    treeControl.RefreshControl([TreeState.AlignViewToCurrent]);
+    // treeControl.RefreshControl([TreeState.AlignViewToCurrent]);
+    // Disabled because when user inserts a row with INS, AlignViewToCurrent scrolls and changes TopRow.
     Result := True;
   end;
 end;
