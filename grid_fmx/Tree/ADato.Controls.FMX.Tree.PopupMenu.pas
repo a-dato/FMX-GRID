@@ -255,7 +255,7 @@ begin
 
   // create tree in runtime because of circular unit reference - cannot use in design time
   var tree := TFMXTreeControl.Create(Self);
-  tree.Options := tree.Options - [TreeOption.ShowHeaders];
+  tree.Options := tree.Options + [TreeOption.ShowCheckboxes] - [TreeOption.ShowHeaders];
   tree.Align := TAlignLayout.Client;
   _FilterBorder.AddObject(tree);
 
@@ -269,12 +269,6 @@ begin
   Tree.OnEndUpdateContents := OnTreeEndUpdateContents;
 
   _TreeControl := tree;
-
-  var column := TFMXTreeCheckboxColumn.Create;
-  column.PropertyName := 'Checked';
-  column.AutoSizeToContent := false;
-  column.Width := 20;
-  tree.Columns.Add(column);
 
   var column1 := TFMXTreeColumn.Create;
   column1.PropertyName := TREE_COLUMN_NAME_TEXT;

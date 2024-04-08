@@ -3950,6 +3950,8 @@ var
   end;
 
 begin
+  if AvailableSpace <= 0 then Exit; // Possibly HScrollbox may be showing
+
   Assert(PctColumnsCount > 0);
   SetLength(PctColumns, PctColumnsCount);
   var PIndex := 0;
@@ -4261,6 +4263,7 @@ procedure TCustomTreeControl.Initialize;
     var column := TFMXTreeCheckboxColumn.Create;
     column.AutoSizeToContent := false;
     column.Width := CHECKBOX_COLUMN_WIDTH;
+    column.Frozen := True; // Because AlignViewToCell changes H. scroll and "hides" checkbox.
     Columns.Insert(0, column);
   end;
 
@@ -4435,7 +4438,9 @@ begin
       AlignViewToCurrent(nil) //AlignViewToCurrent(top_row);
     else
       // list of rows should start from TopRow, check if _view contains rows for rows can be filtered out
-      if (TreeState.DataChanged in _InternalState) and (lTopRow <> nil) and (_view.Count > 0) then
+      if (TreeState.DataChanged in _InternalState) and (lTopRow <> nil) then
+      { "and (_view.Count > 0) then" - I'm not sure we need this part, View can be cleared before and we need to restore
+        saved (especially for such case) TopRow. Alex. }
       begin
        { Workaround for case: Select row50 (just to show  that case is not related to selected row status), scroll to
          the TOP ROW = 600, full refresh (TreeState_DataChanged). Result: Tree draws from row0.
@@ -4448,11 +4453,6 @@ begin
         lTopRow := InitRow( _View.DataList[CMath.Max(0, _view.Transpose(OldTopRowIndex))], OldTopRowIndex, OldTopRowY);
         View.Add(lTopRow);
       end;
-
-    //{$IFDEF DEBUG}
-    //if (_InternalState * [TreeState.RowHeightsChanged]) <> [] then
-    //  ResetView(False, True {save top row (but reload it)});
-    //{$ENDIF}
 
     if _RowAnimationsCountNow = 0 then // when not expanding\collapsing
       if not (TreeState.RowHeightsChanged in _InternalState) then
@@ -6677,7 +6677,7 @@ begin
   var widthToEndOfColumn := widthToBeginOfColumn + _Layout.Columns[_Column].Width;
 
   var scrollValue := HScrollBar.Value;
-  if widthToBeginOfColumn <= (ViewPortPosition.X + _FrozenLineXPosition) then
+  if (widthToBeginOfColumn <= (ViewPortPosition.X + _FrozenLineXPosition)) or (_Layout.Columns[_Column].Width >= Width) then
     scrollValue := widthToBeginOfColumn - _FrozenLineXPosition
   else if widthToEndOfColumn > Width + ViewPortPosition.X then
     scrollValue := widthToEndOfColumn - Width;
@@ -7592,8 +7592,6 @@ procedure TCustomTreeControl.KeyDown(var Key: Word; var KeyChar: WideChar; Shift
   end;
 
 begin
- // inherited; moved to the bottom
-
   if (_View = nil) or (ssAlt in Shift) then
     Exit;
 
@@ -11341,6 +11339,8 @@ end;
 
 procedure TTreeRow.set_Height(const Value: Single);
 begin
+  if DataItem = nil then Exit;  // E.g. when TemporaryRow + RowLoaded which sets height
+
   if _Owner.RowHeight[DataItem] <> Value then
     _Owner.RowHeight[DataItem] := Value;
 
@@ -12385,10 +12385,10 @@ begin
     end;
 
     if not _ListSupportsNotifyCollectionChanged then
-      // Call event handler
       DataCollectionChanged(Self, nil);
 
-    treeControl.RefreshControl([TreeState.AlignViewToCurrent]);
+    // treeControl.RefreshControl([TreeState.AlignViewToCurrent]);
+    // Disabled because when user inserts a row with INS, AlignViewToCurrent scrolls and changes TopRow.
     Result := True;
   end;
 end;
