@@ -823,10 +823,13 @@ type
     function  ColumnLayoutToJSON(const SystemLayout: TJSONObject): TJSONObject;
     procedure RestoreColumnLayoutFromJSON(const Value: TJSONObject);
     function Add(const Value: CObject): Integer; override;
-    procedure Insert(index: Integer; const value: CObject); override;
+    procedure Insert(index: Integer; const value: CObject); overload; override;
   public
     constructor Create(const Owner: ITreeControl); {$IFDEF DELPHI}overload;{$ENDIF} virtual;
     constructor Create(const Owner: ITreeControl; const col: IEnumerable<ITreeColumn>); {$IFDEF DELPHI}overload; virtual;{$ENDIF}
+
+    procedure Insert(index: Integer; const item: ITreeColumn); reintroduce; overload;
+
     property TreeControl: ITreeControl read get_TreeControl;
   end;
 
@@ -8442,6 +8445,12 @@ end;
 function TFMXTreeColumnList.get_TreeControl: ITreeControl;
 begin
   Result := _treeControl;
+end;
+
+procedure TFMXTreeColumnList.Insert(index: Integer; const item: ITreeColumn);
+begin
+  inherited;
+  (item as TFMXTreeColumn)._treeControl :=  _treeControl;
 end;
 
 function TFMXTreeColumnList.FindIndexByCaption(const Caption: CString) : Integer;
