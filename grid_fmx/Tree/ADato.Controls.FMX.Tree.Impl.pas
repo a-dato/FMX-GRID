@@ -53,7 +53,7 @@ const
   STYLE_ROW = 'row';
   STYLE_ROW_ALT = 'alternatingrow';
   STYLE_CHECKBOX_CELL = 'checkboxcell';
-  STYLE_HEADER_CELL = 'headercell';
+  // STYLE_HEADER_CELL = 'headercell'; // moved into ADato.Controls.FMX.Tree.Header.Impl
   STYLE_FILLER_0 = 'filler_0';
   STYLE_FROZEN_CELL_LINE = 'FrozenCellsLine';
   STYLE_GRID_LINE = 'gridline';
@@ -422,16 +422,13 @@ type
     function  ChildIndex(const ARow: ITreeRow): Integer;
     function  DeleteRow: Boolean;
     procedure EndRowEdit(const Row: ITreeRow);
-   // function  HasChildren(const ARow: ITreeRow): Boolean; overload;
-   // function  IndexOf(const ARow: ITreeRow): Integer; override;
   //  function  IndexOf(const DataItem: CObject): Integer; override;  used TBaseViewList<T>.IndexOf in ADato.FMX.Controls.ScrollableRowControl.Impl
-    function FindDataIndexByData(AData: CObject): integer; override;
-   // function  FindRow(const ARow: ITreeRow): Integer;   // moved into TBaseViewList<T>
+    function  FindDataIndexByData(AData: CObject): integer; override;
     function  IsSelfReferencing: Boolean;
     function  GetColumnValues(const Column: ITreeLayoutColumn; Filtered: Boolean; SkipDuplicates: Boolean) : Dictionary<CObject, CString>;
     function  GetCellData(const Row: ITreeRow; const cell: ITreeCell) : CObject; overload; virtual;
-    function  GetRowDataIndex(const ARowDataItem: CObject): Integer; override;
     function  GetCellData(const DataItem: CObject; const PropertyName: CString; const ColumnIndex: Integer): CObject; overload; virtual;
+    function  GetRowDataIndex(const ARowDataItem: CObject): Integer; override;
 
     function GetFormattedData(const Cell: ITreeCell; const Content: ICellContent; const DataItem: CObject;
       const Data: CObject; const RequestValueForSorting: Boolean; out FormatApplied: Boolean) : CObject;
@@ -1846,7 +1843,7 @@ type
     function GetDefaultStyleLookupName: string; override;
   end;
 
-  function GetTextControl(CellControl: TStyledControl): TText;
+  function GetTextControl(CellControl: TStyledControl): TControl;
 
 implementation
 
@@ -4351,6 +4348,10 @@ begin
       _lastUpdatedViewportPosition.X := 0;
 
       View.ClearRowCache;  // rebuild cache, because Row.Cells.Count <> Layout.Columns.Count
+
+      // Refresh _ColumnPropertyInfos,
+      if _View is TTreeRowList then
+        TTreeRowList(_View)._ColumnPropertyInfos := nil;
 
       InitLayout;
       InitHeaderColumnControls;
@@ -8761,11 +8762,21 @@ begin
   if not (Cell.Control is TStyledControl) then exit;
 
   var CellControl := TStyledControl(Cell.Control);  // usually TTextCellItem
-  var textControl: TText := GetTextControl(CellControl);
+  var textControl: TControl := GetTextControl(CellControl);
+  // can be TText or TLabel (or inherited like TAdatoLabel). e.g. TAdatoLabel can be used in 'headercell'
 
   if textControl <> nil then
   begin
-    textControl.Text := CStringToString(GetCellText(Cell));
+    var cellText := CStringToString( GetCellText(Cell) );
+
+    if textControl is TText then
+      TText(textControl).Text := cellText
+    else
+      if textControl is TLabel then
+        TLabel(textControl).Text := cellText
+      else
+        raise Exception.Create('Style control with name ''text'' is not inherited from TText or TLabel.');
+        // so we can't calculate width correctly
 
     if MakeVisible then
     begin
@@ -8774,20 +8785,11 @@ begin
       textControl.Visible := True;
 
       (Self.TreeControl as TFMXTreeControl).InitRowCells(Cell.Row, True, Cell.Row.Height);
-
-//      CellControl.ApplyStyleLookup;
-
-//      TThread.ForceQueue(nil, procedure
-//      begin
-//        CellControl.NeedStyleLookup;
-//        CellControl.BringToFront;
-//        textControl.Visible := True;
-//      end);
     end;
   end;
 end;
 
-function GetTextControl(CellControl: TStyledControl): TText;
+function GetTextControl(CellControl: TStyledControl): TControl; //TText; or TLabel
 begin
   Result := nil;
 
@@ -8801,7 +8803,8 @@ begin
 
   // Or it can be complex custom style (header or user cell)
   if (Result = nil) then
-    CellControl.FindStyleResource<TText>('text', Result);
+    CellControl.FindStyleResource<TControl{TText}>('text', Result);
+    // e.g. TAdatoLabel inherited from TLabel and can be used in 'headercell'
 end;
 
 function TFMXTreeColumn.get_AllowHide: Boolean;
@@ -9725,7 +9728,6 @@ begin
   Result.Height := InitialRowHeight;
   Result.Width := 0;
 
-   // Get textControl from a cell
   if not (Cell.Control is TStyledControl) then exit;
   var CellControl := TStyledControl(Cell.Control);  // usually TTextCellItem
 
@@ -9733,7 +9735,25 @@ begin
 
   var fmxColumn := TFMXTreeColumn(_Column);
   var textControl := GetTextControl(CellControl);
-  var textControlExists := (textControl <> nil) and (textControl.Text <> '');
+
+  // data from the Text cotrol
+  var textSettings: TTextSettings := nil;  // reference only
+  var text: string;
+
+  if (textControl <> nil) then
+  begin
+    if textControl is TText then
+    begin
+      text := TText(textControl).Text;
+      textSettings := TText(textControl).TextSettings;
+    end
+    else
+      if textControl is TLabel then
+       begin
+         text := TLabel(textControl).Text;
+         textSettings := TLabel(textControl).TextSettings;
+        end;
+  end;
 
   if _IsWidthChangedByUser then  //if fmxColumn._IsWidthChangedByUser then
     Result.Width := CMath.Max(Self._Width, Cell.Column.Width)
@@ -9741,8 +9761,8 @@ begin
   // combining AutoSizeToContent and TWidthType (2) = 4 modes. Read details in ADato.Controls.FMX.Tree.Intf.pas unit
   else if fmxColumn._AutoSizeToContent then
   begin
-    if textControlExists then
-      Result.Width := TextControlWidth(TextControl, TextControl.TextSettings, TextControl.Text) + EXTRA_CELL_AUTO_WIDTH;
+    if text <> '' then
+      Result.Width := TextControlWidth(TextControl, textSettings, text) + EXTRA_CELL_AUTO_WIDTH;
 
     if (fmxColumn._MaxWidth = COLUMN_MAX_WIDTH_NOT_USED) then
     begin
@@ -9782,9 +9802,9 @@ begin
     Result.Width := fmxColumn._MinWidth;
 
   // Need auto height?
-  if fmxColumn._AutoSizeToContent and textControlExists then
+  if fmxColumn._AutoSizeToContent and (text <> '') then
   begin
-    var textHeight := TextControlHeight(textControl, textControl.TextSettings, textControl.Text, -1, -1, Result.Width - 3 {margins});
+    var textHeight := TextControlHeight(textControl, textSettings, text, -1, -1, Result.Width - 3 {margins});
     if textHeight > InitialRowHeight then
       Result.Height := Ceil(textHeight) + EXTRA_CELL_HEIGHT else
       Result.Height := InitialRowHeight;
@@ -11976,7 +11996,6 @@ begin
     else
       _Current := -1;
 end;
-
 
 function TTreeRowList.Transpose(RowIndex: Integer) : Integer;
 begin

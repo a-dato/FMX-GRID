@@ -9,6 +9,9 @@ uses
   FMX.Controls, System.Types,
   System.UITypes, System.Classes, FMX.Types;
 
+const
+  STYLE_HEADER_CELL = 'headercell';
+
 type
   THeaderItem = class;
 
@@ -100,7 +103,7 @@ end;
 
 function THeaderItem.GetDefaultStyleLookupName: string;
 begin
-  Result := 'headercell';
+  Result := STYLE_HEADER_CELL;
 end;
 
 function THeaderItem.GetPredItem: THeaderItem;
