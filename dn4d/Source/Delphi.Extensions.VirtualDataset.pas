@@ -331,8 +331,9 @@ begin
 
       // vb Must hold a pointer to a Variant
       var vb: TValueBuffer;
-      SetLength(vb, SizeOf(PVariant));
-      PVariant(vb) := @v;
+      SetLength(vb, SizeOf(Variant));
+      TDBBitConverter.UnsafeFromVariant(v, vb, 0);
+      //PVariant(vb)^ := v;
 
       FDataSet.SetFieldData(FField, vb);
     end else
@@ -354,7 +355,7 @@ begin
   if FField.DataType in [ftBlob..ftTypedBinary, ftVariant, ftWideMemo] then
   begin
     var vb: TValueBuffer;
-    SetLength(vb, SizeOf(PVariant));
+    SetLength(vb, SizeOf(Variant));
     FDataSet.GetFieldData(FField, vb, True);
 
     var v: PVariant := PVariant(vb);
@@ -370,30 +371,24 @@ begin
       end
       else
       begin
-        var s := VarArrayHighBound(v^, 1) + 1;
-        inherited Write(FindVarData(v^).VPointer, s);
-        Position := 0;
+        var vd := FindVarData(v^);
+        if (vd.VType = varUString) or (vd.VType = varOleStr) then
+        begin
+          var i := Length(vd.VOleStr);
+          if (vd.VType = varUString) or (FField.DataType = ftWideMemo) then
+            i := i * sizeof(widechar);
+          Write(vd.VOleStr[0], i);
+          Position := 0;
+        end
+        else
+        begin
+          var s := VarArrayHighBound(v^, 1) + 1;
+          inherited Write(FindVarData(v^).VPointer, s);
+          Position := 0;
+        end;
       end;
 
-
-//      var vd := FindVarData(v^);
-//
-//      if vd.VType = varOleStr then
-//      begin
-//        var i := Length(vd.VOleStr);
-//        if FField.DataType = ftWideMemo then
-//          i := i * sizeof(widechar);
-//
-//        Write(vd.VOleStr[0], i);
-//        Position := 0;
-//      end else
-//      begin
-//        var s := VarArrayHighBound(v^, 1) + 1;
-//        inherited Write(vd.VPointer, s);
-//        Position := 0;
-//      end;
-
-      // VarClear(v^);
+      VarClear(v^);
     end;
   end;
 end;
@@ -468,13 +463,16 @@ end;
 
 procedure TCustomVirtualDataset.FreeRecBuf(var Buffer: TRecBuf);
 begin
+  var b := TRecordBuffer(Buffer);
+  FreeRecordBuffer(b);
+  Buffer := C_NIL;
 end;
 
 function TCustomVirtualDataset.AllocRecordBuffer: TRecordBuffer;
 begin
   if not(csDestroying in ComponentState) then
   begin
-    Result := AllocMem(FRecBufSize);
+   Result := AllocMem(FRecBufSize);
     Initialize(PVariantList(Result + sizeof(TArrayRecInfo))^, Fields.Count);
   end else
     Result := nil;
@@ -697,11 +695,14 @@ var
         TDBBitConverter.UnsafeFrom<Int64>(TVarData(Data).VInt64, Buffer);
       ftBlob..ftTypedBinary, ftWideMemo:
       begin
-        var pv: PVariant := @(PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index]);
-        PVariant(Buffer) := pv;
+        TDBBitConverter.UnsafeFromVariant(PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index], Buffer, 0);
+//        var pv: PVariant := @(PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index]);
+//        PVariant(Buffer) := pv;
       end;
       ftVariant:
-        PVariant(Buffer)^ := PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index];
+        TDBBitConverter.UnsafeFromVariant(PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index], Buffer, 0);
+//        // Must create a copy of the variant here
+//        PVariant(Buffer)^ := PVariantList(RecBuf + sizeof(TArrayRecInfo))^[Field.Index];
 
       ftTimeStamp: TDBBitConverter.UnsafeFrom<TSQLTimeStamp>(VarToSqlTimeStamp(Data), Buffer);
       ftTimeStampOffset: TDBBitConverter.UnsafeFrom<TSQLTimeStampOffset>(VarToSqlTimeStampOffset(Data), Buffer);
@@ -748,10 +749,7 @@ begin
     DoGetFieldValue(Field, PArrayRecInfo(RecBuf)^.Index, v);
 
     if VarIsEmpty(v) then
-      Data := Null
-    else if VarType(v) = varInt64 then
-      Data := Int64(v)
-    else
+      Data := Null else
       Data := v;
 
     PVariantList(RecBuf + sizeof(TArrayRecInfo))[Field.Index] := Data;
@@ -918,12 +916,14 @@ begin
   BindFields(False);
   FieldDefs.Updated := False;
   if FOldValueBuffer <> C_NIL then
-    try
-      Finalize(PVariantList(FOldValueBuffer + sizeof(TArrayRecInfo))^, Fields.Count);
-      FreeRecBuf(FOldValueBuffer);
-    finally
-      FOldValueBuffer := C_NIL;
-    end;
+    FreeRecBuf(FOldValueBuffer);
+
+//    try
+//      Finalize(PVariantList(FOldValueBuffer + sizeof(TArrayRecInfo))^, Fields.Count);
+//      FreeRecBuf(FOldValueBuffer);
+//    finally
+//      FOldValueBuffer := C_NIL;
+//    end;
 end;
 
 procedure TCustomVirtualDataset.InternalCreateFields;
@@ -934,11 +934,14 @@ procedure TCustomVirtualDataset.InternalCreateFields;
   end;
 
 begin
+  {$IFDEF DEBUG}
+  {$ELSE}
   //
   // TCustomVirtualDataset can only handle persistent fields
   //
   if DefaultFields then
     VirtualDatasetError(SPersistentFieldsRequired, Self);
+  {$ENDIF}
 end;
 
 procedure TCustomVirtualDataset.InternalDelete;
@@ -1176,7 +1179,10 @@ procedure TCustomVirtualDataset.InternalSetFieldData(Field: TField; Buffer: TVal
       ftIDispatch:
         Data := IDispatch(Buffer);
       ftVariant:
+      begin
         Data := PVariant(Buffer)^;
+        VarClear(PVariant(Buffer)^); // KV: 8/4/2024 Must clear variant to prevent memory leak
+      end;
       ftString, ftFixedChar, ftGuid:
         Data := TEncoding.ANSI.GetString(Buffer);
       ftWideString, ftFixedWideChar:
@@ -1239,9 +1245,7 @@ begin
       Data := Null else
       BufferToVar(Data);
 
-    if varType(Data) = varInt64 then
-      PVariantList(RecBuf + sizeof(TArrayRecInfo))[Field.Index] := Int64(Data) else
-      PVariantList(RecBuf + sizeof(TArrayRecInfo))[Field.Index] := Data;
+    PVariantList(RecBuf + sizeof(TArrayRecInfo))[Field.Index] := Data;
 
     if not(State in [dsCalcFields, dsInternalCalc, dsFilter, dsNewValue]) then
       DataEvent(deFieldChange, NativeInt(Field));

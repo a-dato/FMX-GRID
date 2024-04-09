@@ -8,6 +8,7 @@ object frmInspector: TfrmInspector
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   DesignerMasterStyle = 0
   object Layout1: TLayout
     Align = MostLeft
@@ -33,7 +34,6 @@ object frmInspector: TfrmInspector
       IncrementalSearch = False
       Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
       ScrollPerRow = False
-      HighlightRows = True
       CellChanged = DBTablesCellChanged
       OnCopyToClipboard = DBTablesCopyToClipboard
       Viewport.Width = 255.000000000000000000
@@ -93,7 +93,6 @@ object frmInspector: TfrmInspector
           IncrementalSearch = False
           Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
           ScrollPerRow = False
-          HighlightRows = True
           OnCopyToClipboard = DBColumnsCopyToClipboard
           Viewport.Width = 255.000000000000000000
           Viewport.Height = 228.000000000000000000
@@ -157,7 +156,6 @@ object frmInspector: TfrmInspector
           IncrementalSearch = False
           Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
           ScrollPerRow = False
-          HighlightRows = True
           CellChanged = DBIndexesCellChanged
           Viewport.Width = 255.000000000000000000
           Viewport.Height = 228.000000000000000000
@@ -193,7 +191,6 @@ object frmInspector: TfrmInspector
           IncrementalSearch = False
           Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
           ScrollPerRow = False
-          HighlightRows = True
           Viewport.Width = 255.000000000000000000
           Viewport.Height = 228.000000000000000000
         end

@@ -89,6 +89,7 @@ type
     Label1: TLabel;
     Label2: TLabel;
 
+    procedure FormDestroy(Sender: TObject);
     procedure acAddConnectionExecute(Sender: TObject);
     procedure acExecuteQueryExecute(Sender: TObject);
     procedure acMoveDataExecute(Sender: TObject);
@@ -115,7 +116,7 @@ type
     DatabaseLoading: Boolean;
     TablesLoading: Boolean;
     passwords: TStringList;
-    OpenRecordSetCount: INteger;
+    OpenRecordSetCount: Integer;
 
     procedure AddEmptyTab(TabIndex: Integer);
     procedure Clear(ClearConnection: Boolean);
@@ -213,6 +214,11 @@ implementation
 uses Login, FireDAC.VCLUI.ConnEdit, System.Rtti, System.Math, CopyData,
   FMX.Clipboard, FMX.Platform, FMX.Platform.Win, Winapi.Windows,
   Winapi.Messages;
+
+procedure TfrmInspector.FormDestroy(Sender: TObject);
+begin
+  FreeAndNil(passwords);
+end;
 
 procedure TfrmInspector.acAddConnectionExecute(Sender: TObject);
 var
