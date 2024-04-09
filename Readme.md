@@ -17,8 +17,10 @@ FMX-Grid provides the following features:
 
 A free version is available which is actually quite capable. The free version is named FMX-GRID. This version can be used by any number of developers and offers royalty free distribution of applications.
 
+The free version is published under the MIT license
+
 ## Commercial version
-FMX-GRID-MODEL is a commercial product. It adds model support and property binding for easy creation of user interfaces. A license is required per developer. Licenses are valid for 12 months, a subscription is required to keep licenses valid. Subscriptons must be renewed after the end date. If you are renewing your license before (or up to 30 days after) the current expiration date, the new expiration date will be calculated based on the original order date. Updates are only available to users with a valid license. 
+FMX-GRID-MODEL is a commercial product. It adds model support and property binding for easy creation of user interfaces. A license is required per developer. Licenses are valid for 12 months, a subscription is required to keep licenses valid. Subscriptons must be renewed after the end date. If you are renewing your license before (or up to 30 days after) the current expiration date, the new expiration date will be calculated based on the original order date. Updates are only available to users with a valid license.
 
 You may install the product on more than one machine as long as each developer has their own license. This allows you to install it on your work, home and laptop machines. 
 
