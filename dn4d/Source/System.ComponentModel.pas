@@ -20,7 +20,7 @@ type
   end;
 
   IEditableObject = interface(IBaseInterface)
-    ['{7D5B0079-CB94-4223-8D17-6A7B093DC7D2}']
+    ['{A8187702-0663-4648-8D3D-6EA1ED05EAEB}']
     procedure BeginEdit;
     procedure CancelEdit;
     procedure EndEdit;
