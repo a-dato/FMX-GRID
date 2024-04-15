@@ -52,7 +52,9 @@ type
   public
   type
     TOnSynchronizeControl = procedure (Sender: TObject; [weak] TopRow: IRow; TopRowOffset: single) of object;
+
     TScrollingDirection = (sdNone, sdUp, sdDown);
+
     THitInfo = record
       Point: TPointF;
       Row: IRow;
@@ -208,24 +210,25 @@ type
   strict private
     _DDLineY: single;
     _DragDropHorzLine: TStrokeBrush;
-    _HintControl: THint;
     procedure DrawDragDropHorzLine;
-    procedure DrawHint(const HitInfo: THitInfo);
+    procedure ShowDragDropHint(const HitInfo: THitInfo);
     procedure DoDragEnd;
   protected
+    _HintControl: THint;
     _DragDropRows: Boolean;
     _IsDraggingNow: Boolean;
+    function CreateShowHintControl: THint;
     procedure BeginDragDrop(X, Y: Single; ShowHint: Boolean); virtual;
     procedure DragOver(const Data: TDragObject; const Point: TPointF; var Operation: TDragOperation); override;
     procedure DragDrop(const Data: TDragObject; const Point: TPointF); override;
     procedure DragEnd; override;
     function GetRowHitInfo(const Point: TPointF; out HitInfo: THitInfo): Boolean;
-
+    procedure ShowHintText(const Point: TPoint; const Text: string);
   // collapsing\expanding animation
+  strict private
+    _updateContentIndex: LongWord; // for when Animate=False
   protected
     _RowAnimationsCountNow: integer; // detect the end of all collapse\expand animations
-    _updateContentIndex: Integer; // for when Animate=False
-
     procedure AnimateAddRow(const ARow: T; Position: Single; Delay: Single = 0; ASkipAnimation: Boolean = True); // fade in.
     procedure AnimateRemoveRow(const ARow: T); // fade out
     procedure AnimateMoveRowY(const ARow: T; NewY: Single);
@@ -488,7 +491,7 @@ end;
 
 destructor TScrollableRowControl<T>.Destroy;
 begin
-  inc(_ThreadIndex);
+  //inc(_ThreadIndex);
 
   _Highlight1.Free;
   _Highlight2.Free;
@@ -559,7 +562,10 @@ begin
  { When user quickly scrolls Vscroll in Gantt holding a mouse, from bottom to top and this part is disabled
   - sometimes Gantt does not update itself and does not show rows (empty). If user in this case will activate another window
    in another app and then go back to the test app - Gantt will update itself correctly. }
+  {$OVERFLOWCHECKS OFF}
   inc(_ThreadIndex);
+  {$OVERFLOWCHECKS ON}
+
   var ti := _ThreadIndex;
   TThread.ForceQueue(nil, procedure
   begin
@@ -719,7 +725,9 @@ begin
   if (_View = nil) or (_View.RowCount = 0) then Exit;
   if not Force and _IsDeniedUpdateContent then Exit;
 
-  inc(_updateContentIndex);
+ // inc(_updateContentIndex);
+ // do not inc. in different places or sometimes TThread.ForceQueue is not triggered at all,
+ // should be in one place only (at once before ForceQueue). Alex
 
   vp := ViewportPosition;
 
@@ -961,8 +969,13 @@ begin
   if _RowAnimationsCountNow > 0 then
     Exit;
 
+  {$OVERFLOWCHECKS OFF}
   inc(_updateContentIndex);
   var ix := _updateContentIndex;
+  { Should be incremented here (right away before ForceQueue) and in one place only, because I found an issue,
+    when it is not triggered at all, because ix <> _updateContentIndex always.
+    But when I commented line in UpdateContent - it works. See 5564. Alex}
+  {$OVERFLOWCHECKS ON}
 
   TThread.ForceQueue(nil, procedure
   begin
@@ -1131,7 +1144,6 @@ end;
 procedure TScrollableRowControl<T>.DoPostProcessColumns(out NeedRepaint: boolean);
 begin
 end;
-
 
 procedure TScrollableRowControl<T>.SetAutoFitColumns(Value: Boolean);
 begin
@@ -1509,9 +1521,6 @@ var
   TopRow: T;  { Do not use inline variable (var in code) with type :T - compiler will not decrease refcount!
                use it in traditional section, like here or declare interface type for inline var LastVisibleRow: IRow }
 begin
-  // make sure it isn't called again from ForceQueued
-  inc(_updateContentIndex);
-
   _MultiSelectionDone := False;
   if (_View = nil) or (_View.Count = 0) then Exit;
 
@@ -2217,7 +2226,15 @@ begin
   begin
     if _DragDropRows and not _IsDraggingNow then
       BeginDragDrop(X, Y, True {show hint} )
-  end;
+  end
+  else
+    if ShowHint and (Shift = []) then
+    begin
+      // hide a usual hint (e.g. Ganttbar hint), not hint for DragAndDrop, when user moves a cursor
+      if not _IsDraggingNow then
+        if (_HintControl <> nil) and _HintControl.Visible then
+          _HintControl.Visible := False;
+    end;
 end;
 
 procedure TScrollableRowControl<T>.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
@@ -2289,16 +2306,8 @@ begin
 
   var dragImage := row.Control.MakeScreenshot;
 
-  // Create hint
   if ShowHint then
-    if (_HintControl = nil) then
-    begin
-      _HintControl := THint.Create(Self);
-      _HintControl.Parent := Self;
-      _HintControl.ApplyStyleLookup;
-    end
-    else
-      _HintControl.Visible := True;
+    CreateShowHintControl;
 
   ddService.BeginDragDrop(TCommonCustomForm(lForm), dragData, DragImage);
 end;
@@ -2334,7 +2343,7 @@ begin
           Exit;
         end;
 
-        DrawHint(hitInfo);
+        ShowDragDropHint(hitInfo);
 
         // Drag drop line (Line will be drawn in AfterPaint)
         // If top border of the topmost row - draw above the topmost row
@@ -2359,9 +2368,9 @@ begin
   try
     if not GetRowHitInfo(Point, HitInfo) then Exit;
 
-    { Row has 2 positions:
-      1. Upper half part of the row - Make as Child (DMV only)
-      2. Bottom half part - Move below...
+    { If user drags a row to another row, dest. Row has 2 positions:
+      1. Cursor at the upper half part of the row - show hint "Make as Child" (DMV only)
+      2. Bottom half part - "Move below..."
       + one special position for the top border of the topmost row - "Move above" -
       when user is dragging a row to the top of the list-tree (only topmost row!) }
 
@@ -2415,16 +2424,30 @@ begin
   Result := row <> nil;
   if row = nil then Exit;
 
-  var pt := LocalToAbsolute(Point); // to Tree to Form XY
+  var pt := LocalToAbsolute(Point); // Tree to Form XY
 
-  pt := row.Control.AbsoluteToLocal(pt); // form point to row control point
+  pt := row.Control.AbsoluteToLocal(pt); // form to row control point
   HitInfo.IsUpperPartRow := pt.Y < row.Control.Height / 2;
 
   // Detect top border of the topmost row.
   HitInfo.IsTopBorderTopMostRow :=  HitInfo.Point.Y - GetHeaderHeight <= DRAGDROP_TOP_BORDER_ROW_RANGE_PX
 end;
 
-procedure TScrollableRowControl<T>.DrawHint(const HitInfo: THitInfo);
+function TScrollableRowControl<T>.CreateShowHintControl: THint;
+begin
+  if _HintControl = nil then
+  begin
+    _HintControl := THint.Create(Self);
+    _HintControl.Parent := Self;
+    _HintControl.ApplyStyleLookup;
+  end
+  else
+    _HintControl.Visible := True;
+
+  Result := _HintControl;
+end;
+
+procedure TScrollableRowControl<T>.ShowDragDropHint(const HitInfo: THitInfo);
 const
   HINT_TAG_MOVE_AFTER = 110; // optimization
   HINT_TAG_MAKECHILD = 111;
@@ -2463,6 +2486,17 @@ begin
   var hp := HitInfo.Point;
   hp.Offset(ViewportPosition);
   _HintControl.Position.Point := hp;
+  _HintControl.Visible := True;
+  _HintControl.BringToFront;
+end;
+
+procedure TScrollableRowControl<T>.ShowHintText(const Point: TPoint; const Text: string);
+// Input Point must include ViewportPosition (ContentBounds) offset
+begin
+  CreateShowHintControl;
+
+  _HintControl.Text := Text;
+  _HintControl.Position.Point := Point;
   _HintControl.Visible := True;
   _HintControl.BringToFront;
 end;
