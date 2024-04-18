@@ -90,6 +90,10 @@ type
     FAST_SCROLLING_DEFAULT_SCROLLED_PERCENT = 5;
     DRAGDROP_TOP_BORDER_ROW_RANGE_PX = 5; // range of pixels from the top border of the topmost row to detect
       // if user wants to make a dragging row as topmost
+    HINT_HOVER_DELAY = 200; // ms, hover delay for Hint. See also HintHoverDelay. Fade-in effect in "hint" style (0.2 ms)
+  public
+  const
+    HINT_Y_CURSOR_OFFSET = 20; // show hint under cursor
   strict private  // various
     _ShowVScrollBar: Boolean;
     _VScrollBarWidth: Single; // we hide scroll bar by setting Width to 0, so need to restore it back
@@ -194,10 +198,23 @@ type
   strict private
     procedure OnFinishAnimateRow(Sender: TObject);
     procedure OnSelectionAnimationFinished(Sender: TObject);
-  // drag and drop, hint
-  strict private
+
+  // drag and drop, d&d hint, usual hint
+  protected
   type
+    THintTimer = class(TTimer)
+    public
+      X, Y: Single;
+    end;
+
+  private
+  type
+    THintType = (htNone, htMoveAfter, htMakeChild, htMoveTopMost);
+    // for optimization, htMoveAfter, htMakeChild, htMoveTopMost - used while d&d rows only, it shows proper hints
     THint = class(TOwnerStyledPanel)
+    private
+      _HintType: THintType;
+      _TextControl: TText;
     protected
       function GetDefaultStyleLookupName: string; override;
       procedure SetText(const AText: string);
@@ -207,23 +224,30 @@ type
     end;
 
     const HIDE_DD_LINE = -1;
+
   strict private
+    _TimerHintDelay: THintTimer;
     _DDLineY: single;
     _DragDropHorzLine: TStrokeBrush;
     procedure DrawDragDropHorzLine;
     procedure ShowDragDropHint(const HitInfo: THitInfo);
     procedure DoDragEnd;
+    function GetHintHoverDelay: integer;
+    procedure SetHintHoverDelay(Value: integer);
+    procedure OnTimerHintHoverDelay(Sender: TObject);  // triggers DoHintShow
+    function SameInRange1 (Val1, Val2 : integer): Boolean;
   protected
     _HintControl: THint;
     _DragDropRows: Boolean;
     _IsDraggingNow: Boolean;
-    function CreateShowHintControl: THint;
+    function InitHintControl: THint;
     procedure BeginDragDrop(X, Y: Single; ShowHint: Boolean); virtual;
     procedure DragOver(const Data: TDragObject; const Point: TPointF; var Operation: TDragOperation); override;
     procedure DragDrop(const Data: TDragObject; const Point: TPointF); override;
     procedure DragEnd; override;
     function GetRowHitInfo(const Point: TPointF; out HitInfo: THitInfo): Boolean;
-    procedure ShowHintText(const Point: TPoint; const Text: string);
+    procedure ShowHintText(const Point: TPointF; const Text: string);
+    procedure DoHintShow(const X, Y: Single); virtual; // related to OnTimerHintHoverDelay
   // collapsing\expanding animation
   strict private
     _updateContentIndex: LongWord; // for when Animate=False
@@ -233,7 +257,6 @@ type
     procedure AnimateRemoveRow(const ARow: T); // fade out
     procedure AnimateMoveRowY(const ARow: T; NewY: Single);
     procedure DoFinishAllCollapseExpandAnimations; virtual;
-
     procedure UpdateContentsQueued;
 
   // general
@@ -362,6 +385,7 @@ type
     property ShowVScrollBar: Boolean read _ShowVScrollBar write SetShowVScrollBar default True;
     property ShowHScrollBar: Boolean read _ShowHScrollBar write SetShowHScrollBar default True;
     property ContentBounds: TRectF read _contentBounds;
+    property HintHoverDelay: integer read GetHintHoverDelay write SetHintHoverDelay; // ms
   end;
 
    // base class from which inherited all Views: TTreeRowList, TTreeDataModelViewRowList and TGanttDatamodelViewRowList.
@@ -475,6 +499,12 @@ begin
   _fsStopTimer.Interval := FAST_SCROLLING_STOP_INTERVAL;
   _fsStopTimer.OnTimer := OnFastScrollingStopTimer;
 
+
+  _TimerHintDelay := THintTimer.Create(Self);
+  _TimerHintDelay.Enabled := False;
+  _TimerHintDelay.Interval := HINT_HOVER_DELAY;
+  _TimerHintDelay.OnTimer := OnTimerHintHoverDelay;
+
   ShowVScrollBar := True;
   ShowHScrollBar := True;
  end;
@@ -491,7 +521,7 @@ end;
 
 destructor TScrollableRowControl<T>.Destroy;
 begin
-  //inc(_ThreadIndex);
+  _TimerHintDelay.Free;
 
   _Highlight1.Free;
   _Highlight2.Free;
@@ -2213,6 +2243,7 @@ procedure TScrollableRowControl<T>.MouseMove(Shift: TShiftState; X, Y: Single);
 begin
   inherited;
 
+  // Highlight row
   if _HighlightRows then
   begin
     var HoverRow: IRow := GetRowAt(Y + ViewportPosition.Y);
@@ -2221,8 +2252,8 @@ begin
         DoHighlightRow(HoverRow);
   end;
 
-  // only LMB is pressed
-  if (Shift = [ssLeft]) then
+  // Hint for drag and drop (htMoveAfter, htMakeChild, htMoveTopMost)
+  if (Shift = [ssLeft]) then   // only if LMB is pressed
   begin
     if _DragDropRows and not _IsDraggingNow then
       BeginDragDrop(X, Y, True {show hint} )
@@ -2235,6 +2266,18 @@ begin
         if (_HintControl <> nil) and _HintControl.Visible then
           _HintControl.Visible := False;
     end;
+
+
+  // Timer for usual hint
+  if ShowHint then
+  begin
+    // reset timer
+    _TimerHintDelay.Enabled := False;
+
+    _TimerHintDelay.X := X;
+    _TimerHintDelay.Y := Y;
+    _TimerHintDelay.Enabled := True;
+  end;
 end;
 
 procedure TScrollableRowControl<T>.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
@@ -2307,7 +2350,7 @@ begin
   var dragImage := row.Control.MakeScreenshot;
 
   if ShowHint then
-    CreateShowHintControl;
+    InitHintControl;
 
   ddService.BeginDragDrop(TCommonCustomForm(lForm), dragData, DragImage);
 end;
@@ -2433,7 +2476,7 @@ begin
   HitInfo.IsTopBorderTopMostRow :=  HitInfo.Point.Y - GetHeaderHeight <= DRAGDROP_TOP_BORDER_ROW_RANGE_PX
 end;
 
-function TScrollableRowControl<T>.CreateShowHintControl: THint;
+function TScrollableRowControl<T>.InitHintControl: THint;
 begin
   if _HintControl = nil then
   begin
@@ -2448,10 +2491,6 @@ begin
 end;
 
 procedure TScrollableRowControl<T>.ShowDragDropHint(const HitInfo: THitInfo);
-const
-  HINT_TAG_MOVE_AFTER = 110; // optimization
-  HINT_TAG_MAKECHILD = 111;
-  HINT_TAG_MOVE_TOPMOST = 112;
 begin
   if (_HintControl = nil) then Exit;
 
@@ -2462,43 +2501,79 @@ begin
     //if (HitInfo.Point.Y - GetHeaderHeight) <= DRAGDROP_TOP_BORDER_ROW_RANGE_PX then
     if HitInfo.IsTopBorderTopMostRow then
     begin
-      if (_HintControl.Tag <> HINT_TAG_MOVE_TOPMOST) then
+      if (_HintControl._HintType <> htMoveTopMost) then
       begin
         _HintControl.Text := STR_MOVE_TOPMOST;
-        _HintControl.Tag := HINT_TAG_MOVE_TOPMOST;
+        _HintControl._HintType := htMoveTopMost;
       end;
     end
     else  // all rows and top row too - "Move as child" hint
-      if _View.IsDataModelView and (_HintControl.Tag <> HINT_TAG_MAKECHILD) then
+      if _View.IsDataModelView and (_HintControl._HintType <> htMakeChild) then
       begin
         _HintControl.Text := STR_MAKE_CHILD;
-        _HintControl.Tag := HINT_TAG_MAKECHILD;
+        _HintControl._HintType := htMakeChild;
       end;
   end
   // cursor is in the lower half part of the row
   else
-    if _HintControl.Tag <> HINT_TAG_MOVE_AFTER then
+    if _HintControl._HintType <> htMoveAfter then
     begin
       _HintControl.Text := STR_MOVE_AFTER;
-      _HintControl.Tag := HINT_TAG_MOVE_AFTER;
+      _HintControl._HintType := htMoveAfter;
     end;
 
-  var hp := HitInfo.Point;
-  hp.Offset(ViewportPosition);
-  _HintControl.Position.Point := hp;
+  var point := HitInfo.Point;
+  point.Offset(ViewportPosition);
+  _HintControl.Position.Point := point;
   _HintControl.Visible := True;
   _HintControl.BringToFront;
 end;
 
-procedure TScrollableRowControl<T>.ShowHintText(const Point: TPoint; const Text: string);
+procedure TScrollableRowControl<T>.ShowHintText(const Point: TPointF; const Text: string);
 // Input Point must include ViewportPosition (ContentBounds) offset
 begin
-  CreateShowHintControl;
+  InitHintControl;
 
   _HintControl.Text := Text;
   _HintControl.Position.Point := Point;
-  _HintControl.Visible := True;
+
   _HintControl.BringToFront;
+end;
+
+function TScrollableRowControl<T>.GetHintHoverDelay: integer;
+begin
+  Result := _TimerHintDelay.Interval;
+end;
+
+procedure TScrollableRowControl<T>.SetHintHoverDelay(Value: integer);
+begin
+  _TimerHintDelay.Interval := Value;
+end;
+
+function TScrollableRowControl<T>.SameInRange1(Val1, Val2: integer): Boolean;
+begin
+  Result := (Val1 = Val2) or (Val1 = Val2 + 1) or (Val1 = Val2 - 1);
+end;
+
+procedure TScrollableRowControl<T>.OnTimerHintHoverDelay(Sender: TObject);
+begin
+  _TimerHintDelay.Enabled := False;
+
+  var MousePos := Screen.MousePos;
+  MousePos := ScreenToLocal(MousePos);
+
+  // check if cursor position changed, it can be in another control (check in range of 1 pixel)
+  if not (
+     SameInRange1( Trunc(_TimerHintDelay.X), Trunc(MousePos.X) ) and
+     SameInRange1( Trunc(_TimerHintDelay.Y), Trunc(MousePos.Y) )
+     ) then Exit;
+
+  DoHintShow(_TimerHintDelay.X, _TimerHintDelay.Y);
+end;
+
+procedure TScrollableRowControl<T>.DoHintShow(const X, Y: Single);
+begin
+
 end;
 
 procedure TScrollableRowControl<T>.DrawDragDropHorzLine;
@@ -2600,6 +2675,8 @@ begin
   for var i := 0 to _View.Count - 1 do
   begin
     Row := _View[i];
+    if Row.Control = nil then Continue; // sometimes it's nil but row is visible. Check why. Alex  18.04.24
+
     R := Row.Control.BoundsRect;
     if (Y >= R.Top) and (Y < R.Bottom) then
       Exit(row);
@@ -3219,14 +3296,18 @@ end;
 
 procedure TScrollableRowControl<T>.THint.SetText(const AText: string);
 begin
-  //StylesData['text'] := AText;
-  var textCtrl: TText;
-  if FindStyleResource<TText>('text', textCtrl) then
-  begin
-    textCtrl.Text := AText;
+  if _TextControl = nil then
+    if FindStyleResource<TText>('text', _TextControl) then // clone = false here, do not destroy _TextControl
+      _TextControl.Align := TAlignLayout.None;  // We change parent size according to the TText Autosize values
 
-    // new width for hint which TText.Autosize calculated
-    Width := textCtrl.Width + textCtrl.Margins.Left + textCtrl.Margins.Right;
+  if _TextControl <> nil then
+  begin
+    _TextControl.Width := MaxInt;
+    _TextControl.Text := AText;
+
+    // new width for the parent panel, which TText.Autosize calculated
+    Width := _TextControl.Width + _TextControl.Margins.Left + _TextControl.Margins.Right;
+    Height := _TextControl.Height;
   end;
 end;
 
