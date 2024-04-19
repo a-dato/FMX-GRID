@@ -437,6 +437,7 @@ type
     procedure ClearRowCache;
   end;
 
+
   TRow = class(TBaseInterfacedObject, IRow, IFreeNotification)
   strict protected
     _Control: TControl;
@@ -2675,7 +2676,6 @@ begin
   for var i := 0 to _View.Count - 1 do
   begin
     Row := _View[i];
-    if Row.Control = nil then Continue; // sometimes it's nil but row is visible. Check why. Alex  18.04.24
 
     R := Row.Control.BoundsRect;
     if (Y >= R.Top) and (Y < R.Bottom) then
