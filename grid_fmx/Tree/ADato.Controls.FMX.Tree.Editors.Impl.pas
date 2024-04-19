@@ -100,11 +100,6 @@ type
     property ValueChanged: Boolean read _ValueChanged write _ValueChanged;
   end;
 
-  TDateTimeEditOnKeyDownOverride = class(TDateEdit)
-  protected
-    procedure KeyDown(var Key: Word; var KeyChar: System.WideChar; Shift: TShiftState); override;
-  end;
-
   TDropDownEditor = class(TCellEditor, IPickListSupport)
   private
     _PickList: IList;
@@ -139,7 +134,8 @@ uses
 
   FMX.Pickers,
 
-  ADato.Controls.FMX.Tree.Impl, FMX.Graphics;
+  ADato.Controls.FMX.Tree.Impl,
+  FMX.Graphics, ADato.FMX.ControlClasses;
 
 { TCellEditor }
 
@@ -270,7 +266,7 @@ constructor TTextCellEditor.Create(AOwner: TComponent; const ACell: ITreeCell);
 begin
   inherited Create(TFMXTreeControl(AOwner));
   _Cell := ACell;
-  _Control := TEdit.Create(AOwner);
+  _Control := ScrollableRowControl_DefaultEditClass.Create(AOwner);
   _Control.StylesData['background.Source'] := nil;
   TEdit(_Control).OnChangeTracking := OnTextCellEditorChangeTracking;
 end;
@@ -311,7 +307,7 @@ constructor TDateTimeEditor.Create(AOwner: TComponent; const ACell: ITreeCell);
 begin
   inherited Create(TFMXTreeControl(AOwner));
   _Cell := ACell;
-  _Control := TDateTimeEditOnKeyDownOverride.Create(AOwner);
+  _Control := ScrollableRowControl_DefaultDateEditClass.Create(AOwner);
   _Control.StylesData['background.Source'] := nil;
   _Control.TabStop := false;
   TDateEdit(_Control).OnOpenPicker := OnDateTimeEditorOpen;
@@ -372,7 +368,7 @@ constructor TDropDownEditor.Create(AOwner: TComponent; const ACell: ITreeCell);
 begin
   inherited Create(TFMXTreeControl(AOwner));
   _Cell := ACell;
-  _Control := TComboEdit.Create(AOwner);
+  _Control := ScrollableRowControl_DefaultComboEditClass.Create(AOwner);
   _Control.StylesData['background.Source'] := nil;
   var ce := TComboEdit(_Control);
   ce.DropDownCount := 5;
@@ -508,19 +504,6 @@ begin
   Result := inherited or (Key in [vkUp, vkDown]);
 end;
 
-{ TDateTimeEditOnKeyDownOverride }
-
-procedure TDateTimeEditOnKeyDownOverride.KeyDown(var Key: Word; var KeyChar: System.WideChar; Shift: TShiftState);
-begin
-  // Send vkReturn to any listener!
-  // Delphi's TDateEdit control passes vkReturn to the Observer only
-
-  if (Key = vkReturn) and Assigned(OnKeyDown) then
-    OnKeyDown(Self, Key, KeyChar, Shift);
-
-  inherited;
-end;
-
 { TTextCellMultilineEditor }
 
 procedure TTextCellMultilineEditor.BeginEdit(const EditValue: CObject; SetFocus: Boolean);
@@ -533,7 +516,7 @@ constructor TTextCellMultilineEditor.Create(AOwner: TComponent; const ACell: ITr
 begin
   inherited Create(TFMXTreeControl(AOwner));
   _Cell := ACell;
-  _Control := TMemo.Create(AOwner);
+  _Control := ScrollableRowControl_DefaultMemoClass.Create(AOwner);
   _Control.StylesData['background.Source'] := nil;
   TMemo(_Control).ShowScrollBars := false;
   TMemo(_Control).OnChangeTracking := OnTextCellEditorChangeTracking;

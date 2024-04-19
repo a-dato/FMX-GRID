@@ -49,10 +49,8 @@ const
 
   // see also const in TScrollableRowControl<T: IRow>  class
   STYLE_TREE = 'FMXTreeControlstyle';
-  STYLE_CELL = 'cell';
   STYLE_ROW = 'row';
   STYLE_ROW_ALT = 'alternatingrow';
-  STYLE_CHECKBOX_CELL = 'checkboxcell';
   // STYLE_HEADER_CELL = 'headercell'; // moved into ADato.Controls.FMX.Tree.Header.Impl
   STYLE_FILLER_0 = 'filler_0';
   STYLE_FROZEN_CELL_LINE = 'FrozenCellsLine';
@@ -1830,23 +1828,24 @@ type
     { Need to access to this line to change its margin when user collapses\expands children of this row.
       Yes we could search it in Cell.Control, but it could be mixed with another TLine, e.g. part of the custom style }
     function GetBackIndex: Integer; override;
+    function GetDefaultStyleLookupName: string; override;
   public
     constructor Create(AOwner: TComponent; const Cell: ITreeCell);
     property TreeCell: ITreeCell read _TreeCell;
     property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;  //  TAlphaColorRec.Null to reset
   end;
 
-  TTextCellItem = class(TCellItem)
-  protected
-    function GetDefaultStyleLookupName: string; override;
-  end;
+//  TTextCellItem = class(TCellItem)
+//  protected
+//    function GetDefaultStyleLookupName: string; override;
+//  end;
+//
+//  TCheckboxCellItem = class(TCellItem)
+//  protected
+//    function GetDefaultStyleLookupName: string; override;
+//  end;
 
-  TCheckboxCellItem = class(TCellItem)
-  protected
-    function GetDefaultStyleLookupName: string; override;
-  end;
-
-  function GetTextControl(CellControl: TStyledControl): TControl;
+  function GetTextControl(CellControl: TControl): TControl;
 
 implementation
 
@@ -1864,7 +1863,7 @@ uses
   ,System_.Threading,
   ADato.ListComparer.Impl,
   FMX.ActnList, FMX.Text,
-  ADato.FMX.ControlCalculations;
+  ADato.FMX.ControlCalculations, ADato.FMX.ControlClasses;
 
 const
   INITIAL_CELL_HEIGHT = 0; // will be resized later anyway
@@ -6781,7 +6780,7 @@ begin
         cell.Row.Control.Height - MARGIN_VERT);
 
     // Hide TText in a cell
-    var textControl := GetTextControl(Cell.Control as TStyledControl);
+    var textControl := GetTextControl(Cell.Control);
     if textControl <> nil then
       textControl.Visible := False;
 
@@ -6846,9 +6845,9 @@ end;
 
 function TCustomTreeControl.GetStyleObject: TFmxObject;
 const
-  CtrlNames: array [0..8] of string = ( STYLE_CHECKBOX_CELL,
+  CtrlNames: array [0..6] of string = ( //STYLE_CHECKBOX_CELL,
                                       STYLE_FILLER_0,
-                                      STYLE_CELL,
+                                      //STYLE_CELL,
                                       STYLE_FROZEN_CELL_LINE,
                                       STYLE_HEADER_CELL,
                                       STYLE_ROW,
@@ -8738,7 +8737,15 @@ end;
 
 function TFMXTreeColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
-  Result := TTextCellItem.Create(AOwner, Cell);
+  Result := TCellItem.Create(AOwner, Cell);
+  if Cell.Column.StyleLookup = string.Empty then
+  begin
+    var text := ScrollableRowControl_DefaultTextClass.Create(Result);
+    text.Align := TAlignLayout.Client;
+    text.Margins.Left := 10;
+    Result.AddObject(text);
+  end;
+
   Result.Height := INITIAL_CELL_HEIGHT;
 end;
 
@@ -8768,10 +8775,10 @@ end;
 
 procedure TFMXTreeColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
 begin
-  if not (Cell.Control is TStyledControl) then exit;
-
-  var CellControl := TStyledControl(Cell.Control);  // usually TTextCellItem
-  var textControl: TControl := GetTextControl(CellControl);
+//  if not (Cell.Control is TStyledControl) then exit;
+//
+//  var CellControl := TStyledControl(Cell.Control);  // usually TTextCellItem
+  var textControl: TControl := GetTextControl(Cell.Control);
   // can be TText or TLabel (or inherited like TAdatoLabel). e.g. TAdatoLabel can be used in 'headercell'
 
   if textControl <> nil then
@@ -8789,8 +8796,10 @@ begin
 
     if MakeVisible then
     begin
-      CellControl.NeedStyleLookup;
-      CellControl.BringToFront;
+      if Cell.Control is TStyledControl then
+        (Cell.Control as TStyledControl).NeedStyleLookup;
+
+      Cell.Control.BringToFront;
       textControl.Visible := True;
 
       (Self.TreeControl as TFMXTreeControl).InitRowCells(Cell.Row, True, Cell.Row.Height);
@@ -8798,21 +8807,21 @@ begin
   end;
 end;
 
-function GetTextControl(CellControl: TStyledControl): TControl; //TText; or TLabel
+function GetTextControl(CellControl: TControl): TControl; //TText; or TLabel
 begin
   Result := nil;
 
   // Default style of the cell may have TText only (default) or background rectangle + TText or TExpandCollapsePanel + TText
   for var i := 0 to CellControl.Controls.Count - 1 do
-    if CellControl.Controls.List[i] is TText then
+    if CellControl.Controls.List[i] is ScrollableRowControl_DefaultTextClass then
     begin
-      Result := TText(CellControl.Controls.List[i]);
-      exit;
+      Result := CellControl.Controls.List[i];
+      Exit;
     end;
 
   // Or it can be complex custom style (header or user cell)
-  if (Result = nil) then
-    CellControl.FindStyleResource<TControl{TText}>('text', Result);
+  if (Result = nil) and (CellControl is TStyledControl) then
+    (CellControl as TStyledControl).FindStyleResource<TControl{TText}>('text', Result);
     // e.g. TAdatoLabel inherited from TLabel and can be used in 'headercell'
 end;
 
@@ -9383,8 +9392,14 @@ end;
 
 function TFMXTreeCheckboxColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
-  Result := TCheckboxCellItem.Create(AOwner, Cell);
-  Result.Height := INITIAL_CELL_HEIGHT;
+  Result := TCellItem.Create(AOwner, Cell);
+  if Cell.Column.StyleLookup = string.Empty then
+  begin
+    var text := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
+    text.Align := TAlignLayout.Client;
+    text.Margins.Left := 10;
+    Result.AddObject(text);
+  end;
 end;
 
 procedure TFMXTreeCheckboxColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean);
@@ -9452,7 +9467,7 @@ begin
   tree := TCustomTreeControl(TreeControl);
 
   var fo := Sender as TFmxObject;
-  while not (fo is TCheckboxCellItem) and (fo.Parent <> nil) do
+  while not (fo is TCellItem) and (fo.Parent <> nil) do
     fo := fo.Parent;
 
   if (fo <> nil) and Interfaces.Supports<ITreeCell>(fo.TagObject, cell) then
@@ -11113,7 +11128,7 @@ end;
 
 function TTreeCell.get_BackgroundColor: TAlphaColor;
 begin
-  Result := (_Control as TTextCellItem).BackgroundColor;
+  Result := (_Control as TCellItem).BackgroundColor;
 end;
 
 procedure TTreeCell.set_BackgroundColor(const Color: TAlphaColor);
@@ -11121,12 +11136,12 @@ begin
   Assert(_Control <> nil);
 
   // can be 'TCheckboxCellItem'
-  if (_Control is TTextCellItem) then
+  if (_Control is TCellItem) then
   begin
     if _column.Frozen and _column.ShowHierarchy then
       TCellItem(_Control)._BackgroundRectangleMargin :=  -(_Indent);
 
-    TTextCellItem(_Control).BackgroundColor := Color;
+    TCellItem(_Control).BackgroundColor := Color;
   end;
 end;
 
@@ -12999,22 +13014,9 @@ begin
 end;
 
 
-{ TTextCellItem }
-
-function TTextCellItem.GetDefaultStyleLookupName: string;
+function TCellItem.GetDefaultStyleLookupName: string;
 begin
-  if StyleLookup <> '' then
-    Result := StyleLookup else
-    Result := STYLE_CELL;
-end;
-
-{ TCheckboxCellItem }
-
-function TCheckboxCellItem.GetDefaultStyleLookupName: string;
-begin
-  if StyleLookup <> '' then
-    Result := StyleLookup else
-    Result := STYLE_CHECKBOX_CELL;
+  Result := StyleLookup; // can be empty
 end;
 
 { TTreeCellWithRowLock }
