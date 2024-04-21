@@ -1112,7 +1112,6 @@ type
                         const Cell: ITreeCell;
                         const CellRectangle: TRectF);  overload;
 
-
     property HitPosition: TreeHitPosition read get_HitPosition write _hitPosition;
   end;
 
@@ -1241,7 +1240,7 @@ type
     _MouseTrackRect     : TRectF;
     _MouseTrackContentItem : ICellContent;
     _MouseDownHitInfo : ITreeHitInfo;
-    _MouseMoveHitInfo : ITreeHitInfo;
+    //_MouseMoveHitInfo : ITreeHitInfo;
     _editor         : ICellEditor;
     _insideEndEdit  : Boolean;
     _Options        : TreeOptions;
@@ -1310,7 +1309,6 @@ type
 
   protected
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
 
     function  DoCellItemClicked(const Cell: ITreeCell; const CellChanged: Boolean) : Boolean; virtual;
@@ -5503,6 +5501,8 @@ begin
 
   inherited;  // this will View := nil if Full = True
 
+  _MouseDownHitInfo := nil;
+
   if Full then
     _HeaderRows := nil;
 
@@ -7086,154 +7086,6 @@ begin
 
     _ClickEnable := False;
   end;
-end;
-
-procedure TCustomTreeControl.MouseMove(Shift: TShiftState; X, Y: Single);
-//var
-//  contentRect       : TRectF;
-//  cell              : ITreeCell;
-//  cellEvent         : CellMouseEventArgs;
-//  dx: Single;
-//  dy: Single;
-//  row: ITreeRow;
-
-begin
-//  // Moving the mouse while it's depressed?
-//  if (Button = TMouseButton.mbLeft) and (_MouseDownHitInfo <> nil) then
-//  begin
-//    if _doubleClicked then
-//    begin
-//      _MouseDownHitInfo := nil;
-//      _doubleClicked := False;
-//      Exit;
-//    end;
-//
-//    dx := abs(_MouseDownHitInfo.Location.X - e.X);
-//    dy := abs(_MouseDownHitInfo.Location.Y - e.Y);
-//
-//    if (dx >= 8) or (dy >= 8) then
-//    begin
-//      {$IFDEF OBSOLETE}
-//      // Start drag-drop action?
-//      if (_MouseDownHitInfo.Row <> nil) {and (dy >= dx) Vertical drag action} then
-//      begin
-//        StartDragDropOperation(_MouseDownHitInfo);
-//        _MouseDownHitInfo := nil;
-//        _MouseTrackContentItem := nil;
-//        Exit;
-//      end
-//
-//      // Column move/resize action?
-//      else
-//      {$ENDIF}
-//      if (dx >= dy) {Horizontal drag action}
-//             // and ((_MouseMoveHitInfo.HitPosition and TreeHitPosition.OnHeaderRow) = TreeHitPosition.OnHeaderRow)
-//      then
-//      begin
-//        if ((_MouseDownHitInfo.HitPosition and (TreeHitPosition.OnRightBorder {or TreeHitPosition.OnLeftBorder})) <> TreeHitPosition.None) then
-//        begin
-//          if (TreeOption.ColumnsCanResize in _Options) and (_MouseDownHitInfo.Cell <> nil) and _MouseDownHitInfo.Cell.Column.AllowResize then
-//            StartColumnSizing(e.X)
-//        end
-//        else if (TreeOption.ColumnsCanMove in _Options) and (_MouseDownHitInfo.Cell <> nil) and _MouseDownHitInfo.Cell.Column.AllowMove then
-//          StartColumnMoving(e.X);
-//
-//        Exit;
-//      end;
-//    end;
-//  end;
-//
-//  // Mouse is over an active content item.
-//  if (_MouseTrackContentItem <> nil) then
-//  begin
-//    if not _MouseTrackRect.Contains(e.X, e.Y) then
-//      //
-//      // Mouse moved outside content rectangle
-//      //
-//    begin
-//      row := _MouseTrackContentItem.Cell.Row;
-//      cell := _MouseTrackContentItem.Cell;
-//      AutoObject.Guard( CellMouseEventArgs.Create(  row,
-//                                                    cell.Index, // C936
-//                                                    e.Button,
-//                                                    e.Clicks,
-//                                                    -1,
-//                                                    -1),
-//                        cellEvent);
-//
-//      _MouseTrackContentItem.OnMouseLeave(cellEvent);
-//
-//      if row = nil then
-//        cellRect := GetHeaderCellRectangle(cell) else
-//        cellRect := GetCellRectangle(cell);
-//
-//      _MouseTrackContentItem := nil;
-//      _MouseTrackRect := TRectF.Empty;
-////      if cellEvent.InvalidateCell then
-////        Invalidate(cellRect);
-//      if cellEvent.Handled then
-//        Exit;
-//    end
-//    else
-//      // Mouse is still inside previous content rectangle.
-//      // No need for further processing
-//    begin
-//      //inherited OnMouseMove(e);
-//      Exit;
-//    end;
-//  end;
-//
-//  if _InternalState <> [] then Exit;
-//
-//  _MouseMoveHitInfo := GetHitInfo(e.X, e.Y);
-//
-//  if ((_MouseMoveHitInfo.HitPosition and TreeHitPosition.OnHeaderRow) = TreeHitPosition.OnHeaderRow) and
-//     ((_MouseMoveHitInfo.HitPosition and (TreeHitPosition.OnRightBorder {or TreeHitPosition.OnLeftBorder})) <> TreeHitPosition.None) and
-//     (TreeOption.ColumnsCanResize in _Options) and
-//     (_MouseMoveHitInfo.Cell <> nil) and _MouseMoveHitInfo.Cell.Column.AllowResize
-//  then
-//  begin
-//    //Self.Cursor := Cursors.HSplit
-//
-//  end
-//  else
-//  begin
-//    //Cursor := Cursors.Default;
-//
-//    if _MouseMoveHitInfo.ContentItem <> nil then
-//    begin
-//      cell := _MouseMoveHitInfo.Cell;
-//      cellRect := _MouseMoveHitInfo.CellRectangle;
-//
-//      AutoObject.Guard( CellMouseEventArgs.Create(  _MouseMoveHitInfo.row,
-//                                                    cell.Column.Index,
-//                                                    e.Button,
-//                                                    e.Clicks,
-//                                                    e.X - cellRect.X,
-//                                                    e.Y - cellRect.Y),
-//                        cellEvent);
-//
-//      cell.OnMouseMove( cellEvent );
-//
-//      if cellEvent.ActiveContent <> nil then
-//        //
-//        // Mouse is located over an active element.
-//        //
-//      begin
-//        _MouseTrackContentItem := cellEvent.ActiveContent;
-//        //contentRect := cell.Style.AdjustRectangle(cellRect, False);
-//        _MouseTrackRect := cellEvent.ActiveRectangle;
-//        _MouseTrackRect.Offset(contentRect.X, contentRect.Y);
-////        if cellEvent.InvalidateCell then
-////          Invalidate(cellRect);
-//      end;
-//
-//      if cellEvent.Handled then
-//        Exit;
-//    end;
-//  end;
-//
-  inherited;
 end;
 
 procedure TCustomTreeControl.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
