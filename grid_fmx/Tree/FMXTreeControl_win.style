@@ -167,21 +167,6 @@ object TStyleContainer
         Stroke.Thickness = 3.000000000000000000
       end
     end
-    object TCheckBox
-      StyleName = 'checkboxcell'
-      StyledSettings = [Family, Size]
-      Margins.Left = 2.000000000000000000
-      Margins.Top = 2.000000000000000000
-      Position.X = 117.500000000000000000
-      Position.Y = 91.000000000000000000
-      Size.Width = 17.500000000000000000
-      Size.Height = 15.500000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 0
-      TabStop = False
-      TextSettings.Font.StyleExt = {00090000000000000004000000}
-      TextSettings.FontColor = xFF565656
-    end
     object TLayout
       StyleName = 'filler_0'
       Position.X = 37.000000000000000000
@@ -229,20 +214,6 @@ object TStyleContainer
         Size.PlatformDefault = False
         WrapMode = Center
       end
-    end
-    object TStyleTextObject
-      StyleName = 'cell'
-      Anchors = []
-      Margins.Left = 3.000000000000000000
-      Position.X = 130.014099121093800000
-      Position.Y = 43.394363403320310000
-      Size.Width = 135.000000000000000000
-      Size.Height = 29.000000000000000000
-      Size.PlatformDefault = False
-      TextSettings.Trimming = Character
-      TextSettings.HorzAlign = Leading
-      PrefixStyle = NoPrefix
-      ShadowVisible = False
     end
     object TLine
       StyleName = 'FrozenCellsLine'
