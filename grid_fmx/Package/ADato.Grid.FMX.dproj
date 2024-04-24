@@ -170,6 +170,7 @@
         <DCCReference Include="..\Tree\ADato.Controls.FMX.Tree.Intf.pas"/>
         <DCCReference Include="..\Tree\ADato.Controls.FMX.Tree.PopupMenu.pas"/>
         <DCCReference Include="..\Scrollable\ADato.FMX.ControlCalculations.pas"/>
+        <DCCReference Include="..\Scrollable\ADato.FMX.ControlClasses.pas"/>
         <RcCompile Include="..\Tree\ADato.Controls.FMX.Tree.Impl.win.rc">
             <Form>ADato.Controls.FMX.Tree.Impl.win.res</Form>
         </RcCompile>

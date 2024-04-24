@@ -49,6 +49,7 @@ contains
   ADato.Controls.FMX.Tree.Impl in '..\Tree\ADato.Controls.FMX.Tree.Impl.pas',
   ADato.Controls.FMX.Tree.Intf in '..\Tree\ADato.Controls.FMX.Tree.Intf.pas',
   ADato.Controls.FMX.Tree.PopupMenu in '..\Tree\ADato.Controls.FMX.Tree.PopupMenu.pas',
-  ADato.FMX.ControlCalculations in '..\Scrollable\ADato.FMX.ControlCalculations.pas';
+  ADato.FMX.ControlCalculations in '..\Scrollable\ADato.FMX.ControlCalculations.pas',
+  ADato.FMX.ControlClasses in '..\Scrollable\ADato.FMX.ControlClasses.pas';
 
 end.
