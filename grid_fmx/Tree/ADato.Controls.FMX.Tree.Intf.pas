@@ -881,8 +881,8 @@ type
     function  FindColumnByPropertyName(const Name: CString) : Integer;
     function  FindColumnByTag(const Tag: CObject) : Integer;
     function  FirstSelectableColumn: Integer;
-    function  FlatToColumnIndex(ColumnIndex: Integer) : Integer;
-    function  ColumnToFlatIndex(ColumnIndex: Integer) : Integer;
+   // function  FlatToColumnIndex(ColumnIndex: Integer) : Integer;
+   // function  ColumnToFlatIndex(ColumnIndex: Integer) : Integer;
     function  ColumnToCellIndex(const Column: ITreeColumn) : Integer;
 
     // Updates the width of the TreeLayoutColumn and moves all column to the left

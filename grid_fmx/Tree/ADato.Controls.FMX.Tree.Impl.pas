@@ -902,8 +902,8 @@ type
     function  FindColumnByPropertyName(const Name: CString) : Integer;
     function  FindColumnByTag(const Tag: CObject) : Integer;
     function  FirstSelectableColumn: Integer;
-    function  FlatToColumnIndex(ColumnIndex: Integer) : Integer;
-    function  ColumnToFlatIndex(ColumnIndex: Integer) : Integer;
+   // function  FlatToColumnIndex(ColumnIndex: Integer) : Integer;
+   // function  ColumnToFlatIndex(ColumnIndex: Integer) : Integer;
     function  ColumnToCellIndex(const Column: ITreeColumn) : Integer;
     procedure RealignFlatColumns;
 
@@ -1361,9 +1361,6 @@ type
   protected
    // procedure Paint; override;
     procedure AfterPaint; override;
-    procedure StartColumnMoving(X: Single);
-    procedure ColumnMoveOverlayReleased(Sender: TObject; MouseX: Single);
-    procedure ColumnMoveOverlayMoving(Sender: TObject; MouseX: Single);
     procedure SetParent(const Value: TFmxObject); override;
 
     procedure SetEnabled(Value: Boolean); reintroduce;//override;
@@ -2585,40 +2582,6 @@ begin
 end;
 {$ENDREGION}
 
-procedure TCustomTreeControl.StartColumnMoving(X: Single);
-{$IFDEF OBSOLETE}
-var
-  p: TPointF;
-  r: TRectF;
-  splitter: TTreeControlColumnSplitter;
-{$ENDIF}
-
-begin
-{$IFDEF OBSOLETE}
-  _lastColumnScrollAction := -1;
-
-  if _MouseDownHitInfo = nil then Exit;
-
-  splitter := TTreeControlColumnSplitter.Create(Self);
-
-  r := _MouseDownHitInfo.CellRectangle;
-  if X <= (r.X + (r.Width / 2)) then
-    X := r.X else
-    X := r.X + r.Width;
-
-  p := LocalToScreen(TPointF.Create(x, 0));
-
-  splitter.Left := Round(p.X - _MouseDownHitInfo.CellRectangle.Width / 2);
-  splitter.Top := Round(P.Y);
-  splitter.Width := 4; // it does not set splitter width in general
-
-  splitter.OnMoving := ColumnMoveOverlayMoving;
-  splitter.OnMouseReleased := ColumnMoveOverlayReleased;
-
-  splitter.Show;
-{$ENDIF}
-end;
-
 procedure TCustomTreeControl.StartSelectInModelTimer;
 begin
   if _selectInModelTimer = nil then
@@ -2675,136 +2638,6 @@ begin
   end;
 
   SelectDataItemInModel;
-end;
-
-procedure TCustomTreeControl.ColumnMoveOverlayReleased(Sender: TObject; MouseX: Single);
-{$IFDEF OBSOLETE}
-var
-  c: ITreeColumn;
-  hi: ITreeHitInfo;
-  p: TPoint;
-  r: TRectF;
-  splitter: TTreeControlColumnSplitter;
-  moveFrom: Integer;
-  moveTo: Integer;
-  w: Integer;
-{$ENDIF}
-
-begin
-//  if _MouseDownHitInfo <> nil then
-//  try
-//    splitter := Sender as TTreeControlColumnSplitter;
-//
-//    p := ScreenToLocal(splitter.ClientToScreen(TPointF.Create(MouseX, 0)));
-//
-//    if p.X > ClientWidth then
-//      Exit;
-//
-//    hi := GetHitInfo(p.X, 0);
-//
-//    if (hi <> nil) then //and (hi.HitPosition and TreeHitPosition.OnHeaderRow = TreeHitPosition.OnHeaderRow) then
-//    begin
-//      if hi.Cell <> nil then
-//      begin
-//        r := hi.CellRectangle;
-//        if p.x <= (r.X + (r.Width / 2)) then
-//          moveTo := hi.Cell.Column.Index else
-//          moveTo := hi.Cell.Column.Index + 1;
-//      end else
-//        moveTo := _Layout.Columns[_Layout.Columns.Count - 1].Column.Index + 1;
-//
-//      moveFrom := _MouseDownHitInfo.Cell.Column.Index;
-//
-//      if moveFrom <> moveTo then
-//      begin
-//        if moveFrom < moveTo then
-//          dec(moveTo);
-//
-//        w := -1;
-//        if DoColumnChangingByUser(_MouseMoveHitInfo, _MouseMoveHitInfo.Cell.Column, w, moveTo) then
-//        begin
-//          c := Columns[moveFrom];
-//          Columns.RemoveAt(moveFrom);
-//          Columns.Insert(moveTo, c);
-//          DoColumnChangedByUser(_MouseMoveHitInfo, _MouseMoveHitInfo.Cell.Column);
-//        end;
-//      end;
-//    end;
-//  finally
-//    _MouseDownHitInfo := nil;
-//  end;
-end;
-
-procedure TCustomTreeControl.ColumnMoveOverlayMoving(Sender: TObject; MouseX: Single);
-{$IFDEF OBSOLETE}
-var
-  hi: ITreeHitInfo;
-  p: TPoint;
-  r: TRectF;
-  splitter: TTreeControlColumnSplitter;
-  layoutColumns: ITreeLayoutColumnList;
-  x: Integer;
-{$ENDIF}
-
-begin
-//  splitter := Sender as TTreeControlColumnSplitter;
-//
-//  p := splitter.ClientToScreen(TPoint.Create(MouseX, 0));
-  //p := ScreenToClient(p);
-
-  //if p.X > ClientWidth then
-//  begin
-//    if (_lastColumnScrollAction = -1) or (Environment.TickCount - _lastColumnScrollAction > 800) then
-//    begin
-//      hi := GetHitInfo(Width, 0);
-//      if (hi <> nil) and (hi.Cell <> nil) then //and (hi.HitPosition and TreeHitPosition.OnHeaderRow = TreeHitPosition.OnHeaderRow) then
-//      begin
-//        Column := hi.Cell.Index;
-//        _lastColumnScrollAction := Environment.TickCount;
-//      end;
-//    end;
-//
-//    Exit;
-//  end
-  // Columns have been collapsed
-//  else if Layout.FirstColumn > Layout.FrozenColumns then
-//  begin
-//    layoutColumns := _Layout.FlatColumns;
-//    x := layoutColumns[_Layout.FrozenColumns].Left;
-//    // x2 := ScreenToClient(TPoint.Create(splitter.Left, 0)).X;
-//    // Scroll back when the mouse hovers over the 'column collapse' indicator
-//    if (x >= P.X) and (x <= P.X + splitter.Width) then
-//    begin
-//      if (_lastColumnScrollAction = -1) or (Environment.TickCount - _lastColumnScrollAction > 800) then
-//      begin
-//        Column := Column - 1;
-//        _lastColumnScrollAction := Environment.TickCount;
-//      end;
-//
-//      Exit;
-//    end;
-//  end;
-
-//  _lastColumnScrollAction := -1;
-//  hi := GetHitInfo(p.X, 0);
-//
-//  if (hi <> nil) then // and (hi.HitPosition and TreeHitPosition.OnHeaderRow = TreeHitPosition.OnHeaderRow) then
-//  begin
-//    if hi.Cell <> nil then
-//    begin
-//      r := hi.CellRectangle;
-//
-//      if p.x <= (r.X + (r.Width / 2)) then
-//        x := r.X else
-//        x := r.X + r.Width;
-//
-//      // Do not move outside current window
-//      // x := CMath.Min(Self.Width, x);
-//    end else
-//      x := Layout.TotalWidth;  // Mouse located to the right of the last column
-//
-////    splitter.Left := ClientToScreen(TPoint.Create(x, 0)).X - splitter.Width div 2;
-//  end;
 end;
 
 {$REGION 'Selections'}
@@ -3072,6 +2905,7 @@ begin
       _currentDataItem := nil;
     end;
 
+    // already done in AlignViewToCell
     // TODO: Turn on. Can already be turned on, but needs more testing.
     // Scroll new column into view
 //    if (_Column >= _Layout.FrozenColumns) then
@@ -5040,7 +4874,7 @@ function TCustomTreeControl.InitRowCells(const TreeRow: ITreeRow; const IsCached
 
     CellControl.ApplyStyleLookup;
 
-    if (CellControl.StyleState = TStyleState.Applied) then
+  //  if (CellControl.StyleState = TStyleState.Applied) then
     begin
 
       // frozen cell should be non-transparent or cells scrolled under it would be visible
@@ -8593,6 +8427,7 @@ begin
     var text := ScrollableRowControl_DefaultTextClass.Create(Result);
     text.Align := TAlignLayout.Client;
     text.Margins.Left := 10;
+    text.HitTest := False;
     Result.AddObject(text);
   end;
 
@@ -9673,22 +9508,22 @@ begin
 end;
 
 { TTreeLayout }
-function TTreeLayout.ColumnToFlatIndex(ColumnIndex: Integer): Integer;
-begin
-//  if (ColumnIndex >= _FrozenColumns) then
-//    // Index inside scrollable range
-//    Result := ColumnIndex - (_FirstColumn - _FrozenColumns) else
-//    Result := ColumnIndex - _FirstColumn; // Can be < 0 !!
-
-  if (ColumnIndex < _FrozenColumns) then
-    // Index inside non scrollable range
-    Result := ColumnIndex
-  else if ColumnIndex >= _FirstColumn then
-    Result := ColumnIndex - (_FirstColumn - _FrozenColumns)
-  else
-        // Index refers to an invisible cell
-    Result := ColumnIndex - _FirstColumn; // < 0 !!
-end;
+//function TTreeLayout.ColumnToFlatIndex(ColumnIndex: Integer): Integer;
+//begin
+////  if (ColumnIndex >= _FrozenColumns) then
+////    // Index inside scrollable range
+////    Result := ColumnIndex - (_FirstColumn - _FrozenColumns) else
+////    Result := ColumnIndex - _FirstColumn; // Can be < 0 !!
+//
+//  if (ColumnIndex < _FrozenColumns) then
+//    // Index inside non scrollable range
+//    Result := ColumnIndex
+//  else if ColumnIndex >= _FirstColumn then
+//    Result := ColumnIndex - (_FirstColumn - _FrozenColumns)
+//  else
+//        // Index refers to an invisible cell
+//    Result := ColumnIndex - _FirstColumn; // < 0 !!
+//end;
 
 function TTreeLayout.ColumnToCellIndex(const Column: ITreeColumn) : Integer;
 var
@@ -9770,19 +9605,19 @@ begin
     Result := Result + _Columns[i].Width;
 end;
 
-function TTreeLayout.FlatToColumnIndex(ColumnIndex: Integer): Integer;
-var
-  delta: Integer;
-
-begin
-  if ColumnIndex < _FrozenColumns then
-    Result := ColumnIndex
-  else
-  begin
-    delta := _FirstColumn - _FrozenColumns;
-    Result := ColumnIndex + delta;
-  end;
-end;
+//function TTreeLayout.FlatToColumnIndex(ColumnIndex: Integer): Integer;
+//var
+//  delta: Integer;
+//
+//begin
+//  if ColumnIndex < _FrozenColumns then
+//    Result := ColumnIndex
+//  else
+//  begin
+//    delta := _FirstColumn - _FrozenColumns;
+//    Result := ColumnIndex + delta;
+//  end;
+//end;
 
 function TTreeLayout.get_Columns: ITreeLayoutColumnList;
 begin
