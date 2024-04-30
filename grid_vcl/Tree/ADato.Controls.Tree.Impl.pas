@@ -6456,6 +6456,7 @@ begin
             if IsEditing then
               CancelEdit;
 
+            _Column := CMath.Min(_Column, Columns.Count - 1);
             _View := nil;
             _CellPropertiesProvider := nil;
           end
