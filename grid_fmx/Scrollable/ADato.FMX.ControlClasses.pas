@@ -12,7 +12,9 @@ uses
   FMX.DateTimeCtrls,
 
   System.Classes,
-  System.UITypes;
+  System.UITypes,
+  FMX.ActnList,
+  FMX.Types;
 
 type
   TControlClass = class of TControl;
@@ -26,7 +28,7 @@ type
     procedure KeyDown(var Key: Word; var KeyChar: System.WideChar; Shift: TShiftState); override;
   end;
 
-  function GetTextControl(CellControl: TControl): TControl; //TText; or TLabel
+  function GetTextControl(CellControl: TControl): IControl; //TText; or TLabel
 
 var
   ScrollableRowControl_DefaultTextClass: TControlClass;
@@ -40,7 +42,7 @@ implementation
 
 
 
-function GetTextControl(CellControl: TControl): TControl; //TText; or TLabel
+function GetTextControl(CellControl: TControl): IControl; //TText; or TLabel
 begin
   Result := nil;
 
@@ -64,7 +66,11 @@ begin
 
   // Or it can be complex custom style (header or user cell)
   if (Result = nil) and (CellControl is TStyledControl) then
-    (CellControl as TStyledControl).FindStyleResource<TControl{TText}>('text', Result);
+  begin
+    var ctrl: TControl := nil;
+    if (CellControl as TStyledControl).FindStyleResource<TControl{TText}>('text', ctrl) then
+      Result := ctrl;
+  end;
     // e.g. TAdatoLabel inherited from TLabel and can be used in 'headercell'
 end;
 
