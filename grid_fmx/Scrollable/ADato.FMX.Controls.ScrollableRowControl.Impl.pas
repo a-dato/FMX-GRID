@@ -21,7 +21,7 @@ const
     one by one. Larger - row unfolds slower! (especially if row contains > 8 children) more children - more slower,
     so better do not set large value.
     0 - Gantt will show all children nodes at once. }
-  USE_ROW_CACHE = True;
+  USE_ROW_CACHE = False;
 
   // localize
   STR_MOVE_AFTER = 'Move below...';

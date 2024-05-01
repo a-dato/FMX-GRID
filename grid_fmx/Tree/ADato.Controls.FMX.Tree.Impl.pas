@@ -110,6 +110,7 @@ type
       -0.7 this is an optimal number, less - there is still a gap, more - pixel crawls out of a border. }
   strict private
     _Control        : TControl; // can be custom user control, not only TCellItem
+    _InfoControl    : IControl;
     _Index          : Integer;
     _Indent         : Single;
     [unsafe] _Row     : ITreeRow;
@@ -127,6 +128,8 @@ type
     function  get_Column: ITreeColumn;
     function  get_Control: TControl;
     procedure set_Control(const Value: TControl); virtual;
+    function  get_InfoControl: IControl;
+    procedure set_InfoControl(const Value: IControl);
     function  get_ColSpan: Byte;
     procedure set_ColSpan(const Value: Byte);
     function  get_Data: CObject; virtual;
@@ -168,6 +171,8 @@ type
     function  get_Column: ITreeColumn;
     function  get_Control: TControl;
     procedure set_Control(const Value: TControl);
+    function  get_InfoControl: IControl;
+    procedure set_InfoControl(const Value: IControl);
     function  get_ColSpan: Byte;
     procedure set_ColSpan(const Value: Byte);
     function  get_Data: CObject;
@@ -6612,9 +6617,11 @@ begin
         cell.Row.Control.Height - MARGIN_VERT);
 
     // Hide TText in a cell
-    var textControl := GetTextControl(Cell.Control);
-    if textControl <> nil then
-      textControl.Visible := False;
+    if Cell.InfoControl = nil then
+      Cell.InfoControl := GetTextControl(Cell.Control);
+
+    if Cell.InfoControl <> nil then
+      Cell.InfoControl.Visible := False;
 
     Cell.Control.AddObject(_editor.Control);
 
@@ -8429,6 +8436,8 @@ begin
     text.Margins.Left := 10;
     text.HitTest := False;
     Result.AddObject(text);
+
+    Cell.InfoControl := text;
   end;
 
   Result.Height := INITIAL_CELL_HEIGHT;
@@ -8463,21 +8472,16 @@ begin
 //  if not (Cell.Control is TStyledControl) then exit;
 //
 //  var CellControl := TStyledControl(Cell.Control);  // usually TTextCellItem
-  var textControl: TControl := GetTextControl(Cell.Control);
+
+  if Cell.InfoControl = nil then
+    Cell.InfoControl := GetTextControl(Cell.Control);
+
   // can be TText or TLabel (or inherited like TAdatoLabel). e.g. TAdatoLabel can be used in 'headercell'
 
-  if textControl <> nil then
+  if Cell.InfoControl <> nil then
   begin
     var cellText := CStringToString( GetCellText(Cell) );
-
-    if textControl is TText then
-      TText(textControl).Text := cellText
-    else
-      if textControl is TLabel then
-        TLabel(textControl).Text := cellText
-      else
-        raise Exception.Create('Style control with name ''text'' is not inherited from TText or TLabel.');
-        // so we can't calculate width correctly
+    (Cell.InfoControl as ICaption).Text := cellText;
 
     if MakeVisible then
     begin
@@ -8485,7 +8489,7 @@ begin
         (Cell.Control as TStyledControl).NeedStyleLookup;
 
       Cell.Control.BringToFront;
-      textControl.Visible := True;
+      Cell.InfoControl.Visible := True;
 
       (Self.TreeControl as TFMXTreeControl).InitRowCells(Cell.Row, True, Cell.Row.Height);
     end;
@@ -9066,6 +9070,8 @@ begin
     text.Align := TAlignLayout.Client;
     text.Margins.Left := 10;
     Result.AddObject(text);
+
+    Cell.InfoControl := text;
   end;
 end;
 
@@ -9425,25 +9431,18 @@ begin
   CellControl.ApplyStyleLookup;
 
   var fmxColumn := TFMXTreeColumn(_Column);
-  var textControl := GetTextControl(CellControl);
+
+  if Cell.InfoControl = nil then
+    Cell.InfoControl := GetTextControl(Cell.Control);
 
   // data from the Text cotrol
   var textSettings: TTextSettings := nil;  // reference only
   var text: string;
 
-  if (textControl <> nil) then
+  if (Cell.InfoControl <> nil) then
   begin
-    if textControl is TText then
-    begin
-      text := TText(textControl).Text;
-      textSettings := TText(textControl).TextSettings;
-    end
-    else
-      if textControl is TLabel then
-       begin
-         text := TLabel(textControl).Text;
-         textSettings := TLabel(textControl).TextSettings;
-        end;
+    text := (Cell.InfoControl as ICaption).Text;
+    textSettings := (Cell.InfoControl as ITextSettings).TextSettings;
   end;
 
   if _IsWidthChangedByUser then  //if fmxColumn._IsWidthChangedByUser then
@@ -9453,7 +9452,7 @@ begin
   else if fmxColumn._AutoSizeToContent then
   begin
     if text <> '' then
-      Result.Width := TextControlWidth(TextControl, textSettings, text) + EXTRA_CELL_AUTO_WIDTH;
+      Result.Width := TextControlWidth(Cell.InfoControl as TControl, textSettings, text) + EXTRA_CELL_AUTO_WIDTH;
 
     if (fmxColumn._MaxWidth = COLUMN_MAX_WIDTH_NOT_USED) then
     begin
@@ -9495,7 +9494,7 @@ begin
   // Need auto height?
   if fmxColumn._AutoSizeToContent and (text <> '') then
   begin
-    var textHeight := TextControlHeight(textControl, textSettings, text, -1, -1, Result.Width - 3 {margins});
+    var textHeight := TextControlHeight(Cell.InfoControl as TControl, textSettings, text, -1, -1, Result.Width - 3 {margins});
     if textHeight > InitialRowHeight then
       Result.Height := Ceil(textHeight) + EXTRA_CELL_HEIGHT else
       Result.Height := InitialRowHeight;
@@ -10596,8 +10595,9 @@ end;
 
 destructor TTreeCell.Destroy;
 begin
-  inherited;
+  _InfoControl := nil;
   _Control.Free;
+  inherited;
 end;
 
 procedure TTreeCell.DrawHierachicalBorder(AGridLineStyle: TStrokeBrush; ABaseIndent: single);
@@ -10788,6 +10788,8 @@ begin
   if _Control <> nil then
     _Control.RemoveFreeNotify(Self);
   _Control.Free;
+  set_InfoControl(nil);
+
   _Control := Value;
   if _Control <> nil then
     _Control.AddFreeNotify(Self);
@@ -10845,6 +10847,11 @@ begin
   Result := _Index;
 end;
 
+function TTreeCell.get_InfoControl: IControl;
+begin
+  Result := _InfoControl;
+end;
+
 function TTreeCell.get_LayoutComplete: Boolean;
 begin
   Result := _LayoutComplete;
@@ -10874,6 +10881,11 @@ end;
 procedure TTreeCell.set_Indent(Value: Single);
 begin
   _Indent := Value;
+end;
+
+procedure TTreeCell.set_InfoControl(const Value: IControl);
+begin
+  _InfoControl := Value;
 end;
 
 procedure TTreeCell.set_LayoutComplete(Value: Boolean);
@@ -12741,6 +12753,11 @@ begin
   Result := _Cell.get_Index;
 end;
 
+function TTreeCellWithRowLock.get_InfoControl: IControl;
+begin
+  Result := _Cell.get_InfoControl;
+end;
+
 function TTreeCellWithRowLock.get_Row: ITreeRow;
 begin
   Result := _Cell.get_row;
@@ -12779,6 +12796,11 @@ end;
 procedure TTreeCellWithRowLock.set_Indent(Value: Single);
 begin
   _Cell.set_Indent(Value);
+end;
+
+procedure TTreeCellWithRowLock.set_InfoControl(const Value: IControl);
+begin
+  _Cell.set_InfoControl(Value);
 end;
 
 {$ENDREGION}

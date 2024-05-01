@@ -14,9 +14,6 @@ uses
 type
   IObjectListModelChangeTracking = interface(IObjectListModel)
     ['{909AA97F-A9C7-4578-ACC9-D345BB6D48E9}']
-    {$IFDEF DELPHI}
-    function  get_OnAskForApply: AskForApplyEventHandler;
-    {$ENDIF}
     function  get_HasChangedItems: Boolean;
     function  get_ChangedItems: Dictionary<CObject, TObjectListChangeType>;
     procedure set_StoreChangedItems(const Value: Boolean);
@@ -26,12 +23,6 @@ type
     property HasChangedItems: Boolean read get_HasChangedItems;
     property ChangedItems: Dictionary<CObject, TObjectListChangeType> read get_ChangedItems;
     property StoreChangedItems: Boolean write set_StoreChangedItems;
-
-    {$IFDEF DELPHI}
-    property OnAskForApply: AskForApplyEventHandler read get_OnAskForApply;
-    {$ELSE}
-    event OnAskForApply: AskForApplyEventHandler;
-    {$ENDIF}
   end;
 
 implementation

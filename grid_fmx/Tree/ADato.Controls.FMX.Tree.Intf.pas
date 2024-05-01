@@ -1221,6 +1221,8 @@ type
     function  get_Column: ITreeColumn;
     function  get_Control: TControl;
     procedure set_Control(const Control: TControl);
+    function  get_InfoControl: IControl;
+    procedure set_InfoControl(const Value: IControl);
     function  get_ColSpan: Byte;
     procedure set_ColSpan(const Value: Byte);
     function  get_Data: CObject;
@@ -1245,6 +1247,10 @@ type
       read  {$IFDEF DELPHI}get_Control{$ENDIF}
       write {$IFDEF DELPHI}set_Control{$ENDIF};
 
+    property InfoControl: IControl
+      read  {$IFDEF DELPHI}get_InfoControl{$ENDIF}
+      write {$IFDEF DELPHI}set_InfoControl{$ENDIF};
+
     property ColSpan: Byte read get_ColSpan write set_ColSpan;
     property Data: CObject
       read  {$IFDEF DELPHI}get_Data{$ENDIF}
@@ -1256,8 +1262,7 @@ type
 
     property Index: Integer read {$IFDEF DELPHI}get_Index{$ENDIF};
     property Row: ITreeRow read {$IFDEF DELPHI}get_Row{$ENDIF};
-    property BackgroundColor: TAlphaColor read {$IFDEF DELPHI}get_BackgroundColor{$ENDIF}
-        write {$IFDEF DELPHI}set_BackgroundColor{$ENDIF};
+    property BackgroundColor: TAlphaColor read {$IFDEF DELPHI}get_BackgroundColor{$ENDIF} write {$IFDEF DELPHI}set_BackgroundColor{$ENDIF};
     { Change background color of the cell, it will work even with custom user style, but style should be without
       own 'background' control or it should be transparent. To disable background color - set TAlphaColorRec.Null. }
   end;

@@ -14,27 +14,6 @@ uses
 type
   TObjectListChangeType = (Changed, Added, Removed);
 
-  {$IFDEF DELPHI}
-  AskForApplyEventHandlerProc = procedure(const Sender: IObjectListModel; var AllowApply: Boolean) of object;
-
-  AskForApplyEventHandler = interface(IDelegate)
-    procedure Add(Value: AskForApplyEventHandlerProc);
-    function  Contains(Value: AskForApplyEventHandlerProc) : Boolean;
-    procedure Remove(value: AskForApplyEventHandlerProc);
-    procedure Invoke(const Sender: IObjectListModel; var AllowApply: Boolean);
-  end;
-
-  AskForApplyEventDelegate = class(Delegate, AskForApplyEventHandler)
-  protected
-    procedure Add(Value: AskForApplyEventHandlerProc);
-    function  Contains(Value: AskForApplyEventHandlerProc) : Boolean;
-    procedure Remove(value: AskForApplyEventHandlerProc);
-    procedure Invoke(const Sender: IObjectListModel; var AllowApply: Boolean);
-  end;
-  {$ELSE}
-  AskForApplyEventHandler = public delegate(const Sender: IObjectListModel; var AllowApply: Boolean);
-  {$ENDIF}
-
   IAddingNew = interface(IBaseInterface)
     ['{67286028-BC82-4738-B80E-18E3CBCBA686}']
     function CreateInstance: CObject;
@@ -105,43 +84,5 @@ type
   end;
 
 implementation
-
-
-{ AskForApplyEventDelegate }
-
-{$IFDEF DELPHI}
-procedure AskForApplyEventDelegate.Add(Value: AskForApplyEventHandlerProc);
-begin
-  inherited Add(TMethod(Value));
-end;
-
-function AskForApplyEventDelegate.Contains(Value: AskForApplyEventHandlerProc): Boolean;
-begin
-  Result := inherited Contains(TMethod(Value));
-end;
-
-procedure AskForApplyEventDelegate.Invoke(const Sender: IObjectListModel; var AllowApply: Boolean);
-var
-  cnt: Integer;
-
-begin
-  AllowApply := True;
-
-  cnt := 0;
-  while cnt < _events.Count do
-  begin
-    AskForApplyEventHandlerProc(_events[cnt]^)(Sender, {var} AllowApply);
-    inc(cnt);
-
-    if not AllowApply then
-      Exit;
-  end;
-end;
-
-procedure AskForApplyEventDelegate.Remove(value: AskForApplyEventHandlerProc);
-begin
-  inherited Remove(TMethod(Value));
-end;
-{$ENDIF}
 
 end.
