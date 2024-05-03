@@ -42,7 +42,8 @@ uses
   , ADato.ObjectModel.intf,
   ADato.Sortable.Intf,
   FMX.Objects,
-  FMX.Ani, ADato.InsertPosition, ADato.ObjectModel.TrackInterfaces;
+  FMX.Ani, ADato.InsertPosition, ADato.ObjectModel.TrackInterfaces,
+  ADato.KeyNavigator.intf;
 
 const
   USE_TREE_CACHE = True;
@@ -1155,7 +1156,8 @@ type
     TScrollableRowControl<ITreeRow>,
     ITreeControl,
     IFreeNotification,
-    ICellEditorSink)
+    ICellEditorSink,
+    IKeyNavigator)
   strict private
   type  // For OnCompareRows and OnCompareColumnCells events, compares DataItem of rows and compares cellData of 2 cells
     TComparerForEvents = class(TBaseInterfacedObject, IComparer<CObject>)
@@ -1308,9 +1310,13 @@ type
     procedure DoExit; override;
 
     procedure KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
-  // to handle tabs
+
+    // IKeyNavigator
   public
-    function  TryHandleTab(Shift: TShiftState): Boolean;
+    function  TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
+    function  AvailableNavigationKeys: TArray<Word>;
+    function  GetComponent: TComponent;
+    function  GetScrollControl: TCustomScrollBox;
 
   protected
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
@@ -3425,6 +3431,11 @@ begin
   end;
 end;
 
+function TCustomTreeControl.GetScrollControl: TCustomScrollBox;
+begin
+  Result := Self;
+end;
+
 function TCustomTreeControl.GetSelectableCell(
   const Cells: ITreeCellList;
   cellIndex: Integer): ITreeCell;
@@ -3623,12 +3634,23 @@ end;
 //    DoCellItemClicked(cell, True);
 //end;
 
-function TCustomTreeControl.TryHandleTab(Shift: TShiftState): Boolean;
+function TCustomTreeControl.TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
 begin
-  var key: word := vktab;
   var char: WideChar := ' ';
   KeyDown(key, char, Shift);
   Result := key = 0;
+end;
+
+function TCustomTreeControl.GetComponent: TComponent;
+begin
+  Result := Self;
+end;
+
+function TCustomTreeControl.AvailableNavigationKeys: TArray<Word>;
+begin
+  if (TreeOption.AllowCellSelection in Self.Options) then
+    Result := [vkUp, vkDown, vkPrior, vkNext, vkLeft, vkRight, vkHome, vkEnd] else
+    Result := [vkUp, vkDown, vkPrior, vkNext];
 end;
 
 function TCustomTreeControl.GetHitInfo(X, Y: Single): ITreeHitInfo;
@@ -7365,7 +7387,10 @@ begin
         else
         begin
           if not _ShowKeyboardCursorRectangle then
+          begin
             SelectCell(Current - 1, Column, False, True, True);
+            Key := 0;
+          end;
 
           { Moved into TScrollableRowControl<T>.KeyDown
            // if selected = top row (sometimes visually selected row top row <> View[0].Index  )
@@ -7388,7 +7413,10 @@ begin
             if AllowUserToAddRows and not (TreeOption.ReadOnly in _Options) then
               InsertRow(InsertPosition.After)
           end else
+          begin
             SelectCell(Current + 1, Column, False, True, True);
+            Key := 0;
+          end;
         end;
       end;
 
@@ -7452,13 +7480,19 @@ begin
       vkNext: // Page Down
       begin
         if not _ShowKeyboardCursorRectangle then
+        begin
           SelectCell(Current + _View.Count-1, Column, False, True, True);
+          Key := 0;
+        end;
       end;
 
       vkPrior: // Page Up
       begin
         if not _ShowKeyboardCursorRectangle then
+        begin
           SelectCell(CMath.Max(0, Current - _View.Count + 1), Column, False, True, True);
+          Key := 0;
+        end;
 
         // Disabled because Set_Current calls RefreshControl([TreeState.AlignViewToCurrent])
         //if View[0].Index > Current then // row does not exists - Selected row is above top.
@@ -7468,13 +7502,19 @@ begin
       vkEnd:
         begin
           if not _ShowKeyboardCursorRectangle then
+          begin
             SelectCell(Current, _Layout.Columns.Count - 1, False, True, True);
+            Key := 0;
+          end;
         end;
 
       vkHome:
         begin
           if not _ShowKeyboardCursorRectangle then
+          begin
             SelectCell(Current, _Layout.FirstSelectableColumn, False, True, True);
+            Key := 0;
+          end;
         end;
 
       vkDelete, vkBack:
