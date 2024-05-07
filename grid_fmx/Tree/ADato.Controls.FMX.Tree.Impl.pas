@@ -111,7 +111,7 @@ type
       -0.7 this is an optimal number, less - there is still a gap, more - pixel crawls out of a border. }
   strict private
     _Control        : TControl; // can be custom user control, not only TCellItem
-    _InfoControl    : IControl;
+    [weak] _InfoControl    : IControl;
     _Index          : Integer;
     _Indent         : Single;
     [unsafe] _Row     : ITreeRow;
