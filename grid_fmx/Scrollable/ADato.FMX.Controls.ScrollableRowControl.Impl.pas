@@ -104,6 +104,7 @@ type
     _OnSynchronizeControl: TOnSynchronizeControl;
     _ExtraSpaceContentBounds: single; // for SetTopRowWithOffset with StrictTopRow flag
     _CanResetExtraSpace: Boolean;
+    _isAliveObject: IInterface;
 
     function RecalcWhenUserScrollsDown(var NewContentBounds: TRectF): boolean;
     function RecalcWhenUserScrollsUp(var NewContentBounds: TRectF): boolean;
@@ -208,6 +209,8 @@ type
     end;
 
   private
+    procedure SaveQueuedRepaint([weak]IsAlive: IInterface; Index: Integer);
+
   type
     THintType = (htNone, htMoveAfter, htMakeChild, htMoveTopMost);
     // for optimization, htMoveAfter, htMakeChild, htMoveTopMost - used while d&d rows only, it shows proper hints
@@ -476,7 +479,6 @@ type
     property DataIndex: Integer read get_DataIndex;
   end;
 
-
 implementation
 
 {$REGION 'TScrollableRowControl<T>'}
@@ -508,6 +510,8 @@ begin
 
   ShowVScrollBar := True;
   ShowHScrollBar := True;
+
+  _isAliveObject := TInterfacedObject.Create;
  end;
 
 function TScrollableRowControl<T>.CreateRow(const Data: CObject; AIndex: Integer; const ARowLevel: integer = 0): T;
@@ -529,11 +533,23 @@ begin
   _NegotiateInitiatedRows.Free;
   _HintControl.Free;
 
+  _isAliveObject := nil;
+
   inherited;
 end;
 
-procedure TScrollableRowControl<T>.ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
-  const ATopRowMinHeight: Single = 0);
+procedure TScrollableRowControl<T>.SaveQueuedRepaint([weak]IsAlive: IInterface; Index: Integer);
+begin
+  TThread.ForceQueue(nil, procedure
+  begin
+    if (IsAlive = nil) or (Index <> _ThreadIndex) then
+      Exit;
+
+    Content.Repaint;
+  end);
+end;
+
+procedure TScrollableRowControl<T>.ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False; const ATopRowMinHeight: Single = 0);
 var
   lTopRow: T;
 begin
@@ -598,11 +614,7 @@ begin
   {$OVERFLOWCHECKS ON}
 
   var ti := _ThreadIndex;
-  TThread.ForceQueue(nil, procedure
-  begin
-    if (ti = _ThreadIndex) and (Content <> nil) then
-      Content.Repaint;
-  end);
+  SaveQueuedRepaint(_isAliveObject, ti);
 end;
 
 procedure TScrollableRowControl<T>.ViewportPositionChange(const OldViewportPosition, NewViewportPosition: TPointF;

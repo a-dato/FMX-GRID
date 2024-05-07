@@ -1317,6 +1317,7 @@ type
     function  AvailableNavigationKeys: TArray<Word>;
     function  GetComponent: TComponent;
     function  GetScrollControl: TCustomScrollBox;
+    function  NavigatorType: TNavigatorType;
 
   protected
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
@@ -7087,6 +7088,11 @@ begin
   Exit(nil);
 end;
 
+function TCustomTreeControl.NavigatorType: TNavigatorType;
+begin
+  Result := TNavigatorType.ListControlNavigator;
+end;
+
 procedure TCustomTreeControl.Notification(AComponent: TComponent;
   Operation: TOperation);
 begin
@@ -10637,6 +10643,7 @@ destructor TTreeCell.Destroy;
 begin
   _InfoControl := nil;
   _Control.Free;
+
   inherited;
 end;
 
@@ -10789,7 +10796,10 @@ end;
 procedure TTreeCell.FreeNotification(AObject: TObject);
 begin
   if AObject = _Control then
+  begin
     _Control := nil;
+    _InfoControl := nil;
+  end;
 end;
 
 function TTreeCell.GetFormattedData(const Content: ICellContent; const Data: CObject; const RequestValueForSorting: Boolean; out FormatApplied: Boolean): CObject;
