@@ -5823,7 +5823,9 @@ begin
         begin
           descriptor := _sortDescriptions.Find( function (const cmp: ITreeSortDescription) : Boolean
                                                 begin
-                                                  Result := ((cmp.LayoutColumn <> nil) and cmp.LayoutColumn.Equals(layoutColumn));
+                                                  if cmp.LayoutColumn <> nil then
+                                                    Result := cmp.LayoutColumn.Equals(layoutColumn) else
+                                                    Result := CString.Equals(cmp.PropertyDescriptor, column.PropertyName);
                                                 end);
           if descriptor <> nil then
           begin
