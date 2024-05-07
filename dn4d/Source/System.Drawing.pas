@@ -5,10 +5,14 @@ interface
 
 uses
   SysUtils,
+  {$IFDEF MSWINDOWS}
   Windows,
   ActiveX, // IStream
   Winapi.GDIPOBJ,
   Winapi.GDIPAPI,
+  {$ELSE}
+  System.Types,
+  {$ENDIF}
   Math,
   System_,
   System.ComponentModel,
@@ -18,13 +22,15 @@ uses
   System.Collections;
 
 type
-  CGraphics = class;
+  {$IFDEF MSWINDOWS}
   CImage = class;
   Matrix = class;
   Pen = class;
+  CGraphics = class;
   CRegion = class;
   LinearGradientBrush = TGPLinearGradientBrush;
   HatchBrush = TGPHatchBrush;
+  {$ENDIF}
   CFontFamily = class;
   SingleArray = array of Single;
 
@@ -44,6 +50,201 @@ type
     public bmiHeader_biYPelsPerMeter: Integer;
   end;
 
+  {$IFNDEF MSWINDOWS}
+  ColorAdjustTypeMultiplatform = (
+    ColorAdjustTypeDefault,
+    ColorAdjustTypeBitmap,
+    ColorAdjustTypeBrush,
+    ColorAdjustTypePen,
+    ColorAdjustTypeText,
+    ColorAdjustTypeCount,
+    ColorAdjustTypeAny      // Reserved
+  );
+
+  ColorMatrixFlags = (
+    ColorMatrixFlagsDefault,
+    ColorMatrixFlagsSkipGrays,
+    ColorMatrixFlagsAltGray
+  );
+
+  HatchStyleMultiplatform = (
+    HatchStyleHorizontal,                  // = 0,
+    HatchStyleVertical,                    // = 1,
+    HatchStyleForwardDiagonal,             // = 2,
+    HatchStyleBackwardDiagonal,            // = 3,
+    HatchStyleCross,                       // = 4,
+    HatchStyleDiagonalCross,               // = 5,
+    HatchStyle05Percent,                   // = 6,
+    HatchStyle10Percent,                   // = 7,
+    HatchStyle20Percent,                   // = 8,
+    HatchStyle25Percent,                   // = 9,
+    HatchStyle30Percent,                   // = 10,
+    HatchStyle40Percent,                   // = 11,
+    HatchStyle50Percent,                   // = 12,
+    HatchStyle60Percent,                   // = 13,
+    HatchStyle70Percent,                   // = 14,
+    HatchStyle75Percent,                   // = 15,
+    HatchStyle80Percent,                   // = 16,
+    HatchStyle90Percent,                   // = 17,
+    HatchStyleLightDownwardDiagonal,       // = 18,
+    HatchStyleLightUpwardDiagonal,         // = 19,
+    HatchStyleDarkDownwardDiagonal,        // = 20,
+    HatchStyleDarkUpwardDiagonal,          // = 21,
+    HatchStyleWideDownwardDiagonal,        // = 22,
+    HatchStyleWideUpwardDiagonal,          // = 23,
+    HatchStyleLightVertical,               // = 24,
+    HatchStyleLightHorizontal,             // = 25,
+    HatchStyleNarrowVertical,              // = 26,
+    HatchStyleNarrowHorizontal,            // = 27,
+    HatchStyleDarkVertical,                // = 28,
+    HatchStyleDarkHorizontal,              // = 29,
+    HatchStyleDashedDownwardDiagonal,      // = 30,
+    HatchStyleDashedUpwardDiagonal,        // = 31,
+    HatchStyleDashedHorizontal,            // = 32,
+    HatchStyleDashedVertical,              // = 33,
+    HatchStyleSmallConfetti,               // = 34,
+    HatchStyleLargeConfetti,               // = 35,
+    HatchStyleZigZag,                      // = 36,
+    HatchStyleWave,                        // = 37,
+    HatchStyleDiagonalBrick,               // = 38,
+    HatchStyleHorizontalBrick,             // = 39,
+    HatchStyleWeave,                       // = 40,
+    HatchStylePlaid,                       // = 41,
+    HatchStyleDivot,                       // = 42,
+    HatchStyleDottedGrid,                  // = 43,
+    HatchStyleDottedDiamond,               // = 44,
+    HatchStyleShingle,                     // = 45,
+    HatchStyleTrellis,                     // = 46,
+    HatchStyleSphere,                      // = 47,
+    HatchStyleSmallGrid,                   // = 48,
+    HatchStyleSmallCheckerBoard,           // = 49,
+    HatchStyleLargeCheckerBoard,           // = 50,
+    HatchStyleOutlinedDiamond,             // = 51,
+    HatchStyleSolidDiamond,                // = 52,
+
+    HatchStyleTotal                        // = 53,
+  );
+
+  DWORD = System.Types.DWORD;
+  SHORT = Smallint;
+
+  WrapModeMultiplatform = (
+    WrapModeTile,        // 0
+    WrapModeTileFlipX,   // 1
+    WrapModeTileFlipY,   // 2
+    WrapModeTileFlipXY,  // 3
+    WrapModeClamp        // 4
+  );
+  TWrapMode = WrapModeMultiplatform;
+
+  QualityMode = (
+    QualityModeInvalid   = -1,
+    QualityModeDefault   =  0,
+    QualityModeLow       =  1, // Best performance
+    QualityModeHigh      =  2  // Best rendering quality
+  );
+
+  SmoothingModeMultiplatform = (
+    SmoothingModeInvalid     = ord(QualityModeInvalid),
+    SmoothingModeDefault     = ord(QualityModeDefault),
+    SmoothingModeHighSpeed   = ord(QualityModeLow),
+    SmoothingModeHighQuality = ord(QualityModeHigh),
+    SmoothingModeNone,
+    SmoothingModeAntiAlias8x4,
+    SmoothingModeAntiAlias   = SmoothingModeAntiAlias8x4,
+    SmoothingModeAntiAlias8x8
+  );
+  TSmoothingMode = SmoothingModeMultiplatform;
+
+  UINT_PTR = System.UIntPtr;  // NativeUInt;
+  HDC = type UINT_PTR;
+  HBITMAP = type UINT_PTR;
+  HICON = type UINT_PTR;
+  HFONT = type UINT_PTR;
+  HPALETTE = type UINT_PTR;
+  HWND = type UINT_PTR;
+  BOOL = LongBool;
+  GpSolidFill = Pointer;
+
+  tagBITMAPINFOHEADER = record
+    biSize: DWORD;
+    biWidth: Longint;
+    biHeight: Longint;
+    biPlanes: Word;
+    biBitCount: Word;
+    biCompression: DWORD;
+    biSizeImage: DWORD;
+    biXPelsPerMeter: Longint;
+    biYPelsPerMeter: Longint;
+    biClrUsed: DWORD;
+    biClrImportant: DWORD;
+  end;
+
+  TBitmapInfoHeader = tagBITMAPINFOHEADER;
+
+  tagRGBQUAD = record
+    rgbBlue: Byte;
+    rgbGreen: Byte;
+    rgbRed: Byte;
+    rgbReserved: Byte;
+  end;
+
+  TRGBQuad = tagRGBQUAD;
+
+  tagBITMAPINFO = record
+    bmiHeader: TBitmapInfoHeader;
+    bmiColors: array[0..0] of TRGBQuad;
+  end;
+
+  BITMAPINFO = tagBITMAPINFO;
+
+  CombineMode = (
+    CombineModeReplace,     // 0
+    CombineModeIntersect,   // 1
+    CombineModeUnion,       // 2
+    CombineModeXor,         // 3
+    CombineModeExclude,     // 4
+    CombineModeComplement   // 5 (Exclude From)
+  );
+  TCombineMode = CombineMode;
+
+  Status = (
+    Ok,
+    GenericError,
+    InvalidParameter,
+    OutOfMemory,
+    ObjectBusy,
+    InsufficientBuffer,
+    NotImplemented,
+    Win32Error,
+    WrongState,
+    Aborted,
+    FileNotFound,
+    ValueOverflow,
+    AccessDenied,
+    UnknownImageFormat,
+    FontFamilyNotFound,
+    FontStyleNotFound,
+    NotTrueTypeFont,
+    UnsupportedGdiplusVersion,
+    GdiplusNotInitialized,
+    PropertyNotFound,
+    PropertyNotSupported
+  );
+  TStatus = Status;
+
+  TColorAdjustType = record
+    Default: ColorAdjustTypeMultiplatform;
+    Bitmap: ColorAdjustTypeMultiplatform;
+    Brush: ColorAdjustTypeMultiplatform;
+    Pen: ColorAdjustTypeMultiplatform;
+    Text: ColorAdjustTypeMultiplatform;
+    Count: ColorAdjustTypeMultiplatform;
+    Any: ColorAdjustTypeMultiplatform;
+  end;
+  {$ENDIF}
+
+  {$IFDEF MSWINDOWS}
   TColorAdjustType = record
     Default: ColorAdjustType;
     Bitmap: ColorAdjustType;
@@ -53,6 +254,7 @@ type
     Count: ColorAdjustType;
     Any: ColorAdjustType;
   end;
+  {$ENDIF}
 
   TColorMatrixFlag = record
     Default: ColorMatrixFlags;
@@ -675,6 +877,7 @@ type
     class function Yellow: CColor; static;
     class function YellowGreen: CColor; static;
 
+    {$IFDEF MSWINDOWS}
     class function FromArgb(argb: DWORD): CColor; overload; static;
     class function FromArgb(r,g,b: Byte): CColor; overload; static;
     class function FromArgb(a,r,g,b: Byte): CColor; overload; static;
@@ -685,11 +888,14 @@ type
     // Win32 method, not supported under DotNet!!
     function ToRgb: DWORD;
     class function FromRgb(Rgb: DWord): CColor; static;
+    {$ENDIF}
 
     class operator Equal(const a: CColor; const b: CColor): Boolean;
     class operator NotEqual(const a: CColor; const b: CColor): Boolean;
+    {$IFDEF MSWINDOWS}
     class operator Implicit(const AValue: CColor): TGPColor;
     class operator Implicit(AValue: TGPColor): CColor;
+    {$ENDIF}
     class operator implicit(const AValue: CColor) : CObject;
     class operator Explicit(const AValue: CObject) : CColor;
 
@@ -1005,8 +1211,10 @@ type
 
     class operator Equal(const a: CRectangle; const b: CRectangle): Boolean;
     class operator NotEqual(const a: CRectangle; const b: CRectangle): Boolean;
+    {$IFDEF MSWINDOWS}
     class operator Implicit(const AValue: CRectangle): TGPRect;
     class operator Implicit(AValue: TGPRect): CRectangle;
+    {$ENDIF}
     class operator Implicit(AValue: TRect): CRectangle;
     class operator Implicit(const AValue: CRectangle): TRect;
   end;
@@ -1020,6 +1228,7 @@ type
     class property ThreadData: IDictionary read get_ThreadData;
   end;
 
+  {$IFDEF MSWINDOWS}
   BufferedGraphicsContext = class;
 
   BufferedGraphics = class
@@ -1203,6 +1412,7 @@ type
     procedure Dispose;
     procedure SetWrapMode(mode: WrapMode);
   end;
+  {$ENDIF}
 
   FontFamily = interface(IBaseInterface)
     ['{9A1D32A8-2F8C-4BF2-BBD1-9B377D5C4716}']
@@ -1223,16 +1433,22 @@ type
 
     function get_NativeFamily: IntPtr;
 
+    {$IFDEF MSWINDOWS}
     constructor CreateGenericFontFamily(GP: TGPFontFamily);
+    {$ENDIF}
     constructor Create(nativeFamily: IntPtr); overload;
+    {$IFDEF MSWINDOWS}
     constructor Create(const name: CString; createDefaultOnFail: boolean); overload;
+    {$ENDIF}
 
   public
     function Equals(const Other: CObject): Boolean; override;
 
+    {$IFDEF MSWINDOWS}
     class function GenericSansSerif: FontFamily;
     class function GenericSerif: FontFamily;
     class function GenericMonospace: FontFamily;
+    {$ENDIF}
     function get_Name: CString;
   end;
 
@@ -1257,6 +1473,7 @@ type
     property &Unit: GraphicsUnit read get_Unit;
   end;
 
+  {$IFDEF MSWINDOWS}
   CFont = class(TBaseInterfacedObject, Font, ICloneable)
 
     strict private _fontFamily: FontFamily;
@@ -1614,8 +1831,315 @@ type
 
   CRegion = class(TGPRegion)
   end;
+  {$ENDIF}
 
 const
+
+  {$IFNDEF MSWINDOWS}
+  // Common color constants
+  aclAliceBlue            = $FFF0F8FF;
+  {$EXTERNALSYM aclAliceBlue}
+  aclAntiqueWhite         = $FFFAEBD7;
+  {$EXTERNALSYM aclAntiqueWhite}
+  aclAqua                 = $FF00FFFF;
+  {$EXTERNALSYM aclAqua}
+  aclAquamarine           = $FF7FFFD4;
+  {$EXTERNALSYM aclAquamarine}
+  aclAzure                = $FFF0FFFF;
+  {$EXTERNALSYM aclAzure}
+  aclBeige                = $FFF5F5DC;
+  {$EXTERNALSYM aclBeige}
+  aclBisque               = $FFFFE4C4;
+  {$EXTERNALSYM aclBisque}
+  aclBlack                = $FF000000;
+  {$EXTERNALSYM aclBlack}
+  aclBlanchedAlmond       = $FFFFEBCD;
+  {$EXTERNALSYM aclBlanchedAlmond}
+  aclBlue                 = $FF0000FF;
+  {$EXTERNALSYM aclBlue}
+  aclBlueViolet           = $FF8A2BE2;
+  {$EXTERNALSYM aclBlueViolet}
+  aclBrown                = $FFA52A2A;
+  {$EXTERNALSYM aclBrown}
+  aclBurlyWood            = $FFDEB887;
+  {$EXTERNALSYM aclBurlyWood}
+  aclCadetBlue            = $FF5F9EA0;
+  {$EXTERNALSYM aclCadetBlue}
+  aclChartreuse           = $FF7FFF00;
+  {$EXTERNALSYM aclChartreuse}
+  aclChocolate            = $FFD2691E;
+  {$EXTERNALSYM aclChocolate}
+  aclCoral                = $FFFF7F50;
+  {$EXTERNALSYM aclCoral}
+  aclCornflowerBlue       = $FF6495ED;
+  {$EXTERNALSYM aclCornflowerBlue}
+  aclCornsilk             = $FFFFF8DC;
+  {$EXTERNALSYM aclCornsilk}
+  aclCrimson              = $FFDC143C;
+  {$EXTERNALSYM aclCrimson}
+  aclCyan                 = $FF00FFFF;
+  {$EXTERNALSYM aclCyan}
+  aclDarkBlue             = $FF00008B;
+  {$EXTERNALSYM aclDarkBlue}
+  aclDarkCyan             = $FF008B8B;
+  {$EXTERNALSYM aclDarkCyan}
+  aclDarkGoldenrod        = $FFB8860B;
+  {$EXTERNALSYM aclDarkGoldenrod}
+  aclDarkGray             = $FFA9A9A9;
+  {$EXTERNALSYM aclDarkGray}
+  aclDarkGreen            = $FF006400;
+  {$EXTERNALSYM aclDarkGreen}
+  aclDarkKhaki            = $FFBDB76B;
+  {$EXTERNALSYM aclDarkKhaki}
+  aclDarkMagenta          = $FF8B008B;
+  {$EXTERNALSYM aclDarkMagenta}
+  aclDarkOliveGreen       = $FF556B2F;
+  {$EXTERNALSYM aclDarkOliveGreen}
+  aclDarkOrange           = $FFFF8C00;
+  {$EXTERNALSYM aclDarkOrange}
+  aclDarkOrchid           = $FF9932CC;
+  {$EXTERNALSYM aclDarkOrchid}
+  aclDarkRed              = $FF8B0000;
+  {$EXTERNALSYM aclDarkRed}
+  aclDarkSalmon           = $FFE9967A;
+  {$EXTERNALSYM aclDarkSalmon}
+  aclDarkSeaGreen         = $FF8FBC8B;
+  {$EXTERNALSYM aclDarkSeaGreen}
+  aclDarkSlateBlue        = $FF483D8B;
+  {$EXTERNALSYM aclDarkSlateBlue}
+  aclDarkSlateGray        = $FF2F4F4F;
+  {$EXTERNALSYM aclDarkSlateGray}
+  aclDarkTurquoise        = $FF00CED1;
+  {$EXTERNALSYM aclDarkTurquoise}
+  aclDarkViolet           = $FF9400D3;
+  {$EXTERNALSYM aclDarkViolet}
+  aclDeepPink             = $FFFF1493;
+  {$EXTERNALSYM aclDeepPink}
+  aclDeepSkyBlue          = $FF00BFFF;
+  {$EXTERNALSYM aclDeepSkyBlue}
+  aclDimGray              = $FF696969;
+  {$EXTERNALSYM aclDimGray}
+  aclDodgerBlue           = $FF1E90FF;
+  {$EXTERNALSYM aclDodgerBlue}
+  aclFirebrick            = $FFB22222;
+  {$EXTERNALSYM aclFirebrick}
+  aclFloralWhite          = $FFFFFAF0;
+  {$EXTERNALSYM aclFloralWhite}
+  aclForestGreen          = $FF228B22;
+  {$EXTERNALSYM aclForestGreen}
+  aclFuchsia              = $FFFF00FF;
+  {$EXTERNALSYM aclFuchsia}
+  aclGainsboro            = $FFDCDCDC;
+  {$EXTERNALSYM aclGainsboro}
+  aclGhostWhite           = $FFF8F8FF;
+  {$EXTERNALSYM aclGhostWhite}
+  aclGold                 = $FFFFD700;
+  {$EXTERNALSYM aclGold}
+  aclGoldenrod            = $FFDAA520;
+  {$EXTERNALSYM aclGoldenrod}
+  aclGray                 = $FF808080;
+  {$EXTERNALSYM aclGray}
+  aclGreen                = $FF008000;
+  {$EXTERNALSYM aclGreen}
+  aclGreenYellow          = $FFADFF2F;
+  {$EXTERNALSYM aclGreenYellow}
+  aclHoneydew             = $FFF0FFF0;
+  {$EXTERNALSYM aclHoneydew}
+  aclHotPink              = $FFFF69B4;
+  {$EXTERNALSYM aclHotPink}
+  aclIndianRed            = $FFCD5C5C;
+  {$EXTERNALSYM aclIndianRed}
+  aclIndigo               = $FF4B0082;
+  {$EXTERNALSYM aclIndigo}
+  aclIvory                = $FFFFFFF0;
+  {$EXTERNALSYM aclIvory}
+  aclKhaki                = $FFF0E68C;
+  {$EXTERNALSYM aclKhaki}
+  aclLavender             = $FFE6E6FA;
+  {$EXTERNALSYM aclLavender}
+  aclLavenderBlush        = $FFFFF0F5;
+  {$EXTERNALSYM aclLavenderBlush}
+  aclLawnGreen            = $FF7CFC00;
+  {$EXTERNALSYM aclLawnGreen}
+  aclLemonChiffon         = $FFFFFACD;
+  {$EXTERNALSYM aclLemonChiffon}
+  aclLightBlue            = $FFADD8E6;
+  {$EXTERNALSYM aclLightBlue}
+  aclLightCoral           = $FFF08080;
+  {$EXTERNALSYM aclLightCoral}
+  aclLightCyan            = $FFE0FFFF;
+  {$EXTERNALSYM aclLightCyan}
+  aclLightGoldenrodYellow = $FFFAFAD2;
+  {$EXTERNALSYM aclLightGoldenrodYellow}
+  aclLightGray            = $FFD3D3D3;
+  {$EXTERNALSYM aclLightGray}
+  aclLightGreen           = $FF90EE90;
+  {$EXTERNALSYM aclLightGreen}
+  aclLightPink            = $FFFFB6C1;
+  {$EXTERNALSYM aclLightPink}
+  aclLightSalmon          = $FFFFA07A;
+  {$EXTERNALSYM aclLightSalmon}
+  aclLightSeaGreen        = $FF20B2AA;
+  {$EXTERNALSYM aclLightSeaGreen}
+  aclLightSkyBlue         = $FF87CEFA;
+  {$EXTERNALSYM aclLightSkyBlue}
+  aclLightSlateGray       = $FF778899;
+  {$EXTERNALSYM aclLightSlateGray}
+  aclLightSteelBlue       = $FFB0C4DE;
+  {$EXTERNALSYM aclLightSteelBlue}
+  aclLightYellow          = $FFFFFFE0;
+  {$EXTERNALSYM aclLightYellow}
+  aclLime                 = $FF00FF00;
+  {$EXTERNALSYM aclLime}
+  aclLimeGreen            = $FF32CD32;
+  {$EXTERNALSYM aclLimeGreen}
+  aclLinen                = $FFFAF0E6;
+  {$EXTERNALSYM aclLinen}
+  aclMagenta              = $FFFF00FF;
+  {$EXTERNALSYM aclMagenta}
+  aclMaroon               = $FF800000;
+  {$EXTERNALSYM aclMaroon}
+  aclMediumAquamarine     = $FF66CDAA;
+  {$EXTERNALSYM aclMediumAquamarine}
+  aclMediumBlue           = $FF0000CD;
+  {$EXTERNALSYM aclMediumBlue}
+  aclMediumOrchid         = $FFBA55D3;
+  {$EXTERNALSYM aclMediumOrchid}
+  aclMediumPurple         = $FF9370DB;
+  {$EXTERNALSYM aclMediumPurple}
+  aclMediumSeaGreen       = $FF3CB371;
+  {$EXTERNALSYM aclMediumSeaGreen}
+  aclMediumSlateBlue      = $FF7B68EE;
+  {$EXTERNALSYM aclMediumSlateBlue}
+  aclMediumSpringGreen    = $FF00FA9A;
+  {$EXTERNALSYM aclMediumSpringGreen}
+  aclMediumTurquoise      = $FF48D1CC;
+  {$EXTERNALSYM aclMediumTurquoise}
+  aclMediumVioletRed      = $FFC71585;
+  {$EXTERNALSYM aclMediumVioletRed}
+  aclMidnightBlue         = $FF191970;
+  {$EXTERNALSYM aclMidnightBlue}
+  aclMintCream            = $FFF5FFFA;
+  {$EXTERNALSYM aclMintCream}
+  aclMistyRose            = $FFFFE4E1;
+  {$EXTERNALSYM aclMistyRose}
+  aclMoccasin             = $FFFFE4B5;
+  {$EXTERNALSYM aclMoccasin}
+  aclNavajoWhite          = $FFFFDEAD;
+  {$EXTERNALSYM aclNavajoWhite}
+  aclNavy                 = $FF000080;
+  {$EXTERNALSYM aclNavy}
+  aclOldLace              = $FFFDF5E6;
+  {$EXTERNALSYM aclOldLace}
+  aclOlive                = $FF808000;
+  {$EXTERNALSYM aclOlive}
+  aclOliveDrab            = $FF6B8E23;
+  {$EXTERNALSYM aclOliveDrab}
+  aclOrange               = $FFFFA500;
+  {$EXTERNALSYM aclOrange}
+  aclOrangeRed            = $FFFF4500;
+  {$EXTERNALSYM aclOrangeRed}
+  aclOrchid               = $FFDA70D6;
+  {$EXTERNALSYM aclOrchid}
+  aclPaleGoldenrod        = $FFEEE8AA;
+  {$EXTERNALSYM aclPaleGoldenrod}
+  aclPaleGreen            = $FF98FB98;
+  {$EXTERNALSYM aclPaleGreen}
+  aclPaleTurquoise        = $FFAFEEEE;
+  {$EXTERNALSYM aclPaleTurquoise}
+  aclPaleVioletRed        = $FFDB7093;
+  {$EXTERNALSYM aclPaleVioletRed}
+  aclPapayaWhip           = $FFFFEFD5;
+  {$EXTERNALSYM aclPapayaWhip}
+  aclPeachPuff            = $FFFFDAB9;
+  {$EXTERNALSYM aclPeachPuff}
+  aclPeru                 = $FFCD853F;
+  {$EXTERNALSYM aclPeru}
+  aclPink                 = $FFFFC0CB;
+  {$EXTERNALSYM aclPink}
+  aclPlum                 = $FFDDA0DD;
+  {$EXTERNALSYM aclPlum}
+  aclPowderBlue           = $FFB0E0E6;
+  {$EXTERNALSYM aclPowderBlue}
+  aclPurple               = $FF800080;
+  {$EXTERNALSYM aclPurple}
+  aclRed                  = $FFFF0000;
+  {$EXTERNALSYM aclRed}
+  aclRosyBrown            = $FFBC8F8F;
+  {$EXTERNALSYM aclRosyBrown}
+  aclRoyalBlue            = $FF4169E1;
+  {$EXTERNALSYM aclRoyalBlue}
+  aclSaddleBrown          = $FF8B4513;
+  {$EXTERNALSYM aclSaddleBrown}
+  aclSalmon               = $FFFA8072;
+  {$EXTERNALSYM aclSalmon}
+  aclSandyBrown           = $FFF4A460;
+  {$EXTERNALSYM aclSandyBrown}
+  aclSeaGreen             = $FF2E8B57;
+  {$EXTERNALSYM aclSeaGreen}
+  aclSeaShell             = $FFFFF5EE;
+  {$EXTERNALSYM aclSeaShell}
+  aclSienna               = $FFA0522D;
+  {$EXTERNALSYM aclSienna}
+  aclSilver               = $FFC0C0C0;
+  {$EXTERNALSYM aclSilver}
+  aclSkyBlue              = $FF87CEEB;
+  {$EXTERNALSYM aclSkyBlue}
+  aclSlateBlue            = $FF6A5ACD;
+  {$EXTERNALSYM aclSlateBlue}
+  aclSlateGray            = $FF708090;
+  {$EXTERNALSYM aclSlateGray}
+  aclSnow                 = $FFFFFAFA;
+  {$EXTERNALSYM aclSnow}
+  aclSpringGreen          = $FF00FF7F;
+  {$EXTERNALSYM aclSpringGreen}
+  aclSteelBlue            = $FF4682B4;
+  {$EXTERNALSYM aclSteelBlue}
+  aclTan                  = $FFD2B48C;
+  {$EXTERNALSYM aclTan}
+  aclTeal                 = $FF008080;
+  {$EXTERNALSYM aclTeal}
+  aclThistle              = $FFD8BFD8;
+  {$EXTERNALSYM aclThistle}
+  aclTomato               = $FFFF6347;
+  {$EXTERNALSYM aclTomato}
+  aclTransparent          = $00FFFFFF;
+  {$EXTERNALSYM aclTransparent}
+  aclTurquoise            = $FF40E0D0;
+  {$EXTERNALSYM aclTurquoise}
+  aclViolet               = $FFEE82EE;
+  {$EXTERNALSYM aclViolet}
+  aclWheat                = $FFF5DEB3;
+  {$EXTERNALSYM aclWheat}
+  aclWhite                = $FFFFFFFF;
+  {$EXTERNALSYM aclWhite}
+  aclWhiteSmoke           = $FFF5F5F5;
+  {$EXTERNALSYM aclWhiteSmoke}
+  aclYellow               = $FFFFFF00;
+  {$EXTERNALSYM aclYellow}
+  aclYellowGreen          = $FF9ACD32;
+  {$EXTERNALSYM aclYellowGreen}
+
+  // Shift count and bit mask for A, R, G, B components
+  AlphaShift  = 24;
+  {$EXTERNALSYM AlphaShift}
+  RedShift    = 16;
+  {$EXTERNALSYM RedShift}
+  GreenShift  = 8;
+  {$EXTERNALSYM GreenShift}
+  BlueShift   = 0;
+  {$EXTERNALSYM BlueShift}
+
+  AlphaMask   = $ff000000;
+  {$EXTERNALSYM AlphaMask}
+  RedMask     = $00ff0000;
+  {$EXTERNALSYM RedMask}
+  GreenMask   = $0000ff00;
+  {$EXTERNALSYM GreenMask}
+  BlueMask    = $000000ff;
+  {$EXTERNALSYM BlueMask}
+  {$ENDIF}
+
   ColorAdjustType: TColorAdjustType = (
     Default: ColorAdjustTypeDefault;
     Bitmap: ColorAdjustTypeBitmap;
@@ -1793,6 +2317,7 @@ begin
 end;
 
 { Brushes }
+{$IFDEF MSWINDOWS}
 class function Brushes.get_Red: CBrush;
 var
   brush: CObject;
@@ -1846,6 +2371,7 @@ begin
 
   Result := TObject(brush) as CBrush;
 end;
+{$ENDIF}
 
 { LineCap }
 class operator LineCap.Equal(const L, R: LineCap) : Boolean;
@@ -1869,6 +2395,7 @@ begin
 end;
 
 { CBrush }
+{$IFDEF MSWINDOWS}
 procedure CBrush.Dispose;
 begin
   Free;
@@ -2553,6 +3080,7 @@ begin
   Result.Width := Width;
   Result.Height := Height;
 end;
+{$ENDIF}
 
 {PenAlignment}
 class operator PenAlignment.Implicit(AValue: Integer): PenAlignment;
@@ -2931,22 +3459,30 @@ end;
 
 function CColor.get_A: Byte;
 begin
+  {$IFDEF MSWINDOWS}
   Result := GetAlpha(value);
+  {$ENDIF}
 end;
 
 function CColor.get_B: Byte;
 begin
+  {$IFDEF MSWINDOWS}
   Result := GetBlue(value);
+  {$ENDIF}
 end;
 
 function CColor.get_G: Byte;
 begin
+  {$IFDEF MSWINDOWS}
   Result := GetGreen(value);
+  {$ENDIF}
 end;
 
 function CColor.get_R: Byte;
 begin
+  {$IFDEF MSWINDOWS}
   Result := GetRed(value);
+  {$ENDIF}
 end;
 
 function CColor.get_Name: CString;
@@ -2976,6 +3512,7 @@ begin
   end
 end;
 
+{$IFDEF MSWINDOWS}
 class function CColor.FromArgb(argb: DWORD): CColor;
 begin
   Result.knownColor := 0;
@@ -3025,6 +3562,7 @@ function CColor.ToRgb: DWORD;
 begin
   Result := ARGBToColorRef(value);
 end;
+{$ENDIF}
 
 class operator CColor.Equal(const a: CColor; const b: CColor): Boolean;
 begin
@@ -3036,6 +3574,7 @@ begin
   Result := (a.value <> b.value) or (a.state <> b.state);
 end;
 
+{$IFDEF MSWINDOWS}
 class operator CColor.Implicit(const AValue: CColor): TGPColor;
 begin
   Result := AValue.value
@@ -3047,6 +3586,7 @@ begin
   Result.value := AValue;
   Result.state := StateARGBValueValid;
 end;
+{$ENDIF}
 
 class operator CColor.implicit(const AValue: CColor) : CObject;
 begin
@@ -3062,7 +3602,9 @@ end;
 // Not entirely .Net style of coding but makes live easier anyway.
 class function CColor.GetType: &Type;
 begin
+  {$IFDEF MSWINDOWS}
   Result := Global.GetTypeOf(TypeInfo(CColor));
+  {$ENDIF}
 end;
 
 function CColor.ToString: CString;
@@ -3917,6 +4459,7 @@ begin
 end;
 
 { SystemBrushes }
+{$IFDEF MSWINDOWS}
 class function SystemBrushes.FromSystemColor(const c: CColor): CBrush;
 var
   brushArray: ArrayList;
@@ -3971,7 +4514,6 @@ begin
 end;
 
 { StringFormat }
-
 function StringFormat.get_Alignment: StringAlignmentFlag;
 begin
   Result := StringAlignmentFlag(inherited GetAlignment);
@@ -4022,6 +4564,7 @@ procedure ImageAttributes.SetWrapMode(mode: WrapMode);
 begin
   inherited SetWrapMode(mode, CColor.Black, false);
 end;
+{$ENDIF}
 
 { CFontFamily }
 function CFontFamily.get_NativeFamily: IntPtr;
@@ -4030,6 +4573,7 @@ begin
 end;
 
 { CFont }
+{$IFDEF MSWINDOWS}
 constructor CFont.Create(internalFont: TGpFont);
 begin
   nativeFont := internalFont;
@@ -4232,30 +4776,36 @@ constructor CFontFamily.CreateGenericFontFamily(GP: TGPFontFamily);
 begin
   _NativeFamily := IntPtr.CreateUnmanagedPointer(GP);
 end;
+{$ENDIF}
 
 constructor CFontFamily.Create(nativeFamily: IntPtr);
 begin
   _NativeFamily := nativeFamily;
 end;
 
+{$IFDEF MSWINDOWS}
 constructor CFontFamily.Create(const name: CString; createDefaultOnFail: boolean);
 begin
   _NativeFamily := TGPFontFamily.Create(name);
 end;
+{$ENDIF}
 
 function CFontFamily.Equals(const Other: CObject): Boolean;
 var
   f: FontFamily;
 
 begin
+  {$IFDEF MSWINDOWS}
   if Other.IsInterface then
   begin
     f := Interfaces.ToInterface(Other) as FontFamily;
     Result := CString.Equals(get_Name, f.Name);
   end else
+  {$ENDIF}
     Result := False;
 end;
 
+{$IFDEF MSWINDOWS}
 class function CFontFamily.GenericMonospace: FontFamily;
 begin
   if _GenericMonospace = nil then
@@ -4278,14 +4828,19 @@ begin
   Result := _GenericSerif;
 end;
 
+{$ENDIF}
+
 function CFontFamily.get_Name: CString;
 var
   _name: string;
 begin
+  {$IFDEF MSWINDOWS}
   VerifyLastResult(TGPFontFamily(Pointer(_NativeFamily)).GetFamilyName(_name));
+  {$ENDIF}
   Result := _name;
 end;
 
+{$IFDEF MSWINDOWS}
 { CGraphics }
 function CGraphics.get_Clip: CRegion;
 begin
@@ -4725,6 +5280,7 @@ begin
   inherited SetClip(gpr, combineMode);
   VerifyLastResult(lastResult);  
 end;
+{$ENDIF}
 
 constructor CPoint.Create(AX, AY: Integer);
 begin
@@ -4806,6 +5362,7 @@ begin
 end;
 
 { GraphicsPath }
+{$IFDEF MSWINDOWS}
 procedure GraphicsPath.AddLines(const Points: array of CPoint);
 var
   pPoints: PGPPoint;
@@ -4896,6 +5453,7 @@ procedure Pen.set_Width(const Value: Single);
 begin
   inherited SetWidth(Value);
 end;
+{$ENDIF}
 
 { CRectangle }
 
@@ -4930,7 +5488,7 @@ begin
   Result := (((_x <= x) and (x < (_x + _width))) and (_y <= y)) and (y < (_y + _height));
 end;
 
-constructor CRectangle.Create(X, Y, Width, Height: LongInt);
+constructor CRectangle.Create(X, Y, Width, Height: {$IFDEF MSWINDOWS}LongInt{$ELSE}Integer{$ENDIF});
 begin
   _x := X;
   _y := Y;
@@ -4967,7 +5525,7 @@ begin
   _height := asize.Height;
 end;
 
-function CRectangle.get_Bottom: LongInt;
+function CRectangle.get_Bottom: {$IFDEF MSWINDOWS}LongInt{$ELSE}Integer{$ENDIF};
 begin
   Result := _y + _height;
 end;
@@ -4977,7 +5535,7 @@ begin
   Result := (_width<=0) or (_height<=0);
 end;
 
-function CRectangle.get_Left: LongInt;
+function CRectangle.get_Left: {$IFDEF MSWINDOWS}LongInt{$ELSE}Integer{$ENDIF};
 begin
   Result := _x;
 end;
@@ -4987,7 +5545,7 @@ begin
   Result := CPoint.Create(_x, _y);
 end;
 
-function CRectangle.get_Right: LongInt;
+function CRectangle.get_Right: {$IFDEF MSWINDOWS}LongInt{$ELSE}Integer{$ENDIF};
 begin
   Result := _x + _width;
 end;
@@ -4997,12 +5555,12 @@ begin
   Result := CSize.Create(_width, _height);
 end;
 
-function CRectangle.get_Top: LongInt;
+function CRectangle.get_Top: {$IFDEF MSWINDOWS}LongInt{$ELSE}Integer{$ENDIF};
 begin
   Result := _y;
 end;
 
-function CRectangle.get_width: LongInt;
+function CRectangle.get_width: {$IFDEF MSWINDOWS}LongInt{$ELSE}Integer{$ENDIF};
 begin
   Result := _width;
 end;
@@ -5070,6 +5628,7 @@ begin
   Result := not (a = b);
 end;
 
+{$IFDEF MSWINDOWS}
 class operator CRectangle.Implicit(const AValue: CRectangle): TGPRect;
 begin
   Result.X := AValue.X;
@@ -5085,6 +5644,7 @@ begin
   Result.Width := AValue.Width;
   Result.Height := AValue.Height;
 end;
+{$ENDIF}
 
 class operator CRectangle.Implicit(AValue: TRect): CRectangle;
 begin
@@ -5279,6 +5839,7 @@ end;
 
 initialization
 begin
+  {$IFDEF MSWINDOWS}
   SystemColors.ActiveBorder := ColorRefToARGB(GetSysColor(COLOR_ACTIVEBORDER));
   SystemColors.ActiveCaption := ColorRefToARGB(GetSysColor(COLOR_ACTIVECAPTION));
   SystemColors.ActiveCaptionText := ColorRefToARGB(GetSysColor(COLOR_CAPTIONTEXT));
@@ -5318,6 +5879,7 @@ begin
   SystemColors.Window  := ColorRefToARGB(GetSysColor(COLOR_WINDOW));
   SystemColors.WindowFrame := ColorRefToARGB(GetSysColor(COLOR_WINDOWFRAME));
   SystemColors.WindowText := ColorRefToARGB(GetSysColor(COLOR_WINDOWTEXT));
+  {$ENDIF}
 
 //{$IFNDEF DELPHIXE2_UP}
 //{$IFDEF DELPHI11_UP}
@@ -5328,7 +5890,9 @@ end;
 
 finalization
 begin
+{$IFDEF MSWINDOWS}
   BufferedGraphicsManager.OnShutDown(nil, EventArgs.Empty);
+{$ENDIF}
 end;
 
 end.

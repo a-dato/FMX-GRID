@@ -6,12 +6,15 @@ uses
   System.Classes, FMX.Layouts;
 
 type
+  TNavigatorType = (ControlNavigator, TabNavigator, ListControlNavigator);
+
   IKeyNavigator = interface
     ['{B9799D8D-3F74-4FB8-9D57-92F67C6C2F54}']
     function  TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
     function  GetComponent: TComponent;
     function  AvailableNavigationKeys: TArray<Word>;
     function  GetScrollControl: TCustomScrollBox;
+    function  NavigatorType: TNavigatorType;
   end;
 
   ISelectorKeyNavigator = interface(IkeyNavigator)
