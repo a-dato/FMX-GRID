@@ -1561,7 +1561,7 @@ type
     procedure Assign(Source: TPersistent); override;
     // procedure Assign(const Source: IBaseInterface); reintroduce; virtual;
     function  CellFromLocation(const Location: TPointF) : ITreeCell;
-    procedure EditActiveCell(SetFocus: Boolean); virtual;
+    function  EditActiveCell(SetFocus: Boolean): Boolean; virtual;
     procedure EditCell(const Cell: ITreeCell; const DataItem: CObject; SetFocus: Boolean); virtual;
     function  BeginEdit: Boolean; virtual;
     function  BeginRowEdit(const Row: ITreeRow): Boolean; virtual;
@@ -3639,7 +3639,7 @@ function TCustomTreeControl.TryHandleKeyNavigation(var Key: Word; Shift: TShiftS
 begin
   var char: WideChar := ' ';
   KeyDown(key, char, Shift);
-  Result := key = 0;
+  if key <> 0 then Exit(False);
 end;
 
 function TCustomTreeControl.GetComponent: TComponent;
@@ -3650,8 +3650,8 @@ end;
 function TCustomTreeControl.AvailableNavigationKeys: TArray<Word>;
 begin
   if (TreeOption.AllowCellSelection in Self.Options) then
-    Result := [vkUp, vkDown, vkPrior, vkNext, vkLeft, vkRight, vkHome, vkEnd] else
-    Result := [vkUp, vkDown, vkPrior, vkNext];
+    Result := [vkUp, vkDown, vkPrior, vkNext, vkReturn, vkEscape, vkLeft, vkRight, vkHome, vkEnd] else
+    Result := [vkUp, vkDown, vkPrior, vkNext, vkReturn, vkEscape];
 end;
 
 function TCustomTreeControl.GetHitInfo(X, Y: Single): ITreeHitInfo;
@@ -6483,13 +6483,13 @@ begin
   end;
 end;
 
-procedure TCustomTreeControl.EditActiveCell(SetFocus: Boolean);
+function TCustomTreeControl.EditActiveCell(SetFocus: Boolean): Boolean;
 var
   dataItem: CObject;
 
 begin
   if not Enabled or IsEditing or (TreeOption.ReadOnly in _Options) then
-    Exit;
+    Exit(False);
 
   Initialize;
   UpdateContents(False);
@@ -6500,18 +6500,19 @@ begin
   var r := Row;
 
   if (r = nil) or not r.Enabled then
-    Exit;
+    Exit(False);
 
   // Cell being edited
   var cell : ITreeCell := r.Cells[Column];
 
   if not cell.Column.Enabled or (cell.Column is TFMXTreeCheckboxColumn) then
-    Exit;
+    Exit(False);
 
   if not TreeRowList.CanEdit(cell) or not BeginEdit then
-    Exit;
+    Exit(False);
 
   EditCell(Cell, dataItem, SetFocus);
+  Result := True;
 end;
 
 procedure TCustomTreeControl.AlignViewToCurrent(const SavedTopRow: ITreeRow);
@@ -7467,8 +7468,19 @@ begin
           SelectCell(_KeyCursorCurrentRowIndex, _KeyCursorCurrentCellIndex, False, False, True);
           Key := 0;
         end
-        else
-          EditActiveCell(True);
+        else if EditActiveCell(True) then
+          Key := 0
+        // "select" the current row
+        else if Assigned(Self.OnDblClick) then
+        begin
+          Self.OnDblClick(Self);
+          Key := 0;
+        end
+        else if Assigned(Self.OnClick) then
+        begin
+          Self.OnClick(Self);
+          Key := 0;
+        end;
       end;
 
       vkInsert:
