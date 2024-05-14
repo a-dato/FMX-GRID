@@ -3,14 +3,14 @@ unit ADato.KeyNavigator.intf;
 interface
 
 uses
-  System.Classes, FMX.Layouts;
+  System.Classes, FMX.Layouts, FMX.Controls;
 
 type
   TNavigatorType = (ControlNavigator, TabNavigator, ListControlNavigator);
 
   IKeyNavigator = interface
     ['{B9799D8D-3F74-4FB8-9D57-92F67C6C2F54}']
-    function  TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
+    function  TryHandleKeyNavigation(var Key: Word; Shift: TShiftState; const Current: TControl): Boolean;
     function  GetComponent: TComponent;
     function  AvailableNavigationKeys: TArray<Word>;
     function  GetScrollControl: TCustomScrollBox;

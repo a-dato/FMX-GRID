@@ -1154,8 +1154,7 @@ type
     TScrollableRowControl<ITreeRow>,
     ITreeControl,
     IFreeNotification,
-    ICellEditorSink,
-    IKeyNavigator)
+    ICellEditorSink)
   strict private
   type  // For OnCompareRows and OnCompareColumnCells events, compares DataItem of rows and compares cellData of 2 cells
     TComparerForEvents = class(TBaseInterfacedObject, IComparer<CObject>)
@@ -1309,13 +1308,8 @@ type
 
     procedure KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
 
-    // IKeyNavigator
   public
     function  TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
-    function  AvailableNavigationKeys: TArray<Word>;
-    function  GetComponent: TComponent;
-    function  GetScrollControl: TCustomScrollBox;
-    function  NavigatorType: TNavigatorType;
 
   protected
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
@@ -3407,11 +3401,6 @@ begin
   end;
 end;
 
-function TCustomTreeControl.GetScrollControl: TCustomScrollBox;
-begin
-  Result := Self;
-end;
-
 function TCustomTreeControl.GetSelectableCell(
   const Cells: ITreeCellList;
   cellIndex: Integer): ITreeCell;
@@ -3614,19 +3603,7 @@ function TCustomTreeControl.TryHandleKeyNavigation(var Key: Word; Shift: TShiftS
 begin
   var char: WideChar := ' ';
   KeyDown(key, char, Shift);
-  if key <> 0 then Exit(False);
-end;
-
-function TCustomTreeControl.GetComponent: TComponent;
-begin
-  Result := Self;
-end;
-
-function TCustomTreeControl.AvailableNavigationKeys: TArray<Word>;
-begin
-  if (TreeOption.AllowCellSelection in Self.Options) then
-    Result := [vkUp, vkDown, vkPrior, vkNext, vkReturn, vkEscape, vkLeft, vkRight, vkHome, vkEnd] else
-    Result := [vkUp, vkDown, vkPrior, vkNext, vkReturn, vkEscape];
+  Result := Key = 0;
 end;
 
 function TCustomTreeControl.GetHitInfo(X, Y: Single): ITreeHitInfo;
@@ -7068,11 +7045,6 @@ begin
         Exit(_View[i]);
 
   Exit(nil);
-end;
-
-function TCustomTreeControl.NavigatorType: TNavigatorType;
-begin
-  Result := TNavigatorType.ListControlNavigator;
 end;
 
 procedure TCustomTreeControl.Notification(AComponent: TComponent;
