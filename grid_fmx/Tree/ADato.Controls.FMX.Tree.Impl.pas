@@ -11404,11 +11404,10 @@ begin
     Result := tree.Model.ObjectModel.GetType
   else if not _itemType.IsUnknown then
     Result := _itemType
+  else if (TreeOption.AssumeObjectTypesDiffer in tree.Options) or (_data.Count = 0) then
+    Result := &Type.Unknown
   else
-  begin
-    if (TreeOption.AssumeObjectTypesDiffer in tree.Options) or (_data.Count = 0) then Exit;
     Result := _data[0].GetType;
-  end;
 end;
 
 procedure TTreeRowList.InitializeColumnPropertiesFromColumns;
@@ -11652,7 +11651,7 @@ begin
 
   typeData := GetItemType;
 
-  if not typeData.Equals(treeControl._ColumnPropertiesTypeData) then
+  if not typeData.IsUnknown and not typeData.Equals(treeControl._ColumnPropertiesTypeData) then
   begin
     BeginUpdate;
     try

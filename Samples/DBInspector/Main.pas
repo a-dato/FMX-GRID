@@ -140,6 +140,10 @@ type
     function GetConnectionText: string;
     procedure InitializeFrameForTab(Tab: TTabItem);
     procedure UpdateConnectionForTab(Tab: TTabItem; OverrideExistingConnection: Boolean);
+
+    function  DispatchDialogKey(const AKey: Word; const AKeyChar: WideChar; const AShift: TShiftState): Boolean; override;
+    procedure IsDialogKey(const Key: Word; const KeyChar: WideChar; const Shift: TShiftState; var IsDialog: Boolean); override;
+
   public
     { Public declarations }
   end;
@@ -213,7 +217,7 @@ implementation
 
 uses Login, FireDAC.VCLUI.ConnEdit, System.Rtti, System.Math, CopyData,
   FMX.Clipboard, FMX.Platform, FMX.Platform.Win, Winapi.Windows,
-  Winapi.Messages;
+  Winapi.Messages, FMX.Memo;
 
 procedure TfrmInspector.FormDestroy(Sender: TObject);
 begin
@@ -469,6 +473,22 @@ begin
   end;
 end;
 
+function TfrmInspector.DispatchDialogKey(const AKey: Word; const AKeyChar: WideChar; const AShift: TShiftState): Boolean;
+begin
+  if (ActiveControl is TMemo) and (AKey = vkTab) then
+  begin
+    Result := True;
+    var c: IControl;
+    if Supports(ActiveControl, IControl, c) then
+    begin
+      var kw: Word := Word(#9);
+      var kc: WideChar := #9;
+      c.KeyDown(kw, kc, AShift);
+    end;
+  end else
+    Result := inherited;
+end;
+
 procedure TfrmInspector.ExportClicked(Sender: TObject);
 //var
 //  Item, NewItem: TListItem;
@@ -623,6 +643,14 @@ begin
   Tab.TagObject := frame;
   Tab.StyleLookup := 'CloseButtonStyle';
   (Tab as TStyledControl).StylesData['CloseButton.OnClick'] := TValue.From<TNotifyEvent>(TabCloseButtonClicked);
+end;
+
+procedure TfrmInspector.IsDialogKey(const Key: Word; const KeyChar: WideChar; const Shift: TShiftState; var IsDialog: Boolean);
+begin
+  // Capture tab
+  if (ActiveControl is TMemo) and (Key = vkTab) then
+    IsDialog := True else
+    inherited;
 end;
 
 procedure TfrmInspector.UpdateConnectionForTab(Tab: TTabItem; OverrideExistingConnection: Boolean);

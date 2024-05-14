@@ -5825,7 +5825,7 @@ begin
                                                 begin
                                                   if cmp.LayoutColumn <> nil then
                                                     Result := cmp.LayoutColumn.Equals(layoutColumn) else
-                                                    Result := CString.Equals(cmp.PropertyDescriptor, column.PropertyName);
+                                                    Result := not CString.IsNullOrEmpty(column.PropertyName) and CString.Equals(cmp.PropertyDescriptor, column.PropertyName);
                                                 end);
           if descriptor <> nil then
           begin

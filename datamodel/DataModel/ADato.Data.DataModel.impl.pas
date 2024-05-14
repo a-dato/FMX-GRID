@@ -2003,14 +2003,9 @@ end;
 
 procedure TDataModel.EndUpdate;
 begin
-// Old: not thread safe
-//  if TInterlocked.Decrement(_UpdateCount) = 0 then
-//    OnListReset;
-
   if TInterlocked.Decrement(_UpdateCount) = 0 then
     if TThread.Current.ThreadID = MainThreadID then
       OnListReset;
-    // TThread.Queue(nil, procedure begin OnListReset; end);
 end;
 
 procedure TDataModel.FillDataModel();
