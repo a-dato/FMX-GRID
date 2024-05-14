@@ -28,12 +28,6 @@ type
     procedure KeyDown(var Key: Word; var KeyChar: System.WideChar; Shift: TShiftState); override;
   end;
 
-  // set initial values for TText
-  TTextOverride = class(TText)
-  public
-    procedure AfterConstruction; override;
-  end;
-
   function GetTextControl(CellControl: TControl): IControl; //TText; or TLabel
 
 var  // see Initialization section
@@ -93,17 +87,8 @@ begin
   inherited;
 end;
 
-{ TTextOverride }
-
-procedure TTextOverride.AfterConstruction;
-begin
-  inherited;
-  TextSettings.HorzAlign := TTextAlign.Leading;
-end;
-
-
 initialization
-  ScrollableRowControl_DefaultTextClass := TTextOverride;
+  ScrollableRowControl_DefaultTextClass := TText;
   ScrollableRowControl_DefaultCheckboxClass := TCheckBox;
   ScrollableRowControl_DefaultEditClass := TEdit;
   ScrollableRowControl_DefaultMemoClass := TMemo;

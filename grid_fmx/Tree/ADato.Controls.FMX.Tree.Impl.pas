@@ -8475,6 +8475,10 @@ begin
     text.Margins.Left := 10;
     text.HitTest := False;
 
+    var ts: ITextSettings;
+    if interfaces.Supports<ITextSettings>(text, ts) then
+      ts.TextSettings.HorzAlign := TTextAlign.Leading;
+
     Result.AddObject(text);
 
     Cell.InfoControl := text;
