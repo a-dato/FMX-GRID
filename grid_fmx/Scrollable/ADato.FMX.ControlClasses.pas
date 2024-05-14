@@ -30,7 +30,7 @@ type
 
   function GetTextControl(CellControl: TControl): IControl; //TText; or TLabel
 
-var
+var  // see Initialization section
   ScrollableRowControl_DefaultTextClass: TControlClass;
   ScrollableRowControl_DefaultCheckboxClass: TControlClass;
   ScrollableRowControl_DefaultEditClass: TEditClass;
