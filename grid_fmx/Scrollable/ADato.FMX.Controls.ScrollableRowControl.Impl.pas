@@ -16,12 +16,15 @@ uses
   System.Collections, System.Generics.Collections;
 
 const
+  USE_ROW_CACHE = False; // there are consts for Tree and Gantt separately 
+
   ANIMATE_EXPANDED_ROW_SHOW_DELAY = 0.035; //0.15; // used in Adato.FMX.DataModelViewRowLists.pas
   { Expand only. Delay before next fade-in animation starts, to show child rows
     one by one. Larger - row unfolds slower! (especially if row contains > 8 children) more children - more slower,
     so better do not set large value.
     0 - Gantt will show all children nodes at once. }
-  USE_ROW_CACHE = False;
+  STYLE_ROW = 'row';
+
 
   // localize
   STR_MOVE_AFTER = 'Move below...';
@@ -440,10 +443,22 @@ type
     procedure ClearRowCache;
   end;
 
+  TRowControl = class(TOwnerStyledPanel)
+  private
+    function GetBackgroundColor: TAlphaColor;
+    procedure SetBackgroundColor(const Value: TAlphaColor);
+  protected
+    _BackgroundRowRect: TRectangle;
+    function GetDefaultStyleLookupName: string; override;
+    function FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
+  public
+    procedure ApplyStyleLookup; override;
+    property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;
+  end;
 
   TRow = class(TBaseInterfacedObject, IRow, IFreeNotification)
   strict protected
-    _Control: TControl;
+    _Control: TRowControl; 
     _DataItem: CObject; { in DMV mode - _DataItem is IDataRowView, to access a data itself use _DataItem.AsType<IDataRowView>.Row.Data
                           in usual mode - _DataItem is the data itself}
     _Index: Integer; // can be DataModel View index or for usual mode - _data index. While filtering (only) control resets it - first Row0.Index = 0.
@@ -459,7 +474,7 @@ type
   strict protected // interface
     function get_BoundsRect: TRectF;
     function get_Control: TControl;
-    procedure set_Control(const Value: TControl);
+    procedure set_Control(const Value: TRowControl);
     function get_Height: Single; virtual; abstract;
     procedure set_Height(const Value: Single); virtual; abstract;
     function get_Index: Integer;
@@ -474,10 +489,11 @@ type
     destructor Destroy; override;
     function HasChildren: Boolean; virtual; abstract;
     function Level: Integer; virtual; // interface
-    property Control: TControl read _Control write set_Control;
+    property Control: TRowControl read _Control write set_Control;
     property Index: Integer read _Index;
     property DataIndex: Integer read get_DataIndex;
   end;
+
 
 implementation
 
@@ -3225,7 +3241,7 @@ begin
   Result := _Control;
 end;
 
-procedure TRow.set_Control(const Value: TControl);
+procedure TRow.set_Control(const Value: TRowControl);
 begin
   if _Control <> nil then
   begin
@@ -3321,6 +3337,73 @@ begin
     Width := _TextControl.Width + _TextControl.Margins.Left + _TextControl.Margins.Right;
     Height := _TextControl.Height;
   end;
+end;
+
+{ TRowControl }
+
+procedure TRowControl.ApplyStyleLookup;
+begin
+  if not IsNeedStyleLookup then Exit;
+
+  _BackgroundRowRect := nil;   // do not free, this is the style object, which FMX controls
+  inherited;
+end;
+
+function TRowControl.GetDefaultStyleLookupName: string;
+begin
+  Result := STYLE_ROW;
+end;
+
+function TRowControl.FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
+var
+  control: TControl;
+begin
+  Result := False;
+  aRectangle := nil;
+
+  for var i := 0 to Controls.Count - 1 do
+  begin
+    control := Controls[i];
+
+    if control is TRectangle then
+    begin
+      aRectangle := TRectangle( control );
+      exit(True);
+    end;
+
+    // Special for TADatoRectangle structure, which has own style
+    if control.ClassName = 'TADatoRectangle' then
+    begin
+      var scontrol := (control as TStyledControl);
+      if scontrol.StyleState = TStyleState.Unapplied then
+        scontrol.ApplyStyleLookup;
+
+      Result := scontrol.FindStyleResource<TRectangle>('rect', aRectangle);
+      Assert(aRectangle <> nil, 'Style ''ma_rectangle_style'' was changed, cannot find background rectangle.');
+
+      if Result then Exit;
+    end;
+  end;
+end;
+
+function TRowControl.GetBackgroundColor: TAlphaColor;
+begin
+  Result := 0;
+
+  if _BackgroundRowRect = nil then
+    FindBackgroundRectangle(_BackgroundRowRect);
+
+  if _BackgroundRowRect <> nil then
+    Result := _BackgroundRowRect.Fill.Color;
+end;
+
+procedure TRowControl.SetBackgroundColor(const Value: TAlphaColor);
+begin
+  if _BackgroundRowRect = nil then
+    FindBackgroundRectangle(_BackgroundRowRect);
+
+  if _BackgroundRowRect <> nil then
+    _BackgroundRowRect.Fill.Color := Value;
 end;
 
 end.

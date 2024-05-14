@@ -43,16 +43,14 @@ uses
   ADato.Sortable.Intf,
   FMX.Objects,
   FMX.Ani, ADato.InsertPosition, ADato.ObjectModel.TrackInterfaces,
-  ADato.KeyNavigator.intf;
+  ADato.KeyNavigator.intf, System.Math, System.Rtti, FMX.Styles;
 
 const
   USE_TREE_CACHE = True;
 
   // see also const in TScrollableRowControl<T: IRow>  class
   STYLE_TREE = 'FMXTreeControlstyle';
-  STYLE_ROW = 'row';
   STYLE_ROW_ALT = 'alternatingrow';
-  // STYLE_HEADER_CELL = 'headercell'; // moved into ADato.Controls.FMX.Tree.Header.Impl
   STYLE_FILLER_0 = 'filler_0';
   STYLE_FROZEN_CELL_LINE = 'FrozenCellsLine';
   STYLE_GRID_LINE = 'gridline';
@@ -1398,10 +1396,9 @@ type
     procedure EndUpdateContents; override;
     procedure ClearRowHeights;
     procedure SetAutoFitColumns(Value: Boolean); override;
-    procedure ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
-      const ATopRowMinHeight: Single = 0); override;
     function  GetRowRectangle(const Row: ITreeRow) : TRectF;
-
+    procedure ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
+      const ATopRowMinHeight: Single = 0); override; // see also public Clear method
     procedure RemoveRowsFromView(MakeViewNil: Boolean = False; const StartIndex: Integer = -1; const Count: Integer = -1); override;
 
   protected
@@ -1674,10 +1671,6 @@ type
     property OnCopyToClipboard: TNotifyEvent read _CopyToClipboard write _CopyToClipboard;
     property OnPasteFromClipboard: TNotifyEvent read _PasteFromClipboard write _PasteFromClipboard;
     property OnEndUpdateContents: TNotifyEvent read _EndUpdateContents write _EndUpdateContents;
-    {$IFDEF OBSOLETE}
-    property DragDrop: TreeDragEvent read _dragDrop write _dragDrop;
-    property DragOver: TreeDragEvent read _dragOver write _dragOver;
-    {$ENDIF}
     property DataSourceChanged : EventHandlerProc read _DataSourceChanged write _DataSourceChanged;
     property PopupMenuClosed: TNotifyEvent read _popupMenuClosed write _popupMenuClosed;
     property EditStart: StartEditEvent read _StartEdit write _StartEdit;
@@ -1807,17 +1800,13 @@ type
     constructor Create(AOwner: TComponent); override;
   end;
 
-  TRowItem = class(TOwnerStyledPanel)
+
+  TAlternatingRowControl = class(TRowControl)
   protected
     function GetDefaultStyleLookupName: string; override;
   end;
-
-  TAlternatingRowItem = class(TRowItem)
-  protected
-    function GetDefaultStyleLookupName: string; override;
-  end;
-
   TCellItem = class(TOwnerStyledPanel)
+
   strict private
     _BackgroundRect : TRectangle;
     [unsafe] _TreeCell: ITreeCell;
@@ -1842,22 +1831,9 @@ type
     property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;  //  TAlphaColorRec.Null to reset
   end;
 
-//  TTextCellItem = class(TCellItem)
-//  protected
-//    function GetDefaultStyleLookupName: string; override;
-//  end;
-//
-//  TCheckboxCellItem = class(TCellItem)
-//  protected
-//    function GetDefaultStyleLookupName: string; override;
-//  end;
-
 implementation
 
 uses
-  System.Math,
-  System.Rtti,
-  FMX.Styles,
   System.Runtime.Serialization,
   System.TypInfo,
   FMX.TextLayout,
@@ -2097,7 +2073,6 @@ begin
   //_GridLineStroke.Free;
   // Do not destroy it here, _GridLineStroke is non cloned object directly from style - so FMX will destroy it.
 
- // FreeCachedStyledObjects;
   inherited;
 end;
 
@@ -4403,6 +4378,8 @@ begin
 
   headertop := ContentBounds.Top;
 
+  var lCell := Cell;
+
   for i := 0 to 0 {Number of header rows} do
   begin
     RowHeader := THeaderRow.Create(Self, i);
@@ -4438,7 +4415,9 @@ begin
        // hi.StylesData['sortindicator.OnClick'] := TValue.From<TNotifyEvent>(HeaderItem_SortIndicatorClicked);
 
         CellHeader.Control := hi;
-        hi.TagObject := TObject(Cell);
+        hi.TagObject := TObject(lCell);
+        // Fixed: calling "Cell" here calls InitTemporaryRow many times (because View is empty and there are no rows yet,
+        // we're loading columns now), but actually this is the same cell always (cell.index)
 
         LoadDefaultData := True;
         size := TSizeF.Create(0, 0);
@@ -4827,8 +4806,8 @@ begin
     begin
       // this will also set Control.Height from RowHeights in TRow.set_Control
       if (TreeOption.AlternatingRowBackground in _options) and ((ViewRowIndex mod 2) <> 0) then
-        treeRowClass.Control := TAlternatingRowItem.Create(Self) else
-        treeRowClass.Control := TRowItem.Create(Self);
+        treeRowClass.Control := TAlternatingRowControl.Create(Self) else
+        treeRowClass.Control := TRowControl.Create(Self);
     end
     else // update Height for cached row
       treeRowClass.Control.Height := treeRowClass.Height;
@@ -4892,17 +4871,19 @@ function TCustomTreeControl.InitRowCells(const TreeRow: ITreeRow; const IsCached
 
     var onInitCellProc := TreeCell.Column.OnInitCell;
 
-    if (CellControl.StyleState = TStyleState.Applied) then
-    begin
-      if Assigned(onInitCellProc) then
-        onInitCellProc(Self, TreeCell);
-
-      exit;
-    end;
+//    if (CellControl.StyleState = TStyleState.Applied) then
+//    begin
+//      if Assigned(onInitCellProc) then
+//        onInitCellProc(Self, TreeCell);
+//
+//      Exit;
+//    end;
 
     CellControl.ApplyStyleLookup;
 
-  //  if (CellControl.StyleState = TStyleState.Applied) then
+    // After changes, sometimes CellControl.StyleState	= Unapplied, even after ApplyStyleLookup
+
+   //  if (CellControl.StyleState = TStyleState.Applied) then
     begin
 
       // frozen cell should be non-transparent or cells scrolled under it would be visible
@@ -8493,6 +8474,7 @@ begin
     text.Align := TAlignLayout.Client;
     text.Margins.Left := 10;
     text.HitTest := False;
+
     Result.AddObject(text);
 
     Cell.InfoControl := text;
@@ -11028,37 +11010,8 @@ begin
 end;
 
 function TTreeRow.get_BackgroundColor: TAlphaColor;
-
-  function FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
-  var
-    BkRect: TControl;
-  begin
-    Result := False;
-    aRectangle := nil;
-
-    for var i := 0 to _Control.Controls.Count - 1 do
-    begin
-      BkRect := _Control.Controls[i];
-
-      if BkRect is TRectangle then
-      begin
-        aRectangle := TRectangle( BkRect );
-        exit(True);
-      end;
-    end;
-  end;
-
 begin
-  Result := TAlphaColorRec.Null;
-  if (_Control as TStyledControl).StyleState <> TStyleState.Applied then exit;
-
-  // Find _BackgroundRect in a style. It can be root style object or inside TLayout.
-  // Each row style is a TRectangle, which has alt color or usual color
-  if _BackgroundRect = nil then
-    FindBackgroundRectangle(_BackgroundRect);
-
- if _BackgroundRect <> nil then
-   Result := _BackgroundRect.Fill.Color;
+  Result := Control.BackgroundColor;
 end;
 
 function TTreeRow.get_Cells: ITreeCellList;
@@ -12655,16 +12608,9 @@ begin
   dec(_UpdateCount);
 end;
 
-{ TRowControl }
+{ TAlternatingRowControl }
 
-function TRowItem.GetDefaultStyleLookupName: string;
-begin
-  Result := STYLE_ROW;
-end;
-
-{ TAlternatingRowItem }
-
-function TAlternatingRowItem.GetDefaultStyleLookupName: string;
+function TAlternatingRowControl.GetDefaultStyleLookupName: string;
 begin
   Result := STYLE_ROW_ALT;
 end;
@@ -12723,10 +12669,7 @@ begin
   begin
     // reset bk color, remove Rectangle
     if Value = TAlphaColorRec.Null then
-    begin
-      _BackgroundRect.Free;
-      _BackgroundRect := nil;
-    end
+      FreeAndNil(_BackgroundRect)
     else
     begin
       _BackgroundRect.Fill.Color := Value;
@@ -12753,7 +12696,6 @@ function TCellItem.GetBackIndex: Integer;
 begin
   Result := 0;
 end;
-
 
 function TCellItem.GetDefaultStyleLookupName: string;
 begin
