@@ -28,7 +28,7 @@ object frmInspector: TfrmInspector
       AcceptsReturn = False
       AllowUserToAddRows = True
       AllowUserToDeleteRows = True
-      AutoFitColumns = True
+      AutoFitColumns = False
       Indent = 20
       AlwaysShowFocus = False
       IncrementalSearch = False

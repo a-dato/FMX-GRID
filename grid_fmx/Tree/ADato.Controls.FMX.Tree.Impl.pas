@@ -3919,7 +3919,7 @@ var
                         or (HideColumnsFromIndex = NO_COLUMNS_TO_HIDE) or (i < HideColumnsFromIndex);
 
       if not Result then
-        Result := WasColumnVisible <>  Column._IsShowing;
+        Result := WasColumnVisible <> Column._IsShowing;
 
       // reset non-user MaxWidth, to apply std ruls for Auto columns
       if Column._IsMaxWidthSetForAutoWrap then
