@@ -9780,7 +9780,9 @@ begin
     _Columns[ColumnIndex].Width := colWidth;
 
     var clmn := (_Columns[ColumnIndex].Column as TFMXTreeColumn);
-    clmn._LongestCellWidth := 0;
+    //  clmn._LongestCellWidth := 0;
+    // do not nil, or this will create issue with recursive loop while calculating DoAutoFitColumns
+    // also Tree does not hide correctly a column in DoAutoFitColumns
 
     for i := ColumnIndex + 1 to _Columns.Count - 1 do
       _Columns[i].Left := _Columns[i - 1].Left + _Columns[i - 1].Width;
