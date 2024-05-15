@@ -32,6 +32,8 @@ const
   STR_MOVE_TOPMOST = 'Move above...';
 
 type
+  TOnAdatoThemeChanged = procedure (Sender: TObject; NewColor: TAlphaColor) of object;
+
   TSelectionItem = class(TBaseInterfacedObject, ISelectionItem)
   strict private
     _RowIndex: integer;
@@ -445,15 +447,18 @@ type
 
   TRowControl = class(TOwnerStyledPanel)
   private
+    _OnAdatoThemeChanged: TOnAdatoThemeChanged;
     function GetBackgroundColor: TAlphaColor;
     procedure SetBackgroundColor(const Value: TAlphaColor);
   protected
     _BackgroundRowRect: TRectangle;
     function GetDefaultStyleLookupName: string; override;
     function FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
+    procedure OnAdatoRectangleApplyStyleLookup(Sender: TObject);
   public
     procedure ApplyStyleLookup; override;
     property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;
+    property OnAdatoThemeChanged: TOnAdatoThemeChanged read _OnAdatoThemeChanged write _OnAdatoThemeChanged;
   end;
 
   TRow = class(TBaseInterfacedObject, IRow, IFreeNotification)
@@ -3375,6 +3380,9 @@ begin
     if control.ClassName = 'TADatoRectangle' then
     begin
       var scontrol := (control as TStyledControl);
+      scontrol.OnApplyStyleLookup := OnAdatoRectangleApplyStyleLookup;
+      // notification when ADatoRectangle changes color
+
       if scontrol.StyleState = TStyleState.Unapplied then
         scontrol.ApplyStyleLookup;
 
@@ -3384,6 +3392,18 @@ begin
       if Result then Exit;
     end;
   end;
+end;
+
+procedure TRowControl.OnAdatoRectangleApplyStyleLookup(Sender: TObject);
+begin
+  var NewColor := (Sender as TFmxObject).Tag;
+  { Yes, I know it's not good idea to use Tag, but if you do not want to use interface for AdatoRectangle notification for
+    the Tree - we can use only standard tools. Maybe you have other ideas. Btw, tag will be niled (=0) at once after
+    AdatoRectangleApplyStyleLookup. See NeedCallOnApplyStyleLookupEvent in TADatoRectangle.ApplyStyleLookup. Alex.}
+
+  if NewColor <> 0 then
+    if Assigned(_OnAdatoThemeChanged) then
+      _OnAdatoThemeChanged(Self, NewColor);
 end;
 
 function TRowControl.GetBackgroundColor: TAlphaColor;

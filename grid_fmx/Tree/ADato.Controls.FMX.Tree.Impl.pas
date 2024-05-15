@@ -285,6 +285,7 @@ type
     _Enabled        : Boolean;
     _IsTemporaryRow : Boolean;
     _BackgroundRect : TRectangle;
+    procedure OnAdatoThemeChanged(Sender: TObject; NewColor: TAlphaColor);
   protected
     procedure ResetRowData(const ADataItem: CObject; AIndex: Integer); override;
   protected
@@ -1794,13 +1795,12 @@ type
     constructor Create(AOwner: TComponent); override;
   end;
 
-
   TAlternatingRowControl = class(TRowControl)
   protected
     function GetDefaultStyleLookupName: string; override;
   end;
-  TCellItem = class(TOwnerStyledPanel)
 
+  TCellItem = class(TOwnerStyledPanel)
   strict private
     _BackgroundRect : TRectangle;
     [unsafe] _TreeCell: ITreeCell;
@@ -4782,9 +4782,17 @@ begin
     if not isCachedRow then
     begin
       // this will also set Control.Height from RowHeights in TRow.set_Control
+      var rowControl : TRowControl;
       if (TreeOption.AlternatingRowBackground in _options) and ((ViewRowIndex mod 2) <> 0) then
-        treeRowClass.Control := TAlternatingRowControl.Create(Self) else
-        treeRowClass.Control := TRowControl.Create(Self);
+        rowControl := TAlternatingRowControl.Create(Self)
+      else
+        rowControl := TRowControl.Create(Self);
+
+      rowControl.OnAdatoThemeChanged := treeRowClass.OnAdatoThemeChanged;
+      treeRowClass.Control := rowControl;
+
+      //  treeRowClass.Control := TAlternatingRowControl.Create(Self) else
+      //  treeRowClass.Control := TRowControl.Create(Self);
     end
     else // update Height for cached row
       treeRowClass.Control.Height := treeRowClass.Height;
@@ -11108,6 +11116,24 @@ begin
   _RowLevelCached := Result; // see comment
 end;
 
+procedure TTreeRow.OnAdatoThemeChanged(Sender: TObject; NewColor: TAlphaColor);
+var
+  cell: TTreeCell;
+begin
+  //update all frozen cells' background color
+
+  for var i := 0 to Cells.Count - 1 do
+  begin
+    // when using cell.Colspan, a cell can be nil
+    var c := Cells[i];
+    if c = nil then Continue;
+    cell := TTreeCell(c);
+
+    if cell.Column.Frozen then
+      cell.BackgroundColor := NewColor;
+  end;
+end;
+
 procedure TTreeRow.set_IsExpanded(Value: Boolean);
 begin
   _Owner.IsExpanded[Self] := Value;
@@ -12583,6 +12609,7 @@ procedure TObjectListModelItemChangedDelegate.EndUpdate;
 begin
   dec(_UpdateCount);
 end;
+
 
 { TAlternatingRowControl }
 
