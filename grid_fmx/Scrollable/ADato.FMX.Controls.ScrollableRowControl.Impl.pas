@@ -2752,7 +2752,7 @@ begin
   else
     if (_View.Count = 0) and (SavedTopRow <> nil) then
     begin
-      row := InitRow(_View.DataList[_View.Transpose(SavedTopRow.Index)], SavedTopRow.Index);
+      row := InitRow(_View.DataList[_View.Transpose(SavedTopRow.Index)], SavedTopRow.Index, SavedTopRow.Top);
       _View.Add(row);
       // add row to the top, UpdateContents will add other rows below
       AnimateAddRow(row, 0);   //SavedTopRow.Top - cannot use this value because contentbounds and Viewport was reset
