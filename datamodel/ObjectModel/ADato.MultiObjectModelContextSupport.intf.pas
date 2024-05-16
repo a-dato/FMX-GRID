@@ -12,7 +12,7 @@ type
     ['{31B433DD-820B-4252-9368-860087BA72B1}']
     function  get_StoredContexts: Dictionary<CObject, IObjectModelContext>;
 
-    function  ProvideObjectModelContext(const DataItem: CObject): IObjectModelContext;
+    function  ProvideObjectModelContext(const DataItem: CObject; const ItemIsInControl: Boolean = False): IObjectModelContext;
     function  FindObjectModelContext(const DataItem: CObject): IObjectModelContext;
     procedure RemoveObjectModelContext(const DataItem: CObject);
 

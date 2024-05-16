@@ -7346,7 +7346,7 @@ begin
           EndEdit
         else
         begin
-          if not _ShowKeyboardCursorRectangle then
+          if not _ShowKeyboardCursorRectangle and (Current > 0) then
           begin
             SelectCell(Current - 1, Column, False, True, True);
             Key := 0;

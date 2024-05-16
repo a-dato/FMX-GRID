@@ -3,7 +3,15 @@ unit ADato.KeyNavigator.intf;
 interface
 
 uses
-  System.Classes, FMX.Layouts, FMX.Controls;
+  System.Classes,
+  System.UITypes,
+  FMX.Layouts,
+  FMX.Controls;
+
+const
+  NavKeys = [vkHome, vkEnd, vkPrior, vkNext, vkUp, vkDown, vkLeft, vkRight, vkTab];
+  NavFrameNavKeys = [vkLeft, vkRight];
+  SelectorKeys = [vkEscape, vkReturn];
 
 type
   TNavigatorType = (ControlNavigator, TabNavigator, ListControlNavigator);
