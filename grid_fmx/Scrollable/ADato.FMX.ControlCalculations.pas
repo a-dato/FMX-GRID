@@ -8,11 +8,14 @@ uses
   FMX.Memo,
   FMX.Objects,
   FMX.Graphics,
-  FMX.TextLayout;
+  FMX.TextLayout,
+  FMX.Layouts;
 
-  function TextControlWidth(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinWidth: Single = -1; MaxWidth: Single = -1; TextHeight: Single = -1): Single;
-  function TextControlHeight(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinHeight: Single = -1; MaxHeight: Single = -1; TextWidth: Single = -1): Single;
-  function MemoTextHeight(const Memo: TMemo; MinHeight: Single = -1; MaxHeight: Single = -1): Single;
+  function  TextControlWidth(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinWidth: Single = -1; MaxWidth: Single = -1; TextHeight: Single = -1): Single;
+  function  TextControlHeight(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinHeight: Single = -1; MaxHeight: Single = -1; TextWidth: Single = -1): Single;
+  function  MemoTextHeight(const Memo: TMemo; MinHeight: Single = -1; MaxHeight: Single = -1): Single;
+
+  procedure ScrollControlInView(const Control: TControl; const ScrollBox: TCustomScrollBox; ControlMargin: Single = 10);
 
 implementation
 
@@ -146,6 +149,49 @@ begin
     Memo.ShowScrollBars := Result > MaxHeight;
     Result := CMath.Min(Result, MaxHeight);
   end;
+end;
+
+procedure ScrollControlInView(const Control: TControl; const ScrollBox: TCustomScrollBox; ControlMargin: Single = 10);
+begin
+  if (Control = nil) or (ScrollBox = nil) then
+    Exit;
+
+  var ctrlTop := Control.Position.Y - ControlMargin;
+
+  var p := Control.ParentControl;
+  while p <> ScrollBox do
+  begin
+    if not (p is TScrollContent) then
+      ctrlTop := ctrlTop + p.Position.Y;
+
+    p := p.ParentControl;
+  end;
+
+  var ctrlBottom := ctrlTop + Control.Height + (2*ControlMargin);
+  var scrollBoxYStart := ScrollBox.ViewportPosition.Y;
+  var scrollBoxYEnd := scrollBoxYStart + ScrollBox.Height;
+
+  // scroll up
+  if ctrlTop < scrollBoxYStart then
+  begin
+    if ctrlTop < 30 then
+      ScrollBox.ScrollBy(0, scrollBoxYStart) else
+      ScrollBox.ScrollBy(0, scrollBoxYStart - ctrlTop);
+  end
+
+  // scroll down
+  else if (ctrlBottom > scrollBoxYEnd) then
+  begin
+    // check if control is heigher then ScrollBox
+    if ((scrollBoxYEnd - scrollBoxYStart) <= (ctrlBottom - ctrlTop)) then
+      ScrollBox.ScrollBy(0, -1 * (ctrlTop - scrollBoxYStart))
+    else if ctrlBottom > (ScrollBox.ContentBounds.Height - 30) then
+      ScrollBox.ScrollBy(0, scrollBoxYEnd-ScrollBox.ContentBounds.Height)
+    else
+      ScrollBox.ScrollBy(0, scrollBoxYEnd-ctrlBottom)
+  end;
+
+  ScrollBox.RealignContent;
 end;
 
 end.
