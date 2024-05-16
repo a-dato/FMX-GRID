@@ -28,11 +28,11 @@ object frmInspector: TfrmInspector
       AcceptsReturn = False
       AllowUserToAddRows = True
       AllowUserToDeleteRows = True
-      AutoFitColumns = True
+      AutoFitColumns = False
       Indent = 20
       AlwaysShowFocus = False
       IncrementalSearch = False
-      Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
+      Options = [TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_ShowHeaders, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
       ScrollPerRow = False
       CellChanged = DBTablesCellChanged
       OnCopyToClipboard = DBTablesCopyToClipboard
@@ -91,7 +91,7 @@ object frmInspector: TfrmInspector
           Indent = 20
           AlwaysShowFocus = False
           IncrementalSearch = False
-          Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
+          Options = [TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_ShowHeaders, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
           ScrollPerRow = False
           OnCopyToClipboard = DBColumnsCopyToClipboard
           Viewport.Width = 255.000000000000000000
@@ -100,30 +100,31 @@ object frmInspector: TfrmInspector
             '<Columns><Item type="TFMXTreeColumn"><AllowHide>True</AllowHide>' +
             '<AllowMove>True</AllowMove><AllowResize>True</AllowResize><AutoS' +
             'izeToContent>True</AutoSizeToContent><Caption>Name</Caption><Fro' +
-            'zen>False</Frozen><MaxWidth>0</MaxWidth><MultilineEdit>False</Mu' +
-            'ltilineEdit><PropertyName>Name</PropertyName><ReadOnly>False</Re' +
-            'adOnly><Selectable>True</Selectable><ShowSortMenu>False</ShowSor' +
-            'tMenu><ShowFilterMenu>False</ShowFilterMenu><ShowHierarchy>False' +
-            '</ShowHierarchy><Sort>None</Sort><Visible>True</Visible><Width>0' +
-            '</Width><WidthType>Pixel</WidthType></Item><Item type="TFMXTreeC' +
-            'olumn"><AllowHide>True</AllowHide><AllowMove>True</AllowMove><Al' +
-            'lowResize>True</AllowResize><AutoSizeToContent>True</AutoSizeToC' +
-            'ontent><Caption>TypeName</Caption><Frozen>False</Frozen><MaxWidt' +
-            'h>0</MaxWidth><MultilineEdit>False</MultilineEdit><PropertyName>' +
-            'TypeName</PropertyName><ReadOnly>False</ReadOnly><Selectable>Tru' +
-            'e</Selectable><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>' +
-            'False</ShowFilterMenu><ShowHierarchy>False</ShowHierarchy><Sort>' +
-            'None</Sort><Visible>True</Visible><Width>0</Width><WidthType>Pix' +
-            'el</WidthType></Item><Item type="TFMXTreeColumn"><AllowHide>True' +
-            '</AllowHide><AllowMove>True</AllowMove><AllowResize>True</AllowR' +
-            'esize><AutoSizeToContent>True</AutoSizeToContent><Caption>Size</' +
-            'Caption><Frozen>False</Frozen><MaxWidth>0</MaxWidth><MultilineEd' +
-            'it>False</MultilineEdit><PropertyName>Size</PropertyName><ReadOn' +
-            'ly>False</ReadOnly><Selectable>True</Selectable><ShowSortMenu>Fa' +
-            'lse</ShowSortMenu><ShowFilterMenu>False</ShowFilterMenu><ShowHie' +
-            'rarchy>False</ShowHierarchy><Sort>None</Sort><Visible>True</Visi' +
-            'ble><Width>0</Width><WidthType>Pixel</WidthType></Item></Columns' +
-            '>'#13#10
+            'zen>False</Frozen><MinWidth>0</MinWidth><MaxWidth>0</MaxWidth><M' +
+            'ultilineEdit>False</MultilineEdit><PropertyName>Name</PropertyNa' +
+            'me><ReadOnly>False</ReadOnly><Selectable>True</Selectable><ShowS' +
+            'ortMenu>False</ShowSortMenu><ShowFilterMenu>False</ShowFilterMen' +
+            'u><ShowHierarchy>False</ShowHierarchy><Sort>None</Sort><Visible>' +
+            'True</Visible><Width>0</Width><WidthType>Pixel</WidthType></Item' +
+            '><Item type="TFMXTreeColumn"><AllowHide>True</AllowHide><AllowMo' +
+            've>True</AllowMove><AllowResize>True</AllowResize><AutoSizeToCon' +
+            'tent>True</AutoSizeToContent><Caption>TypeName</Caption><Frozen>' +
+            'False</Frozen><MinWidth>0</MinWidth><MaxWidth>0</MaxWidth><Multi' +
+            'lineEdit>False</MultilineEdit><PropertyName>TypeName</PropertyNa' +
+            'me><ReadOnly>False</ReadOnly><Selectable>True</Selectable><ShowS' +
+            'ortMenu>False</ShowSortMenu><ShowFilterMenu>False</ShowFilterMen' +
+            'u><ShowHierarchy>False</ShowHierarchy><Sort>None</Sort><Visible>' +
+            'True</Visible><Width>0</Width><WidthType>Pixel</WidthType></Item' +
+            '><Item type="TFMXTreeColumn"><AllowHide>True</AllowHide><AllowMo' +
+            've>True</AllowMove><AllowResize>True</AllowResize><AutoSizeToCon' +
+            'tent>True</AutoSizeToContent><Caption>Size</Caption><Frozen>Fals' +
+            'e</Frozen><MinWidth>0</MinWidth><MaxWidth>0</MaxWidth><Multiline' +
+            'Edit>False</MultilineEdit><PropertyName>Size</PropertyName><Read' +
+            'Only>False</ReadOnly><Selectable>True</Selectable><ShowSortMenu>' +
+            'False</ShowSortMenu><ShowFilterMenu>False</ShowFilterMenu><ShowH' +
+            'ierarchy>False</ShowHierarchy><Sort>None</Sort><Visible>True</Vi' +
+            'sible><Width>0</Width><WidthType>Pixel</WidthType></Item></Colum' +
+            'ns>'#13#10
         end
       end
       object tbIndexes: TTabItem
@@ -154,7 +155,7 @@ object frmInspector: TfrmInspector
           Indent = 20
           AlwaysShowFocus = False
           IncrementalSearch = False
-          Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
+          Options = [TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_ShowHeaders, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
           ScrollPerRow = False
           CellChanged = DBIndexesCellChanged
           Viewport.Width = 255.000000000000000000
@@ -189,7 +190,7 @@ object frmInspector: TfrmInspector
           Indent = 20
           AlwaysShowFocus = False
           IncrementalSearch = False
-          Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
+          Options = [TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_ShowHeaders, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowSelection, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
           ScrollPerRow = False
           Viewport.Width = 255.000000000000000000
           Viewport.Height = 228.000000000000000000
@@ -703,7 +704,7 @@ object frmInspector: TfrmInspector
         Position.Y = -17.000000000000000000
         TextSettings.Trimming = None
         Text = 'Saved Connections'
-        TabOrder = 86
+        TabOrder = 85
       end
     end
     object cbDataBases: TComboBox
@@ -722,7 +723,7 @@ object frmInspector: TfrmInspector
         Position.Y = -18.000000000000000000
         TextSettings.Trimming = None
         Text = 'Database'
-        TabOrder = 86
+        TabOrder = 85
       end
     end
     object SpeedButton4: TSpeedButton

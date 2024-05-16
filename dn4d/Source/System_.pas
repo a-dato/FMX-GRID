@@ -8506,11 +8506,13 @@ begin
       TypeCode.DateTime: Result := CDateTime(a.FValue.GetReferenceToRawData^).CompareTo(CDateTime(b.FValue.GetReferenceToRawData^));
       TypeCode.Double: Result := CDouble(a.FValue.AsType<Double>()).CompareTo(b.FValue.AsType<Double>());
       //TTypes.System_Extended: Result := CExtended(a.FValue.AsType<Extended>()).CompareTo(b.FValue.AsType<Extended>());
-      //TTypes.System_TimeSpan: Result := CTimeSpan(a.FValue.GetReferenceToRawData^).CompareTo(CTimeSpan(b.FValue.GetReferenceToRawData^));
       TypeCode.Type: Result := &Type(a.FValue.GetReferenceToRawData^).CompareTo(&Type(b.FValue.GetReferenceToRawData^));
       TypeCode.Record:
-        if a.FValue.IsType<TGuid> then
-          Result := TComparer<TGuid>.Default.Compare(a.FValue.AsType<TGuid>, b.FValue.AsType<TGuid>) else
+        if a.FValue.IsType<CTimeSpan> then
+          Result := CTimeSpan(a.FValue.GetReferenceToRawData^).CompareTo(CTimeSpan(b.FValue.GetReferenceToRawData^))
+        else if a.FValue.IsType<TGuid> then
+          Result := TComparer<TGuid>.Default.Compare(a.FValue.AsType<TGuid>, b.FValue.AsType<TGuid>)
+        else
           Result := BinaryCompare(a.FValue.GetReferenceToRawData, b.FValue.GetReferenceToRawData, a.FValue.DataSize);
       TypeCode.Set,
       TypeCode.Enum:
@@ -9371,6 +9373,12 @@ begin
           TValue.Make(@ii, ATypeInfo, value_t);
           Result := value_t.TryCast(ATypeInfo, Value);
         end;
+      end
+      // Variant -> CString
+      else if ATypeInfo = TypeInfo(CString) then
+      begin
+        Value := TValue.From<CString>(StringToCString(VarToStr(FValue.AsVariant)));
+        Result := True;
       end
       // Variant -> CDateTime
       else if ATypeInfo = TypeInfo(CDateTime) then

@@ -66,6 +66,7 @@ type
 
   protected
     procedure UpdateDialogControls(IsSqlSourceWindow: Boolean);
+
   public
     { Public declarations }
     procedure ExecuteQuery;

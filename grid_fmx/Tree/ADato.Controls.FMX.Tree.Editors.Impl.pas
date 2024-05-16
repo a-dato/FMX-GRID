@@ -273,10 +273,9 @@ end;
 
 function TTextCellEditor.get_Value: CObject;
 begin
-  Result := TEdit(_Control).Text;
-
   if _Value <> nil then
-    Result := _Value;
+    Result := _Value else
+    Result := TEdit(_Control).Text;
 end;
 
 procedure TTextCellEditor.OnTextCellEditorChangeTracking(Sender: TObject);
