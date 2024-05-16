@@ -4248,7 +4248,7 @@ begin
 
     // at this stage View.Count = 0
     if TreeState.AlignViewToCurrent in _InternalState then
-      AlignViewToCurrent(nil) //AlignViewToCurrent(top_row);
+      AlignViewToCurrent(lTopRow) //AlignViewToCurrent(nil) 
     else
       // list of rows should start from TopRow, check if _view contains rows for rows can be filtered out
       if (TreeState.DataChanged in _InternalState) and (lTopRow <> nil) then
