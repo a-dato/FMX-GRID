@@ -43,7 +43,7 @@ uses
   ADato.Sortable.Intf,
   FMX.Objects,
   FMX.Ani, ADato.InsertPosition, ADato.ObjectModel.TrackInterfaces,
-  ADato.KeyNavigator.intf, System.Math, System.Rtti, FMX.Styles;
+  System.Math, System.Rtti, FMX.Styles;
 
 const
   USE_TREE_CACHE = True;
