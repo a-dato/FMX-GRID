@@ -3652,6 +3652,12 @@ end;
 
 procedure TCustomTreeControl.DoPostProcessColumns(out NeedRepaint: boolean);
 begin
+  if _isFastScrolling then
+  begin
+    NeedRepaint := True;
+    Exit;
+  end;
+
   inherited;
   NeedRepaint := False;
 

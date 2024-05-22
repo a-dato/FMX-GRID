@@ -173,7 +173,6 @@ type
     _VPY_End: Single;
     _fsStopTimer: TTimer; // detect fast scrolling stop with a timer
     _fastScrollStartTime: LongWord;  // ms, measure interval to detect Fast scrolling
-    _fastScrollingScrolledPercentage: integer;
 
     procedure DetectFastScrolling;
     procedure OnFastScrollingStopTimer(Sender: TObject);
@@ -384,12 +383,12 @@ type
     // Current row was changed
     property OnSynchronizeControl: TOnSynchronizeControl read _OnSynchronizeControl write _OnSynchronizeControl;
     // OnSynchronizeControl - used to synch scrolling between Gantt and Tree. Triggers after Viewport was changed but in EndUpdateContents
-    property FastScrollingScrolledPercentage: integer read _fastScrollingScrolledPercentage write _fastScrollingScrolledPercentage;
-    { 0-100%. What percentage has the user scrolled wiRelated to FastScrolling optimization feature, when user could show the data in cells partially
-      during fast scrolling.th vertical scrollbar per small ammout of time (FAST_SCROLLING_DETECT_INTERVAL)
-      to define what is "FastScrolling".  For example user specifies 10%, if user will scroll >= 10% during 50 ms, - control will set flag
-      IsFastScrolling in CellLoading (CellLoading is in a Tree only) event as True. In this case user may show some part of a data.
-      See also CellLoadingEventArgs.}
+//    property FastScrollingScrolledPercentage: integer read _fastScrollingScrolledPercentage write _fastScrollingScrolledPercentage;
+//    { 0-100%. What percentage has the user scrolled wiRelated to FastScrolling optimization feature, when user could show the data in cells partially
+//      during fast scrolling.th vertical scrollbar per small ammout of time (FAST_SCROLLING_DETECT_INTERVAL)
+//      to define what is "FastScrolling".  For example user specifies 10%, if user will scroll >= 10% during 50 ms, - control will set flag
+//      IsFastScrolling in CellLoading (CellLoading is in a Tree only) event as True. In this case user may show some part of a data.
+//      See also CellLoadingEventArgs.}
     property ShowVScrollBar: Boolean read _ShowVScrollBar write SetShowVScrollBar default True;
     property ShowHScrollBar: Boolean read _ShowHScrollBar write SetShowHScrollBar default True;
     property ContentBounds: TRectF read _contentBounds;
@@ -518,7 +517,7 @@ begin
   _Selection := CList<ISelectionItem>.Create;
   _ScrollPerRow := False;
 
-  _fastScrollingScrolledPercentage := FAST_SCROLLING_DEFAULT_SCROLLED_PERCENT;
+//  _fastScrollingScrolledPercentage := FAST_SCROLLING_DEFAULT_SCROLLED_PERCENT;
   _fsStopTimer := TTimer.Create(Self);
   _fsStopTimer.Interval := FAST_SCROLLING_STOP_INTERVAL;
   _fsStopTimer.OnTimer := OnFastScrollingStopTimer;
@@ -691,6 +690,7 @@ begin
     _fastScrollStartTime := TThread.GetTickCount;
 
     // in case if this is the last ViewportPositionChange event - reset _isFastScrolling to False in timer
+    _fsStopTimer.Enabled := False; // truly reset timer here!!
     _fsStopTimer.Enabled := True;
     exit;
   end
@@ -708,8 +708,11 @@ begin
   _VPY_End := ViewportPosition.Y;
   var scrolledPx := Abs(_VPYStart - _VPY_End);
 
-  var scrolledPercent := scrolledPx * 100 / _contentBounds.Height;
-  _isFastScrolling := (scrolledPercent > 0) and (scrolledPercent >= _fastScrollingScrolledPercentage);;
+//  var scrolledPercent := scrolledPx * 100 / _contentBounds.Height;
+// _isFastScrolling := (scrolledPercent > 0) and (scrolledPercent >= _fastScrollingScrolledPercentage);
+
+  var pxPerTick := scrolledPx / _fastScrollStartTime;
+  _isFastScrolling := _isFastScrolling or (pxPerTick > 2);
 
   _VPYStart := _VPY_End;
 
@@ -722,6 +725,20 @@ begin
   if _isFastScrolling then
   begin
     _isFastScrolling := False;
+
+    _lastSize := TSize.Create(0, 0);
+    UpdateContents(True);
+
+//    _lastSize := TSizeF.Create(0, 0);
+//    try
+//      var dummy: boolean := false;
+//      DoPostProcessColumns(dummy);
+//
+//      // process Percentage columns and call AutofitColumns to hide\show some columns. Call it after CalcContentBounds
+//      // to find out status of VScroll.Visible. Method can set ColumnChanged(=DataChanged) flag, in this case IsNeedRepaint = true.
+//    finally
+//      _lastSize := Size.Size;
+//    end;
     // uncomment it to load cells for the second time, after IsFastScrolling
    // DoFastScrollingStopped;
   end;
