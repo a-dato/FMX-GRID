@@ -51,6 +51,7 @@ const
   // see also const in TScrollableRowControl<T: IRow>  class
   STYLE_TREE = 'FMXTreeControlstyle';
   STYLE_ROW_ALT = 'alternatingrow';
+  STYLE_CELL = 'cell';
   STYLE_FILLER_0 = 'filler_0';
   STYLE_FROZEN_CELL_LINE = 'FrozenCellsLine';
   STYLE_GRID_LINE = 'gridline';
@@ -66,6 +67,7 @@ const
    // Without this value (or less) header cell trims text with "...". Width of the text is detected by TText.AutoSize feature
    // (CalculateControlSize). Why TText.AutoSize is not exact?
   EXTRA_CELL_HEIGHT = 6; // Should be multiple of 2. Value is not used in DefaultHeight
+  CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN = 10;
 
   ROW_MIN_INDENT_HIERARCHY = 20;  { Minimal indent from the left for rows\cells (root, children, WO child. ) in hierarchy mode
     (branch structure).  For children rows\cells Indent = Indent * (Row.Level + 1).
@@ -108,7 +110,7 @@ type
       because next row will cover the line from upper row. That's why need to use both Y and Height + specHeightOffset.
       -0.7 this is an optimal number, less - there is still a gap, more - pixel crawls out of a border. }
   strict private
-    _Control        : TControl; // can be custom user control, not only TCellItem
+    _Control        : TControl; // can be custom user control, not only TCellControl
     [weak] _InfoControl    : IControl;
     _Index          : Integer;
     _Indent         : Single;
@@ -284,7 +286,6 @@ type
     // Bools
     _Enabled        : Boolean;
     _IsTemporaryRow : Boolean;
-    _BackgroundRect : TRectangle;
     procedure OnAdatoThemeChanged(Sender: TObject; NewColor: TAlphaColor);
   protected
     procedure ResetRowData(const ADataItem: CObject; AIndex: Integer); override;
@@ -1254,6 +1255,7 @@ type
     _FrozenLineXPosition: single;   // Vertical line for frozen columns, 0 - no need to draw
     _FrozenLineStroke: TStrokeBrush;
     _GridLineStroke: TStrokeBrush;
+    _IsCellStyleStandard: Boolean;
 
     _RowHeightsGlobal: IFMXRowHeightCollection;
     // Global _RowHeights to synch. height between controls (Tree\Gantt). In case if it is nil, each View has own
@@ -1487,9 +1489,6 @@ type
 
     //function  TryChangeCheckbox(KeyIsSpace: Boolean): Boolean;
     procedure TryAssignDefaultCheckboxColumn;
-
-    procedure UpdateEditImageState(const Row: ITreeRow; const State: ContentState);
-
     // IFreeNotification
     procedure FreeNotification(AObject: TObject); override;
     [Result: Unsafe] function GetView: ITreeRowList;
@@ -1800,12 +1799,14 @@ type
     function GetDefaultStyleLookupName: string; override;
   end;
 
-  TCellItem = class(TOwnerStyledPanel)
+  TCellControl = class(TOwnerStyledPanel)
   strict private
+    _NeedFreeBackgroundRect: Boolean; // True - created manually, False - styled object
     _BackgroundRect : TRectangle;
     [unsafe] _TreeCell: ITreeCell;
     function GetBackgroundColor: TAlphaColor;
     procedure SetBackgroundColor(const Value: TAlphaColor);
+    function FindBackgroundRectangle: TRectangle;
   protected
     _BackgroundRectangleMargin: Single;
     { Related to Indent. Cell control in the hierarchical mode is shifted to the right, in a such way some part to the
@@ -1819,8 +1820,10 @@ type
       Yes we could search it in Cell.Control, but it could be mixed with another TLine, e.g. part of the custom style }
     function GetBackIndex: Integer; override;
     function GetDefaultStyleLookupName: string; override;
+    procedure ApplyStyle; override;
   public
     constructor Create(AOwner: TComponent; const Cell: ITreeCell);
+    destructor Destroy; override;
     property TreeCell: ITreeCell read _TreeCell;
     property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;  //  TAlphaColorRec.Null to reset
   end;
@@ -4547,22 +4550,22 @@ begin
 end;
 
 procedure TCustomTreeControl.CancelEdit;
-var
-  isEditState: Boolean;
+//var
+//  isEditState: Boolean;
 begin
   try
     if (_View = nil) then
       Exit;
 
-    isEditState := Self.IsEdit;
+   // isEditState := Self.IsEdit;
 
     if IsEditing then
       EditorCancel;
 
     View.CancelRowEdit;
 
-    if _IndicatorColumnExists and isEditState and (Current >= 0) then
-      UpdateEditImageState(_View[Current], ContentState.None);
+//    if _IndicatorColumnExists and isEditState and (Current >= 0) then
+//      UpdateEditImageState(_View[Current], ContentState.None); // method was initially commented in FMX
   finally
     ClearEditor;
   end;
@@ -4616,7 +4619,7 @@ begin
   var p := obj.Parent as TExpandCollapsePanel;
 
   // now parent of the TExpandCollapsePanel is a cell control, get Row control from the cell control
-  var cellControl: TCellItem := p.Parent as TCellItem;
+  var cellControl: TCellControl := p.Parent as TCellControl;
   Assert(cellControl.TreeCell.Row <> nil);
   row := TTreeRow(cellControl.TreeCell.Row);
 
@@ -4852,28 +4855,18 @@ function TCustomTreeControl.InitRowCells(const TreeRow: ITreeRow; const IsCached
   begin
     if not (treeCell.Control is TStyledControl) then exit;
     var CellControl := TStyledControl(treeCell.Control);
-    // CellControl.StyleLookup specified in TTextCellItem.GetDefaultStyleLookupName
+    // CellControl.StyleLookup specified in TCellControl.GetDefaultStyleLookupName
 
     var onInitCellProc := TreeCell.Column.OnInitCell;
 
-//    if (CellControl.StyleState = TStyleState.Applied) then
-//    begin
-//      if Assigned(onInitCellProc) then
-//        onInitCellProc(Self, TreeCell);
-//
-//      Exit;
-//    end;
-
     CellControl.ApplyStyleLookup;
+    Assert(CellControl.StyleState = TStyleState.Applied, 'Please pay attention, this will create diff. issues');
 
-    // After changes, sometimes CellControl.StyleState	= Unapplied, even after ApplyStyleLookup
-
-   //  if (CellControl.StyleState = TStyleState.Applied) then
+    if (CellControl.StyleState = TStyleState.Applied) then
     begin
-
       // frozen cell should be non-transparent or cells scrolled under it would be visible
-       if treeCell.Column.Frozen and (treeCell.Column.StyleLookup = '') then
-         TreeCell.BackgroundColor := TreeCell.Row.BackgroundColor;
+      if treeCell.Column.Frozen and (treeCell.Column.StyleLookup = '') then
+        TreeCell.BackgroundColor := TreeCell.Row.BackgroundColor;
 
       if Assigned(onInitCellProc) then
         onInitCellProc(Self, TreeCell);
@@ -4916,7 +4909,7 @@ begin
       because user should re-use it. See also TCellLoading = (NeedControl, [..]) in Tree.intf}
 
     if treeCell.Control = nil then
-      treeCell.Control := FMXColumn.CreateCellControl(Self, treeCell); //  TTextCellItem.Create \ TCheckboxCellItem
+      treeCell.Control := FMXColumn.CreateCellControl(Self, treeCell); //  TCellControl.Create \ TCheckboxCellItem
 
     // Cell.Indent (need before layoutColumn.CalculateControlSize)
     if _View.IsDataModelView then   //if DataModelView <> nil then
@@ -6454,8 +6447,10 @@ var
   dataItem: CObject;
 
 begin
+  Result := False;
+
   if not Enabled or IsEditing or (TreeOption.ReadOnly in _Options) then
-    Exit(False);
+    Exit;
 
   Initialize;
   UpdateContents(False);
@@ -6542,29 +6537,6 @@ begin
     begin
       HScrollBar.Value := scrollValue;
     end);
-end;
-
-procedure TCustomTreeControl.UpdateEditImageState(const Row: ITreeRow; const State: ContentState);
-//var
-//  cell: ITreeCell;
-//  i: Integer;
-//
-begin
-//  for i := 0 to Row.Cells.Count - 1 do
-//  begin
-//    cell := Row.Cells[i];
-//
-//    if Interfaces.Supports(cell.Column, ITreeIndicatorColumn) and
-//       (cell.Content.Count > 0) and
-//       Interfaces.Supports(cell.Content[0], ICellImage)
-//    then
-//    begin
-//      cell.Content[0].State := State;
-//      //Invalidate(GetCellRectangle(cell));
-//      break;
-//    end;
-//  end;
-
 end;
 
 procedure TCustomTreeControl.EditCell(const Cell: ITreeCell; const DataItem: CObject; SetFocus: Boolean);
@@ -6674,9 +6646,9 @@ end;
 
 function TCustomTreeControl.GetStyleObject: TFmxObject;
 const
-  CtrlNames: array [0..6] of string = ( //STYLE_CHECKBOX_CELL,
+  CtrlNames: array [0..7] of string = ( //STYLE_CHECKBOX_CELL,
                                       STYLE_FILLER_0,
-                                      //STYLE_CELL,
+                                      STYLE_CELL,
                                       STYLE_FROZEN_CELL_LINE,
                                       STYLE_HEADER_CELL,
                                       STYLE_ROW,
@@ -6700,8 +6672,7 @@ begin
    If  View <> nil - ApplyStyle was called more than once.}
   if _View <> nil then
   begin
-    ResetView;
-    //_View := nil; will be niled in Reset
+    ResetView; // Full reset, _View will be niled in Reset, clears cache
      // at this stage _header and column controls in Cells list are freed (automatically, parent `
      // changed > KillResourceLink) but not niled = AV. Niling _header - destroys also TTreeCell classes
     _header := nil;
@@ -6713,14 +6684,19 @@ begin
   FindStyleResource(STYLE_CHECKBOX_CELL).Free;
   FindStyleResource(STYLE_HEADER_CELL).Free;
   FindStyleResource(STYLE_FILLER_0).Free;
-         }
-  //  FindStyleResource<TControl>('header', _header);
+  FindStyleResource<TControl>('header', _header); }
 
-
-  if FindStyleResourceBase(STYLE_HEADER, False {do not clone (was before)}, _header) then
+  if FindStyleResourceBase(STYLE_HEADER, False {do not clone}, _header) then
     _header.Visible := TreeOption.ShowHeaders in _Options;
 
   inherited;
+
+  // Detect if style 'cell' is a standard style.
+  // If 'cell' style is a standard style - create a label (ScrollableRowControl_DefaultTextClass) in Runtime on it later.
+  // Std cell style - is a TRectangle, as a one control, without any other controls.
+  var cellStyle: TControl;
+  if FindStyleResourceBase<TControl>(STYLE_CELL, False {do not clone}, cellStyle) then
+    _IsCellStyleStandard := (cellStyle is TRectangle) and (cellStyle.ControlsCount = 0)
 end;
 
 procedure TCustomTreeControl.SetParent(const Value: TFmxObject);
@@ -7925,6 +7901,9 @@ end;
 procedure TCustomTreeControl.HScrollChange;
 // use instead of ViewportPositionChange, because need to detect only action by user - moving scrollbar.
 begin
+  if HScrollBar = nil then Exit;
+  // Fixes AV: change HSB position, change FMX style in Tree.StyleLookup where HSB is missing - AV in inherited
+
   var UserResizedColumn := False;
   if Assigned(HeaderRows) then
     UserResizedColumn := THeaderRowList(HeaderRows).LastResizedColumnByUser <> -1;
@@ -8026,8 +8005,8 @@ begin
       begin
         View.EndRowEdit(Row);
 
-        if _IndicatorColumnExists {and isEditState} and (Current >= 0) then
-          UpdateEditImageState(Row, ContentState.None);
+//        if _IndicatorColumnExists {and isEditState} and (Current >= 0) then
+//          UpdateEditImageState(Row, ContentState.None); // method was initially commented in FMX
       end;
 
       var notify: IEditableModel;
@@ -8447,24 +8426,9 @@ end;
 
 function TFMXTreeColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
-  Result := TCellItem.Create(AOwner, Cell);
-  if Cell.Column.StyleLookup = string.Empty then
-  begin
-    var text := ScrollableRowControl_DefaultTextClass.Create(Result);
-    text.Align := TAlignLayout.Client;
-    text.Margins.Left := 10;
-    text.HitTest := False;
+  Result := TCellControl.Create(AOwner, Cell);
 
-    var ts: ITextSettings;
-    if interfaces.Supports<ITextSettings>(text, ts) then
-      ts.TextSettings.HorzAlign := TTextAlign.Leading;
-
-    Result.AddObject(text);
-
-    Cell.InfoControl := text;
-  end;
-
-  Result.Height := INITIAL_CELL_HEIGHT;
+  // code related to label has been moved into TCellControl.ApplyStyle
 end;
 
 function TFMXTreeColumn.GetCellText(const Cell: ITreeCell): CString;
@@ -8493,10 +8457,6 @@ end;
 
 procedure TFMXTreeColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
 begin
-//  if not (Cell.Control is TStyledControl) then exit;
-//
-//  var CellControl := TStyledControl(Cell.Control);  // usually TTextCellItem
-
   if Cell.InfoControl = nil then
     Cell.InfoControl := GetTextControl(Cell.Control);
 
@@ -9087,7 +9047,7 @@ end;
 
 function TFMXTreeCheckboxColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
-  Result := TCellItem.Create(AOwner, Cell);
+  Result := TCellControl.Create(AOwner, Cell);
   if Cell.Column.StyleLookup = string.Empty then
   begin
     var text := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
@@ -9164,7 +9124,7 @@ begin
   tree := TCustomTreeControl(TreeControl);
 
   var fo := Sender as TFmxObject;
-  while not (fo is TCellItem) and (fo.Parent <> nil) do
+  while not (fo is TCellControl) and (fo.Parent <> nil) do
     fo := fo.Parent;
 
   if (fo <> nil) and Interfaces.Supports<ITreeCell>(fo.TagObject, cell) then
@@ -9443,14 +9403,13 @@ begin
 end;
 
 function TTreeLayoutColumn.CalculateControlSize(const Cell: ITreeCell; InitialRowHeight: Single): TSizeF;
-begin
   // for cells in a column header and data cells in rows
-
+begin
   Result.Height := InitialRowHeight;
   Result.Width := 0;
 
   if not (Cell.Control is TStyledControl) then exit;
-  var CellControl := TStyledControl(Cell.Control);  // usually TTextCellItem
+  var CellControl := TStyledControl(Cell.Control);  // usually TCellControl
 
   CellControl.ApplyStyleLookup;
 
@@ -9779,7 +9738,7 @@ begin
     _FlatColumns := nil;
     _Columns[ColumnIndex].Width := colWidth;
 
-    var clmn := (_Columns[ColumnIndex].Column as TFMXTreeColumn);
+    // var clmn := (_Columns[ColumnIndex].Column as TFMXTreeColumn);
     //  clmn._LongestCellWidth := 0;
     // do not nil, or this will create issue with recursive loop while calculating DoAutoFitColumns
     // also Tree does not hide correctly a column in DoAutoFitColumns
@@ -10667,7 +10626,7 @@ begin
   // from below and it will be visible only for the last row (nothing below)
   line.Margins.Bottom := GRID_LINE_NEGATIVE_OFFSET; // hide bottom line under the next cell from below
   _Control.AddObject(line);
-  (_Control as TCellItem)._GridBottomLine := line;   // see comment in TCellItem
+  (_Control as TCellControl)._GridBottomLine := line;   // see comment in TCellControl
 
   UpdateBottomHierarchicalBorder;
 
@@ -10718,7 +10677,7 @@ procedure TTreeCell.UpdateBottomHierarchicalBorder;
   // for cached row only
 begin
   // bottom line:
-  var line := (_Control as TCellItem)._GridBottomLine;
+  var line := (_Control as TCellControl)._GridBottomLine;
 
   var treeControl :=  TFMXTreeControl(Row.Owner.TreeControl);
   var lNextDataModelViewRow := treeControl.DataModelView.Next(Row.DataItem.GetValue<IDataRowView>);
@@ -10827,7 +10786,7 @@ end;
 
 function TTreeCell.get_BackgroundColor: TAlphaColor;
 begin
-  Result := (_Control as TCellItem).BackgroundColor;
+  Result := (_Control as TCellControl).BackgroundColor;
 end;
 
 procedure TTreeCell.set_BackgroundColor(const Color: TAlphaColor);
@@ -10835,12 +10794,12 @@ begin
   Assert(_Control <> nil);
 
   // can be 'TCheckboxCellItem'
-  if (_Control is TCellItem) then
+  if (_Control is TCellControl) then
   begin
     if _column.Frozen and _column.ShowHierarchy then
-      TCellItem(_Control)._BackgroundRectangleMargin :=  -(_Indent);
+      TCellControl(_Control)._BackgroundRectangleMargin :=  -(_Indent);
 
-    TCellItem(_Control).BackgroundColor := Color;
+    TCellControl(_Control).BackgroundColor := Color;
   end;
 end;
 
@@ -12632,20 +12591,19 @@ begin
   Result := STYLE_FILLER_0;
 end;
 
+{$region 'TCellControl, TCheckboxCellItem, TTreeCellWithRowLock'}
 
+{ TCellControl }
 
-{$region 'TTextCellItem, TCheckboxCellItem, TTreeCellWithRowLock'}
-
-
-{ TCellItem }
-
-constructor TCellItem.Create(AOwner: TComponent; const Cell: ITreeCell);
+constructor TCellControl.Create(AOwner: TComponent; const Cell: ITreeCell);
 begin
   inherited Create(AOwner);
 
   StyleLookup := Cell.Column.StyleLookup;
   _TreeCell := Cell;
-  TagObject := TObject(Cell);
+  TagObject := TObject(Cell);  // see also property TCellControl.TreeCell: ITreeCell
+
+  Height := INITIAL_CELL_HEIGHT;
 
   // test - show borders for a cell
 
@@ -12657,7 +12615,57 @@ begin
 //  AddObject(R1);
 end;
 
-function TCellItem.GetBackgroundColor: TAlphaColor;
+destructor TCellControl.Destroy;
+begin
+  if _NeedFreeBackgroundRect then
+    _BackgroundRect.Free;
+
+  inherited;
+end;
+
+procedure TCellControl.ApplyStyle;
+begin
+  inherited;
+
+  if (StyleLookup = '') and (Owner as TCustomTreeControl)._IsCellStyleStandard then
+  begin
+    var text := ScrollableRowControl_DefaultTextClass.Create(Self);
+    text.Align := TAlignLayout.Client;
+    text.Margins.Left := CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN;
+    text.HitTest := False;
+
+    var ts: ITextSettings;
+    if interfaces.Supports<ITextSettings>(text, ts) then
+      ts.TextSettings.HorzAlign := TTextAlign.Leading;
+
+    var bkrect := FindBackgroundRectangle;
+    Assert(bkrect <> nil, 'Std ''cell'' style was changed or somth. wrong. Please recheck. _IsCellStyleStandard should be False in this case too.');
+
+    if bkrect <> nil then
+      bkrect.AddObject(text)
+    else
+      AddObject(text);
+
+    TreeCell.InfoControl := text;
+  end;
+  // otherwise user can use own 'cell' style, with own label
+end;
+
+function TCellControl.FindBackgroundRectangle: TRectangle;
+ // try to find bk rect in style
+begin
+  Result := nil;
+
+  // do not need to search deep - it can be non-background Rectangle. Anyway, if nothing found - will be created custom rectangle
+  if Controls.Count > 0 then
+  begin
+    var bkrect := Controls[0];
+    if bkrect is TRectangle then
+      Result := TRectangle(bkrect);
+  end;
+end;
+
+function TCellControl.GetBackgroundColor: TAlphaColor;
 begin
   if _BackgroundRect <> nil then
     Result := _BackgroundRect.Fill.Color
@@ -12665,45 +12673,64 @@ begin
     Result := TAlphaColorRec.Null;
 end;
 
-procedure TCellItem.SetBackgroundColor(const Value: TAlphaColor);
+procedure TCellControl.SetBackgroundColor(const Value: TAlphaColor);
 begin
   if (_BackgroundRect = nil) and (Value = TAlphaColorRec.Null) then exit;
 
   if _BackgroundRect <> nil then
   begin
+    _BackgroundRect.Fill.Color := Value;
+    _BackgroundRect.Margins.Left := _BackgroundRectangleMargin;
+
     // reset bk color, remove Rectangle
     if Value = TAlphaColorRec.Null then
-      FreeAndNil(_BackgroundRect)
-    else
     begin
-      _BackgroundRect.Fill.Color := Value;
-      _BackgroundRect.Margins.Left := _BackgroundRectangleMargin;
+      if _NeedFreeBackgroundRect then
+        _BackgroundRect.Free;
+
+      _BackgroundRect := nil;
     end;
 
     exit;
+  end
+  else  // _BackgroundRect = nil
+    begin
+      _BackgroundRect := FindBackgroundRectangle;
+
+      if _BackgroundRect <> nil then
+        _NeedFreeBackgroundRect := False  // should not be free! This is a styled object which FMX controls
+      else
+        begin
+          // Or create custom rectangle, case for custom styled cell controls, which does not have any background rectangles
+          _BackgroundRect := TRectangle.Create(Self);
+          _NeedFreeBackgroundRect := True;
+           AddObject(_BackgroundRect);
+          _BackgroundRect.SendToBack;
+        end;
+    end;
+
+  _BackgroundRect.BeginUpdate;
+  try
+    _BackgroundRect.HitTest := False;
+    _BackgroundRect.Stroke.Kind := TBrushKind.None;
+    _BackgroundRect.Fill.Color := Value;
+    _BackgroundRect.Align :=  TAlignLayout.Contents;
+    _BackgroundRect.Margins.Left := _BackgroundRectangleMargin;
+  finally
+    _BackgroundRect.EndUpdate;
   end;
-
-  _BackgroundRect := TRectangle.Create(Self);
-  _BackgroundRect.HitTest := False;
-  _BackgroundRect.Stroke.Kind := TBrushKind.None;
-  _BackgroundRect.Fill.Color := Value;
-  _BackgroundRect.Align :=  TAlignLayout.Contents;
-  _BackgroundRect.Margins.Left := _BackgroundRectangleMargin;
-
-  AddObject(_BackgroundRect);
-  _BackgroundRect.SendToBack;
 end;
 
-function TCellItem.GetBackIndex: Integer;
-// set this to fix next case: in TTextCellItem there is one child Control - TText, add TRectangle in runtime
+function TCellControl.GetBackIndex: Integer;
+// set this to fix next case: in TCellControl there is one child Control - TText, add TRectangle in runtime
 // call _BackgroundRect.SendToBack; it does not apply SendToBack for this rectangle, because FMX default BackIndex = 1.
 begin
   Result := 0;
 end;
 
-function TCellItem.GetDefaultStyleLookupName: string;
+function TCellControl.GetDefaultStyleLookupName: string;
 begin
-  Result := StyleLookup; // can be empty
+  Result := STYLE_CELL;
 end;
 
 { TTreeCellWithRowLock }

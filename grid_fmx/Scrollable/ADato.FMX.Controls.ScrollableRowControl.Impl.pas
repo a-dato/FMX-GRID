@@ -583,7 +583,7 @@ begin
   lTopRow := nil; // do not use VAR lTopRow: T here, because of bug with generic T inline var and refcount (it does not descrease it).
 
   if Full then
-    RemoveRowsFromView(True)
+    RemoveRowsFromView(True)  // + Make View = nil, clears View cache
   else
   begin
     if SaveTopRow then
