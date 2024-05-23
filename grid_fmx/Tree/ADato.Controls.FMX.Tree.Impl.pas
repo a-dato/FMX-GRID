@@ -3058,7 +3058,7 @@ begin
   Result := True;
   if Assigned(_CellLoading) then
   begin
-    AutoObject.Guard(CellLoadingEventArgs.Create(Cell, Flags, _isFastScrolling), e);
+    AutoObject.Guard(CellLoadingEventArgs.Create(Cell, Flags, (_scrollingType = TScrollingType.FastScrolling)), e);
 
     _CellLoading(Self, e);
     Result := e.LoadDefaultData;
@@ -3084,7 +3084,7 @@ begin
         if TTreeCell(lCell)._UserShowsDataPartially then
         begin
           // Maybe _isFastScrolling already True
-          if _isFastScrolling then exit;
+          if (_scrollingType = TScrollingType.FastScrolling) then exit;
 
           DoCellLoading(lCell, [TCellLoading.IsRowCell]);
           TTreeCell(lCell)._UserShowsDataPartially := False;
@@ -3652,12 +3652,6 @@ end;
 
 procedure TCustomTreeControl.DoPostProcessColumns(out NeedRepaint: boolean);
 begin
-  if _isFastScrolling then
-  begin
-    NeedRepaint := True;
-    Exit;
-  end;
-
   inherited;
   NeedRepaint := False;
 
@@ -4870,7 +4864,7 @@ function TCustomTreeControl.InitRowCells(const TreeRow: ITreeRow; const IsCached
 //      Exit;
 //    end;
 
-    CellControl.ApplyStyleLookup;
+      CellControl.ApplyStyleLookup;
 
     // After changes, sometimes CellControl.StyleState	= Unapplied, even after ApplyStyleLookup
 
