@@ -12677,48 +12677,54 @@ procedure TCellControl.SetBackgroundColor(const Value: TAlphaColor);
 begin
   if (_BackgroundRect = nil) and (Value = TAlphaColorRec.Null) then exit;
 
+  if _BackgroundRect = nil then
+  begin
+    _BackgroundRect := FindBackgroundRectangle;  // styled bk rect, e.g. in 'cell'
+
+    if _BackgroundRect <> nil then
+      _NeedFreeBackgroundRect := False  // should not be free! This is a styled object which FMX controls
+    else
+    // Or create custom rectangle, case for custom styled cell controls, which does not have any background rectangles
+    begin
+      _BackgroundRect := TRectangle.Create(Self);
+      _BackgroundRect.BeginUpdate;
+      try
+         _NeedFreeBackgroundRect := True;
+         _BackgroundRect.Align :=  TAlignLayout.Contents;
+         _BackgroundRect.HitTest := False;
+         _BackgroundRect.Stroke.Kind := TBrushKind.None;
+         AddObject(_BackgroundRect);
+         _BackgroundRect.SendToBack;
+      finally
+         _BackgroundRect.EndUpdate;
+      end;
+    end;
+  end;
+
+  // set or remove color
   if _BackgroundRect <> nil then
   begin
-    _BackgroundRect.Fill.Color := Value;
-    _BackgroundRect.Margins.Left := _BackgroundRectangleMargin;
-
-    // reset bk color, remove Rectangle
+    // Reset bk color (nil)
     if Value = TAlphaColorRec.Null then
     begin
-      if _NeedFreeBackgroundRect then
+      _BackgroundRect.Fill.Color := Value;
+      _BackgroundRect.Margins.Left := 0;
+      _BackgroundRect.Fill.Kind := TBrushKind.None;
+
+      if _NeedFreeBackgroundRect then // can be styled rectangle in 'cell' style, which FMX controls
         _BackgroundRect.Free;
 
       _BackgroundRect := nil;
-    end;
-
-    exit;
-  end
-  else  // _BackgroundRect = nil
-    begin
-      _BackgroundRect := FindBackgroundRectangle;
-
-      if _BackgroundRect <> nil then
-        _NeedFreeBackgroundRect := False  // should not be free! This is a styled object which FMX controls
-      else
-        begin
-          // Or create custom rectangle, case for custom styled cell controls, which does not have any background rectangles
-          _BackgroundRect := TRectangle.Create(Self);
-          _NeedFreeBackgroundRect := True;
-           AddObject(_BackgroundRect);
-          _BackgroundRect.SendToBack;
-        end;
-    end;
-
-  _BackgroundRect.BeginUpdate;
-  try
-    _BackgroundRect.HitTest := False;
-    _BackgroundRect.Stroke.Kind := TBrushKind.None;
-    _BackgroundRect.Fill.Color := Value;
-    _BackgroundRect.Align :=  TAlignLayout.Contents;
-    _BackgroundRect.Margins.Left := _BackgroundRectangleMargin;
-  finally
-    _BackgroundRect.EndUpdate;
+    end
+    // or set a new color
+    else
+      begin
+        _BackgroundRect.Fill.Color := Value;
+        _BackgroundRect.Margins.Left := _BackgroundRectangleMargin;
+        _BackgroundRect.Fill.Kind := TBrushKind.Solid;
+      end;
   end;
+
 end;
 
 function TCellControl.GetBackIndex: Integer;
