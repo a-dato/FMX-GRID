@@ -56,12 +56,14 @@ begin
       Exit;
     end;
 
-    if ctrl.ControlsCount > 0 then
-    begin
-      Result := GetTextControl(ctrl);
-      if Result <> nil then
-        Exit;
-    end;
+   // do not need deep searching (this will take time), because we will search more deep for the 'text' style below (step 2).
+   // The idea of this search part - quick searching on first level, instead of FindStyleResource. Alex.
+//    if ctrl.ControlsCount > 0 then
+//    begin
+//      Result := GetTextControl(ctrl);
+//      if Result <> nil then
+//        Exit;
+//    end;
   end;
 
   // Or it can be complex custom style (header or user cell)
