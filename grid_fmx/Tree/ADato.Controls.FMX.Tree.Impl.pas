@@ -1501,18 +1501,8 @@ type
                                       Args: RowChangedEventArgs);
     procedure DataProperty_DataModelListChanged(  Sender: TObject;
                                                   e: ListChangedEventArgs);
-
-  protected
-    _selectInModelTimer: TTimer;
-    _onSelectionAnimationFinished: TNotifyEvent;
-
-    procedure StartSelectInModelTimer;
-    procedure OnSelectInModelTimer(Sender: TObject);
-    procedure set_OnSelectionAnimationFinished(const Value: TNotifyEvent);
-
   public
-    procedure SelectDataItemInModel;
-    property  OnSelectionAnimationFinished: TNotifyEvent write set_OnSelectionAnimationFinished;
+    procedure DoOnSelected; override;
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -1737,6 +1727,7 @@ type
     property EditRowEnd;
     property CellChanging;
     property CellChanged;
+    property CellSelected;
     property CellFormatting;
     property CellItemClicked;
     property CellLoading;
@@ -2061,7 +2052,6 @@ begin
   if _columns <> nil then
     (_columns as INotifyCollectionChanged).CollectionChanged.Remove(ColumnsChanged);
 
-  _selectInModelTimer.Free;
   set_Model(nil);
 
   //_GridLineStroke.Free;
@@ -2563,31 +2553,10 @@ begin
 end;
 {$ENDREGION}
 
-procedure TCustomTreeControl.StartSelectInModelTimer;
+procedure TCustomTreeControl.DoOnSelected;
 begin
-  if _selectInModelTimer = nil then
-  begin
-    _selectInModelTimer := TTimer.Create(Self);
-    _selectInModelTimer.OnTimer := OnSelectInModelTimer;
-    _selectInModelTimer.Interval := 50;
-  end;
+  inherited;
 
-  if not Self.Animate then
-  begin
-    // directly select the item
-    _selectInModelTimer.Tag := 0;
-    _selectInModelTimer.Enabled := False;
-    OnSelectInModelTimer(nil);
-  end else begin
-    // reset timer
-    _selectInModelTimer.Tag := -1;
-    _selectInModelTimer.Enabled := False;
-    _selectInModelTimer.Enabled := True;
-  end;
-end;
-
-procedure TCustomTreeControl.SelectDataItemInModel;
-begin
   if (_model <> nil) then
   begin
     var item: CObject := get_DataItem;
@@ -2598,27 +2567,6 @@ begin
 
     _model.ObjectContext := item;
   end;
-
-  if Assigned(_onSelectionAnimationFinished) then
-    _onSelectionAnimationFinished(Self);
-
-  if (_selectInModelTimer <> nil) and _selectInModelTimer.Enabled then
-    _selectInModelTimer.Enabled := False;
-end;
-
-procedure TCustomTreeControl.OnSelectInModelTimer(Sender: TObject);
-begin
-  if _AnimationIndex > 0 then
-    Exit;
-
-    // make sure at least the interval time is between Ani finish
-  if (_selectInModelTimer.Tag = -1) then
-  begin
-    _selectInModelTimer.Tag := 0;
-    Exit;
-  end;
-
-  SelectDataItemInModel;
 end;
 
 {$REGION 'Selections'}
@@ -3018,8 +2966,6 @@ begin
     AutoObject.Guard(CellChangedEventArgs.Create(OldCell, NewCell), e);
     _cellChanged(Self, e);
   end;
-
-  StartSelectInModelTimer;
 end;
 
 function TCustomTreeControl.DoCellChanging(const OldCell, NewCell: ITreeCell): Boolean;
@@ -5944,11 +5890,6 @@ end;
 function TCustomTreeControl.get_Options: TreeOptions;
 begin
   Result := _Options;
-end;
-
-procedure TCustomTreeControl.set_OnSelectionAnimationFinished(const Value: TNotifyEvent);
-begin
-  _onSelectionAnimationFinished := Value;
 end;
 
 procedure TCustomTreeControl.set_Options(const Value: TreeOptions);

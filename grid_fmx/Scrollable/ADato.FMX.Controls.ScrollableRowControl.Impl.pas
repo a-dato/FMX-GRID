@@ -167,8 +167,25 @@ type
     _ShowKeyboardCursorRectangle: Boolean;
     _MultiSelectionControl: TControl; // another style for multiselection feature
     _MultiSelect: Boolean;
-    function GetNextKeyboardSelectionRow(AKey: integer): integer;
+    _cellSelected: TNotifyEvent;
+    _selectionTimer: TTimer;
+    _startTimerTicks: Int64;
+    _selectionTimerInterval: Integer;
+
+    function  GetNextKeyboardSelectionRow(AKey: integer): integer;
     procedure ShowKeyboardCursorFocus(ARowIndex: integer; const AColumnIndex: integer = USE_CURRENT_COLUMN);
+
+    procedure StartSelectionTimer;
+    procedure OnSelectionTimer(Sender: TObject);
+    procedure DoOnSelected; virtual;
+
+  public
+    function  IsSelecting: Boolean;
+    property  SelectionTimerInterval: Integer write _selectionTimerInterval;
+
+  published
+    property  CellSelected: TNotifyEvent read _CellSelected write _CellSelected;
+
   strict private  // FastScrolling optimization (partial load) routins
     _VPYStart: Single;
     _VPY_End: Single;
@@ -518,6 +535,7 @@ begin
   _ShowKeyboardCursorRectangle := False;
 
   _Selection := CList<ISelectionItem>.Create;
+  _selectionTimerInterval := 50;
   _ScrollPerRow := False;
 
   _fsStopTimer := TTimer.Create(Self);
@@ -1806,6 +1824,44 @@ begin
   ShowCurrentRowSelection;
 end;
 
+function TScrollableRowControl<T>.IsSelecting: Boolean;
+begin
+  Result := (_AnimationIndex > 0) or ((_selectionTimer <> nil) and _selectionTimer.Enabled);
+end;
+
+procedure TScrollableRowControl<T>.StartSelectionTimer;
+begin
+  if _selectionTimer = nil then
+  begin
+    _selectionTimer := TTimer.Create(Self);
+    _selectionTimer.Interval := 50;
+    _selectionTimer.OnTimer := OnSelectionTimer;
+    _selectionTimer.Tag := 0;
+  end;
+
+  _startTimerTicks := TThread.GetTickCount64;
+  _selectionTimer.Enabled := True;
+end;
+
+procedure TScrollableRowControl<T>.OnSelectionTimer(Sender: TObject);
+begin
+  if _AnimationIndex > 0 then
+    Exit;
+
+  if _startTimerTicks > TThread.GetTickCount64 - _selectionTimerInterval then
+    Exit;
+
+  _selectionTimer.Enabled := False;
+  _selectionTimer.Tag := 0;
+  DoOnSelected;
+end;
+
+procedure TScrollableRowControl<T>.DoOnSelected;
+begin
+  if Assigned(_CellSelected) then
+    _CellSelected(Self);
+end;
+
 procedure TScrollableRowControl<T>.ShowCurrentRowSelection;
 begin
   var CurrentRowIndex := get_Current;
@@ -2094,6 +2150,8 @@ begin
 //      InvalidateContentSize;
     end;
   end;
+
+  StartSelectionTimer;
 end;
 
 procedure TScrollableRowControl<T>.OnSelectionAnimationFinished(Sender: TObject);
