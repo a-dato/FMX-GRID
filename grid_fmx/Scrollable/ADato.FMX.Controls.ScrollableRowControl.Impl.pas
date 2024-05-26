@@ -23,8 +23,6 @@ const
     one by one. Larger - row unfolds slower! (especially if row contains > 8 children) more children - more slower,
     so better do not set large value.
     0 - Gantt will show all children nodes at once. }
-  STYLE_ROW = 'row';
-
 
   // localize
   STR_MOVE_AFTER = 'Move below...';
@@ -72,6 +70,7 @@ type
   protected
   const
     USE_CURRENT_COLUMN = -1; // internal, for SelectRowCell func.
+    STYLE_ROW = 'row';
     STYLE_SELECTION_CURRENT_ROW = 'selection';
     STYLE_MULTISELECTION = 'multiselection';
     STYLE_FOCUS_SELECTION = 'focusselection'; // ShowKeyboardCursorRectangle
@@ -3382,7 +3381,7 @@ end;
 
 function TRowControl.GetDefaultStyleLookupName: string;
 begin
-  Result := STYLE_ROW;
+  Result := TScrollableRowControl<IRow>.STYLE_ROW;
 end;
 
 function TRowControl.FindBackgroundRectangle(out aRectangle: TRectangle): boolean;

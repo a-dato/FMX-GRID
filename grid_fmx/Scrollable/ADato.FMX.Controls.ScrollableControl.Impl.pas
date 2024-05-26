@@ -418,7 +418,8 @@ end;
 
 procedure TScrollableControl.FreeStyle;
 begin
-  VScrollBar.Value := 0;
+  if VScrollBar <> nil then
+    VScrollBar.Value := 0;
   { Fixes issue in FMX(D12): (probability 30%): Scroll to the middle of the large Tree list, vertically (e.g. row #4000),
     call Tree.NeedStyleLookup - AV.
     Calling Tree.NeedStyleLookup will free style, including scrollbar. While freeing scrollbar it MAY call
