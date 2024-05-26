@@ -1508,7 +1508,6 @@ type
     procedure StartSelectInModelTimer;
     procedure OnSelectInModelTimer(Sender: TObject);
     procedure set_OnSelectionAnimationFinished(const Value: TNotifyEvent);
-
   public
     procedure SelectDataItemInModel;
     property  OnSelectionAnimationFinished: TNotifyEvent write set_OnSelectionAnimationFinished;
@@ -4860,7 +4859,11 @@ function TCustomTreeControl.InitRowCells(const TreeRow: ITreeRow; const IsCached
     var onInitCellProc := TreeCell.Column.OnInitCell;
 
     CellControl.ApplyStyleLookup;
-    Assert(CellControl.StyleState = TStyleState.Applied, 'Please pay attention, this will create diff. issues');
+
+    // can be TStyleState.Unapplied if style specified in Stylelookup was not found
+    // this can create possible issues with Frozen cells and OnInitCell, see below.
+    Assert(CellControl.StyleState = TStyleState.Applied,
+      Format('After ApplyStyleLookup, StyleState = Unapplied, style "%s" does not exist?', [CellControl.StyleLookup]));
 
     if (CellControl.StyleState = TStyleState.Applied) then
     begin
