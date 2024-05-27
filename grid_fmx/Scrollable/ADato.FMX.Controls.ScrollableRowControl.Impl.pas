@@ -23,8 +23,6 @@ const
     one by one. Larger - row unfolds slower! (especially if row contains > 8 children) more children - more slower,
     so better do not set large value.
     0 - Gantt will show all children nodes at once. }
-  STYLE_ROW = 'row';
-
 
   // localize
   STR_MOVE_AFTER = 'Move below...';
@@ -72,6 +70,7 @@ type
   protected
   const
     USE_CURRENT_COLUMN = -1; // internal, for SelectRowCell func.
+    STYLE_ROW = 'row';
     STYLE_SELECTION_CURRENT_ROW = 'selection';
     STYLE_MULTISELECTION = 'multiselection';
     STYLE_FOCUS_SELECTION = 'focusselection'; // ShowKeyboardCursorRectangle
@@ -812,19 +811,8 @@ end;
 procedure TScrollableRowControl<T>.UpdateContents(Force: Boolean);
   // Nested procedure in generic method or method of generic type is not supported in RAD 10.4
 var
-  totalHeight, position: Single;
-  bottomrow: T;
   clip: TRectF;
-  toprect, bottomrect: TRectF;
-  RowBoundsRect: TRectF;
-  cnt: Integer;
-  tophidden, bottomhidden: Integer;
-  row: T;
-  viewindex: Integer;
-  rowindex: Integer;
-  toprow: T;
   vp: TPointF;
-  ClipTop: single;
 begin
   if (_View = nil) or (_View.RowCount = 0) then Exit;
   if not Force and _IsDeniedUpdateContent then Exit;
@@ -844,13 +832,7 @@ begin
   if not Force then
     if (_View <> nil) and not (_contentBounds.Bottom <= _contentBounds.Top) then
       if (_lastUpdatedViewportPosition.Y = vp.Y) and (_lastSize = Size.Size) then
-      begin
-        if (_lastUpdatedViewportPosition.X <> vp.X) then
-        begin
-        end;
-
         Exit;
-      end;
 
   // make sure that any potential "UpdateContent" in ForceQueue will be killed
   inc(_updateContentIndex);
@@ -863,7 +845,6 @@ begin
   _IsDeniedUpdateContent := True;
   try
     HandleContentRowChanges(clip);
-
   finally
     _IsDeniedUpdateContent := False;
     EndUpdate;
@@ -892,8 +873,8 @@ begin
   _View.SortInternalList;
 
   // set toprow (toprect), bottomrow(bottomrect), totalHeight. Tophidden, bottomhidden - to remove proper rows
-  var bottomrow: T := nil;
-  var toprow: T := nil;
+  var bottomrow: IRow := nil;
+  var toprow: IRow := nil;
   while viewindex < _View.Count do
   begin
     var row := _View[viewindex];
@@ -972,7 +953,7 @@ begin
     if (_View.Count > 0) and ( (toprect.Top > clipTop) and (viewindex < 0) ) then
     begin
       position := clipTop;   // First row starting Y
-      var row: T := nil;
+      var row: IRow := nil;
       for viewindex := 0 to _View.Count - 1 do
       begin
         row := _View[viewindex];
@@ -3455,7 +3436,7 @@ end;
 
 function TRowControl.GetDefaultStyleLookupName: string;
 begin
-  Result := STYLE_ROW;
+  Result := TScrollableRowControl<IRow>.STYLE_ROW;
 end;
 
 function TRowControl.FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
