@@ -704,7 +704,6 @@ end;
 procedure TScrollableRowControl<T>.MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
 begin
   inherited;
-
   // the CPU can be to slow to handle all MouseWheel events, and can get stuk for a little while
   // in the meantime we don't want the timer "OnFastScrollingStopTimer" to be executed, because this results in extra performance for the already slow CPU
 
@@ -722,11 +721,11 @@ begin
   _fsStopTimer.Enabled := False; // truly reset timer here!!
   _fsStopTimer.Enabled := True;
 
+  // detect next scroll move
+  _fastScrollStartTime := TThread.GetTickCount;
+
   if _scrollingType = TScrollingType.None then
   begin
-    // detect next scroll move
-    _fastScrollStartTime := TThread.GetTickCount;
-
     // later we decide if it is fast scrolling. At least we now we are scrolling here
     _scrollingType := TScrollingType.ScrollingStarted;
   end
@@ -736,22 +735,18 @@ begin
     if endTime < FAST_SCROLLING_DETECT_INTERVAL then
       Exit;
 
-    _fastScrollStartTime := endTime;
-
     if _VPY_End = ViewportPosition.Y then exit;
 
     _VPY_End := ViewportPosition.Y;
     var scrolledPx := Abs(_VPYStart - _VPY_End);
 
-    var pxPerTick := scrolledPx / _fastScrollStartTime;
+    var pxPerTick := scrolledPx / endTime;
     if (pxPerTick > 2) then
       _scrollingType := TScrollingType.FastScrolling
     else if (pxPerTick > 0) and (_scrollingType <> TScrollingType.FastScrolling) then
       _scrollingType := TScrollingType.SlowScrolling;
 
     _VPYStart := _VPY_End;
-
-    _fastScrollStartTime := 0;
   end;
 end;
 
@@ -763,10 +758,10 @@ begin
     _scrollingType := TScrollingType.None;
 
     _lastSize := TSize.Create(0, 0);
-    AfterUpdateContents(ViewportPosition.Y);
 
     // uncomment it to load cells for the second time, after IsFastScrolling
-   // DoFastScrollingStopped;
+    DoFastScrollingStopped;
+    _FastScrollStartTime := 0;
   end;
 end;
 
@@ -3240,7 +3235,8 @@ begin
     if CanCache then
     begin
       _CacheList.Add(removedRow);
-      removedRow.Control.Visible := False;
+      removedRow.Control.Opacity := 0;
+//      removedRow.Control.Visible := False;
     end;
   end;
 
@@ -3265,7 +3261,8 @@ begin
       if CanCache then
       begin
         _CacheList.Add(removedRow);
-        removedRow.Control.Visible := False;
+        removedRow.Control.Opacity := 0;
+//        removedRow.Control.Visible := False;
       end;
 
       //RemoveAt(i);

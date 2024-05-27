@@ -3019,28 +3019,11 @@ begin
 end;
 
 procedure TCustomTreeControl.DoFastScrollingStopped;
-var
-  lCell: ITreeCell;
 begin
   inherited;
 
-  for var i := 0 to _View.Count - 1 do
-    with _View[i] do
-    begin
-      for var k := 0 to Cells.Count - 1 do
-      begin
-        lCell := Cells[k];
-        if TTreeCell(lCell)._UserShowsDataPartially then
-        begin
-          // Maybe _isFastScrolling already True
-          if (_scrollingType = TScrollingType.FastScrolling) then exit;
-
-          DoCellLoading(lCell, [TCellLoading.IsRowCell]);
-          TTreeCell(lCell)._UserShowsDataPartially := False;
-        end;
-      end;
-  end;
-
+  // DataChanged tells the tree to reload all it's data and calculate correct sizes
+  RefreshControl([TreeState.DataChanged]);
 end;
 
 function TCustomTreeControl.DoColumnChangingByUser(
@@ -4743,7 +4726,7 @@ begin
       //  treeRowClass.Control := TAlternatingRowControl.Create(Self) else
       //  treeRowClass.Control := TRowControl.Create(Self);
     end
-    else // update Height for cached row
+    else if not SameValue(treeRowClass.Control.Height, treeRowClass.Height) then // update Height for cached row
       treeRowClass.Control.Height := treeRowClass.Height;
 
     // Need to add the row control into the Tree, or we cannot calculate sizes of different controls (cells, row)
@@ -4806,7 +4789,7 @@ function TCustomTreeControl.InitRowCells(const TreeRow: ITreeRow; const IsCached
     var onInitCellProc := TreeCell.Column.OnInitCell;
 
     CellControl.ApplyStyleLookup;
-    Assert(CellControl.StyleState = TStyleState.Applied, 'Please pay attention, this will create diff. issues');
+//    Assert(CellControl.StyleState = TStyleState.Applied, 'Please pay attention, this will create diff. issues');
 
     if (CellControl.StyleState = TStyleState.Applied) then
     begin
@@ -4891,28 +4874,28 @@ begin
     if loadDefaultData then
       FMXColumn.LoadDefaultData(treeCell);
 
-    // if CellControl.Height was not changed in InitCellStyles and it is still default - adjust it to text width:
-    if size = treeCell.Control.Size.Size then
-      size := layoutColumn.CalculateControlSize(treeCell, INITIAL_ROW_HEIGHT) else
-      size := treeCell.Control.Size.Size;
+    if _scrollingType = TScrollingType.None then
+    begin
+      // if CellControl.Height was not changed in InitCellStyles and it is still default - adjust it to text width:
+      if (size = treeCell.Control.Size.Size) then
+        size := layoutColumn.CalculateControlSize(treeCell, INITIAL_ROW_HEIGHT) else
+        size := treeCell.Control.Size.Size;
 
+      // at this stage "size" can be custom control size or from CalculateControlSize.
+      if (FMXColumn.MinWidth <> 0) and (size.Width < FMXColumn.MinWidth) then
+        size.Width := FMXColumn.MinWidth
+      // "Width" of the column is the minimum width (if MinWidth = 0), even if AutoSizeToContent = True.
+      // pay attention that ITreeColumn.Width (const design-time width) <> TTreeLayoutColumn.Width (real time value)
+      else if (size.Width < FMXColumn.Width) and (FMXColumn.MaxWidth = COLUMN_MAX_WIDTH_NOT_USED) then
+        size.Width := FMXColumn.Width;
 
-   // at this stage "size" can be custom control size or from CalculateControlSize.
+      // Never decrease _LongestCellWidth value
+      if FMXColumn._LongestCellWidth < size.Width then
+        FMXColumn._LongestCellWidth := size.Width;
 
-   if (FMXColumn.MinWidth <> 0) and (size.Width < FMXColumn.MinWidth) then
-     size.Width := FMXColumn.MinWidth
-   else
-     // "Width" of the column is the minimum width (if MinWidth = 0), even if AutoSizeToContent = True.
-     // pay attention that ITreeColumn.Width (const design-time width) <> TTreeLayoutColumn.Width (real time value)
-     if (size.Width < FMXColumn.Width) and (FMXColumn.MaxWidth = COLUMN_MAX_WIDTH_NOT_USED) then
-       size.Width := FMXColumn.Width;
-
-    // Never decrease _LongestCellWidth value
-    if FMXColumn._LongestCellWidth < size.Width then
-      FMXColumn._LongestCellWidth := size.Width;
-
-    UpdateColumnWidthAndCells(columnIndex, size.Width, treeCell.ColSpan,
-        [TUpdateColumnReason.UpdateHeader, TUpdateColumnReason.UpdateRows, OptionalHeaderResizing]);
+      UpdateColumnWidthAndCells(columnIndex, size.Width, treeCell.ColSpan,
+          [TUpdateColumnReason.UpdateHeader, TUpdateColumnReason.UpdateRows, OptionalHeaderResizing]);
+    end;
 
     var lIndent: single := 0;
     if FMXColumn._ShowHierarchy then
@@ -4946,9 +4929,13 @@ begin
   // UpdateRowWidth
   var lastLayoutColumn := Columns[Columns.Count - 1];
   var w := lastLayoutColumn.Left + lastLayoutColumn.Width;
-  treeRowClass.Control.Width := w;
-  if w > _contentBounds.Right then
-    _contentBounds := TRectF.Create(_contentBounds.Left, _contentBounds.Top, w, _contentBounds.Bottom);
+
+  if not SameValue(treeRowClass.Control.Width, w) and (_scrollingType = TScrollingType.None) then
+  begin
+    treeRowClass.Control.Width := w;
+    if w > _contentBounds.Right then
+      _contentBounds := TRectF.Create(_contentBounds.Left, _contentBounds.Top, w, _contentBounds.Bottom);
+  end;
   // Later, in DoAutoFitColumns, column can be fit in Tree width and _contentBounds can be changed
 end;
 
@@ -12577,7 +12564,11 @@ begin
 
     var ts: ITextSettings;
     if interfaces.Supports<ITextSettings>(text, ts) then
+    begin
       ts.TextSettings.HorzAlign := TTextAlign.Leading;
+      ts.TextSettings.WordWrap := False;
+      ts.TextSettings.Trimming := TTextTrimming.Character;
+    end;
 
     var bkrect := FindBackgroundRectangle;
     Assert(bkrect <> nil, 'Std ''cell'' style was changed or somth. wrong. Please recheck. _IsCellStyleStandard should be False in this case too.');
