@@ -1790,7 +1790,7 @@ type
     function GetDefaultStyleLookupName: string; override;
   end;
 
-  TCellControl = class(TOwnerStyledPanel)
+  TStyledCellControl = class(TOwnerStyledPanel)
   strict private
     _NeedFreeBackgroundRect: Boolean; // True - created manually, False - styled object
     _BackgroundRect : TRectangle;
@@ -1812,6 +1812,23 @@ type
     function GetBackIndex: Integer; override;
     function GetDefaultStyleLookupName: string; override;
     procedure ApplyStyle; override;
+  public
+    constructor Create(AOwner: TComponent; const Cell: ITreeCell);
+    destructor Destroy; override;
+    property TreeCell: ITreeCell read _TreeCell;
+    property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;  //  TAlphaColorRec.Null to reset
+  end;
+
+  TCellControl = class(TControl)
+  strict private
+    [unsafe] _TreeCell: ITreeCell;
+    function GetBackgroundColor: TAlphaColor;
+    procedure SetBackgroundColor(const Value: TAlphaColor);
+    function FindBackgroundRectangle: TRectangle;
+  protected
+    _BackgroundRectangleMargin: Single;
+     _GridBottomLine: TLine;
+    function GetBackIndex: Integer; override;
   public
     constructor Create(AOwner: TComponent; const Cell: ITreeCell);
     destructor Destroy; override;
@@ -4867,7 +4884,9 @@ begin
     // Calculate size of the cell
     var size: TSizeF := treeCell.Control.Size.Size;
 
-    InitCellStyles(treeCell);
+//    if _scrollingType = TScrollingType.None then
+    if (_scrollingType = TScrollingType.None){ or ((treeCell.Control as TStyledControl).StyleState = TStyleState.Applied)} then
+      InitCellStyles(treeCell);
 
     var OptionalHeaderResizing : TUpdateColumnReason := TUpdateColumnReason.TNone;
     if (HeaderRows <> nil) and FMXColumn.AllowResize and
@@ -4875,8 +4894,11 @@ begin
       OptionalHeaderResizing := TUpdateColumnReason.HeaderSizing;
     // without this flag UpdateColumnWidthAndCells does not decrease Column width (only enlarge), case if DesignedWidth > Auto width.
 
-    if loadDefaultData then
-      FMXColumn.LoadDefaultData(treeCell);
+//    if _scrollingType = TScrollingType.None then
+//    begin
+      if loadDefaultData then
+        FMXColumn.LoadDefaultData(treeCell);
+//    end;
 
     if _scrollingType = TScrollingType.None then
     begin
@@ -8358,7 +8380,30 @@ end;
 
 function TFMXTreeColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
-  Result := TCellControl.Create(AOwner, Cell);
+  // TCellControl is about 20% faster than TStyledCellControl
+
+  if Cell.Column.StyleLookup = string.Empty then
+  begin
+    Result := TCellControl.Create(AOwner, Cell);
+    var text := ScrollableRowControl_DefaultTextClass.Create(Result);
+    text.Align := TAlignLayout.Client;
+    text.Margins.Left := 10;
+    text.Margins.Left := CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN;
+    text.HitTest := False;
+
+    var ts: ITextSettings;
+    if interfaces.Supports<ITextSettings>(text, ts) then
+    begin
+      ts.TextSettings.HorzAlign := TTextAlign.Leading;
+      ts.TextSettings.WordWrap := False;
+      ts.TextSettings.Trimming := TTextTrimming.Character;
+    end;
+
+    Result.AddObject(text);
+
+    Cell.InfoControl := text;
+  end else
+    Result := TStyledCellControl.Create(AOwner, Cell);
 
   // code related to label has been moved into TCellControl.ApplyStyle
 end;
@@ -8389,15 +8434,26 @@ end;
 
 procedure TFMXTreeColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
 begin
-  if Cell.InfoControl = nil then
-    Cell.InfoControl := GetTextControl(Cell.Control);
+//  if Cell.InfoControl = nil then
+//    Cell.InfoControl := GetTextControl(Cell.Control);
 
   // can be TText or TLabel (or inherited like TAdatoLabel). e.g. TAdatoLabel can be used in 'headercell'
 
   if Cell.InfoControl <> nil then
   begin
-    var cellText := CStringToString( GetCellText(Cell) );
-    (Cell.InfoControl as ICaption).Text := cellText;
+    var clmnIndex := Cell.Column.Index;
+    var isFastScrolling := ((_treeControl as TFMXTreeControl)._scrollingType = TScrollingType.FastScrolling);
+
+//    if not isFastScrolling or (clmnIndex <= 2) then
+//    begin
+      var cellText := CStringToString( GetCellText(Cell) );
+//      Cell.Control.Visible := True;
+      (Cell.InfoControl as ICaption).Text := cellText;
+//    end
+//    else begin
+//      inc(_ixx);
+//      Cell.Control.Visible := False;
+//    end;
 
     if MakeVisible then
     begin
@@ -9340,10 +9396,11 @@ begin
   Result.Height := InitialRowHeight;
   Result.Width := 0;
 
-  if not (Cell.Control is TStyledControl) then exit;
-  var CellControl := TStyledControl(Cell.Control);  // usually TCellControl
-
-  CellControl.ApplyStyleLookup;
+  if (Cell.Control is TStyledControl) then
+  begin
+    var CellControl := TStyledControl(Cell.Control);  // usually TCellControl
+    CellControl.ApplyStyleLookup;
+  end;
 
   var fmxColumn := TFMXTreeColumn(_Column);
 
@@ -9357,7 +9414,9 @@ begin
   if (Cell.InfoControl <> nil) then
   begin
     text := (Cell.InfoControl as ICaption).Text;
-    textSettings := (Cell.InfoControl as ITextSettings).TextSettings;
+    var settings: ITextSettings;
+    if interfaces.Supports<ITextSettings>(Cell.InfoControl, settings) then
+      textSettings := settings.TextSettings;
   end;
 
   if _IsWidthChangedByUser then  //if fmxColumn._IsWidthChangedByUser then
@@ -9366,7 +9425,7 @@ begin
   // combining AutoSizeToContent and TWidthType (2) = 4 modes. Read details in ADato.Controls.FMX.Tree.Intf.pas unit
   else if fmxColumn._AutoSizeToContent then
   begin
-    if text <> '' then
+    if (text <> '') and (textSettings <> nil) then
       Result.Width := TextControlWidth(Cell.InfoControl as TControl, textSettings, text) + EXTRA_CELL_AUTO_WIDTH;
 
     if (fmxColumn._MaxWidth = COLUMN_MAX_WIDTH_NOT_USED) then
@@ -9407,7 +9466,7 @@ begin
     Result.Width := fmxColumn._MinWidth;
 
   // Need auto height?
-  if fmxColumn._AutoSizeToContent and (text <> '') then
+  if fmxColumn._AutoSizeToContent and (text <> '') and (textSettings <> nil) then
   begin
     var textHeight := TextControlHeight(Cell.InfoControl as TControl, textSettings, text, -1, -1, Result.Width - 3 {margins});
     if textHeight > InitialRowHeight then
@@ -10707,9 +10766,12 @@ end;
 procedure TTreeCell.set_Control(const Value: TControl);
 begin
   if _Control <> nil then
+  begin
     _Control.RemoveFreeNotify(Self);
+    set_InfoControl(nil);
+  end;
+
   _Control.Free;
-  set_InfoControl(nil);
 
   _Control := Value;
   if _Control <> nil then
@@ -12527,7 +12589,7 @@ end;
 
 { TCellControl }
 
-constructor TCellControl.Create(AOwner: TComponent; const Cell: ITreeCell);
+constructor TStyledCellControl.Create(AOwner: TComponent; const Cell: ITreeCell);
 begin
   inherited Create(AOwner);
 
@@ -12547,7 +12609,7 @@ begin
 //  AddObject(R1);
 end;
 
-destructor TCellControl.Destroy;
+destructor TStyledCellControl.Destroy;
 begin
   if _NeedFreeBackgroundRect then
     _BackgroundRect.Free;
@@ -12555,7 +12617,7 @@ begin
   inherited;
 end;
 
-procedure TCellControl.ApplyStyle;
+procedure TStyledCellControl.ApplyStyle;
 begin
   inherited;
 
@@ -12587,7 +12649,7 @@ begin
   // otherwise user can use own 'cell' style, with own label
 end;
 
-function TCellControl.FindBackgroundRectangle: TRectangle;
+function TStyledCellControl.FindBackgroundRectangle: TRectangle;
  // try to find bk rect in style
 begin
   Result := nil;
@@ -12601,7 +12663,32 @@ begin
   end;
 end;
 
-function TCellControl.GetBackgroundColor: TAlphaColor;
+//function TCellControl.RenderTextToBitmap(const Text: string; const Font: TFont; const Width, Height: Single): FMX.Graphics.TBitmap;
+//begin
+//  if _bm = nil then
+//  begin
+//    _bm := FMX.Graphics.TBitmap.Create(Round(Width), Round(Height));
+//
+//    // Set the font and other text properties
+//    _bm.Canvas.Font.Assign(Font);
+//
+//    // Define the area to draw the text
+//    _rect := TRectF.Create(0, 0, Width, Height);
+//
+//    // Clear the bitmap with a transparent color
+//    _bm.Canvas.Fill.Kind := TBrushKind.None;
+//    _bm.Canvas.Clear(TAlphaColors.Null);
+//
+//    // Draw the text onto the bitmap
+//    _bm.Canvas.Fill.Color := TAlphaColors.Black; // Set text color
+//  end;
+//
+//  _bm.Canvas.FillText(_rect, Text, False, 1, [], TTextAlign.Leading, TTextAlign.Center);
+//
+//  Result := _bm;
+//end;
+
+function TStyledCellControl.GetBackgroundColor: TAlphaColor;
 begin
   if _BackgroundRect <> nil then
     Result := _BackgroundRect.Fill.Color
@@ -12609,7 +12696,7 @@ begin
     Result := TAlphaColorRec.Null;
 end;
 
-procedure TCellControl.SetBackgroundColor(const Value: TAlphaColor);
+procedure TStyledCellControl.SetBackgroundColor(const Value: TAlphaColor);
 begin
   if (_BackgroundRect = nil) and (Value = TAlphaColorRec.Null) then exit;
 
@@ -12663,14 +12750,14 @@ begin
 
 end;
 
-function TCellControl.GetBackIndex: Integer;
+function TStyledCellControl.GetBackIndex: Integer;
 // set this to fix next case: in TCellControl there is one child Control - TText, add TRectangle in runtime
 // call _BackgroundRect.SendToBack; it does not apply SendToBack for this rectangle, because FMX default BackIndex = 1.
 begin
   Result := 0;
 end;
 
-function TCellControl.GetDefaultStyleLookupName: string;
+function TStyledCellControl.GetDefaultStyleLookupName: string;
 begin
   Result := STYLE_CELL;
 end;
@@ -13011,6 +13098,44 @@ end;
 
 
 
+{ TBasicCellControl }
+
+constructor TCellControl.Create(AOwner: TComponent; const Cell: ITreeCell);
+begin
+  inherited Create(AOwner);
+
+//  StyleLookup := Cell.Column.StyleLookup;
+  _TreeCell := Cell;
+  TagObject := TObject(Cell);  // see also property TCellControl.TreeCell: ITreeCell
+
+  Height := INITIAL_CELL_HEIGHT;
+end;
+
+destructor TCellControl.Destroy;
+begin
+
+  inherited;
+end;
+
+function TCellControl.FindBackgroundRectangle: TRectangle;
+begin
+  Result := nil;
+end;
+
+function TCellControl.GetBackgroundColor: TAlphaColor;
+begin
+  Result := TAlphaColorRec.Null;
+end;
+
+function TCellControl.GetBackIndex: Integer;
+begin
+  Result := 0;
+end;
+
+procedure TCellControl.SetBackgroundColor(const Value: TAlphaColor);
+begin
+end;
+
 initialization
 begin
   // Must use unique name here, VCL version of TTreeControl already
@@ -13026,4 +13151,5 @@ begin
 end;
 
 end.
+
 

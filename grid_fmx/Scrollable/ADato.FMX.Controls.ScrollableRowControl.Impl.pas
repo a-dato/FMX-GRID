@@ -720,11 +720,12 @@ begin
   _fsStopTimer.Enabled := False; // truly reset timer here!!
   _fsStopTimer.Enabled := True;
 
-  // detect next scroll move
-  _fastScrollStartTime := TThread.GetTickCount;
 
   if _scrollingType = TScrollingType.None then
   begin
+    // detect next scroll move
+    _fastScrollStartTime := TThread.GetTickCount;
+
     // later we decide if it is fast scrolling. At least we now we are scrolling here
     _scrollingType := TScrollingType.ScrollingStarted;
   end
@@ -735,6 +736,9 @@ begin
       Exit;
 
     if _VPY_End = ViewportPosition.Y then exit;
+
+    // detect next scroll move
+    _fastScrollStartTime := TThread.GetTickCount;
 
     _VPY_End := ViewportPosition.Y;
     var scrolledPx := Abs(_VPYStart - _VPY_End);
