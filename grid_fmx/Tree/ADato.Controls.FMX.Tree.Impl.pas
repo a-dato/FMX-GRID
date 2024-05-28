@@ -4565,9 +4565,13 @@ begin
   var p := obj.Parent as TExpandCollapsePanel;
 
   // now parent of the TExpandCollapsePanel is a cell control, get Row control from the cell control
-  var cellControl: TCellControl := p.Parent as TCellControl;
-  Assert(cellControl.TreeCell.Row <> nil);
-  row := TTreeRow(cellControl.TreeCell.Row);
+  var treeCell: ITreeCell;
+  if p.Parent is TCellControl then
+    treeCell := (p.Parent as TCellControl).TreeCell else
+    treeCell := (p.Parent as TStyledCellControl).TreeCell;
+
+  Assert(treeCell.Row <> nil);
+  row := TTreeRow(treeCell.Row);
 
   row.IsExpanded := AExpandRow;
   // this will trigger expanding\collapsing and change View.Count ( TTreeDataModelViewRowList.RowPropertiesChanged )
@@ -4800,6 +4804,11 @@ function TCustomTreeControl.InitRowCells(const TreeRow: ITreeRow; const IsCached
   procedure InitCellStyles(const TreeCell: ITreeCell);
   begin
     if not (treeCell.Control is TStyledControl) then exit;
+
+    // performance upgrade
+    if (_scrollingType <> TScrollingType.None) and ((treeCell.Control as TStyledControl).StyleState <> TStyleState.Applied) then
+      Exit;
+
     var CellControl := TStyledControl(treeCell.Control);
     // CellControl.StyleLookup specified in TCellControl.GetDefaultStyleLookupName
 
@@ -4884,9 +4893,7 @@ begin
     // Calculate size of the cell
     var size: TSizeF := treeCell.Control.Size.Size;
 
-//    if _scrollingType = TScrollingType.None then
-    if (_scrollingType = TScrollingType.None){ or ((treeCell.Control as TStyledControl).StyleState = TStyleState.Applied)} then
-      InitCellStyles(treeCell);
+    InitCellStyles(treeCell);
 
     var OptionalHeaderResizing : TUpdateColumnReason := TUpdateColumnReason.TNone;
     if (HeaderRows <> nil) and FMXColumn.AllowResize and
@@ -9112,7 +9119,7 @@ begin
   tree := TCustomTreeControl(TreeControl);
 
   var fo := Sender as TFmxObject;
-  while not (fo is TCellControl) and (fo.Parent <> nil) do
+  while not (fo is TCellControl) and not (fo is TStyledCellControl) and (fo.Parent <> nil) do
     fo := fo.Parent;
 
   if (fo <> nil) and Interfaces.Supports<ITreeCell>(fo.TagObject, cell) then
@@ -9398,7 +9405,7 @@ begin
 
   if (Cell.Control is TStyledControl) then
   begin
-    var CellControl := TStyledControl(Cell.Control);  // usually TCellControl
+    var CellControl := TStyledControl(Cell.Control);  // usually TStyledCellControl
     CellControl.ApplyStyleLookup;
   end;
 
@@ -10617,7 +10624,10 @@ begin
   // from below and it will be visible only for the last row (nothing below)
   line.Margins.Bottom := GRID_LINE_NEGATIVE_OFFSET; // hide bottom line under the next cell from below
   _Control.AddObject(line);
-  (_Control as TCellControl)._GridBottomLine := line;   // see comment in TCellControl
+
+  if _Control is TCellControl then
+    (_Control as TCellControl)._GridBottomLine := line else   // see comment in TCellControl
+    (_Control as TStyledCellControl)._GridBottomLine := line;   // see comment in TCellControl
 
   UpdateBottomHierarchicalBorder;
 
@@ -10668,7 +10678,10 @@ procedure TTreeCell.UpdateBottomHierarchicalBorder;
   // for cached row only
 begin
   // bottom line:
-  var line := (_Control as TCellControl)._GridBottomLine;
+  var line: TLine;
+  if _Control is TCellControl then
+    line := (_Control as TCellControl)._GridBottomLine else
+    line := (_Control as TStyledCellControl)._GridBottomLine;
 
   var treeControl :=  TFMXTreeControl(Row.Owner.TreeControl);
   var lNextDataModelViewRow := treeControl.DataModelView.Next(Row.DataItem.GetValue<IDataRowView>);
@@ -10780,7 +10793,9 @@ end;
 
 function TTreeCell.get_BackgroundColor: TAlphaColor;
 begin
-  Result := (_Control as TCellControl).BackgroundColor;
+  if _Control is TCellControl then
+    Result := (_Control as TCellControl).BackgroundColor else
+    Result := (_Control as TStyledCellControl).BackgroundColor;
 end;
 
 procedure TTreeCell.set_BackgroundColor(const Color: TAlphaColor);
@@ -10794,6 +10809,13 @@ begin
       TCellControl(_Control)._BackgroundRectangleMargin :=  -(_Indent);
 
     TCellControl(_Control).BackgroundColor := Color;
+  end
+  else if (_Control is TStyledCellControl) then
+  begin
+    if _column.Frozen and _column.ShowHierarchy then
+      TStyledCellControl(_Control)._BackgroundRectangleMargin :=  -(_Indent);
+
+    TStyledCellControl(_Control).BackgroundColor := Color;
   end;
 end;
 
