@@ -406,5 +406,16 @@ object TStyleContainer
       ParentShowHint = False
       ShowHint = False
     end
+    object TRectangle
+      StyleName = 'cell'
+      Fill.Kind = None
+      HitTest = False
+      Position.X = 22.647888183593750000
+      Position.Y = 68.788726806640630000
+      Size.Width = 150.605651855468800000
+      Size.Height = 22.394378662109380000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+    end
   end
 end
