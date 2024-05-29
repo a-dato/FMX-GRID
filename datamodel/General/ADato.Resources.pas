@@ -208,7 +208,8 @@ Resourcestring
   SFunctionError = 'Error in function ''{0}''.';
   SIgnore = 'Ignore task';
   SIllegalDependency = 'Dependency set between task ''{0}'' and ''{1}'' is illegal and therefore ignored by the scheduler.';
-  SInvalidCombinationOfRequirements = 'The combination of resource requirements does not return a valid combination of resources.';
+  SInvalidCombinationOfRequirements = 'The combination of resource assignments does not return a valid combination of resources.' + #13#10 +
+                                      'Resource assignments are ignored, the task has been scheduled using the project calendar instead.';
   SGlobalSkillsCannotBeAssigned = 'Global skill ''{0}'' cannot be assigned to a task, assignment will be ignored.';
   SPlease = 'verify the resource requirements, probably there are not enough resources supporting the same skill.';
   SThis = 'task has been scheduled against the project calendar any resource assignments are ignored."';
@@ -272,7 +273,8 @@ Resourcestring
   STaskNotFoundInDataModel = 'Task ''{0}'' could not be located in datamodel.';
   STaskScheduledOutsideStageWindow = 'This task is scheduled outside the stage boundaries ({0} - {1})';
   STaskScheduledOutsideWindow = 'Task has been scheduled outside it''s schedule window ({0} - {1})';
-  STaskScheduleFailed = 'Failed to schedule this task. Resource has inadequate availability during the interval searched ({1} - {2})';
+  STaskScheduleFailed = 'Failed to schedule this task.' + #13#10 +
+                        'Resource assignments are ignored, the task has been scheduled using the project calendar instead.';
   STasksScheduledAfterProjectEnd = 'Project is scheduled after the project end date: {1:D}';
   STasksScheduledBeforeProjectStart = 'Project is scheduled before the project start date: {1:D}';
   SThe = 'the 	Mind the space after ''the''';
