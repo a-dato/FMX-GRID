@@ -191,7 +191,6 @@ type
     _fsStopTimer: TTimer; // detect fast scrolling stop with a timer
     _fastScrollStartTime: LongWord;  // ms, measure interval to detect Fast scrolling
 
-
     procedure DetectFastScrolling;
     procedure OnFastScrollingStopTimer(Sender: TObject);
   protected
@@ -199,6 +198,10 @@ type
 
     procedure MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean); override;
     procedure DoFastScrollingStopped; virtual;
+
+  public
+    property ScrollingType: TScrollingType read _scrollingType;
+
   protected
     _FixedRowHeight: Single;
     _NegotiateInitiatedRows: TList<T>; // newly added rows in NegotiateRowHeight, which will be repositioned later
@@ -421,6 +424,7 @@ type
     _CacheRows: Boolean; // default = true
     _IsDataModelView: Boolean;
     _rowHeights: IFMXRowHeightCollection;
+    _checkAltRowInCache: Boolean;
     function get_TopRow: Integer; virtual;
     function get_DataList: IList; virtual; abstract;
     function get_Current: Integer; virtual; abstract;
@@ -720,7 +724,6 @@ begin
   _fsStopTimer.Enabled := False; // truly reset timer here!!
   _fsStopTimer.Enabled := True;
 
-
   if _scrollingType = TScrollingType.None then
   begin
     // detect next scroll move
@@ -759,7 +762,6 @@ begin
   if _scrollingType <> TScrollingType.None then
   begin
     _scrollingType := TScrollingType.None;
-
     _lastSize := TSize.Create(0, 0);
 
     // uncomment it to load cells for the second time, after IsFastScrolling
@@ -1906,6 +1908,7 @@ begin
     begin
       if S.SelControl = nil then
       begin
+        _MultiSelectionControl.Name := '_MultiSelectionControl';
         S.SelControl :=  TControl( _MultiSelectionControl.Clone(nil) );
         Self.AddObject(S.SelControl);
 
@@ -3185,26 +3188,22 @@ end;
 function TBaseViewList<T>.FindRowInCache(aAltRow, aWithFiller: Boolean; ALevel: integer): T;
 // Cache returns AltRows or UsualRows(non-Alt) detecting by index,
 // If row has children - it will return row only with plus-minus filer, no children - without
-var
-  Row: T;
 begin
   Result := nil;
   if _CacheList = nil then
-   _CacheList := TList<T>.Create;
+    _CacheList := TList<T>.Create;
 
   for var i := _CacheList.Count - 1 downto 0 do
   begin
-    Row := _CacheList[i];
-    if aAltRow = ((Row.Index  mod 2) <> 0) then
+    var row := _CacheList[i];
+    if not _checkAltRowInCache or (aAltRow = ((row.Index  mod 2) <> 0)) then
     begin
-      if _IsDataModelView then
-        if Row.HasChildren <> aWithFiller then Continue    // Row.HasChildren = has plus-minus filler
-        else
-          if TRow(Row)._RowLevelCached <> ALevel then Continue;
+      // Filler and Level will be ignored during scrolling and added later
+//      if _IsDataModelView and ((row.HasChildren <> aWithFiller) or (TRow(row)._RowLevelCached <> ALevel)) then
+//        Continue;    // Row.HasChildren = has plus-minus filler
 
-      Result := Row;
       _CacheList.Delete(i);
-      break;
+      Exit(Row);
     end;
   end;
 end;

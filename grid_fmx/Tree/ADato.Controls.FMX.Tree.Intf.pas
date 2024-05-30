@@ -1273,7 +1273,11 @@ type
     property HeaderRow: IHeaderRow read get_HeaderRow;
   end;
 
-  ITreeCellList = {$IFDEF DOTNET}public{$ENDIF} interface(
+  ITreeCellList = interface(List<ITreeCell>)
+    ['{8AE47C6C-3E1D-436C-BD01-54DE92376F77}']
+  end;
+
+  ITreeCellListX = {$IFDEF DOTNET}public{$ENDIF} interface(
     IList{$IFDEF GENERICS}<ITreeCell>{$ENDIF}
   )
   {$IFDEF DELPHI}

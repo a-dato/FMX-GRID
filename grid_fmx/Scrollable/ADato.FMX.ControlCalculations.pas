@@ -59,34 +59,30 @@ end;
 
 function TextControlHeight(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinHeight: Single = -1; MaxHeight: Single = -1; TextWidth: Single = -1): Single;
 begin
-  if TextControl.Canvas = nil then
-    Result := Settings.Font.Size + 10
-  else begin
-    var layout: TTextLayout := TTextLayoutManager.TextLayoutByCanvas(TextControl.Canvas.ClassType).Create(TextControl.Canvas);
+  var layout := TTextLayoutManager.DefaultTextLayout.Create;
+  try
+    Layout.BeginUpdate;
     try
-      Layout.BeginUpdate;
-      try
-        Layout.TopLeft := PointF(6, 6);
-        Layout.MaxSize := PointF(IfThen(TextWidth <> -1, TextWidth, TextControl.Width), 9999);
-        Layout.WordWrap := Settings.WordWrap;
-        Layout.HorizontalAlign := TTextAlign.Leading;
-        Layout.VerticalAlign := TTextAlign.Leading;
-        Layout.Font := Settings.Font;
-        Layout.Color := TextControl.Canvas.Fill.Color;
-        Layout.RightToLeft := False; // TFillTextFlag.RightToLeft in Flags;
+      Layout.TopLeft := PointF(6, 6);
+      Layout.MaxSize := PointF(IfThen(TextWidth <> -1, TextWidth, TextControl.Width), 9999);
+      Layout.WordWrap := Settings.WordWrap;
+      Layout.HorizontalAlign := TTextAlign.Leading;
+      Layout.VerticalAlign := TTextAlign.Leading;
+      Layout.Font := Settings.Font;
+      Layout.Color := TextControl.Canvas.Fill.Color;
+      Layout.RightToLeft := False; // TFillTextFlag.RightToLeft in Flags;
 
-        // also empty line height should be taken into account
-        if Text = '' then
-          Layout.Text := 'p' else
-          Layout.Text := Text;
-      finally
-        Layout.EndUpdate;
-      end;
-
-      Result := Layout.TextRect.Bottom;
+      // also empty line height should be taken into account
+      if Text = '' then
+        Layout.Text := 'p' else
+        Layout.Text := Text;
     finally
-      Layout.Free;
+      Layout.EndUpdate;
     end;
+
+    Result := Layout.TextRect.Bottom;
+  finally
+    Layout.Free;
   end;
 
   if MinHeight <> -1 then

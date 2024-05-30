@@ -216,19 +216,21 @@ type
                                 out FormatApplied: Boolean) : CObject; override;
   end;
 
-  TTreeCellList = {$IFDEF DOTNET}public{$ENDIF} class(
-    CArrayList{$IFDEF GENERICS}<ITreeCell>{$ENDIF},
-    ITreeCellList
-  )
-  protected
-    function  get_Item(Index: Integer): ITreeCell; reintroduce; {$IFDEF DELPHI}overload;{$ENDIF}
-    procedure set_Item(Index: Integer; Value: ITreeCell); reintroduce; {$IFDEF DELPHI}overload;{$ENDIF}
+  TTreeCellList = class(CList<ITreeCell>, ITreeCellList);
 
-  public
-    property Item[Index: Integer]: ITreeCell
-      read get_Item
-      write set_Item; default;
-  end;
+//  TTreeCellList = {$IFDEF DOTNET}public{$ENDIF} class(
+//    CArrayList{$IFDEF GENERICS}<ITreeCell>{$ENDIF},
+//    ITreeCellList
+//  )
+//  protected
+//    function  get_Item(Index: Integer): ITreeCell; reintroduce; {$IFDEF DELPHI}overload;{$ENDIF}
+//    procedure set_Item(Index: Integer; Value: ITreeCell); reintroduce; {$IFDEF DELPHI}overload;{$ENDIF}
+//
+//  public
+//    property Item[Index: Integer]: ITreeCell
+//      read get_Item
+//      write set_Item; default;
+//  end;
 
   THeaderRow = {$IFDEF DOTNET}public{$ENDIF} class(
     TBaseInterfacedObject,
@@ -404,7 +406,8 @@ type
     constructor Create( TreeControl: TCustomTreeControl;
                         const Data: IList;
                         const ItemType: &Type;
-                        const RowHeights: IFMXRowHeightCollection); reintroduce; virtual;
+                        const RowHeights: IFMXRowHeightCollection;
+                        const CheckAltRows: Boolean); reintroduce; virtual;
 
     procedure BeforeDestruction; override;
 
@@ -508,8 +511,7 @@ type
     procedure SortInternalList; override;
     function  CreateRowClass(const Data: CObject; AIndex: Integer; IsTemporaryRow: Boolean): ITreeRow; override;
   public
-    constructor Create(TreeControl: TCustomTreeControl; const Data: IDataModelView;
-      const RowHeights: IFMXRowHeightCollection);
+    constructor Create(TreeControl: TCustomTreeControl; const Data: IDataModelView; const RowHeights: IFMXRowHeightCollection; const CheckAltRows: Boolean);
     destructor  Destroy; override;
 
     procedure ClearSort;
@@ -3039,7 +3041,8 @@ procedure TCustomTreeControl.DoFastScrollingStopped;
 begin
   inherited;
 
-  // DataChanged tells the tree to reload all it's data and calculate correct sizes
+//  // DataChanged tells the tree to reload all it's data and calculate correct sizes
+//  RefreshControl([TreeState.DataChanged]);
   RefreshControl([TreeState.DataChanged]);
 end;
 
@@ -4248,18 +4251,17 @@ begin
 
   _IndicatorColumnExists := False;
 
+  var checkAlt := (TreeOption.AlternatingRowBackground in Self.Options);
+
   // If we have a property name, then test for DataList first and then DataModelView
   if not CString.IsNullOrEmpty(_DataPropertyName) and (DataList <> nil) then
-    _View := TTreeRowList.Create(Self, DataList, _itemType, _RowHeightsGlobal) as ITreeRowList
-
+    _View := TTreeRowList.Create(Self, DataList, _itemType, _RowHeightsGlobal, checkAlt) as ITreeRowList
   // If we do not have a property name, then test for DataModelView first and then for DataList
-  else
-    if Interfaces.Supports(_data, IDataModelView, dataModelView) then
-      _View := TTreeDataModelViewRowList.Create(Self, dataModelView, _RowHeightsGlobal) as ITreeRowList
+  else if Interfaces.Supports(_data, IDataModelView, dataModelView) then
+    _View := TTreeDataModelViewRowList.Create(Self, dataModelView, _RowHeightsGlobal, checkAlt) as ITreeRowList
   // Finally test for DataList again
-    else
-      if DataList <> nil then
-        _View := TTreeRowList.Create( Self, DataList, _itemType, _RowHeightsGlobal) as ITreeRowList;
+  else if DataList <> nil then
+    _View := TTreeRowList.Create( Self, DataList, _itemType, _RowHeightsGlobal, checkAlt) as ITreeRowList;
 
   { Changed to function GetCellPropertiesProvider instead of saving in a variable. Because saving increases
     RefCount for _View, and _View := nil does not destroy View and Rows in Reset. }
@@ -4672,7 +4674,7 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
       if c = nil then Continue;
       cell := TTreeCell(c);
 
-      if cell.Column.Frozen then
+      if cell.Column.Frozen and (_scrollingType = TScrollingType.None) then
       begin
         cell.Control.BringToFront;
         cell.Control.Repaint;
@@ -4681,15 +4683,45 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
       if cell.Control.Height <> RowHeight then
         cell.Control.Height := RowHeight;
 
-      // Add plus-minus filler
-      if cell.Column.ShowHierarchy and _View.IsDataModelView and cell.Row.HasChildren then
-        if AIsCachedRow then
-          ATreeRow.UpdatePlusMinusFillerState
-        else
-          AddPlusMinusFillerControl(cell);
+      // Add/Remove plus-minus filler
+      if (_scrollingType = TScrollingType.None) then
+      begin
+        var showHierarchy := cell.Column.ShowHierarchy and _View.IsDataModelView and cell.Row.HasChildren;
+
+        if not AIsCachedRow then
+        begin
+          if showHierarchy then
+            AddPlusMinusFillerControl(cell)
+        end
+        else begin
+          // check if PlusMinusFiller is available in control
+          var expCtrl: TExpandCollapsePanel := nil;
+          for var child in cell.Control.Children do
+            if child is TExpandCollapsePanel then
+            begin
+              expCtrl := child as TExpandCollapsePanel;
+              break;
+            end;
+
+          if showHierarchy or (expCtrl <> nil) then
+          begin
+            if expCtrl = nil then
+              AddPlusMinusFillerControl(cell)
+            else if not showHierarchy then
+            begin
+              expCtrl.Visible := False;
+            end
+            else
+            begin
+              expCtrl.Visible := True;
+              ATreeRow.UpdatePlusMinusFillerState;
+            end;
+          end;
+        end;
+      end;
 
       // Grid
-      if (TreeOption.ShowGrid in _Options) then
+      if (TreeOption.ShowGrid in _Options) and (_scrollingType = TScrollingType.None) then
         DrawGrid(cell);
     end;
   end;
@@ -4840,8 +4872,11 @@ begin
   // Add visible cells to this row
   var columnIndex := 0;
   var treeRowClass := TTreeRow(TreeRow);
+  (treeRowClass.Cells as TTreeCellList).Capacity := columns.Count;
 
   Result := TreeRowHeight;
+
+  var cacheCount := treeRowClass._Cells.Count;
 
   // load each cell in a row
   while columnIndex < columns.Count  do
@@ -4851,16 +4886,14 @@ begin
 
     var treeCell: ITreeCell;
     // not a cell control. Check if cell with cell control already exists - in case if we're using a cache (default)
-    if (treeRowClass._Cells.Count > 0) and (columnIndex in [0..treeRowClass._Cells.Count-1]) then
+    if (cacheCount > 0) and (columnIndex < cacheCount) then
       treeCell := treeRowClass._Cells[columnIndex] else // while using cache (default), tree reuses old ITreeCell
       treeCell := FMXColumn.CreateTreeCell(treeRow, columnIndex);
 
     // load Data into the cell, create cell control
-    var CellLoadingFlags: TCellLoadingFlags;
-    if isCachedRow then
-      CellLoadingFlags := [TCellLoading.IsRowCell]
-    else
-      CellLoadingFlags := [TCellLoading.NeedControl, TCellLoading.IsRowCell];
+    var CellLoadingFlags: TCellLoadingFlags := [TCellLoading.IsRowCell];
+    if not isCachedRow then
+      CellLoadingFlags := CellLoadingFlags + [TCellLoading.NeedControl];
 
     var loadDefaultData := DoCellLoading(treeCell, CellLoadingFlags);
     { User can: set a new height of the row here (in TreeCellLoading) this will trigger TFMXRowHeightCollection.set_RowHeight,
@@ -4901,11 +4934,8 @@ begin
       OptionalHeaderResizing := TUpdateColumnReason.HeaderSizing;
     // without this flag UpdateColumnWidthAndCells does not decrease Column width (only enlarge), case if DesignedWidth > Auto width.
 
-//    if _scrollingType = TScrollingType.None then
-//    begin
-      if loadDefaultData then
-        FMXColumn.LoadDefaultData(treeCell);
-//    end;
+    if loadDefaultData then
+      FMXColumn.LoadDefaultData(treeCell);
 
     if _scrollingType = TScrollingType.None then
     begin
@@ -4931,19 +4961,21 @@ begin
     end;
 
     var lIndent: single := 0;
-    if FMXColumn._ShowHierarchy then
+    if (_scrollingType = TScrollingType.None) and FMXColumn._ShowHierarchy then
       lIndent := treeCell.Indent;
 
     // Data cell position inside the row control
     var ColumnLeft := ColumnXToCellX(layoutColumn.Index);
 
-    treeCell.Control.BoundsRect := TRectF.Create(ColumnLeft + lIndent, 0, ColumnLeft + layoutColumn.Width, size.Height);
+    var rect := TRectF.Create(ColumnLeft + lIndent, 0, ColumnLeft + layoutColumn.Width, size.Height);
+    if not treeCell.Control.BoundsRect.EqualsTo(rect) then
+      treeCell.Control.BoundsRect := TRectF.Create(ColumnLeft + lIndent, 0, ColumnLeft + layoutColumn.Width, size.Height);
 
     // Row height should be increased to fit cell.
     Result := CMath.Max(Result, size.Height);
 
     // Add cell to a current row (not a control!). Cell may exist already because Control can use a cache
-    if treeRowClass._Cells.Count - 1 < treeCell.Index then
+    if cacheCount - 1 < treeCell.Index then
     begin
       treeRowClass._Cells.Add(treeCell);
 
@@ -4993,6 +5025,9 @@ begin
     // Add visible cells to this row
     columns := _Layout.Columns;
     columnIndex := 0;
+
+    (treeRow.Cells as TTreeCellList).Capacity := columns.Count;
+
     while columnIndex < columns.Count  do
     begin
       layoutColumn := columns[columnIndex];
@@ -9042,7 +9077,6 @@ end;
 
 function TFMXTreeCheckboxColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
-  Result := TCellControl.Create(AOwner, Cell);
   if Cell.Column.StyleLookup = string.Empty then
   begin
     var text := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
@@ -9051,15 +9085,13 @@ begin
     Result.AddObject(text);
 
     Cell.InfoControl := text;
-  end;
+  end else
+    Result := TStyledCellControl.Create(AOwner, Cell);
 end;
 
 procedure TFMXTreeCheckboxColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean);
-var
-  CellControl: TStyledControl;
 begin
-  if Cell.Control = nil then exit;
-  CellControl := Cell.Control as TStyledControl;
+  if Cell.InfoControl = nil then exit;
 
   var CheckedFlag := False;
   var CheckboxEnabled := not ( (TreeOption.ReadOnly in Cell.Column.TreeControl.Options) or Cell.Column.ReadOnly );
@@ -9082,30 +9114,20 @@ begin
 
    So we cannot use construction CellControl.StylesData['checkboxcell.IsChecked'] := CheckedFlag; }
 
-  var checkBoxColumnControl: TFmxObject := nil;
+  var checkBoxColumnControl: IIsChecked := Cell.InfoControl as IIsChecked;
 
-  if CellControl.Controls.Count > 0 then
+  if checkBoxColumnControl is TCheckBox then
   begin
-    if Interfaces.Supports(CellControl.Controls.List[0], IIsChecked) then
-      checkBoxColumnControl := CellControl.Controls.List[0];
-
-    // In case custom style
-    if (checkBoxColumnControl = nil) then
-      checkBoxColumnControl := CellControl.FindStyleResource('check');
-
-    if checkBoxColumnControl is TCheckBox then
-    begin
-      var checkBox := TCheckBox(checkBoxColumnControl);
-      checkBox.Enabled := CheckboxEnabled;
-      checkBox.IsChecked := CheckedFlag;
-      checkBox.OnClick := Checkbox_OnClick;
-    end
-    else if checkboxColumnControl is TRadioButton then
-    begin
-      var radioButton := TRadioButton(checkBoxColumnControl);
-      radioButton.IsChecked := CheckedFlag;
-      radioButton.OnClick := Checkbox_OnClick;
-    end;
+    var checkBox := TCheckBox(checkBoxColumnControl);
+    checkBox.Enabled := CheckboxEnabled;
+    checkBox.IsChecked := CheckedFlag;
+    checkBox.OnClick := Checkbox_OnClick;
+  end
+  else if checkboxColumnControl is TRadioButton then
+  begin
+    var radioButton := TRadioButton(checkBoxColumnControl);
+    radioButton.IsChecked := CheckedFlag;
+    radioButton.OnClick := Checkbox_OnClick;
   end;
 end;
 
@@ -9346,17 +9368,17 @@ begin
   _Values := Value;
 end;
 
-{ TTreeCellList }
-
-function TTreeCellList.get_Item(Index: Integer): ITreeCell;
-begin
-  Result := Interfaces.ToInterface(inherited get_Item(Index)) as ITreeCell;
-end;
-
-procedure TTreeCellList.set_Item(Index: Integer; Value: ITreeCell);
-begin
-  inherited set_Item(Index, Value);
-end;
+//{ TTreeCellList }
+//
+//function TTreeCellList.get_Item(Index: Integer): ITreeCell;
+//begin
+//  Result := Interfaces.ToInterface(inherited get_Item(Index)) as ITreeCell;
+//end;
+//
+//procedure TTreeCellList.set_Item(Index: Integer; Value: ITreeCell);
+//begin
+//  inherited set_Item(Index, Value);
+//end;
 
 {$REGION 'TTreeLayoutColumn, TTreeLayout'}
 
@@ -9827,8 +9849,7 @@ begin
 
 end;
 
-constructor TTreeDataModelViewRowList.Create(TreeControl: TCustomTreeControl; const Data: IDataModelView;
-  const RowHeights : IFMXRowHeightCollection);
+constructor TTreeDataModelViewRowList.Create(TreeControl: TCustomTreeControl; const Data: IDataModelView; const RowHeights : IFMXRowHeightCollection; const CheckAltRows: Boolean);
 begin
   inherited Create(TreeControl, Data, RowHeights);
 
@@ -9838,6 +9859,7 @@ begin
   _DataModelView.CurrencyManager.TopRowChanged.Add(TopRowChanged);
 
   _CacheRows := USE_TREE_CACHE;
+  _checkAltRowInCache := CheckAltRows;
 end;
 
 destructor TTreeDataModelViewRowList.Destroy;
@@ -10917,16 +10939,16 @@ end;
 
 procedure TTreeRow.ResetRowData(const ADataItem: CObject; AIndex: Integer);
 begin
-  for var i := 0 to Cells.Count - 1 do // for var cell in Cells
-  begin
-    var cell := Cells[i];
-    if cell = nil then
-      Continue;
-
-    var c := Cells[i].Control;
-    if c <> nil then
-      c.Height := INITIAL_CELL_HEIGHT;
-  end;
+//  for var i := 0 to Cells.Count - 1 do // for var cell in Cells
+//  begin
+//    var cell := Cells[i];
+//    if cell = nil then
+//      Continue;
+//
+//    var c := Cells[i].Control;
+//    if c <> nil then
+//      c.Height := INITIAL_CELL_HEIGHT;
+//  end;
 
   inherited;
 end;
@@ -11251,7 +11273,8 @@ constructor TTreeRowList.Create(
   TreeControl: TCustomTreeControl;
   const Data: IList;
   const ItemType: &Type;
-  const RowHeights: IFMXRowHeightCollection);
+  const RowHeights: IFMXRowHeightCollection;
+  const CheckAltRows: Boolean);
 
 var
   CollectionNotification: INotifyCollectionChanged;
@@ -11280,6 +11303,7 @@ begin
 
   // InitializeColumnPropertiesFromColumns;
   _CacheRows := USE_TREE_CACHE;
+  _checkAltRowInCache := CheckAltRows;
 end;
 
 procedure TTreeRowList.BeforeDestruction;
