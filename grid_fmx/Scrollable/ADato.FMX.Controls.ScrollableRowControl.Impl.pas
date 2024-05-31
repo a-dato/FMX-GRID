@@ -2095,7 +2095,7 @@ begin
   var CanAnimate := (_AnimationIndex = 0);
   if not ANIMATE_SELECTION_ON_TOP_BOTTOM_ROW and not IsHorizontalSelection then
     if Assigned(VScrollBar) and VScrollBar.Visible then
-      CanAnimate := not IsRowFirstLastVisibleInView(Index);
+      CanAnimate := True; // This line is not true, Index is always 0 in DataModelView => not IsRowFirstLastVisibleInView(Index);
 
   if not currentRect.EqualsTo(SelRect) or (_AnimationIndex > 0) then
   begin
