@@ -42,7 +42,7 @@ implementation
 
 
 
-function GetTextControl(CellControl: TControl): IControl; //TText; or TLabel
+function GetTextControl(CellControl: TControl): IControl; //TText, TAdatoLabel
 begin
   Result := nil;
 

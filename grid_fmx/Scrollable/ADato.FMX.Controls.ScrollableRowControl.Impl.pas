@@ -16,7 +16,7 @@ uses
   System.Collections, System.Generics.Collections;
 
 const
-  USE_ROW_CACHE = False; // there are consts for Tree and Gantt separately 
+  USE_ROW_CACHE = False; // there are consts for Tree and Gantt separately
 
   ANIMATE_EXPANDED_ROW_SHOW_DELAY = 0.035; //0.15; // used in Adato.FMX.DataModelViewRowLists.pas
   { Expand only. Delay before next fade-in animation starts, to show child rows
@@ -83,6 +83,8 @@ type
     ANIMATE_HIDE_ROW_DURATION = 0.3; // 0.4 // fade out row while collapsing parent row
     ANIMATE_MOVE_ROW_DURATION = 0.3; //0.4; // collapse\expand
     ANIMATE_SELECTION_DURATION = 0.12; // moving selection controls:  row selection and focusselection
+
+    ANIMATE_HIGHLIGHT_ROW = False; // Do row highlighting with animation (opacity) while hovering mouse cursor
     ANIMATE_HIGHLIGHT_DURATION = 0.13;
     UNHIGHLIGHT_COLOR = $00FFFFFF; { This is white but fully transparent. So TColorAnimation changes color
       highlight > transparent and back, TAlphaColorRec.Null - does not work correctly with TColorAnimation, it shows dark gray. }
@@ -473,7 +475,6 @@ type
     _BackgroundRowRect: TRectangle;
     function GetDefaultStyleLookupName: string; override;
     function FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
-    procedure OnAdatoRectangleApplyStyleLookup(Sender: TObject);
   public
     procedure ApplyStyleLookup; override;
     property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;
@@ -675,7 +676,7 @@ begin
 
   DetectFastScrolling;
 
-  if HighlightRows and Assigned(_Highlight1) and Assigned(_Highlight2) then
+  if ANIMATE_HIGHLIGHT_ROW and HighlightRows and Assigned(_Highlight1) and Assigned(_Highlight2) then
   begin
     var isRunningAnimation := ((_Highlight1 <> nil) and _Highlight1.Animation.Running) or ((_Highlight2 <> nil) and _Highlight2.Animation.Running);
 
@@ -800,7 +801,13 @@ begin
     UpdateContents(False);
 
     if _scrollingType = TScrollingType.None then
-      ShowSelections;
+      ShowSelections
+    else // scrolling in progress
+      begin
+        // hide hint
+        if (_HintControl <> nil) and _HintControl.Visible then
+          _HintControl.Visible := False;
+      end;
   end;
 
   inherited;
@@ -2570,10 +2577,7 @@ begin
   _DDLineY := HIDE_DD_LINE;
 
   if _HintControl <> nil then
-  begin
     _HintControl.Visible := False;
-    _HintControl.Tag := 0;
-  end;
 end;
 
 function TScrollableRowControl<T>.GetRowHitInfo(const Point: TPointF; out HitInfo: THitInfo): Boolean;
@@ -2987,10 +2991,13 @@ begin
 
   _HighLightColor := NewRect.Fill.Color;
 
-  _ColorAnim := TColorAnimation.Create(nil);
-  _ColorAnim.Parent := _Rectangle;
-  _ColorAnim.PropertyName := 'Fill.Color';
-  _ColorAnim.Duration := ANIMATE_HIGHLIGHT_DURATION;
+  if ANIMATE_HIGHLIGHT_ROW then
+  begin
+    _ColorAnim := TColorAnimation.Create(nil);
+    _ColorAnim.Parent := _Rectangle;
+    _ColorAnim.PropertyName := 'Fill.Color';
+    _ColorAnim.Duration := ANIMATE_HIGHLIGHT_DURATION;
+  end;
 end;
 
 destructor TScrollableRowControl<T>.THighlightRect.Destroy;
@@ -3024,23 +3031,34 @@ begin
   if SecondHighlightRect.IsHighlighted then
     SecondHighlightRect.StartAnimation;
 
-  _ColorAnim.StopAtCurrent;
-  // set colors
-  if IsHighlighted then
-  begin // Highlight > Un-highlight
-    _ColorAnim.StartValue := _Rectangle.Fill.Color;
-    _ColorAnim.StopValue := UNHIGHLIGHT_COLOR;
+  if ANIMATE_HIGHLIGHT_ROW then
+  begin
+    _ColorAnim.StopAtCurrent;
+    // set colors
+    if IsHighlighted then
+    begin // Highlight > Un-highlight
+      _ColorAnim.StartValue := _Rectangle.Fill.Color;
+      _ColorAnim.StopValue := UNHIGHLIGHT_COLOR;
+    end
+    else
+      begin // Un-highlight > Highlight
+        _ColorAnim.StartValue := UNHIGHLIGHT_COLOR;
+        _ColorAnim.StopValue := _HighLightColor;
+      end;
   end
-  else
-    begin // Un-highlight > Highlight
-      _ColorAnim.StartValue := UNHIGHLIGHT_COLOR;
-      _ColorAnim.StopValue := _HighLightColor;
+    else
+    begin
+      if IsHighlighted then
+        _Rectangle.Fill.Color := UNHIGHLIGHT_COLOR
+      else
+        _Rectangle.Fill.Color := _HighLightColor;
     end;
 
   _Rectangle.BringToFront;
   _IsHighlighted := not _IsHighlighted;
 
-  _ColorAnim.Start;
+  if ANIMATE_HIGHLIGHT_ROW then
+    _ColorAnim.Start;
 end;
 
 procedure TScrollableRowControl<T>.THighlightRect.StopAnimation;
@@ -3463,9 +3481,6 @@ begin
     if control.ClassName = 'TADatoRectangle' then
     begin
       var scontrol := (control as TStyledControl);
-      scontrol.OnApplyStyleLookup := OnAdatoRectangleApplyStyleLookup;
-      // notification when ADatoRectangle changes color
-
       if scontrol.StyleState = TStyleState.Unapplied then
         scontrol.ApplyStyleLookup;
 
@@ -3475,18 +3490,6 @@ begin
       if Result then Exit;
     end;
   end;
-end;
-
-procedure TRowControl.OnAdatoRectangleApplyStyleLookup(Sender: TObject);
-begin
-  var NewColor := (Sender as TFmxObject).Tag;
-  { Yes, I know it's not good idea to use Tag, but if you do not want to use interface for AdatoRectangle notification for
-    the Tree - we can use only standard tools. Maybe you have other ideas. Btw, tag will be niled (=0) at once after
-    AdatoRectangleApplyStyleLookup. See NeedCallOnApplyStyleLookupEvent in TADatoRectangle.ApplyStyleLookup. Alex.}
-
-  if NewColor <> 0 then
-    if Assigned(_OnAdatoThemeChanged) then
-      _OnAdatoThemeChanged(Self, NewColor);
 end;
 
 function TRowControl.GetBackgroundColor: TAlphaColor;
