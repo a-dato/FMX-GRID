@@ -9067,6 +9067,7 @@ function TFMXTreeCheckboxColumn.CreateCellControl(AOwner: TComponent; const Cell
 begin
   if Cell.Column.StyleLookup = string.Empty then
   begin
+    Result := TCellControl.Create(AOwner, Cell);
     var text := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
     text.Align := TAlignLayout.Client;
     text.Margins.Left := 10;
