@@ -20,13 +20,30 @@ type
   IObjectModelContext = interface;
 
   {$IFDEF DELPHI}
-  ContextChangingEventHandlerProc = procedure(const Sender: IObjectModelContext; const Context: CObject; var AllowChange: Boolean) of object;
+  ContextCanChangeEventHandlerProc = function(const Sender: IObjectModelContext; const Context: CObject): Boolean of object;
+
+  ContextCanChangeEventHandler = interface(IDelegate)
+    procedure Add(Value: ContextCanChangeEventHandlerProc);
+    function  Contains(Value: ContextCanChangeEventHandlerProc) : Boolean;
+    procedure Remove(value: ContextCanChangeEventHandlerProc);
+    function  Invoke(const Sender: IObjectModelContext; const Context: CObject): Boolean;
+  end;
+
+  ContextCanChangeEventDelegate = class(Delegate, ContextCanChangeEventHandler)
+  protected
+    procedure Add(Value: ContextCanChangeEventHandlerProc);
+    function  Contains(Value: ContextCanChangeEventHandlerProc) : Boolean;
+    procedure Remove(value: ContextCanChangeEventHandlerProc);
+    function  Invoke(const Sender: IObjectModelContext; const Context: CObject): Boolean;
+  end;
+
+  ContextChangingEventHandlerProc = procedure(const Sender: IObjectModelContext; const Context: CObject) of object;
 
   ContextChangingEventHandler = interface(IDelegate)
     procedure Add(Value: ContextChangingEventHandlerProc);
     function  Contains(Value: ContextChangingEventHandlerProc) : Boolean;
     procedure Remove(value: ContextChangingEventHandlerProc);
-    procedure Invoke(const Sender: IObjectModelContext; const Context: CObject; var AllowChange: Boolean);
+    procedure Invoke(const Sender: IObjectModelContext; const Context: CObject);
   end;
 
   ContextChangingEventDelegate = class(Delegate, ContextChangingEventHandler)
@@ -34,10 +51,11 @@ type
     procedure Add(Value: ContextChangingEventHandlerProc);
     function  Contains(Value: ContextChangingEventHandlerProc) : Boolean;
     procedure Remove(value: ContextChangingEventHandlerProc);
-    procedure Invoke(const Sender: IObjectModelContext; const Context: CObject; var AllowChange: Boolean);
+    procedure Invoke(const Sender: IObjectModelContext; const Context: CObject);
   end;
   {$ELSE}
-  ContextChangingEventHandler = public delegate (const Sender: IObjectModelContext; const Context: CObject; var AllowChange: Boolean);
+  ContextCanChangeEventHandler = public delegate (const Sender: IObjectModelContext; const Context: CObject; var AllowChange: Boolean);
+  ContextChangingEventHandler = public delegate (const Sender: IObjectModelContext; const Context: CObject);
   {$ENDIF}
 
   {$IFDEF DELPHI}
@@ -96,6 +114,7 @@ type
   IObjectModelContext = interface(IBaseInterface)
     ['{8D047014-E823-4771-9194-0F0D447956AD}']
     {$IFDEF DELPHI}
+    function  get_OnContextCanChange: ContextCanChangeEventHandler;
     function  get_OnContextChanging: ContextChangingEventHandler;
     function  get_OnContextChanged: ContextChangedEventHandler;
     function  get_OnPropertyChanged: PropertyChangedEventHandler;
@@ -103,6 +122,8 @@ type
     function  get_Context: CObject;
     procedure set_Context(const Value: CObject);
     function  get_Model: IObjectModel;
+
+    function  ContextCanChange: Boolean;
 
     procedure Bind(const AProperty: _PropertyInfo; const ABinding: IPropertyBinding); overload;
     procedure Bind(const PropName: string; const ABinding: IPropertyBinding); overload;
@@ -120,6 +141,7 @@ type
 
     property Context: CObject read get_Context write set_Context;
     {$IFDEF DELPHI}
+    property OnContextCanChange: ContextCanChangeEventHandler read get_OnContextCanChange;
     property OnContextChanging: ContextChangingEventHandler read get_OnContextChanging;
     property OnContextChanged: ContextChangedEventHandler read get_OnContextChanged;
     property OnPropertyChanged: PropertyChangedEventHandler read get_OnPropertyChanged;
@@ -179,6 +201,41 @@ type
 implementation
 
 {$IFDEF DELPHI}
+
+{ ContextCanChangeEventDelegate }
+
+procedure ContextCanChangeEventDelegate.Add(Value: ContextCanChangeEventHandlerProc);
+begin
+  inherited Add(TMethod(Value));
+end;
+
+procedure ContextCanChangeEventDelegate.Remove(value: ContextCanChangeEventHandlerProc);
+begin
+  inherited Remove(TMethod(Value));
+end;
+
+function ContextCanChangeEventDelegate.Contains(Value: ContextCanChangeEventHandlerProc): Boolean;
+begin
+  Result := inherited Contains(TMethod(Value));
+end;
+
+function ContextCanChangeEventDelegate.Invoke(const Sender: IObjectModelContext; const Context: CObject): Boolean;
+var
+  cnt: Integer;
+
+begin
+  cnt := 0;
+  while cnt < _events.Count do
+  begin
+    if not ContextCanChangeEventHandlerProc(_events[cnt]^)(Sender, Context) then
+      Exit(False);
+
+    inc(cnt);
+  end;
+
+  Result := True;
+end;
+
 { ContextChangingEventDelegate }
 procedure ContextChangingEventDelegate.Add(Value: ContextChangingEventHandlerProc);
 begin
@@ -195,7 +252,7 @@ begin
   Result := inherited Contains(TMethod(Value));
 end;
 
-procedure ContextChangingEventDelegate.Invoke(const Sender: IObjectModelContext; const Context: CObject; var AllowChange: Boolean);
+procedure ContextChangingEventDelegate.Invoke(const Sender: IObjectModelContext; const Context: CObject);
 var
   cnt: Integer;
 
@@ -203,7 +260,7 @@ begin
   cnt := 0;
   while cnt < _events.Count do
   begin
-    ContextChangingEventHandlerProc(_events[cnt]^)(Sender, Context, AllowChange);
+    ContextChangingEventHandlerProc(_events[cnt]^)(Sender, Context);
     inc(cnt);
   end;
 end;

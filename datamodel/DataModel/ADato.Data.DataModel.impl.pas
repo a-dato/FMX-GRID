@@ -526,7 +526,7 @@ type
     procedure FillDataModel(); virtual;
     procedure FlagEditRow(const Row: IDataRow; const Flags: RowEditFlags); virtual;
     function  FindByKey(const AValue: CObject): IDataRow;
-    function  IndexOf(const AValue: CObject): Integer; {$IFDEF DELPHI}reintroduce;{$ENDIF}
+    function  IndexOf(const AValue: CObject): Integer; {$IFDEF DELPHI}reintroduce;{$ENDIF} override;
     function  GetColumnMapPickList(const Column: IDataModelColumn; const ARowType: RowTypeFlag) : IList; {$IFDEF DELPHI}overload;{$ENDIF} virtual;
     function  GetColumnMapPickList(const Column: IDataModelColumn; Level: Integer) : IList; {$IFDEF DELPHI}overload;{$ENDIF} virtual;
     function  GetFieldValue(const Column: IDataModelColumn; const Row: IDataRow): CObject; virtual;
