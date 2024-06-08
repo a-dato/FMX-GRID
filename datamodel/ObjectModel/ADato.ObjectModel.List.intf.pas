@@ -19,13 +19,34 @@ type
   IObjectListModel = interface;
 
   {$IFDEF DELPHI}
-  ListContextChangingEventHandlerProc = procedure (const Sender: IObjectListModel; const Context: IList; var AllowChange: Boolean) of object;
+  ListContextCanChangeEventHandlerProc = function(const Sender: IObjectListModel; const Context: IList): Boolean of object;
+
+  ListContextCanChangeEventHandler = interface(IDelegate)
+    procedure Add(Value: ListContextCanChangeEventHandlerProc);
+    function  Contains(Value: ListContextCanChangeEventHandlerProc) : Boolean;
+    procedure Remove(value: ListContextCanChangeEventHandlerProc);
+    function  Invoke(const Sender: IObjectListModel; const Context: IList): Boolean;
+  end;
+
+  ListContextCanChangeEventDelegate = class(Delegate, ListContextCanChangeEventHandler)
+  protected
+    procedure Add(Value: ListContextCanChangeEventHandlerProc);
+    function  Contains(Value: ListContextCanChangeEventHandlerProc) : Boolean;
+    procedure Remove(value: ListContextCanChangeEventHandlerProc);
+    function  Invoke(const Sender: IObjectListModel; const Context: IList): Boolean;
+  end;
+  {$ELSE}
+  ListContextCanChangeEventHandler = public delegate (const Sender: IObjectListModel; const Context: IList): Boolean;
+  {$ENDIF}
+
+  {$IFDEF DELPHI}
+  ListContextChangingEventHandlerProc = procedure (const Sender: IObjectListModel; const Context: IList) of object;
 
   ListContextChangingEventHandler = interface(IDelegate)
     procedure Add(Value: ListContextChangingEventHandlerProc);
     function  Contains(Value: ListContextChangingEventHandlerProc) : Boolean;
     procedure Remove(value: ListContextChangingEventHandlerProc);
-    procedure Invoke(const Sender: IObjectListModel; const Context: IList; var AllowChange: Boolean);
+    procedure Invoke(const Sender: IObjectListModel; const Context: IList);
   end;
 
   ListContextChangingEventDelegate = class(Delegate, ListContextChangingEventHandler)
@@ -33,7 +54,7 @@ type
     procedure Add(Value: ListContextChangingEventHandlerProc);
     function  Contains(Value: ListContextChangingEventHandlerProc) : Boolean;
     procedure Remove(value: ListContextChangingEventHandlerProc);
-    procedure Invoke(const Sender: IObjectListModel; const Context: IList; var AllowChange: Boolean);
+    procedure Invoke(const Sender: IObjectListModel; const Context: IList);
   end;
   {$ELSE}
   ListContextChangingEventHandler = public delegate (const Sender: IObjectListModel; const Context: IList; var AllowChange: Boolean);
@@ -71,6 +92,7 @@ type
   IObjectListModel = interface(IBaseInterface)
     ['{A70DAED8-8BAE-4287-80AF-2559CC522561}']
     {$IFDEF DELPHI}
+    function  get_OnContextCanChange: ListContextCanChangeEventHandler;
     function  get_OnContextChanging: ListContextChangingEventHandler;
     function  get_OnContextChanged: ListContextChangedEventHandler;
     {$ENDIF}
@@ -87,6 +109,7 @@ type
     function  get_MultiSelectionContext: List<CObject>;
     procedure set_MultiSelectionContext(const Value: List<CObject>);
 
+    function  ContextCanChange: Boolean;
     procedure ResetModelProperties;
     function  CreateObjectModelContext : IObjectModelContext;
 
@@ -97,9 +120,11 @@ type
 //    property ObjectModelContextSupport: IObjectModelContextSupport read get_ObjectModelContextSupport;
 
     {$IFDEF DELPHI}
+    property OnContextCanChange: ListContextCanChangeEventHandler read get_OnContextCanChange;
     property OnContextChanging: ListContextChangingEventHandler read get_OnContextChanging;
     property OnContextChanged: ListContextChangedEventHandler read get_OnContextChanged;
     {$ELSE}
+    event OnContextCanChange: ListContextCanChangeEventHandler;
     event OnContextChanging: ListContextChangingEventHandler;
     event OnContextChanged: ListContextChangedEventHandler;
     {$ENDIF}
@@ -132,7 +157,7 @@ begin
   Result := inherited Contains(TMethod(Value));
 end;
 
-procedure ListContextChangingEventDelegate.Invoke(const Sender: IObjectListModel; const Context: IList; var AllowChange: Boolean);
+procedure ListContextChangingEventDelegate.Invoke(const Sender: IObjectListModel; const Context: IList);
 var
   cnt: Integer;
 
@@ -140,7 +165,7 @@ begin
   cnt := 0;
   while cnt < _events.Count do
   begin
-    ListContextChangingEventHandlerProc(_events[cnt]^)(Sender, Context, AllowChange);
+    ListContextChangingEventHandlerProc(_events[cnt]^)(Sender, Context);
     inc(cnt);
   end;
 end;
@@ -176,5 +201,38 @@ begin
   end;
 end;
 {$ENDIF}
+
+{ ListContextCanChangeEventDelegate }
+
+procedure ListContextCanChangeEventDelegate.Add(Value: ListContextCanChangeEventHandlerProc);
+begin
+  inherited Add(TMethod(Value));
+end;
+
+function ListContextCanChangeEventDelegate.Contains(Value: ListContextCanChangeEventHandlerProc): Boolean;
+begin
+  Result := inherited Contains(TMethod(Value));
+end;
+
+function ListContextCanChangeEventDelegate.Invoke(const Sender: IObjectListModel; const Context: IList): Boolean;
+var
+  cnt: Integer;
+begin
+  cnt := 0;
+  while cnt < _events.Count do
+  begin
+    if not ListContextCanChangeEventHandlerProc(_events[cnt]^)(Sender, Context) then
+      Exit(False);
+
+    inc(cnt);
+  end;
+
+  Result := True;
+end;
+
+procedure ListContextCanChangeEventDelegate.Remove(value: ListContextCanChangeEventHandlerProc);
+begin
+  inherited Remove(TMethod(Value));
+end;
 
 end.

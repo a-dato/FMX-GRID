@@ -3004,19 +3004,7 @@ begin
     Result := True;
 
   if Result and (_model <> nil) then
-  begin
-    var item: CObject := nil;
-
-    if NewCell <> nil then
-    begin
-      var drv: IDataRowView := nil;
-      if NewCell.Row.DataItem.TryAsType<IDataRowView>(drv) then
-        item := drv.Row.Data else
-        item := NewCell.Row.DataItem;
-    end;
-
-    _model.ObjectModelContext.OnContextChanging.Invoke(_model.ObjectModelContext, item, Result {var})
-  end;
+    Result := _model.ObjectModelContext.ContextCanChange;
 end;
 
 function TCustomTreeControl.DoCellLoading(const Cell: ITreeCell; Flags: TCellLoadingFlags) : Boolean;
@@ -9073,6 +9061,7 @@ function TFMXTreeCheckboxColumn.CreateCellControl(AOwner: TComponent; const Cell
 begin
   if Cell.Column.StyleLookup = string.Empty then
   begin
+    Result := TCellControl.Create(AOwner, Cell);
     var text := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
     text.Align := TAlignLayout.Client;
     text.Margins.Left := 10;

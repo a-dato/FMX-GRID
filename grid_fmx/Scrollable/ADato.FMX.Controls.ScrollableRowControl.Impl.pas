@@ -1815,6 +1815,7 @@ begin
     ShowMultiSelections;
 
   ShowCurrentRowSelection;
+  StartSelectionTimer;
 end;
 
 function TScrollableRowControl<T>.IsSelecting: Boolean;
@@ -2144,8 +2145,6 @@ begin
 //      InvalidateContentSize;
     end;
   end;
-
-  StartSelectionTimer;
 end;
 
 procedure TScrollableRowControl<T>.OnSelectionAnimationFinished(Sender: TObject);
