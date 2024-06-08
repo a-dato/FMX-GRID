@@ -83,7 +83,9 @@ type
     { Get row index in a View by data of row. If it does not exists in a View returns -1.
       Need this method for ease of use: View.FindRowByData(Row) - and will be triggered proper variant
       Row.DataItem for TTreeRowList or for DataModelMode Row.DataItem.AsType<IDataRowView>.Row.Data.  }
-    function FindRowByDataIndex(DataIndex: Integer): Integer; // Index in a View
+    //function FindRowByDataIndex(DataIndex: Integer): Integer; // Index in a View
+    function FindRowByDataIndex(const ARow: T): Integer;
+
     function GetRowDataIndex(const ARowDataItem: CObject {const ARow: T}): Integer;
     // for DVM it returns value directly from the variable in IDataRowView (fast), for usual mode - searches in a _data (slow)
     procedure MoveRow(const SrcRow, DestRow: IRow; const Position: TMovePosition = TMovePosition.Below);

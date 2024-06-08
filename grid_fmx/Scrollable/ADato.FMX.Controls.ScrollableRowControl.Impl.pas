@@ -13,7 +13,7 @@ uses
   ADato.FMX.Controls.ScrollableControl.Impl,
   ADato.FMX.Controls.ScrollableRowControl.Intf,
   ADato.Controls.FMX.RowHeights.Intf, ADato.Controls.FMX.RowHeights.Impl,
-  System.Collections, System.Generics.Collections;
+  System.Collections, System.Generics.Collections, System.Generics.Defaults;
 
 const
   USE_ROW_CACHE = False; // there are consts for Tree and Gantt separately
@@ -30,10 +30,6 @@ const
   STR_MOVE_TOPMOST = 'Move above...';
 
 type
-  TOnAdatoThemeChanged = procedure (Sender: TObject; NewColor: TAlphaColor) of object;
-
-  TScrollingType = (None, ScrollingStarted, SlowScrolling, FastScrolling);
-
   TSelectionItem = class(TBaseInterfacedObject, ISelectionItem)
   strict private
     _RowIndex: integer;
@@ -57,7 +53,7 @@ type
   public
   type
     TOnSynchronizeControl = procedure (Sender: TObject; [weak] TopRow: IRow; TopRowOffset: single) of object;
-
+    TScrollingType = (None, ScrollingStarted, SlowScrolling, FastScrolling);
     TScrollingDirection = (sdNone, sdUp, sdDown);
 
     THitInfo = record
@@ -197,19 +193,18 @@ type
     procedure OnFastScrollingStopTimer(Sender: TObject);
   protected
     _scrollingType: TScrollingType;
-
     procedure MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean); override;
     procedure DoFastScrollingStopped; virtual;
-
   public
     property ScrollingType: TScrollingType read _scrollingType;
-
   protected
     _FixedRowHeight: Single;
+    _averageRowHeight: Single;  
     _NegotiateInitiatedRows: TList<T>; // newly added rows in NegotiateRowHeight, which will be repositioned later
       // and added into View without calling InitRow for the second time
     _SkipRowHeightNegotiation: Boolean;
-    _averageRowHeight: Single;
+    function GetRowFromNegotiateList(ViewRowIndex: integer; const DataItem: CObject): T;
+  protected
     _View: IRowList<T>;
     _IsDeniedUpdateContent: Boolean;
     _lastUpdatedViewportPosition: TPointF;
@@ -239,7 +234,6 @@ type
 
   private
     procedure SaveQueuedRepaint([weak]IsAlive: IInterface; Index: Integer);
-
   type
     THintType = (htNone, htMoveAfter, htMakeChild, htMoveTopMost);
     // for optimization, htMoveAfter, htMakeChild, htMoveTopMost - used while d&d rows only, it shows proper hints
@@ -309,8 +303,8 @@ type
     procedure HandleContentRowChanges(Clip: TRectF);
     procedure EndUpdateContents; virtual;
     procedure CalcContentBounds; override;
-    procedure RemoveRowsFromView(MakeViewNil: Boolean = False; const StartIndex: Integer = -1; const Count: Integer = -1); virtual;
-
+    procedure RemoveRowsFromView(const MakeViewNil: Boolean = False; const StartIndex: Integer = -1;
+      const Count: Integer = -1); virtual;
     procedure ApplyScrollBarsVisibility;
     function AppendRow(RowIndex: integer; Position, MinHeight: Single): IRow;
     function AppendRowsBelow(Clip: TRectF; RowIndex: Integer; Position: Single): integer;
@@ -419,6 +413,12 @@ type
    // base class from which inherited all Views: TTreeRowList, TTreeDataModelViewRowList and TGanttDatamodelViewRowList.
   TBaseViewList<T: IRow> = class abstract(CList<T>, IRowList<T>)
   strict private
+  type
+    TRowComparer = class(TBaseInterfacedObject, IComparer<T>)
+      function Compare(const Left, Right: T): Integer;
+    end;
+  strict private
+    _comparer: IComparer<T>;
     _CacheList: TList<T>;
     function FindRowInCache(aAltRow, aWithFiller: Boolean; ALevel: integer): T;
   strict protected
@@ -445,7 +445,10 @@ type
     function CreateRow(const Data: CObject; AIndex: Integer; const IsTemporaryRow: Boolean = False;
       const ARowLevel: integer = 0): T;
     function FindRowByData(const ARow: T): Integer; virtual; // search by data in a View rows only
-    function FindRowByDataIndex(ADataIndex: Integer): Integer;
+
+    function FindRowByDataIndex(const ARow: T): Integer;
+   // function FindRowByDataIndex(ADataIndex: Integer): Integer;
+
     // Search for a proper Row.index in View. For DVM mode it's a DataModeView index,
     // for TTreeRowList - _data index. Returns View index.
 
@@ -468,7 +471,6 @@ type
 
   TRowControl = class(TOwnerStyledPanel)
   private
-    _OnAdatoThemeChanged: TOnAdatoThemeChanged;
     function GetBackgroundColor: TAlphaColor;
     procedure SetBackgroundColor(const Value: TAlphaColor);
   protected
@@ -478,7 +480,6 @@ type
   public
     procedure ApplyStyleLookup; override;
     property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;
-    property OnAdatoThemeChanged: TOnAdatoThemeChanged read _OnAdatoThemeChanged write _OnAdatoThemeChanged;
   end;
 
   TRow = class(TBaseInterfacedObject, IRow, IFreeNotification)
@@ -1097,7 +1098,7 @@ begin
     if (ix <> _updateContentIndex) then
       Exit;
 
-    // if animations running or user is scrolling, UpdateContents will be executed later
+    //if animations running or user is scrolling, UpdateContents will be executed later
     if (_scrollingType = TScrollingType.None) and (_RowAnimationsCountNow = 0) then
       UpdateContents(True);
   end);
@@ -1143,7 +1144,7 @@ begin
     Assert(_View.IsDataModelView, 'NegotiateRowHeight is adapted for DataModelView mode only.');
 
     // Do we have this row in a View of THIS control? (we have 2 controls Tree and Gantt)
-    var rowViewIndex := (_View as TBaseViewList<T>).FindRowByDataIndex(ARow.DataIndex);
+    var rowViewIndex := (_View as TBaseViewList<T>).FindRowByDataIndex(ARow);
 
     if rowViewIndex >= 0 then
     begin
@@ -1177,7 +1178,7 @@ begin
       So in such way we have a row which was already initiated but not in a View. }
 
       var obj := _view.DataList[_view.Transpose(ARow.Index)]; // warning, use only DataRowViewIndex here, not DataModel index
-      // - row is returned related to collapsed children. View.DataList[4] - will return Row 6 (4 + 2 (children we collapsed)
+      // - row is returned related to collapsed children. View.DataList[4] - will return Row 6 (4 + 2 (children were collapsed)
 
       addedRow := InitRow(obj, ARow.Index, -1000 {Y Position}, AHeight);
       { Set Y = -1000, to place control outside of the visible area. Fixed issue: First row is incorrect.
@@ -1189,7 +1190,7 @@ begin
         _NegotiateInitiatedRows := TList<T>.Create;
 
       _NegotiateInitiatedRows.Add(addedRow);
-    end;
+   end;
 
     var addedRowHeight := addedRow.Height;
 
@@ -1375,9 +1376,9 @@ begin
 
   if RowExists then
     for var i := 0 to _View.Count - 1 do
-      if _View[i].Index = Index then
+      if _View.InnerArray[i].Index = Index then
       begin
-        VPY := _View[i].Control.BoundsRect.Top + YOffset;
+        VPY := _View.InnerArray[i].Control.BoundsRect.Top + YOffset;
         break;
       end;
 
@@ -1558,6 +1559,9 @@ begin
       {Content.}AddObject(ARow.Control);
 
     UpdateContentsQueuedAfterRowsChange;
+    // not sure we need it here, possibly Jan added this related to row collapsing\expanding. Check.
+    // now it is used while usual Gant scrolling in NegotiateRowheight. Before this method is called once, now it
+    // it can be called twice. Can we improve it? Alex.
   end;
 end;
 
@@ -1776,7 +1780,7 @@ begin
   Result := RemainSpace <= END_OF_LIST_SPACE;
 end;
 
-procedure TScrollableRowControl<T>.RemoveRowsFromView(MakeViewNil: Boolean = False; const StartIndex: Integer = -1;
+procedure TScrollableRowControl<T>.RemoveRowsFromView(const MakeViewNil: Boolean = False; const StartIndex: Integer = -1;
   const Count: Integer = -1);
 var
   start: Integer;
@@ -2718,19 +2722,26 @@ end;
 
 function TScrollableRowControl<T>.InitRow(const DataItem: CObject; ViewRowIndex: Integer; const Y: Single = 0;
   const AMinHeight: Single = 0): T;
-var
-  lRow: T;
+begin
+  Result := GetRowFromNegotiateList(ViewRowIndex, DataItem);
+end;
+
+function TScrollableRowControl<T>.GetRowFromNegotiateList(ViewRowIndex: integer; const DataItem: CObject): T;
 begin
   Result := nil;
-  if _SkipRowHeightNegotiation or (_NegotiateInitiatedRows = nil) then Exit;
+  if _SkipRowHeightNegotiation or (_NegotiateInitiatedRows = nil) or (_NegotiateInitiatedRows.Count = 0) then Exit;
 
+  var FirstRowIndex := _NegotiateInitiatedRows.List[0].Index;   
+  if (FirstRowIndex > ViewRowIndex) or (FirstRowIndex + _NegotiateInitiatedRows.Count - 1 < ViewRowIndex) then Exit;
+
+  var lRow: T; 
   for var i := 0 to _NegotiateInitiatedRows.Count - 1 do
   begin
     lRow := _NegotiateInitiatedRows.List[i];
 
     if lRow.Index = ViewRowIndex then
     begin
-      // check also DataIndex, sometimes, during fast scrolling DRV indexes matches but not DataItems
+      // check also DataIndex, sometimes, during fast scrolling DRV indexes does no matches but not DataItems
       if _View.IsDataModelView then
         if lRow.Dataindex <> _View.GetRowDataIndex(DataItem) then Exit;
 
@@ -2797,7 +2808,7 @@ begin
 
   for var i := 0 to _View.Count - 1 do
   begin
-    Row := _View[i];
+    Row := _View.InnerArray[i];
 
     R := Row.Control.BoundsRect;
     if (Y >= R.Top) and (Y < R.Bottom) then
@@ -3146,7 +3157,7 @@ begin
   if _CacheRows then
   begin
     var NeedAltRow := (AIndex mod 2) <> 0;
-    Result := FindRowInCache(NeedAltRow, HasChildren(Data), ARowLevel);
+    Result := FindRowInCache(NeedAltRow, {HasChildren(Data)} False, ARowLevel);
   end;
 
   if Result <> nil then
@@ -3161,21 +3172,56 @@ begin
     _CacheList.Clear;
 end;
 
-function TBaseViewList<T>.FindRowByDataIndex(ADataIndex: Integer): Integer;
-// For DVM mode it's a DataModeView index, for TTreeRowList - _data index
-// Search in View only. Each Row.Index is a data index, except when View is sorted in TTreeRowList
+function TBaseViewList<T>.FindRowByDataIndex(const ARow: T): Integer;
 begin
-  Result := -1;
+  if Count = 0 then
+    Exit(-1);
+ 
+  var aRowDataIndex :=  ARow.DataIndex;
+  var dtindex := Self.InnerArray[Count - 1].DataIndex; // var for debugger
+  if dtindex < aRowDataIndex then
+    Exit(-1);
+  dtindex := Self.InnerArray[0].DataIndex;
+  if dtindex > aRowDataIndex then
+    Exit(-1);                           
+   
+  if _comparer = nil then
+    _comparer := TRowComparer.Create;
 
-  var dataIndex: integer;
-  for var i := Count - 1 downto 0 do
-  begin
-    dataIndex := Self[i].DataIndex;
-
-    if (dataIndex < ADataIndex) then break;
-    if (dataIndex = ADataIndex) then Exit(i);
-  end;
+  Result := BinarySearch(ARow, _comparer);
 end;
+
+{ TBaseViewList<T>.TRowComparer }
+
+function TBaseViewList<T>.TRowComparer.Compare(const Left, Right: T): Integer;
+begin    // IRow
+  var L := Left.DataIndex;
+  var R := Right.DataIndex;
+
+  if L < R then
+    Result := -1
+  else
+    if L > R then
+      Result := 1
+    else
+      Result := 0;
+end;
+//
+//function TBaseViewList<T>.FindRowByDataIndex(ADataIndex: Integer): Integer;
+//// For DVM mode it's a DataModeView index, for TTreeRowList - _data index
+//// Search in View only. Each Row.Index is a data index, except when View is sorted in TTreeRowList
+//begin
+//  Result := -1;
+//
+//  var dataIndex: integer;
+//  for var i := Count - 1 downto 0 do
+//  begin
+//    dataIndex := Self.InnerArray[i].DataIndex;
+//
+//    if (dataIndex < ADataIndex) then break;
+//    if (dataIndex = ADataIndex) then Exit(i);
+//  end;
+//end;
 
 function TBaseViewList<T>.FindRowByData(const ARow: T): Integer;
 // this method is for non-Datamodel list, like TTreeRowList. Overridden in TBaseDataModelViewList<T>
@@ -3186,12 +3232,13 @@ begin
 //    Result := Result - get_TopRow;
 end;
 
+
 function TBaseViewList<T>.IndexOf(const DataItem: CObject): Integer;
 begin
   Result := -1;
 
   for var i := 0 to Count - 1 do
-    if Self[i].DataItem = DataItem then Exit(i);
+    if Self.InnerArray[i].DataItem = DataItem then Exit(i);
 
   { We cannot use "Result := inherited IndexOf(DataItem) (CList);" because it will search in _data, but we need in View.
     Btw type of _data comes from Tree.Set_data, usually "string" (FMXTreeControl1.Data := SomeList; ).
@@ -3213,7 +3260,7 @@ begin
 
   for var i := _CacheList.Count - 1 downto 0 do
   begin
-    var row := _CacheList[i];
+    var row := _CacheList.List[i];
     if not _checkAltRowInCache or (aAltRow = ((row.Index  mod 2) <> 0)) then
     begin
       // Filler and Level will be ignored during scrolling and added later
@@ -3256,7 +3303,7 @@ begin
     begin
       if processedCount = Count {Count - is an argument, not View.Count!}  then break;
 
-      var [unsafe] removedRow: IRow := Self[i];
+      var [unsafe] removedRow: IRow := Self.InnerArray[i];
       var CanCache := True;
       DoOnCacheRowBeforeHide(removedRow, CanCache);
 
@@ -3469,7 +3516,7 @@ begin
 
   for var i := 0 to Controls.Count - 1 do
   begin
-    control := Controls[i];
+    control := Controls.List[i];
 
     if control is TRectangle then
     begin
@@ -3511,5 +3558,6 @@ begin
   if _BackgroundRowRect <> nil then
     _BackgroundRowRect.Fill.Color := Value;
 end;
+
 
 end.

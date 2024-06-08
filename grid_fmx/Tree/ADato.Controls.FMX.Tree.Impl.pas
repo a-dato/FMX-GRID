@@ -1398,7 +1398,7 @@ type
     function  GetRowRectangle(const Row: ITreeRow) : TRectF;
     procedure ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
       const ATopRowMinHeight: Single = 0); override; // see also public Clear method
-    procedure RemoveRowsFromView(MakeViewNil: Boolean = False; const StartIndex: Integer = -1; const Count: Integer = -1); override;
+    procedure RemoveRowsFromView(const MakeViewNil: Boolean = False; const StartIndex: Integer = -1; const Count: Integer = -1); override;
 
   protected
     procedure DoFastScrollingStopped; override;
@@ -4670,7 +4670,7 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
     begin
       // when using cell.Colspan, a cell can be nil
 
-      var c := ATreeRow.Cells[i];
+      var c := ATreeRow.Cells.InnerArray[i];
       if c = nil then Continue;
       cell := TTreeCell(c);
 
@@ -4773,7 +4773,6 @@ begin
       else
         rowControl := TRowControl.Create(Self);
 
-      rowControl.OnAdatoThemeChanged := treeRowClass.OnAdatoThemeChanged;
       treeRowClass.Control := rowControl;
 
       //  treeRowClass.Control := TAlternatingRowControl.Create(Self) else
@@ -7021,8 +7020,8 @@ function TCustomTreeControl.LastVisibleRow : ITreeRow;
 begin
   if _View <> nil then
     for var i := _View.Count - 1 downto 0 do
-      if _View[i].BoundsRect.Top < Content.BoundsRect.Bottom then
-        Exit(_View[i]);
+      if _View.InnerArray[i].BoundsRect.Top < Content.BoundsRect.Bottom then
+        Exit(_View.InnerArray[i]);
 
   Exit(nil);
 end;
@@ -7693,7 +7692,7 @@ begin
   end;
 end;
 
-procedure TCustomTreeControl.RemoveRowsFromView(MakeViewNil: Boolean = False; const StartIndex: Integer = -1; const Count: Integer = -1);
+procedure TCustomTreeControl.RemoveRowsFromView(const MakeViewNil: Boolean = False; const StartIndex: Integer = -1; const Count: Integer = -1);
 var
   start, stop: Integer;
 begin
@@ -8476,15 +8475,10 @@ end;
 
 procedure TFMXTreeColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
 begin
-//  if Cell.InfoControl = nil then
-//    Cell.InfoControl := GetTextControl(Cell.Control);
-
-  // can be TText or TLabel (or inherited like TAdatoLabel). e.g. TAdatoLabel can be used in 'headercell'
-
   if Cell.InfoControl <> nil then
   begin
     var clmnIndex := Cell.Column.Index;
-    var isFastScrolling := ((_treeControl as TFMXTreeControl)._scrollingType = TScrollingType.FastScrolling);
+    var isFastScrolling := TFMXTreeControl(_treeControl)._scrollingType = TScrollableRowControl<ITreeRow>.TScrollingType.FastScrolling;
 
 //    if not isFastScrolling or (clmnIndex <= 2) then
 //    begin
@@ -11124,7 +11118,7 @@ begin
   for var i := 0 to Cells.Count - 1 do
   begin
     // when using cell.Colspan, a cell can be nil
-    var c := Cells[i];
+    var c := Cells.InnerArray[i];
     if c = nil then Continue;
     cell := TTreeCell(c);
 
@@ -11170,7 +11164,7 @@ begin
 
   for var i := 0 to Cells.Count - 1 do
   begin
-    cell := TTreeCell(Cells[i]);
+    cell := TTreeCell(Cells.InnerArray[i]);
     if (cell <> nil) and cell.Column.ShowHierarchy then
     begin
       var filler := FindFillerControl(cell.Control);
