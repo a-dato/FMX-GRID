@@ -53,7 +53,6 @@ type
   public
   type
     TOnSynchronizeControl = procedure (Sender: TObject; [weak] TopRow: IRow; TopRowOffset: single) of object;
-    TScrollingType = (None, ScrollingStarted, SlowScrolling, FastScrolling);
     TScrollingDirection = (sdNone, sdUp, sdDown);
 
     THitInfo = record
@@ -192,11 +191,11 @@ type
     procedure DetectFastScrolling;
     procedure OnFastScrollingStopTimer(Sender: TObject);
   protected
-    _scrollingType: TScrollingType;
+    _scrollingType: TScrollableControl.TScrollingType;
     procedure MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean); override;
     procedure DoFastScrollingStopped; virtual;
   public
-    property ScrollingType: TScrollingType read _scrollingType;
+    property ScrollingType: TScrollableControl.TScrollingType read _scrollingType;
   protected
     _FixedRowHeight: Single;
     _averageRowHeight: Single;  

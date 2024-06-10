@@ -121,6 +121,9 @@ type
 
 
   TScrollableControl = {$IFDEF DOTNET}public abstract{$ENDIF} class(TCustomScrollBox)
+  public
+  type
+    TScrollingType = (None, ScrollingStarted, SlowScrolling, FastScrolling);
   strict private
     _StyleWasFreedByFMX: Boolean; {Subchild (Row) uses Owner(Tree).FindStyleResourceBase to get own style and
       Tree style may be freed (for example when changing Tree.Parent). And in this case, FMX can SOMETIMES
