@@ -9062,12 +9062,13 @@ begin
   if Cell.Column.StyleLookup = string.Empty then
   begin
     Result := TCellControl.Create(AOwner, Cell);
-    var text := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
-    text.Align := TAlignLayout.Client;
-    text.Margins.Left := 10;
-    Result.AddObject(text);
+    var check := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
+    check.Align := TAlignLayout.Client;
+    check.Margins.Left := 10;
+    check.OnClick := Checkbox_OnClick;
+    Result.AddObject(check);
 
-    Cell.InfoControl := text;
+    Cell.InfoControl := check;
   end else
     Result := TStyledCellControl.Create(AOwner, Cell);
 end;
