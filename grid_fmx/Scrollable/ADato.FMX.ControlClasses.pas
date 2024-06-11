@@ -28,7 +28,7 @@ type
     procedure KeyDown(var Key: Word; var KeyChar: System.WideChar; Shift: TShiftState); override;
   end;
 
-  function GetTextControl(CellControl: TControl): IControl; //TText; or TLabel
+  function GetCellInfoControl(CellControl: TControl; IsCheckBox: Boolean): IControl; //TText; or TLabel
 
 var  // see Initialization section
   ScrollableRowControl_DefaultTextClass: TControlClass;
@@ -42,7 +42,7 @@ implementation
 
 
 
-function GetTextControl(CellControl: TControl): IControl; //TText, TAdatoLabel
+function GetCellInfoControl(CellControl: TControl; IsCheckBox: Boolean): IControl; //TText, TAdatoLabel
 begin
   Result := nil;
 
@@ -50,7 +50,11 @@ begin
   for var i := 0 to CellControl.Controls.Count - 1 do
   begin
     var ctrl := CellControl.Controls.List[i];
-    if ctrl is ScrollableRowControl_DefaultTextClass then
+
+    var validText := not IsCheckBox and (ctrl is ScrollableRowControl_DefaultTextClass);
+    var validCheckBox := IsCheckBox and (ctrl is ScrollableRowControl_DefaultCheckboxClass);
+
+    if validText or validCheckBox then
     begin
       Result := ctrl;
       Exit;
@@ -70,7 +74,9 @@ begin
   if (Result = nil) and (CellControl is TStyledControl) then
   begin
     var ctrl: TControl := nil;
-    if (CellControl as TStyledControl).FindStyleResource<TControl{TText}>('text', ctrl) then
+    if not IsCheckBox and (CellControl as TStyledControl).FindStyleResource<TControl{TText}>('text', ctrl) then
+      Result := ctrl
+    else if IsCheckBox and (CellControl as TStyledControl).FindStyleResource<TControl{TCheckbox}>('check', ctrl) then
       Result := ctrl;
   end;
     // e.g. TAdatoLabel inherited from TLabel and can be used in 'headercell'
