@@ -6563,7 +6563,7 @@ begin
 
     // Hide TText in a cell
     if Cell.InfoControl = nil then
-      Cell.InfoControl := GetTextControl(Cell.Control);
+      Cell.InfoControl := GetCellInfoControl(Cell.Control, interfaces.Supports<ITreeCheckboxColumn>(cell.Column));
 
     if Cell.InfoControl <> nil then
       Cell.InfoControl.Visible := False;
@@ -9062,12 +9062,13 @@ begin
   if Cell.Column.StyleLookup = string.Empty then
   begin
     Result := TCellControl.Create(AOwner, Cell);
-    var text := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
-    text.Align := TAlignLayout.Client;
-    text.Margins.Left := 10;
-    Result.AddObject(text);
+    var check := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
+    check.Align := TAlignLayout.Client;
+    check.Margins.Left := 10;
+    check.OnClick := Checkbox_OnClick;
+    Result.AddObject(check);
 
-    Cell.InfoControl := text;
+    Cell.InfoControl := check;
   end else
     Result := TStyledCellControl.Create(AOwner, Cell);
 end;
@@ -9417,7 +9418,7 @@ begin
   var fmxColumn := TFMXTreeColumn(_Column);
 
   if Cell.InfoControl = nil then
-    Cell.InfoControl := GetTextControl(Cell.Control);
+    Cell.InfoControl := GetCellInfoControl(Cell.Control, interfaces.Supports<ITreeCheckboxColumn>(cell.Column));
 
   // data from the Text cotrol
   var textSettings: TTextSettings := nil;  // reference only
@@ -12652,28 +12653,42 @@ begin
 
   if (StyleLookup = '') and (Owner as TCustomTreeControl)._IsCellStyleStandard then
   begin
-    var text := ScrollableRowControl_DefaultTextClass.Create(Self);
-    text.Align := TAlignLayout.Client;
-    text.Margins.Left := CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN;
-    text.HitTest := False;
-
-    var ts: ITextSettings;
-    if interfaces.Supports<ITextSettings>(text, ts) then
+    var obj: TControl;
+    if interfaces.Supports<ITreeCheckboxColumn>(_TreeCell.Column) then
     begin
-      ts.TextSettings.HorzAlign := TTextAlign.Leading;
-      ts.TextSettings.WordWrap := False;
-      ts.TextSettings.Trimming := TTextTrimming.Character;
+      var checkBox := ScrollableRowControl_DefaultCheckboxClass.Create(Self);
+      checkBox.Align := TAlignLayout.Client;
+      checkBox.Margins.Left := CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN;
+      checkBox.HitTest := True;
+
+      obj := checkBox;
+    end else
+    begin
+      var text := ScrollableRowControl_DefaultTextClass.Create(Self);
+      text.Align := TAlignLayout.Client;
+      text.Margins.Left := CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN;
+      text.HitTest := False;
+
+      var ts: ITextSettings;
+      if interfaces.Supports<ITextSettings>(text, ts) then
+      begin
+        ts.TextSettings.HorzAlign := TTextAlign.Leading;
+        ts.TextSettings.WordWrap := False;
+        ts.TextSettings.Trimming := TTextTrimming.Character;
+      end;
+
+      obj := text;
     end;
 
     var bkrect := FindBackgroundRectangle;
     Assert(bkrect <> nil, 'Std ''cell'' style was changed or somth. wrong. Please recheck. _IsCellStyleStandard should be False in this case too.');
 
     if bkrect <> nil then
-      bkrect.AddObject(text)
+      bkrect.AddObject(obj)
     else
-      AddObject(text);
+      AddObject(obj);
 
-    TreeCell.InfoControl := text;
+    TreeCell.InfoControl := obj;
   end;
   // otherwise user can use own 'cell' style, with own label
 end;
