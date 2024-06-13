@@ -1299,6 +1299,7 @@ type
     _SortingGetComparer: GetColumnComparerEvent;
     _ToolTipNeededEvent: TreeToolTipNeededEvent;
     _OnRowOutOfView: TOnRowOutOfView;
+    _CacheRows      : Boolean;
 
     _UserDeletingRow: RowCancelEvent;
     _UserDeletedRow: EventHandlerProc;
@@ -1606,6 +1607,7 @@ type
     property Row: ITreeRow read get_Row;
     property TopRowPosition: Single read _TopRowPosition;
     property TreeRowList: ITreeRowList read get_TreeRowList;
+    property CacheRows: Boolean read _cacheRows write _cacheRows;
 
     property AllowUserToAddRows: Boolean read _AllowUserToAddRows write _AllowUserToAddRows;
     property AllowUserToDeleteRows: Boolean read _AllowUserToDeleteRows write _AllowUserToDeleteRows;
@@ -2028,6 +2030,8 @@ begin
 
   _AllowUserToAddRows := True;
   _AllowUserToDeleteRows := True;
+
+  _CacheRows := USE_TREE_CACHE;
 
   _itemType := &Type.Unknown;
 
@@ -4684,12 +4688,13 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
         else begin
           // check if PlusMinusFiller is available in control
           var expCtrl: TExpandCollapsePanel := nil;
-          for var child in cell.Control.Children do
-            if child is TExpandCollapsePanel then
-            begin
-              expCtrl := child as TExpandCollapsePanel;
-              break;
-            end;
+          if cell.Control.Children <> nil then
+            for var child in cell.Control.Children do
+              if child is TExpandCollapsePanel then
+              begin
+                expCtrl := child as TExpandCollapsePanel;
+                break;
+              end;
 
           if showHierarchy or (expCtrl <> nil) then
           begin
@@ -4902,10 +4907,15 @@ begin
     else
       treeCell.Indent := 0;
 
-    if not isCachedRow then
+    // if not CachedRow or when control is Recreated in DoCellLoading
+    if treeCell.Control.Parent = nil then
     begin
        // Component must be added to control because ResizeControl will call ApplyStyleLookup
       treeRowClass.Control.AddObject(treeCell.Control);
+    end;
+
+    if not isCachedRow then
+    begin
       // Frozen cell takes a bk color from the row style. So ApplyStyle to get styles
       (treeRowClass.Control as TStyledControl).ApplyStyleLookup;
     end;
@@ -9842,7 +9852,7 @@ begin
   _DataModelView.CurrencyManager.CurrentRowChanged.Add(CurrentRowChanged);
   _DataModelView.CurrencyManager.TopRowChanged.Add(TopRowChanged);
 
-  _CacheRows := USE_TREE_CACHE;
+  _CacheRows := TreeControl.CacheRows;
   _checkAltRowInCache := CheckAltRows;
 end;
 
@@ -11286,7 +11296,7 @@ begin
 //    CollectionNotification.CollectionChanged.Add(RowHeightsCollectionChanged);
 
   // InitializeColumnPropertiesFromColumns;
-  _CacheRows := USE_TREE_CACHE;
+  _CacheRows := TreeControl.CacheRows;
   _checkAltRowInCache := CheckAltRows;
 end;
 
