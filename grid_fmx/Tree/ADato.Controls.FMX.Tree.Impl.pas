@@ -670,6 +670,7 @@ type
     function  CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; virtual;
     function  GetCellText(const Cell: ITreeCell): CString;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False); virtual;
+    function  ColumnType: TColumnType; virtual;
   public
     constructor Create; override;
     function  ToString: CString; override;
@@ -759,6 +760,7 @@ type
     function  HasSelection: Boolean;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean); override;
     function  MakeRadioDict(const KeepSelectedKey: CObject) : Boolean;
+    function  ColumnType: TColumnType; override;
 
     function  get_AllowMultiSelect: Boolean;
     procedure set_AllowMultiSelect(const Value: Boolean);
@@ -790,6 +792,7 @@ type
     _data: Dictionary<CObject, CObject>;
 
     function CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell; override;
+    function  ColumnType: TColumnType; override;
 
     function  get_Data(const DataItem: CObject) : CObject;
     procedure set_Data(const DataItem: CObject; const Value : CObject);
@@ -804,6 +807,7 @@ type
     ITreeIndicatorColumn
     )
   protected
+    function  ColumnType: TColumnType; override;
 
   public
     constructor Create; override;
@@ -1299,6 +1303,7 @@ type
     _SortingGetComparer: GetColumnComparerEvent;
     _ToolTipNeededEvent: TreeToolTipNeededEvent;
     _OnRowOutOfView: TOnRowOutOfView;
+    _CacheRows      : Boolean;
 
     _UserDeletingRow: RowCancelEvent;
     _UserDeletedRow: EventHandlerProc;
@@ -1606,6 +1611,7 @@ type
     property Row: ITreeRow read get_Row;
     property TopRowPosition: Single read _TopRowPosition;
     property TreeRowList: ITreeRowList read get_TreeRowList;
+    property CacheRows: Boolean read _cacheRows write _cacheRows;
 
     property AllowUserToAddRows: Boolean read _AllowUserToAddRows write _AllowUserToAddRows;
     property AllowUserToDeleteRows: Boolean read _AllowUserToDeleteRows write _AllowUserToDeleteRows;
@@ -2028,6 +2034,8 @@ begin
 
   _AllowUserToAddRows := True;
   _AllowUserToDeleteRows := True;
+
+  _CacheRows := USE_TREE_CACHE;
 
   _itemType := &Type.Unknown;
 
@@ -4904,10 +4912,15 @@ begin
     else
       treeCell.Indent := 0;
 
-    if not isCachedRow then
+    // if not CachedRow or when control is Recreated in DoCellLoading
+    if treeCell.Control.Parent = nil then
     begin
        // Component must be added to control because ResizeControl will call ApplyStyleLookup
       treeRowClass.Control.AddObject(treeCell.Control);
+    end;
+
+    if not isCachedRow then
+    begin
       // Frozen cell takes a bk color from the row style. So ApplyStyle to get styles
       (treeRowClass.Control as TStyledControl).ApplyStyleLookup;
     end;
@@ -4922,6 +4935,9 @@ begin
        (THeaderRowList(HeaderRows).LastResizedColumnByUser <> -1) then
       OptionalHeaderResizing := TUpdateColumnReason.HeaderSizing;
     // without this flag UpdateColumnWidthAndCells does not decrease Column width (only enlarge), case if DesignedWidth > Auto width.
+
+    if (treeCell.InfoControl = nil) and (_scrollingType = TScrollingType.None) then
+      treeCell.InfoControl := GetCellInfoControl(treeCell.Control, treeCell.Column.ColumnType = TColumnType.Checkbox);
 
     if loadDefaultData then
       FMXColumn.LoadDefaultData(treeCell);
@@ -8385,6 +8401,11 @@ begin
   _clone.Assign(Self as ITreeColumn);
 end;
 
+function TFMXTreeColumn.ColumnType: TColumnType;
+begin
+  Result := TColumnType.Default;
+end;
+
 constructor TFMXTreeColumn.Create;
 begin
   inherited Create;
@@ -8416,6 +8437,8 @@ begin
   if Cell.Column.StyleLookup = string.Empty then
   begin
     Result := TCellControl.Create(AOwner, Cell);
+    Result.HitTest := False;
+
     var text := ScrollableRowControl_DefaultTextClass.Create(Result);
     text.Align := TAlignLayout.Client;
     text.Margins.Left := 10;
@@ -8913,6 +8936,11 @@ begin
   _clone.Assign(IBaseInterface(Self));
 end;
 
+function TTreeIndicatorColumn.ColumnType: TColumnType;
+begin
+  Result := TColumnType.Indicator;
+end;
+
 constructor TTreeIndicatorColumn.Create;
 begin
   inherited;
@@ -9054,6 +9082,11 @@ begin
   _clone.Assign(IBaseInterface(Self));
 end;
 
+function TFMXTreeCheckboxColumn.ColumnType: TColumnType;
+begin
+  Result := TColumnType.Checkbox;
+end;
+
 function TFMXTreeCheckboxColumn.CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell;
 begin
   Result := TTreeCheckboxCell.Create(TreeRow, Self, Index);
@@ -9067,7 +9100,6 @@ begin
     var check := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
     check.Align := TAlignLayout.Client;
     check.Margins.Left := 10;
-    check.OnClick := Checkbox_OnClick;
     Result.AddObject(check);
 
     Cell.InfoControl := check;
@@ -9419,9 +9451,6 @@ begin
   end;
 
   var fmxColumn := TFMXTreeColumn(_Column);
-
-  if Cell.InfoControl = nil then
-    Cell.InfoControl := GetCellInfoControl(Cell.Control, interfaces.Supports<ITreeCheckboxColumn>(cell.Column));
 
   // data from the Text cotrol
   var textSettings: TTextSettings := nil;  // reference only
@@ -9845,7 +9874,7 @@ begin
   _DataModelView.CurrencyManager.CurrentRowChanged.Add(CurrentRowChanged);
   _DataModelView.CurrencyManager.TopRowChanged.Add(TopRowChanged);
 
-  _CacheRows := USE_TREE_CACHE;
+  _CacheRows := TreeControl.CacheRows;
   _checkAltRowInCache := CheckAltRows;
 end;
 
@@ -11289,7 +11318,7 @@ begin
 //    CollectionNotification.CollectionChanged.Add(RowHeightsCollectionChanged);
 
   // InitializeColumnPropertiesFromColumns;
-  _CacheRows := USE_TREE_CACHE;
+  _CacheRows := TreeControl.CacheRows;
   _checkAltRowInCache := CheckAltRows;
 end;
 
@@ -12467,6 +12496,11 @@ begin
   _clone := TTreeDataColumn.Create;
   Result := _clone as IBaseInterface;
   _clone.Assign(IBaseInterface(Self));
+end;
+
+function TTreeDataColumn.ColumnType: TColumnType;
+begin
+  Result := TColumnType.Data;
 end;
 
 constructor TTreeDataColumn.Create;

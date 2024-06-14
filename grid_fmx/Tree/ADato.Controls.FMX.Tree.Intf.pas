@@ -1551,6 +1551,8 @@ type
 
   TOnInitCell = procedure (const Sender: TObject; const Cell: ITreeCell) of object;
 
+  TColumnType = (Default, Checkbox, Data, Indicator);
+
   ITreeColumn = {$IFDEF DOTNET}public{$ENDIF} interface(IBaseInterface)
   {  ITreeColumn which describes the design of the tree control.
      ITreeLayoutColumn describes the presentation of the control. ITreeColumn.Width <> ITreeLayoutColumn.Width.
@@ -1623,6 +1625,7 @@ type
     function  CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
     function  GetCellText(const Cell: ITreeCell): CString;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False);
+    function  ColumnType: TColumnType;
 
     //function GetTabStops: SingleArray;
 
