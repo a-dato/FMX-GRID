@@ -9099,7 +9099,6 @@ begin
     var check := ScrollableRowControl_DefaultCheckboxClass.Create(Result);
     check.Align := TAlignLayout.Client;
     check.Margins.Left := 10;
-    check.OnClick := Checkbox_OnClick;
     Result.AddObject(check);
 
     Cell.InfoControl := check;
