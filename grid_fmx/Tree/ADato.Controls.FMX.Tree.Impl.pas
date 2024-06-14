@@ -4684,12 +4684,14 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
         else begin
           // check if PlusMinusFiller is available in control
           var expCtrl: TExpandCollapsePanel := nil;
-          for var child in cell.Control.Children do
-            if child is TExpandCollapsePanel then
-            begin
-              expCtrl := child as TExpandCollapsePanel;
-              break;
-            end;
+
+          if cell.Control.Children <> nil then // When adding custom control from cellloading for example then Parent might not be set and Children is nil
+            for var child in cell.Control.Children do
+              if child is TExpandCollapsePanel then
+              begin
+                expCtrl := child as TExpandCollapsePanel;
+                break;
+              end;
 
           if showHierarchy or (expCtrl <> nil) then
           begin
@@ -9110,6 +9112,7 @@ begin
   else if checkboxColumnControl is TRadioButton then
   begin
     var radioButton := TRadioButton(checkBoxColumnControl);
+    radioButton.Enabled := CheckboxEnabled;
     radioButton.IsChecked := CheckedFlag;
     radioButton.OnClick := Checkbox_OnClick;
   end;
