@@ -110,8 +110,8 @@ type
 
     function RecalcWhenUserScrollsDown(var NewContentBounds: TRectF): boolean;
     function RecalcWhenUserScrollsUp(var NewContentBounds: TRectF): boolean;
-    function IsVisibleRow(Index: integer): Boolean;
-    function IsRowFirstLastVisibleInView(Index: integer): Boolean;
+//    function IsVisibleRow(Index: integer): Boolean;
+//    function IsRowFirstLastVisibleInView(Index: integer): Boolean;
     procedure UnclickClickLMB;
     procedure SetShowHScrollBar(const Value: Boolean);
     procedure SetShowVScrollBar(const Value: Boolean);
@@ -166,7 +166,7 @@ type
     _cellSelected: TNotifyEvent;
     _selectionTimer: TTimer;
     _startTimerTicks: Int64;
-    _selectionTimerInterval: Integer;
+    _selectionTimerInterval: Int64;
 
     function  GetNextKeyboardSelectionRow(AKey: integer): integer;
     procedure ShowKeyboardCursorFocus(ARowIndex: integer; const AColumnIndex: integer = USE_CURRENT_COLUMN);
@@ -177,7 +177,7 @@ type
 
   public
     function  IsSelecting: Boolean;
-    property  SelectionTimerInterval: Integer write _selectionTimerInterval;
+    property  SelectionTimerInterval: Int64 write _selectionTimerInterval;
 
   published
     property  CellSelected: TNotifyEvent read _CellSelected write _CellSelected;
@@ -660,8 +660,7 @@ begin
   SaveQueuedRepaint(_isAliveObject, ti);
 end;
 
-procedure TScrollableRowControl<T>.ViewportPositionChange(const OldViewportPosition, NewViewportPosition: TPointF;
-  const ContentSizeChanged: Boolean);
+procedure TScrollableRowControl<T>.ViewportPositionChange(const OldViewportPosition, NewViewportPosition: TPointF; const ContentSizeChanged: Boolean);
 begin
   inherited;
 
@@ -678,9 +677,7 @@ begin
 
   if ANIMATE_HIGHLIGHT_ROW and HighlightRows and Assigned(_Highlight1) and Assigned(_Highlight2) then
   begin
-    var isRunningAnimation := ((_Highlight1 <> nil) and _Highlight1.Animation.Running) or ((_Highlight2 <> nil) and _Highlight2.Animation.Running);
-
-    if isRunningAnimation then
+    if ((_Highlight1 <> nil) and _Highlight1.Animation.Running) or ((_Highlight2 <> nil) and _Highlight2.Animation.Running) then
     begin
       if _Highlight1 <> nil then
         _Highlight1.StopAnimation;
@@ -2261,31 +2258,31 @@ begin
   Result := _AnimationIndex > 0;
 end;
 
-function TScrollableRowControl<T>.IsRowFirstLastVisibleInView(Index: integer): Boolean;
-  { Detect if row in a View is visible or not. Due to different row heights, Row can exists in a View list but it can be
-    invisible, usually first or last row. So visible top row can be View[1] and bottom row - View[View.Count-2] }
-begin
-  Result := (Index = 0) or (Index = _View.Count - 1) ;
+//function TScrollableRowControl<T>.IsRowFirstLastVisibleInView(Index: integer): Boolean;
+//  { Detect if row in a View is visible or not. Due to different row heights, Row can exists in a View list but it can be
+//    invisible, usually first or last row. So visible top row can be View[1] and bottom row - View[View.Count-2] }
+//begin
+//  Result := (Index = 0) or (Index = _View.Count - 1) ;
+//
+//  // if bottom row
+//  if (Index = _View.Count - 2) then
+//    Result := not IsVisibleRow(_View.Count - 1)
+//   // the real last row is invisible - so, row View.Count - 2 is the last VISIBLE row
+//  else
+//    if (Index = 1) then
+//      Result := not IsVisibleRow(0);
+//end;
 
-  // if bottom row
-  if (Index = _View.Count - 2) then
-    Result := not IsVisibleRow(_View.Count - 1)
-   // the real last row is invisible - so, row View.Count - 2 is the last VISIBLE row
-  else
-    if (Index = 1) then
-      Result := not IsVisibleRow(0);
-end;
-
-function TScrollableRowControl<T>.IsVisibleRow(Index: integer): Boolean;
-var
-  clip: TRectF;
-begin
-  clip := Content.LocalRect;
-  clip.Offset(0, ViewportPosition.Y);
-
-  var R := _View[Index].Control.BoundsRect;
-  Result :=(R.Top + 0.5 < (clip.Top + clip.Height) ) and (R.Bottom - 0.5 > clip.Top);
-end;
+//function TScrollableRowControl<T>.IsVisibleRow(Index: integer): Boolean;
+//var
+//  clip: TRectF;
+//begin
+//  clip := Content.LocalRect;
+//  clip.Offset(0, ViewportPosition.Y);
+//
+//  var R := _View[Index].Control.BoundsRect;
+//  Result :=(R.Top + 0.5 < (clip.Top + clip.Height) ) and (R.Bottom - 0.5 > clip.Top);
+//end;
 
 function TScrollableRowControl<T>.GetSelectionRectange(RowViewIndex: integer;
     const ColumnIndex: integer = USE_CURRENT_COLUMN): TRectF;

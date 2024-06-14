@@ -288,7 +288,6 @@ type
     // Bools
     _Enabled        : Boolean;
     _IsTemporaryRow : Boolean;
-    procedure OnAdatoThemeChanged(Sender: TObject; NewColor: TAlphaColor);
   protected
     procedure ResetRowData(const ADataItem: CObject; AIndex: Integer); override;
   protected
@@ -1832,13 +1831,13 @@ type
     [unsafe] _TreeCell: ITreeCell;
     function GetBackgroundColor: TAlphaColor;
     procedure SetBackgroundColor(const Value: TAlphaColor);
-    function FindBackgroundRectangle: TRectangle;
+//    function FindBackgroundRectangle: TRectangle;
   protected
     _BackgroundRectangleMargin: Single;
      _GridBottomLine: TLine;
     function GetBackIndex: Integer; override;
   public
-    constructor Create(AOwner: TComponent; const Cell: ITreeCell);
+    constructor Create(AOwner: TComponent; const Cell: ITreeCell); reintroduce;
     destructor Destroy; override;
     property TreeCell: ITreeCell read _TreeCell;
     property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;  //  TAlphaColorRec.Null to reset
@@ -8489,19 +8488,8 @@ procedure TFMXTreeColumn.LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boo
 begin
   if Cell.InfoControl <> nil then
   begin
-    var clmnIndex := Cell.Column.Index;
-    var isFastScrolling := TFMXTreeControl(_treeControl)._scrollingType = TScrollableRowControl<ITreeRow>.TScrollingType.FastScrolling;
-
-//    if not isFastScrolling or (clmnIndex <= 2) then
-//    begin
-      var cellText := CStringToString( GetCellText(Cell) );
-//      Cell.Control.Visible := True;
-      (Cell.InfoControl as ICaption).Text := cellText;
-//    end
-//    else begin
-//      inc(_ixx);
-//      Cell.Control.Visible := False;
-//    end;
+    var cellText := CStringToString( GetCellText(Cell) );
+    (Cell.InfoControl as ICaption).Text := cellText;
 
     if MakeVisible then
     begin
@@ -11129,24 +11117,6 @@ begin
   _RowLevelCached := Result; // see comment
 end;
 
-procedure TTreeRow.OnAdatoThemeChanged(Sender: TObject; NewColor: TAlphaColor);
-var
-  cell: TTreeCell;
-begin
-  //update all frozen cells' background color
-
-  for var i := 0 to Cells.Count - 1 do
-  begin
-    // when using cell.Colspan, a cell can be nil
-    var c := Cells.InnerArray[i];
-    if c = nil then Continue;
-    cell := TTreeCell(c);
-
-    if cell.Column.Frozen then
-      cell.BackgroundColor := NewColor;
-  end;
-end;
-
 procedure TTreeRow.set_IsExpanded(Value: Boolean);
 begin
   _Owner.IsExpanded[Self] := Value;
@@ -13196,10 +13166,10 @@ begin
   inherited;
 end;
 
-function TCellControl.FindBackgroundRectangle: TRectangle;
-begin
-  Result := nil;
-end;
+//function TCellControl.FindBackgroundRectangle: TRectangle;
+//begin
+//  Result := nil;
+//end;
 
 function TCellControl.GetBackgroundColor: TAlphaColor;
 begin
