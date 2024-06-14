@@ -670,6 +670,7 @@ type
     function  CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl; virtual;
     function  GetCellText(const Cell: ITreeCell): CString;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean = False); virtual;
+    function  ColumnType: TColumnType; virtual;
   public
     constructor Create; override;
     function  ToString: CString; override;
@@ -759,6 +760,7 @@ type
     function  HasSelection: Boolean;
     procedure LoadDefaultData(const Cell: ITreeCell; MakeVisible: Boolean); override;
     function  MakeRadioDict(const KeepSelectedKey: CObject) : Boolean;
+    function  ColumnType: TColumnType; override;
 
     function  get_AllowMultiSelect: Boolean;
     procedure set_AllowMultiSelect(const Value: Boolean);
@@ -790,6 +792,7 @@ type
     _data: Dictionary<CObject, CObject>;
 
     function CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell; override;
+    function  ColumnType: TColumnType; override;
 
     function  get_Data(const DataItem: CObject) : CObject;
     procedure set_Data(const DataItem: CObject; const Value : CObject);
@@ -804,6 +807,7 @@ type
     ITreeIndicatorColumn
     )
   protected
+    function  ColumnType: TColumnType; override;
 
   public
     constructor Create; override;
@@ -4931,6 +4935,9 @@ begin
       OptionalHeaderResizing := TUpdateColumnReason.HeaderSizing;
     // without this flag UpdateColumnWidthAndCells does not decrease Column width (only enlarge), case if DesignedWidth > Auto width.
 
+    if (treeCell.InfoControl = nil) and (_scrollingType = TScrollingType.None) then
+      treeCell.InfoControl := GetCellInfoControl(treeCell.Control, treeCell.Column.ColumnType = TColumnType.Checkbox);
+
     if loadDefaultData then
       FMXColumn.LoadDefaultData(treeCell);
 
@@ -8393,6 +8400,11 @@ begin
   _clone.Assign(Self as ITreeColumn);
 end;
 
+function TFMXTreeColumn.ColumnType: TColumnType;
+begin
+  Result := TColumnType.Default;
+end;
+
 constructor TFMXTreeColumn.Create;
 begin
   inherited Create;
@@ -8424,6 +8436,8 @@ begin
   if Cell.Column.StyleLookup = string.Empty then
   begin
     Result := TCellControl.Create(AOwner, Cell);
+    Result.HitTest := False;
+
     var text := ScrollableRowControl_DefaultTextClass.Create(Result);
     text.Align := TAlignLayout.Client;
     text.Margins.Left := 10;
@@ -8921,6 +8935,11 @@ begin
   _clone.Assign(IBaseInterface(Self));
 end;
 
+function TTreeIndicatorColumn.ColumnType: TColumnType;
+begin
+  Result := TColumnType.Indicator;
+end;
+
 constructor TTreeIndicatorColumn.Create;
 begin
   inherited;
@@ -9060,6 +9079,11 @@ begin
   _clone := TFMXTreeCheckboxColumn.Create;
   Result := _clone as IBaseInterface;
   _clone.Assign(IBaseInterface(Self));
+end;
+
+function TFMXTreeCheckboxColumn.ColumnType: TColumnType;
+begin
+  Result := TColumnType.Checkbox;
 end;
 
 function TFMXTreeCheckboxColumn.CreateTreeCell( const TreeRow: ITreeRow; const Index: Integer): ITreeCell;
@@ -9426,9 +9450,6 @@ begin
   end;
 
   var fmxColumn := TFMXTreeColumn(_Column);
-
-  if Cell.InfoControl = nil then
-    Cell.InfoControl := GetCellInfoControl(Cell.Control, interfaces.Supports<ITreeCheckboxColumn>(cell.Column));
 
   // data from the Text cotrol
   var textSettings: TTextSettings := nil;  // reference only
@@ -12474,6 +12495,11 @@ begin
   _clone := TTreeDataColumn.Create;
   Result := _clone as IBaseInterface;
   _clone.Assign(IBaseInterface(Self));
+end;
+
+function TTreeDataColumn.ColumnType: TColumnType;
+begin
+  Result := TColumnType.Data;
 end;
 
 constructor TTreeDataColumn.Create;

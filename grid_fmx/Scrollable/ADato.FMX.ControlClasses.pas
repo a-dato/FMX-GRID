@@ -40,46 +40,35 @@ var  // see Initialization section
 
 implementation
 
+uses
+  System.SysUtils;
+
 
 
 function GetCellInfoControl(CellControl: TControl; IsCheckBox: Boolean): IControl; //TText, TAdatoLabel
-begin
-  Result := nil;
 
-  // Default style of the cell may have TText only (default) or background rectangle + TText or TExpandCollapsePanel + TText
-  for var i := 0 to CellControl.Controls.Count - 1 do
+  function ScrollThroughControl(ParentControl: TControl): TControl;
   begin
-    var ctrl := CellControl.Controls.List[i];
-
-    var validText := not IsCheckBox and (ctrl is ScrollableRowControl_DefaultTextClass);
-    var validCheckBox := IsCheckBox and (ctrl is ScrollableRowControl_DefaultCheckboxClass);
-
-    if validText or validCheckBox then
+    for var i := 0 to ParentControl.Controls.Count - 1 do
     begin
-      Result := ctrl;
-      Exit;
+      var ctrl := ParentControl.Controls.List[i];
+
+      var validText := not IsCheckBox and System.SysUtils.Supports(ctrl, ICaption);
+      var validCheckBox := IsCheckBox and System.SysUtils.Supports(ctrl, IIsChecked);
+
+      if validText or validCheckBox then
+        Exit(ctrl);
+
+      var cc := ScrollThroughControl(ctrl);
+      if cc <> nil then
+        Exit(cc);
     end;
 
-   // do not need deep searching (this will take time), because we will search more deep for the 'text' style below (step 2).
-   // The idea of this search part - quick searching on first level, instead of FindStyleResource. Alex.
-//    if ctrl.ControlsCount > 0 then
-//    begin
-//      Result := GetTextControl(ctrl);
-//      if Result <> nil then
-//        Exit;
-//    end;
+    Result := nil;
   end;
 
-  // Or it can be complex custom style (header or user cell)
-  if (Result = nil) and (CellControl is TStyledControl) then
-  begin
-    var ctrl: TControl := nil;
-    if not IsCheckBox and (CellControl as TStyledControl).FindStyleResource<TControl{TText}>('text', ctrl) then
-      Result := ctrl
-    else if IsCheckBox and (CellControl as TStyledControl).FindStyleResource<TControl{TCheckbox}>('check', ctrl) then
-      Result := ctrl;
-  end;
-    // e.g. TAdatoLabel inherited from TLabel and can be used in 'headercell'
+begin
+  Result := ScrollThroughControl(CellControl);
 end;
 
 { TDateTimeEditOnKeyDownOverride }
