@@ -4759,7 +4759,7 @@ begin
       treeRowHeight := AMinHeight;
     end;
 
-    isCachedRow := treeRowClass.Control <> nil;
+    isCachedRow := (treeRow.Control <> nil);
 
     if not isCachedRow then
     begin
@@ -4886,9 +4886,15 @@ begin
       treeCell := treeRowClass._Cells[columnIndex] else // while using cache (default), tree reuses old ITreeCell
       treeCell := FMXColumn.CreateTreeCell(treeRow, columnIndex);
 
+    if not treeRow.CanCacheInnerControls and (treeCell.Control <> nil) then
+    begin
+      treeCell.Control.Free;
+      treeCell.Control := nil;
+    end;
+
     // load Data into the cell, create cell control
     var CellLoadingFlags: TCellLoadingFlags := [TCellLoading.IsRowCell];
-    if not isCachedRow then
+    if not isCachedRow or not treeRow.CanCacheInnerControls then
       CellLoadingFlags := CellLoadingFlags + [TCellLoading.NeedControl];
 
     var loadDefaultData := DoCellLoading(treeCell, CellLoadingFlags);
@@ -4918,7 +4924,7 @@ begin
       treeRowClass.Control.AddObject(treeCell.Control);
     end;
 
-    if not isCachedRow then
+    if not isCachedRow or not treeRow.CanCacheInnerControls then
     begin
       // Frozen cell takes a bk color from the row style. So ApplyStyle to get styles
       (treeRowClass.Control as TStyledControl).ApplyStyleLookup;
@@ -11116,7 +11122,7 @@ end;
 function TTreeRow.Level: Integer;
 begin
   Result := _Owner.Level(Self);
-  _RowLevelCached := Result; // see comment
+//  _RowLevelCached := Result; // see comment
 end;
 
 procedure TTreeRow.set_IsExpanded(Value: Boolean);

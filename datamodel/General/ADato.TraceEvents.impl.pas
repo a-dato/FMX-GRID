@@ -86,6 +86,11 @@ var
 begin
   if _SupportBeginEndTrace and IsActive(AGroup) then
   begin
+    {$IF defined(DEBUG) and defined(LYNXX)}
+    if not AFilename.ToLower.Contains('lynx') then
+      Exit;
+    {$ENDIF}
+
     if FileTicks = 0 then
       FileTicks := Environment.TickCount;
 
