@@ -122,7 +122,7 @@ begin
       Exit;
     end;
 
-    {$IFDEF SCHEDULE_SERVER}
+    {$IFDEF LYNXSERVICE}
     if _IsGlobalManager then
       raise Exception.Create('Scheduleserver requires an internal Manager');
     {$ENDIF}
@@ -205,7 +205,7 @@ begin
     Exit((_ExtentionManagers[_Context] as ICustomTypeDescriptor).GetCustomProperties(AType));
   {$ENDIF}
 
-  {$IFDEF SCHEDULE_SERVER}
+  {$IFDEF LYNXSERVICE}
   if _IsGlobalManager then
     raise Exception.Create('Scheduleserver requires an internal Manager');
   {$ENDIF}
@@ -232,7 +232,7 @@ begin
       Exit((_ExtentionManagers[_Context] as ICustomTypeDescriptor).GetProperties(AType));
     {$ENDIF}
 
-    {$IFDEF SCHEDULE_SERVER}
+    {$IFDEF LYNXSERVICE}
     if _IsGlobalManager then
       raise Exception.Create('Scheduleserver requires an internal Manager');
     {$ENDIF}
@@ -317,7 +317,7 @@ begin
     if _IsGlobalManager and (_Context <> TGUID.Empty) then
       Exit(_ExtentionManagers[_Context].HasCustomProperties(AType));
 
-    {$IFDEF SCHEDULE_SERVER}
+    {$IFDEF LYNXSERVICE}
     if _IsGlobalManager then
       raise Exception.Create('Scheduleserver requires an internal Manager');
     {$ENDIF}
@@ -345,7 +345,7 @@ begin
       Exit;
     end;
 
-    {$IFDEF SCHEDULE_SERVER}
+    {$IFDEF LYNXSERVICE}
     if _IsGlobalManager then
       raise Exception.Create('Scheduleserver requires an internal Manager');
     {$ENDIF}
@@ -374,7 +374,7 @@ begin
       Exit;
     end;
 
-    {$IFDEF SCHEDULE_SERVER}
+    {$IFDEF LYNXSERVICE}
     if _IsGlobalManager then
       raise Exception.Create('Scheduleserver requires an internal Manager');
     {$ENDIF}

@@ -3910,32 +3910,26 @@ begin
 end;
 
 class function CCultureInfo.nativeGetCultureName(lcid: Integer; useSNameLCType: boolean; getMonthName: boolean): CString;
+{$IFDEF MSWINDOWS}
 var
-  {$IFDEF MSWINDOWS}
   buf: CharArray;
   length: Integer;
   tmp: CString;
-  {$ELSE}
-  ii: IInterface;
-  {$ENDIF}
+{$ENDIF}
 
 begin
-  {$IFDEF CROSSVCL}
-  Result := 'EN';
-  {$ELSE}
-    {$IFDEF MSWINDOWS}
-    SetLength(buf, 9);
-    length := GetLocaleInfoW(lcid,  LOCALE_SISO639LANGNAME, Pointer(buf), 9);
-    tmp := CString.Create(buf, 0, length - 1);
+  {$IFDEF MSWINDOWS}
+  SetLength(buf, 9);
+  length := GetLocaleInfoW(lcid,  LOCALE_SISO639LANGNAME, Pointer(buf), 9);
+  tmp := CString.Create(buf, 0, length - 1);
 
-    length := GetLocaleInfoW(lcid, LOCALE_SISO3166CTRYNAME, Pointer(buf), 9);
-    Result := CString.Concat(tmp, '-', CString.Create(buf, 0, length - 1));
-    {$ELSE}
-    ii := TPlatformServices.Current.GetPlatformService(IFMXLocaleService);
-    if ii <> nil then
-      Result := (ii as IFMXLocaleService).GetCurrentLangID else
-      Result := 'EN';
-    {$ENDIF}
+  length := GetLocaleInfoW(lcid, LOCALE_SISO3166CTRYNAME, Pointer(buf), 9);
+  Result := CString.Concat(tmp, '-', CString.Create(buf, 0, length - 1));
+  {$ELSE}
+  var ii: IFMXLocaleService;
+  if TPlatformServices.Current.SupportsPlatformService(IFMXLocaleService, ii) then
+    Result := (ii as IFMXLocaleService).GetCurrentLangID else
+    Result := 'EN';
   {$ENDIF}
 end;
 
