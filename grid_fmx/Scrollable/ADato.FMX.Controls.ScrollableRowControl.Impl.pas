@@ -483,18 +483,12 @@ type
 
   TRow = class(TBaseInterfacedObject, IRow, IFreeNotification)
   strict protected
-    _Control: TRowControl; 
+    _Control: TRowControl;
     _DataItem: CObject; { in DMV mode - _DataItem is IDataRowView, to access a data itself use _DataItem.AsType<IDataRowView>.Row.Data
                           in usual mode - _DataItem is the data itself}
     _Index: Integer; // can be DataModel View index or for usual mode - _data index. While filtering (only) control resets it - first Row0.Index = 0.
+    _canCacheInnerControls: Boolean;
   protected
-    _RowLevelCached: integer;
-    { Row level for cache feature. Cache returns row by proper level (different number of hierarchical lines
-      in one row (cell). Need to save it because row asks level via Datamodel interface.
-      But in cache we clear data + should not add Datamodel in this unit.
-      _RowLevelCached and Row does NOT change its level during full life (because GRID has proper number of vert.
-      hierarchical grid lines for each row level), when user changes level - Tree should load row
-      with proper level from the cache. }
     procedure ResetRowData(const ADataItem: CObject; AIndex: Integer); virtual;
   strict protected // interface
     function get_BoundsRect: TRectF;
@@ -508,9 +502,12 @@ type
     function get_Top: Single;
     procedure set_Top(Value: Single);
     function get_DataItem: CObject;
+    function get_CanCacheInnerControls: Boolean;
+    procedure set_CanCacheInnerControls(const Value: Boolean);
     procedure FreeNotification(AObject: TObject);
     function Equals(const Other: IRow): Boolean;
   public
+    constructor Create; reintroduce;
     destructor Destroy; override;
     function HasChildren: Boolean; virtual; abstract;
     function Level: Integer; virtual; // interface
@@ -3364,6 +3361,12 @@ end;
 
 { TRow }
 
+constructor TRow.Create;
+begin
+  inherited;
+  _canCacheInnerControls := True;
+end;
+
 destructor TRow.Destroy;
 begin
   inherited;
@@ -3384,9 +3387,19 @@ begin
     Result := TRectF.Empty;
 end;
 
+function TRow.get_CanCacheInnerControls: Boolean;
+begin
+  Result := _canCacheInnerControls;
+end;
+
 function TRow.get_Control: TControl;
 begin
   Result := _Control;
+end;
+
+procedure TRow.set_CanCacheInnerControls(const Value: Boolean);
+begin
+  _canCacheInnerControls := Value;
 end;
 
 procedure TRow.set_Control(const Value: TRowControl);

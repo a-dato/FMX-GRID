@@ -30,6 +30,8 @@ type
     function get_Top: Single;
     procedure set_Top(Value: Single);
     function get_DataItem: CObject;
+    function get_CanCacheInnerControls: Boolean;
+    procedure set_CanCacheInnerControls(const Value: Boolean);
     procedure ResetRowData(const ADataItem: CObject; AIndex: Integer);
     function Equals(const Other: IRow): Boolean;
     function HasChildren: Boolean;
@@ -62,6 +64,8 @@ type
       IDataRowView (TDataModelView) is a separate list of rows in TreeControl.DataModelView.Rows
       and contains invisible rows too (invisibe in Tree.View). Tree.View is an another list of rows (ITreeRow) and contains
       only current visible rows in Tree.}
+
+    property CanCacheInnerControls: Boolean read get_CanCacheInnerControls write set_CanCacheInnerControls;
   end;
 
   TMovePosition = (Below, Above, AsChild);
