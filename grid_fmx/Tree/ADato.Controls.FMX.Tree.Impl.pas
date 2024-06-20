@@ -1279,6 +1279,7 @@ type
     _CellChanged    : CellChangedEvent;
     _CellFormatting : CellFormattingEvent;
     _CellItemClicked: CellItemClickedEvent;
+    _CellCheckItemChanged: CellCheckItemChangedEvent;
     _CellLoading    : CellLoadingEvent;
     _CellLoaded     : CellLoadedEvent;
     _CellMouseUp    : CellMouseEvent;
@@ -1325,6 +1326,7 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
 
     function  DoCellItemClicked(const Cell: ITreeCell; const CellChanged: Boolean) : Boolean; virtual;
+    procedure DoCellCheckItemChanged(const Cell: ITreeCell); virtual;
     function  DoCellLoading(const Cell: ITreeCell; Flags: TCellLoadingFlags): Boolean; virtual;
     function  DoCellLoaded(const Cell: ITreeCell): Boolean; virtual;
     procedure DoCellMouseUp(Args: CellMouseEventArgs); virtual;
@@ -1641,6 +1643,7 @@ type
     property CellChanging: CellChangingEvent read _CellChanging write _CellChanging;
     property CellChanged: CellChangedEvent read _CellChanged write _CellChanged;
     property CellItemClicked: CellItemClickedEvent read _CellItemClicked write _CellItemClicked;
+    property CellCheckItemChanged: CellCheckItemChangedEvent read _CellCheckItemChanged write _CellCheckItemChanged;
     property CellLoading: CellLoadingEvent read _CellLoading write _CellLoading;
    {  Use CellLoading to set (create!) a custom user control to be displayed in a cell or Tree creates a default Control for a cell. }
     property CellFormatting: CellFormattingEvent read _CellFormatting write _CellFormatting;
@@ -1736,6 +1739,7 @@ type
     property CellSelected;
     property CellFormatting;
     property CellItemClicked;
+    property CellCheckItemChanged;
     property CellLoading;
     property CellLoaded;
     property CellMouseUp;
@@ -3012,6 +3016,18 @@ begin
 
   if Result and (_model <> nil) then
     Result := _model.ObjectModelContext.ContextCanChange;
+end;
+
+procedure TCustomTreeControl.DoCellCheckItemChanged(const Cell: ITreeCell);
+var
+  args: CellCheckItemChangedEventArgs;
+
+begin
+  if Assigned(_CellCheckItemChanged) then
+  begin
+    AutoObject.Guard(CellCheckItemChangedEventArgs.Create(Cell), args);
+    _CellCheckItemChanged(Self, args);
+  end;
 end;
 
 function TCustomTreeControl.DoCellLoading(const Cell: ITreeCell; Flags: TCellLoadingFlags) : Boolean;
@@ -6316,6 +6332,7 @@ begin
      with a Space key.
      User can change checkboxes programmatically here. Use "Row.Checked" property. }
     Cell.Data := NewValue;
+    DoCellCheckItemChanged(Cell);
     Exit;
   end
   else // noncheckbox cells
@@ -9015,7 +9032,7 @@ begin
       if not _allowMultiSelect then
         MakeRadioDict(DataItem);
 
-   // Self.TreeControl.RefreshControl([TreeState.DataChanged]);
+//    Self.TreeControl.RefreshControl([TreeState.DataChanged]);
   end;
 end;
 
@@ -11029,11 +11046,21 @@ begin
 end;
 
 procedure TTreeRow.set_Checked(const Value: Boolean);
+var
+  check: IIsChecked;
 begin
   if Cells.Count > 1 then
   begin
     var cell := Cells[0];
     if not (cell.Column is TFMXTreeCheckboxColumn) then Exit;
+
+    var column := TFMXTreeCheckboxColumn(cell.Column);
+
+    if Interfaces.Supports(cell.InfoControl, IIsChecked, check) then
+    begin
+      if Value or column.get_AllowMultiSelect then
+        check.IsChecked := Value;
+    end;
 
     TCustomTreeControl(_Owner.TreeControl).UpdateCellValue(cell, Value);
   end;

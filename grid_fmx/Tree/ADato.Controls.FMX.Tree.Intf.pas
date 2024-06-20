@@ -365,6 +365,19 @@ type
   CellMouseEvent  = procedure (  const Sender: TObject;
                                   e: CellMouseEventArgs) of object;
 
+  CellCheckItemChangedEventArgs = class(EventArgs)
+  protected
+    _Cell: ITreeCell;
+
+  public
+    constructor Create(const ACell: ITreeCell);
+
+    property Cell: ITreeCell
+      read  _Cell;
+  end;
+
+  CellCheckItemChangedEvent  = procedure (const Sender: TObject; e: CellCheckItemChangedEventArgs) of object;
+
   CellItemClickedEventArgs = class(EventArgs)
   protected
     _Cell: ITreeCell;
@@ -380,7 +393,7 @@ type
   end;
 
   CellItemClickedEvent  = procedure (const Sender: TObject; e: CellItemClickedEventArgs) of object;
-
+  
   TCellLoading = (
     NeedControl,
     { If you need to create a custom control in CellLoading event  and want the cache to work - create it only if NeedControl is available.
@@ -2298,6 +2311,14 @@ constructor InitializationCompleteEventArgs.Create(const State: TreeStates);
 begin
   inherited Create;
   _UpdateState := State;
+end;
+
+{ CellCheckItemChangedEventArgs }
+
+constructor CellCheckItemChangedEventArgs.Create(const ACell: ITreeCell);
+begin
+  inherited Create;
+  _cell := ACell;
 end;
 
 end.
