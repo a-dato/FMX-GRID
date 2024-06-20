@@ -993,7 +993,7 @@ begin
 
     FDManager.ConnectionDefs.Clear;
 
-    {$IFDEF DEBUG}
+    {$IFDEF DEBUGxx}
     if FileExists('Inspector.ini') then
       FDManager.ConnectionDefFileName := 'Inspector.ini'
     else if FileExists('D:\Synology\A-dato shared\Development\DBInspector\Inspector.ini') then
@@ -1002,10 +1002,10 @@ begin
       FDManager.ConnectionDefFileName := '..\..\Inspector.ini';
     {$ELSE}
     // Look in current directory
-    if not FileExists('Inspector.ini') then
-      raise Exception.Create('Configuration file not found: ''Inspector.ini'');
+    if not FileExists('../../Inspector.ini') then
+      raise Exception.Create('Configuration file not found: ''Inspector.ini''');
 
-    FDManager.ConnectionDefFileName := 'Inspector.ini';
+    FDManager.ConnectionDefFileName := '../../Inspector.ini';
     {$ENDIF}
 
     FDManager.ConnectionDefs.Load;
