@@ -10,11 +10,12 @@ uses
   FMX.Edit,
   FMX.ComboEdit,
   FMX.DateTimeCtrls,
-
+  FMX.Graphics,
   System.Classes,
   System.UITypes,
   FMX.ActnList,
-  FMX.Types;
+  FMX.Types,
+  System_;
 
 type
   TControlClass = class of TControl;
@@ -29,6 +30,8 @@ type
   end;
 
   function GetCellInfoControl(CellControl: TControl; IsCheckBox: Boolean): IControl; //TText; or TLabel
+  function CreateDefaultTextClassControl(AOwner: TComponent): TControl;
+
 
 var  // see Initialization section
   ScrollableRowControl_DefaultTextClass: TControlClass;
@@ -44,6 +47,21 @@ uses
   System.SysUtils;
 
 
+function CreateDefaultTextClassControl(AOwner: TComponent): TControl;
+// used in TStyledCellControl, TCellControl, THeaderItem
+begin
+  Result := ScrollableRowControl_DefaultTextClass.Create(AOwner);
+  Result.Align := TAlignLayout.Client;
+  Result.HitTest := False;
+
+  var ts: ITextSettings;
+  if interfaces.Supports<ITextSettings>(Result, ts) then
+  begin
+    ts.TextSettings.HorzAlign := TTextAlign.Leading;
+    ts.TextSettings.WordWrap := False;
+    ts.TextSettings.Trimming := TTextTrimming.Character;
+  end;
+end;
 
 function GetCellInfoControl(CellControl: TControl; IsCheckBox: Boolean): IControl; //TText, TAdatoLabel
 

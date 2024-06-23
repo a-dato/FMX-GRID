@@ -17,6 +17,7 @@ type
 
   TResizingEvent = function (Sender: THeaderItem; var NewWidth: Single) : Boolean of object;
 
+  // header cell
   THeaderItem = class(TOwnerStyledPanel)
   private const
     DragTolerance = 3;
