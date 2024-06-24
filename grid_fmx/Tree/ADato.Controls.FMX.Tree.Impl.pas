@@ -4394,7 +4394,7 @@ begin
       if LoadDefaultData then
       begin
         //(CellHeader.Control as TStyledControl).StylesData['text'] := CStringToString(column.Caption);
-        (CellHeader.InfoControl as ICaption).Text := column.Caption;
+        (CellHeader.InfoControl as ICaption).Text := CStringToString(column.Caption);
 
         if size.IsZero then
           size := layoutColumn.CalculateControlSize(CellHeader, headerHeight);  // this will call ApplyStyle for a column
