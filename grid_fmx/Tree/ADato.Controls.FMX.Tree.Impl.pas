@@ -68,7 +68,6 @@ const
    // (CalculateControlSize). Why TText.AutoSize is not exact?
   EXTRA_CELL_HEIGHT = 6; // Should be multiple of 2. Value is not used in DefaultHeight
   CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN = 10;
-  CELL_HEADER_LEFT_TEXT_MARGIN = 2;
 
   ROW_MIN_INDENT_HIERARCHY = 20;  { Minimal indent from the left for rows\cells (root, children, WO child. ) in hierarchy mode
     (branch structure).  For children rows\cells Indent = Indent * (Row.Level + 1).
@@ -4373,11 +4372,6 @@ begin
         hi.StylesData['sortindicator.Visible'] := False;
        // hi.StylesData['sortindicator.OnClick'] := TValue.From<TNotifyEvent>(HeaderItem_SortIndicatorClicked);
 
-        var textControl := CreateDefaultTextClassControl(hi);
-        textControl.Margins.Left := CELL_HEADER_LEFT_TEXT_MARGIN;
-        hi.AddObject(textControl);
-        CellHeader.InfoControl := textControl;
-
         CellHeader.Control := hi;
         hi.TagObject := TObject(lCell);
         // Fixed: calling "Cell" here calls InitTemporaryRow many times (because View is empty and there are no rows yet,
@@ -4393,8 +4387,7 @@ begin
 
       if LoadDefaultData then
       begin
-        //(CellHeader.Control as TStyledControl).StylesData['text'] := CStringToString(column.Caption);
-        (CellHeader.InfoControl as ICaption).Text := CStringToString(column.Caption);
+        (CellHeader.Control as TStyledControl).StylesData['text'] := CStringToString(column.Caption);
 
         if size.IsZero then
           size := layoutColumn.CalculateControlSize(CellHeader, headerHeight);  // this will call ApplyStyle for a column
@@ -9473,6 +9466,10 @@ begin
   // data from the Text cotrol
   var textSettings: TTextSettings := nil;  // reference only
   var text: string;
+
+  // styled control (e.g. 'headercell') may have own 'text' control in style
+  if (Cell.InfoControl = nil) and (Cell.Control is TStyledControl) then
+    Cell.InfoControl := TStyledControl(Cell.Control).FindStyleResource('text') as TControl;
 
   if (Cell.InfoControl <> nil) then
   begin

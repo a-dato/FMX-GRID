@@ -304,6 +304,21 @@ object TStyleContainer
           Trigger = 'IsMouseOver=false'
         end
       end
+      object TStyleTextObject
+        StyleName = 'text'
+        Align = Client
+        Margins.Left = 2.000000000000000000
+        Margins.Right = 2.000000000000000000
+        Size.Width = 149.000000000000000000
+        Size.Height = 28.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.FontColor = xFF4C607A
+        TextSettings.Trimming = Character
+        TextSettings.WordWrap = False
+        TextSettings.HorzAlign = Leading
+        PrefixStyle = NoPrefix
+        ShadowVisible = False
+      end
     end
     object TRectangle
       StyleName = 'row'
