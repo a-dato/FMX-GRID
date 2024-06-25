@@ -297,6 +297,7 @@ type
   public
     class operator Equal(const L, R: ListChangedType) : Boolean;
     class operator NotEqual(const L, R: ListChangedType) : Boolean;
+    class operator Implicit(const AValue: ListChangedType) : Integer;
     class operator Implicit(AValue: ListChangedTypeFlag) : ListChangedType;
     class operator Implicit(const AValue: ListChangedType) : ListChangedTypeFlag;
   end;
@@ -485,6 +486,11 @@ end;
 class operator ListChangedType.Implicit(const AValue: ListChangedType) : ListChangedTypeFlag;
 begin
   Result := AValue.Value;
+end;
+
+class operator ListChangedType.Implicit(const AValue: ListChangedType) : Integer;
+begin
+  Result := Integer(AValue.Value);
 end;
 
 class operator ListSortDirection.Equal(L, R: ListSortDirection) : Boolean;
