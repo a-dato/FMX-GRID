@@ -670,7 +670,9 @@ begin
     _ExtraSpaceContentBounds := 0;
   end;
 
-  DetectFastScrolling;
+  // for vert.scrolling
+  if OldViewportPosition.Y <> NewViewportPosition.Y then
+    DetectFastScrolling;
 
   if ANIMATE_HIGHLIGHT_ROW and HighlightRows and Assigned(_Highlight1) and Assigned(_Highlight2) then
   begin
@@ -1070,11 +1072,13 @@ begin
 
   ApplyScrollBarsVisibility;
 
-  TThread.ForceQueue(nil, procedure
-  begin
-    if not (csDestroying in Self.ComponentState) then
-      EndUpdateContents;
-  end);
+  // Some part of EndUpdateContents do not need ForceQueue. See TCustomTreeControl.EndUpdateContents;
+
+ // TThread.ForceQueue(nil, procedure
+ // begin
+  if not (csDestroying in Self.ComponentState) then
+    EndUpdateContents;
+ // end);
 end;
 
 procedure TScrollableRowControl<T>.UpdateContentsQueuedAfterRowsChange;

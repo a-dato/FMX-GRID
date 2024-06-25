@@ -2852,11 +2852,6 @@ begin
       Result := True; // Cell has changed
     end;
 
-    // if (_UpdateCount = 0) and (TreeOption.AllowCellSelection in _Options) then
-    //  begin
-    // Mutliselection code is moved into the base class
-    //  end;
-
     if SendEvents and Result then
     begin
       // DoCellChanged(oldCell, Cell);
@@ -2866,71 +2861,6 @@ begin
       // reset the dataitem, to avoid a reselectionevent to old SelectedItem when Tree was in EditMode
       _currentDataItem := nil;
     end;
-
-    // already done in AlignViewToCell
-    // TODO: Turn on. Can already be turned on, but needs more testing.
-    // Scroll new column into view
-//    if (_Column >= _Layout.FrozenColumns) then
-//    begin
-//      flatColumnIndex := _Layout.ColumnToFlatIndex(_Column);
-//      if flatColumnIndex < 0 then
-//        //
-//        // Scroll right
-//        //
-//      begin
-//        _Layout.FirstColumn := _Layout.FirstColumn + flatColumnIndex;
-//      end
-//      else
-//      begin
-//        //
-//        // Scroll left ???
-//        //
-//        layoutColumn := _Layout.FlatColumns[flatColumnIndex];
-//        scrollBy := Round((layoutColumn.Left + layoutColumn.Width) - ContentBounds.Width);
-//        firstColumnFlatIndex := _Layout.ColumnToFlatIndex(_Layout.FirstColumn);
-//        if (flatColumnIndex > firstColumnFlatIndex) and (scrollBy > 0) then
-//          //
-//          // Cell extends beyond right border ==> scroll left
-//          //
-//        begin
-//          _ColumnFlatIndex := _Layout.ColumnToFlatIndex(_Column);
-//          flatColumnIndex := firstColumnFlatIndex;
-//          layoutColumns := _Layout.FlatColumns;
-//          NoScrolled := 0;
-//          while (flatColumnIndex < _ColumnFlatIndex) do
-//          begin
-//            inc(NoScrolled);
-//            layoutColumn := layoutColumns[flatColumnIndex];
-//            dec(scrollBy, Round(layoutColumn.Width));
-//            if (scrollBy <= 0) then
-//              break;
-//            inc(flatColumnIndex);
-//          end;
-//          _Layout.FirstColumn := _Layout.FirstColumn + NoScrolled;
-//        end
-//        else
-//          //
-//          // Scroll right?
-//          //
-//        begin
-//          NoScrolled := _Layout.FirstColumn - _Layout.FrozenColumns;
-//          if (NoScrolled > 0) then
-//          begin
-//            visibleCell := Self.GetVisibleCell(_View[Current].Cells, _Column);
-//            if visibleCell.Index < _Column then
-//              //
-//              // New cell is currently overlapped by visibleCell.
-//              // Scroll view to the right to move newCell into view
-//              //
-//            begin
-//              ScrollBy := (visibleCell.Index + visibleCell.ColSpan) - (_Column - NoScrolled);
-//              _Layout.FirstColumn := _Layout.FirstColumn - ScrollBy;
-//            end;
-//          end;
-//        end;
-//      end;
-//    end;
-
   finally
     // SaveCurrentDataItemOn;
   end;
@@ -3723,8 +3653,6 @@ var
   end;
 
 begin
-  if AvailableSpace <= 0 then Exit; // Possibly HScrollbox may be showing
-
   Assert(PctColumnsCount > 0);
   SetLength(PctColumns, PctColumnsCount);
   var PIndex := 0;
@@ -3827,6 +3755,8 @@ begin
 
   var controlWidth := Self.Width - GetVScrollBarWidth - INDENT_LAST_COLUMN_FROM_RIGHT;
   AvailableSpace := ControlWidth - TotalOtherColWidths;
+  if AvailableSpace < 0 then
+    AvailableSpace := 0;
 end;
 
 procedure TCustomTreeControl.DoAutoFitColumns(out NeedCallUpdateContent: boolean);
@@ -4097,7 +4027,7 @@ begin
         _contentBounds.Right := 0;
 
        // _contentBounds.Bottom := 0;
-       { Commented: If ContentBounds.Bottom is reset here. But later, in InternalAlign, Scrollbox resets maxTarget,
+       { Commented: If ContentBounds.Bottom is reset here, later in InternalAlign Scrollbox will reset maxTarget,
          which resets ViewportY too. Without correct ViewPortY we cannnot not set new correct ContentBounds and clip.
          As a result issue - DataChanged does nor save toprow position (any row - cached or not) and always scrolls to the row0.
          ContentBounds will be recalculated correclty, related to a new data in UpdateContents. Alex. }
@@ -5038,12 +4968,13 @@ begin
   var lastLayoutColumn := Columns[Columns.Count - 1];
   var w := lastLayoutColumn.Left + lastLayoutColumn.Width;
 
-  if not SameValue(treeRowClass.Control.Width, w) and (_scrollingType = TScrollingType.None) then
-  begin
-    treeRowClass.Control.Width := w;
-    if w > _contentBounds.Right then
-      _contentBounds := TRectF.Create(_contentBounds.Left, _contentBounds.Top, w, _contentBounds.Bottom);
-  end;
+  if (_scrollingType = TScrollingType.None) then
+    if not SameValue(treeRowClass.Control.Width, w) or (w <> _contentBounds.Right) then
+    begin
+      treeRowClass.Control.Width := w;
+      if w > _contentBounds.Right then
+        _contentBounds := TRectF.Create(_contentBounds.Left, _contentBounds.Top, w, _contentBounds.Bottom);
+    end;
   // Later, in DoAutoFitColumns, column can be fit in Tree width and _contentBounds can be changed
 end;
 
@@ -8084,9 +8015,6 @@ end;
 
 procedure TCustomTreeControl.EndUpdateContents;
 begin
-  if (csDestroying in ComponentState) then
-    Exit;
-
   inherited;
   if HeaderRows <> nil then
     THeaderRowList(HeaderRows).LastResizedColumnByUser := -1;
@@ -8094,23 +8022,39 @@ begin
   if (HScrollBar <> nil) and (HScrollBar.Visible) then
   begin
    { restore previous value for horz. scroll box.
+
+     Alex: Cannot reproduce it already.
+     Deprecated:
+     ----
      Need to do this in ForceQueue because Tree changes FMaxTarget.X twice
      After user refreshed a Tree with Datachanged flag - restore Viewport X.
      Issue: Scroll to the maximum of viewport.X (to the right), decrease column size, this will decrease MaxVP.
-     Result: Viewport will not be on available maximum value. }
+     Result: Viewport will not be on available maximum value.
+     ----
+     Now we need to restore horz scrollbar early as possible, so outside of ForceQueue, because now after each V. scrolling action
+     Tree calls Datachanged, and if this part is in ForceQueue, Tree blinks while scrolling vertically. Because at first Tree draws
+     items with horz. scroll bar = 0 and user sees it, and then in ForceQueue change it horz.SB value.
+      }
     if _lastUpdatedViewportPosition.X > 0 then
       ViewportPosition := PointF(_lastUpdatedViewportPosition.X, ViewportPosition.Y);
-
-     // After user resized a column and Hscrollbar appeared, Tree draws 2
-     // H. scroll bars on top of each other - it just does not clear HScrollBar canvas.
-      HScrollBar.Repaint;
    end;
 
-   if (VScrollBar <> nil) then
-     VScrollBar.Repaint;
 
-  if Assigned(_EndUpdateContents) then
-    _EndUpdateContents(Self);
+  TThread.ForceQueue(nil, procedure
+  begin
+    if (VScrollBar <> nil) then
+      VScrollBar.Repaint;
+
+
+    // Alex: cannot reproduce it.
+    // After user resized a column and Hscrollbar appeared, Tree draws 2
+    // H. scroll bars on top of each other - it just does not clear HScrollBar canvas.
+    // if (HScrollBar <> nil) and (HScrollBar.Visible) then
+    //   HScrollBar.Repaint;
+
+    if Assigned(_EndUpdateContents) then
+      _EndUpdateContents(Self);
+  end);
 end;
 
 procedure TCustomTreeControl.OnCellChanged(e: CellChangedEventArgs);
