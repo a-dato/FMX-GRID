@@ -4024,7 +4024,7 @@ begin
 
         RemoveRowsFromView;
         View.ClearSort;
-        _contentBounds.Right := 0;
+        // _contentBounds.Right := 0;
 
        // _contentBounds.Bottom := 0;
        { Commented: If ContentBounds.Bottom is reset here, later in InternalAlign Scrollbox will reset maxTarget,
@@ -4079,7 +4079,7 @@ begin
 
       InitLayout;
       InitHeaderColumnControls;
-      _contentBounds.Right := 0;
+      //_contentBounds.Right := 0;
     end;
 
     if _View <> nil then
@@ -4178,6 +4178,14 @@ begin
         lTopRow := InitRow( _View.DataList[CMath.Max(0, _view.Transpose(OldTopRowIndex))], OldTopRowIndex, OldTopRowY);
         View.Add(lTopRow);
       end;
+
+
+    if _InternalState * [TreeState.DataChanged, TreeState.SortChanged, TreeState.ColumnsChanged] <> [] then
+      _contentBounds.Right := 0;
+    { Reset _contentBounds.Right after InitRow, because it creates complex issue in Scrollbox (SB), when contentBounds.Right = 0
+      - there is no HScrollbox, and SB calculates MaxTargetY without HScrollbox, then, if VPY is in the max position,
+      SB sets a new VPY with a new MaxTargetY. As a result: when Tree is showing HScrollbox, and user scrolls to the end of
+      the Tree, and at this stage calls Datachanged - Tree will scrolls one row up and show previous row as a last row. }
 
     if _RowAnimationsCountNow = 0 then // when not expanding\collapsing
       if not (TreeState.RowHeightsChanged in _InternalState) then
@@ -4562,7 +4570,8 @@ begin
   UpdateRowExpandedState(Sender, True);
 end;
 
-function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integer; const Y: single = 0; const AMinHeight: Single = 0): ITreeRow;
+function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integer; const Y: single = 0;
+  const AMinHeight: Single = 0): ITreeRow;
 
   procedure DrawGrid(ACell: TTreeCell);
   begin
@@ -4973,7 +4982,7 @@ begin
     begin
       treeRowClass.Control.Width := w;
       if w > _contentBounds.Right then
-        _contentBounds := TRectF.Create(_contentBounds.Left, _contentBounds.Top, w, _contentBounds.Bottom);
+        _contentBounds.Right := w;
     end;
   // Later, in DoAutoFitColumns, column can be fit in Tree width and _contentBounds can be changed
 end;

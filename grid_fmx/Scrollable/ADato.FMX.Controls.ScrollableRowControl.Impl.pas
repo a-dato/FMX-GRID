@@ -670,9 +670,12 @@ begin
     _ExtraSpaceContentBounds := 0;
   end;
 
-  // for vert.scrolling
-  if OldViewportPosition.Y <> NewViewportPosition.Y then
-    DetectFastScrolling;
+
+  if OldViewportPosition.Y <> NewViewportPosition.Y then  // for vert.scrolling only
+    if (_lastUpdatedViewportPosition.Y <> MinComp) then
+    // _lastUpdatedViewportPosition is empty. No scrolling action was perfomed. When control was resized or
+    // hscrollbar was hidden - VPY will be changed too. Do not process.
+      DetectFastScrolling;
 
   if ANIMATE_HIGHLIGHT_ROW and HighlightRows and Assigned(_Highlight1) and Assigned(_Highlight2) then
   begin
@@ -753,7 +756,7 @@ begin
   end;
 end;
 
-procedure TScrollableRowControl<T>.OnFastScrollingStopTimer(Sender: TObject);
+procedure TScrollableRowControl<T>.OnFastScrollingStopTimer(Sender: TObject);  // FAST_SCROLLING_STOP_INTERVAL
 begin
   _fsStopTimer.Enabled := False;
   if _scrollingType <> TScrollingType.None then
@@ -1489,6 +1492,7 @@ begin
   var obj := _view.DataList[_view.Transpose(RowIndex)];
   Result := InitRow(obj, RowIndex, Position, MinHeight);
 
+
   AnimateAddRow(Result, Position);  // this will set Y position of row control
 
   _View.Add(Result);
@@ -1562,8 +1566,7 @@ begin
 
     UpdateContentsQueuedAfterRowsChange;
     // not sure we need it here, possibly Jan added this related to row collapsing\expanding. Check.
-    // now it is used while usual Gant scrolling in NegotiateRowheight. Before this method is called once, now it
-    // it can be called twice. Can we improve it? Alex.
+    // now it is used while usual Gant scrolling in NegotiateRowheight. Alex.
   end;
 end;
 
