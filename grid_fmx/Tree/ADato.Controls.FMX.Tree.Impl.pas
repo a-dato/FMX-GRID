@@ -11592,7 +11592,7 @@ var
   propInfo: _PropertyInfo;
   i : Integer;
   col : ITreeColumn;
-  dummy: CObject;
+//  dummy: CObject;
 
 begin
   var treeControl := TFMXTreeControl(_Control);
@@ -11611,9 +11611,9 @@ begin
       begin
         propInfo := _ColumnPropertyInfos[i];
         try
-          // Try accessing this property, it might not be supported!
-          if _data.Count > 0 then
-            dummy := propInfo.GetValue(_data[0], []);
+//          // Try accessing this property, it might not be supported!
+//          if _data.Count > 0 then
+//            dummy := propInfo.GetValue(_data[0], []);
 
           col := TFMXTreeColumn.Create;
           col.PropertyName := propInfo.Name;

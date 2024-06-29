@@ -993,7 +993,7 @@ begin
 
     FDManager.ConnectionDefs.Clear;
 
-    {$IFDEF DEBUGxx}
+    {$IFDEF DEBUG}
     if FileExists('Inspector.ini') then
       FDManager.ConnectionDefFileName := 'Inspector.ini'
     else if FileExists('D:\Synology\A-dato shared\Development\DBInspector\Inspector.ini') then
