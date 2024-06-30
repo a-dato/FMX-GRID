@@ -671,7 +671,7 @@ begin
   end;
 
 
-  if OldViewportPosition.Y <> NewViewportPosition.Y then  // for vert.scrolling only
+  if Trunc(OldViewportPosition.Y) <> Trunc(NewViewportPosition.Y) then  // for vert.scrolling only
     if (_lastUpdatedViewportPosition.Y <> MinComp) then
     // _lastUpdatedViewportPosition is empty. No scrolling action was perfomed. When control was resized or
     // hscrollbar was hidden - VPY will be changed too. Do not process.
