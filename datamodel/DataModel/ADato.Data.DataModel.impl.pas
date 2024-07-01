@@ -2724,7 +2724,7 @@ begin
     if prop <> nil then
     begin
       FlagEditRow(Row, [RowEditState.DataHasChanged]);
-      prop.SetValue(Row.Data, Data, []);
+      prop.SetValue(Row.Data, Data, [], True);
     end;
   end;
 end;

@@ -167,6 +167,7 @@ type
     _selectionTimer: TTimer;
     _startTimerTicks: UInt64;
     _selectionTimerInterval: UInt64;
+    _lastSelected: CObject;
 
     function  GetNextKeyboardSelectionRow(AKey: integer): integer;
     procedure ShowKeyboardCursorFocus(ARowIndex: integer; const AColumnIndex: integer = USE_CURRENT_COLUMN);
@@ -675,7 +676,7 @@ begin
     if (_lastUpdatedViewportPosition.Y <> MinComp) then
     // _lastUpdatedViewportPosition is empty. No scrolling action was perfomed. When control was resized or
     // hscrollbar was hidden - VPY will be changed too. Do not process.
-      DetectFastScrolling;
+  DetectFastScrolling;
 
   if ANIMATE_HIGHLIGHT_ROW and HighlightRows and Assigned(_Highlight1) and Assigned(_Highlight2) then
   begin
@@ -846,8 +847,8 @@ begin
   if not Force then
     if (_View <> nil) then
       if not ( (_contentBounds.Bottom <= _contentBounds.Top) and (_View.RowCount > 0) ) then  // About this line: when RowCount = 0 - _contentBounds.Bottom(0) may = _contentBounds.Top - allow this case (when dataset is empty we also need to calculate\show columns and limit (do not call) UpdateContens after that)
-        if (_lastUpdatedViewportPosition.Y = vp.Y) and (_lastSize = Size.Size) then
-          Exit;
+      if (_lastUpdatedViewportPosition.Y = vp.Y) and (_lastSize = Size.Size) then
+        Exit;
 
   // make sure that any potential "UpdateContent" in ForceQueue will be killed
   inc(_updateContentIndex);
@@ -1079,8 +1080,8 @@ begin
 
  // TThread.ForceQueue(nil, procedure
  // begin
-  if not (csDestroying in Self.ComponentState) then
-    EndUpdateContents;
+    if not (csDestroying in Self.ComponentState) then
+      EndUpdateContents;
  // end);
 end;
 
@@ -1852,6 +1853,27 @@ begin
 
   _selectionTimer.Enabled := False;
   _selectionTimer.Tag := 0;
+
+  var row: IRow := nil;
+  if (_selectionControl <> nil) and (_selectionControl.Position <> nil) then
+   row := Self.GetRowAt(_selectionControl.Position.Y + 2);
+
+  if row = nil then
+  begin
+    if _lastSelected <> nil then
+    begin
+      _lastSelected := nil;
+      DoOnSelected;
+    end;
+
+    Exit;
+  end;
+
+  if CObject.ReferenceEquals(row.DataItem, _lastSelected) then
+    Exit;
+
+  _lastSelected := row.DataItem;
+
   DoOnSelected;
 end;
 

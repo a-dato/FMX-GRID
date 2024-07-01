@@ -57,7 +57,8 @@ begin
     Result := CMath.Min(Result, MaxWidth);
 end;
 
-function TextControlHeight(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinHeight: Single = -1; MaxHeight: Single = -1; TextWidth: Single = -1): Single;
+function TextControlHeight(const TextControl: TControl; const Settings: TTextSettings; const Text: string;
+  MinHeight: Single = -1; MaxHeight: Single = -1; TextWidth: Single = -1): Single;
 begin
   var layout := TTextLayoutManager.DefaultTextLayout.Create;
   try
