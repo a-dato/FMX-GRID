@@ -83,7 +83,7 @@ const
     Tree will render empty cells\rows. To show a default text from a dataobject in cells,
     set column.PropertyName := COLUMN_SHOW_DEFAULT_OBJECT_TEXT }
   INDENT_LAST_COLUMN_FROM_RIGHT = 4; // while DoAutoFitColumns or processing percentage columns
-  CHECKBOX_COLUMN_WIDTH = 19;  // 20 
+  CHECKBOX_COLUMN_WIDTH = 19;  // 20
 
 type
   // to access private field of TCustomScrollBox
@@ -1186,7 +1186,7 @@ type
 
     function ColumnXToCellX(ColumnIndex: integer): single;
     procedure SetIndent(Value: integer);
-    procedure DoAutoFitColumns(out NeedRepaint: boolean);
+    procedure DoAutoFitColumns(out NeedCallUpdateContent: boolean);
     procedure ProcessPercentageColumns(PctColumnsCount: integer; IsColumnChanged: boolean; AvailableSpace,
       TotalPercentageColWidths: single);
     procedure CalcAvailableSpaceForPercentageColumns(out AvailableSpace, TotalPercentageColWidths: single; out PercentageColumnsCount: integer);
@@ -1479,8 +1479,8 @@ type
     function GetHeaderHeight: Single; override;
     procedure SetHeaderHeight(Value: Single);
 
-    procedure DoPostProcessColumns(out NeedRepaint: boolean); override;
-    procedure ColumnsChanged( Sender: TObject; e: NotifyCollectionChangedEventArgs);
+    procedure DoPostProcessColumns(out NeedCallUpdateContent: boolean); override;
+    procedure ColumnsChanged(Sender: TObject; e: NotifyCollectionChangedEventArgs);
   protected
     {$IFDEF DOTNET}
     function Equals(const Other: IDataModelViewSink): Boolean;
@@ -2852,11 +2852,6 @@ begin
       Result := True; // Cell has changed
     end;
 
-    // if (_UpdateCount = 0) and (TreeOption.AllowCellSelection in _Options) then
-    //  begin
-    // Mutliselection code is moved into the base class
-    //  end;
-
     if SendEvents and Result then
     begin
       // DoCellChanged(oldCell, Cell);
@@ -2866,71 +2861,6 @@ begin
       // reset the dataitem, to avoid a reselectionevent to old SelectedItem when Tree was in EditMode
       _currentDataItem := nil;
     end;
-
-    // already done in AlignViewToCell
-    // TODO: Turn on. Can already be turned on, but needs more testing.
-    // Scroll new column into view
-//    if (_Column >= _Layout.FrozenColumns) then
-//    begin
-//      flatColumnIndex := _Layout.ColumnToFlatIndex(_Column);
-//      if flatColumnIndex < 0 then
-//        //
-//        // Scroll right
-//        //
-//      begin
-//        _Layout.FirstColumn := _Layout.FirstColumn + flatColumnIndex;
-//      end
-//      else
-//      begin
-//        //
-//        // Scroll left ???
-//        //
-//        layoutColumn := _Layout.FlatColumns[flatColumnIndex];
-//        scrollBy := Round((layoutColumn.Left + layoutColumn.Width) - ContentBounds.Width);
-//        firstColumnFlatIndex := _Layout.ColumnToFlatIndex(_Layout.FirstColumn);
-//        if (flatColumnIndex > firstColumnFlatIndex) and (scrollBy > 0) then
-//          //
-//          // Cell extends beyond right border ==> scroll left
-//          //
-//        begin
-//          _ColumnFlatIndex := _Layout.ColumnToFlatIndex(_Column);
-//          flatColumnIndex := firstColumnFlatIndex;
-//          layoutColumns := _Layout.FlatColumns;
-//          NoScrolled := 0;
-//          while (flatColumnIndex < _ColumnFlatIndex) do
-//          begin
-//            inc(NoScrolled);
-//            layoutColumn := layoutColumns[flatColumnIndex];
-//            dec(scrollBy, Round(layoutColumn.Width));
-//            if (scrollBy <= 0) then
-//              break;
-//            inc(flatColumnIndex);
-//          end;
-//          _Layout.FirstColumn := _Layout.FirstColumn + NoScrolled;
-//        end
-//        else
-//          //
-//          // Scroll right?
-//          //
-//        begin
-//          NoScrolled := _Layout.FirstColumn - _Layout.FrozenColumns;
-//          if (NoScrolled > 0) then
-//          begin
-//            visibleCell := Self.GetVisibleCell(_View[Current].Cells, _Column);
-//            if visibleCell.Index < _Column then
-//              //
-//              // New cell is currently overlapped by visibleCell.
-//              // Scroll view to the right to move newCell into view
-//              //
-//            begin
-//              ScrollBy := (visibleCell.Index + visibleCell.ColSpan) - (_Column - NoScrolled);
-//              _Layout.FirstColumn := _Layout.FirstColumn - ScrollBy;
-//            end;
-//          end;
-//        end;
-//      end;
-//    end;
-
   finally
     // SaveCurrentDataItemOn;
   end;
@@ -3613,15 +3543,16 @@ begin
   HitInfo._content := content;
 end;
 
-procedure TCustomTreeControl.DoPostProcessColumns(out NeedRepaint: boolean);
+procedure TCustomTreeControl.DoPostProcessColumns(out NeedCallUpdateContent: boolean);
+// NeedCallUpdateContent - call it for the second time
 begin
   inherited;
-  NeedRepaint := False;
+  NeedCallUpdateContent := False;
 
   if AutoFitColumns {and (PercentageColumnsCount = 0) } then
   begin
     if _lastSize <> Size.Size then
-      DoAutoFitColumns(NeedRepaint)
+      DoAutoFitColumns(NeedCallUpdateContent)
   end
   else // process only percentage columns
     begin
@@ -3722,8 +3653,6 @@ var
   end;
 
 begin
-  if AvailableSpace <= 0 then Exit; // Possibly HScrollbox may be showing
-
   Assert(PctColumnsCount > 0);
   SetLength(PctColumns, PctColumnsCount);
   var PIndex := 0;
@@ -3826,9 +3755,11 @@ begin
 
   var controlWidth := Self.Width - GetVScrollBarWidth - INDENT_LAST_COLUMN_FROM_RIGHT;
   AvailableSpace := ControlWidth - TotalOtherColWidths;
+  if AvailableSpace < 0 then
+    AvailableSpace := 0;
 end;
 
-procedure TCustomTreeControl.DoAutoFitColumns(out NeedRepaint: boolean);
+procedure TCustomTreeControl.DoAutoFitColumns(out NeedCallUpdateContent: boolean);
 { See comment in TScrollableRowControl<T: IRow>, property AutoFitColumns
 
   1. Restore all hidden columns and\or hide columns which do not fit.
@@ -3903,7 +3834,7 @@ var
 var
   HideColumnsFromIndex: integer;
 begin
-  NeedRepaint := False;
+  NeedCallUpdateContent := False;
 
   //  AutoFitColumns works even if _HeaderRows = nil (means ShowHeaders = false).
   // Even when headers are off and there is some data - _Layout.Columns.Count <> 0
@@ -3942,10 +3873,28 @@ begin
     if IsColumnChanged then
     begin
       RefreshControl([TreeState.DataChanged]);
-      NeedRepaint := True;
+      NeedCallUpdateContent := True;
     end
     else
       _contentBounds.Right := ColumnWidth - GetVScrollBarWidth;
+
+    if not IsColumnChanged and (_View.RowCount = 0) then
+    begin
+      inc(_RepaintIndex);
+
+      var ri := _RepaintIndex;
+      TThread.ForceQueue(nil, procedure
+      begin
+        if (ri = _RepaintIndex) and (Content <> nil) then
+          Repaint;
+      end);
+      { Fixed issue: If data set is empty - Tree does not show columns. Now Tree correctly calculates width of columns in this
+        method, for the case when there are no data cells (empty data set). When there are data cells,
+        Tree will trigger Paint later correctly, to draw datacells. But with empty data - need to call Repaint forcibly.
+        We cannot call Repaint now because we're already in Paint (CanPaint = False).
+        The call is required for internal FMX rendering, UpdateContents will be skipped. }
+    end;
+
    end;
 
   if IsColumnChanged then
@@ -4075,10 +4024,10 @@ begin
 
         RemoveRowsFromView;
         View.ClearSort;
-        _contentBounds.Right := 0;
+        // _contentBounds.Right := 0;
 
        // _contentBounds.Bottom := 0;
-       { Commented: If ContentBounds.Bottom is reset here. But later, in InternalAlign, Scrollbox resets maxTarget,
+       { Commented: If ContentBounds.Bottom is reset here, later in InternalAlign Scrollbox will reset maxTarget,
          which resets ViewportY too. Without correct ViewPortY we cannnot not set new correct ContentBounds and clip.
          As a result issue - DataChanged does nor save toprow position (any row - cached or not) and always scrolls to the row0.
          ContentBounds will be recalculated correclty, related to a new data in UpdateContents. Alex. }
@@ -4130,7 +4079,7 @@ begin
 
       InitLayout;
       InitHeaderColumnControls;
-      _contentBounds.Right := 0;
+      //_contentBounds.Right := 0;
     end;
 
     if _View <> nil then
@@ -4211,7 +4160,7 @@ begin
 
     // at this stage View.Count = 0
     if TreeState.AlignViewToCurrent in _InternalState then
-      AlignViewToCurrent(lTopRow) //AlignViewToCurrent(nil) 
+      AlignViewToCurrent(lTopRow) //AlignViewToCurrent(nil)
     else
       // list of rows should start from TopRow, check if _view contains rows for rows can be filtered out
       if (TreeState.DataChanged in _InternalState) and (lTopRow <> nil) then
@@ -4229,6 +4178,14 @@ begin
         lTopRow := InitRow( _View.DataList[CMath.Max(0, _view.Transpose(OldTopRowIndex))], OldTopRowIndex, OldTopRowY);
         View.Add(lTopRow);
       end;
+
+
+    if _InternalState * [TreeState.DataChanged, TreeState.SortChanged, TreeState.ColumnsChanged] <> [] then
+      _contentBounds.Right := 0;
+    { Reset _contentBounds.Right after InitRow, because it creates complex issue in Scrollbox (SB), when contentBounds.Right = 0
+      - there is no HScrollbox, and SB calculates MaxTargetY without HScrollbox, then, if VPY is in the max position,
+      SB sets a new VPY with a new MaxTargetY. As a result: when Tree is showing HScrollbox, and user scrolls to the end of
+      the Tree, and at this stage calls Datachanged - Tree will scrolls one row up and show previous row as a last row. }
 
     if _RowAnimationsCountNow = 0 then // when not expanding\collapsing
       if not (TreeState.RowHeightsChanged in _InternalState) then
@@ -4369,6 +4326,7 @@ begin
       if LoadDefaultData then
       begin
         (CellHeader.Control as TStyledControl).StylesData['text'] := CStringToString(column.Caption);
+
         if size.IsZero then
           size := layoutColumn.CalculateControlSize(CellHeader, headerHeight);  // this will call ApplyStyle for a column
       end;
@@ -4522,9 +4480,6 @@ begin
       EditorCancel;
 
     View.CancelRowEdit;
-
-//    if _IndicatorColumnExists and isEditState and (Current >= 0) then
-//      UpdateEditImageState(_View[Current], ContentState.None); // method was initially commented in FMX
   finally
     ClearEditor;
   end;
@@ -4615,7 +4570,8 @@ begin
   UpdateRowExpandedState(Sender, True);
 end;
 
-function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integer; const Y: single = 0; const AMinHeight: Single = 0): ITreeRow;
+function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integer; const Y: single = 0;
+  const AMinHeight: Single = 0): ITreeRow;
 
   procedure DrawGrid(ACell: TTreeCell);
   begin
@@ -5021,12 +4977,13 @@ begin
   var lastLayoutColumn := Columns[Columns.Count - 1];
   var w := lastLayoutColumn.Left + lastLayoutColumn.Width;
 
-  if not SameValue(treeRowClass.Control.Width, w) and (_scrollingType = TScrollingType.None) then
-  begin
-    treeRowClass.Control.Width := w;
-    if w > _contentBounds.Right then
-      _contentBounds := TRectF.Create(_contentBounds.Left, _contentBounds.Top, w, _contentBounds.Bottom);
-  end;
+  if (_scrollingType = TScrollingType.None) then
+    if not SameValue(treeRowClass.Control.Width, w) or (w <> _contentBounds.Right) then
+    begin
+      treeRowClass.Control.Width := w;
+      if w > _contentBounds.Right then
+        _contentBounds.Right := w;
+    end;
   // Later, in DoAutoFitColumns, column can be fit in Tree width and _contentBounds can be changed
 end;
 
@@ -8025,12 +7982,7 @@ begin
       end;
 
       if Result and (_View <> nil) then
-      begin
         View.EndRowEdit(Row);
-
-//        if _IndicatorColumnExists {and isEditState} and (Current >= 0) then
-//          UpdateEditImageState(Row, ContentState.None); // method was initially commented in FMX
-      end;
 
       var notify: IEditableModel;
       if Result and Interfaces.Supports<IEditableModel>(_Model, notify) then
@@ -8072,9 +8024,6 @@ end;
 
 procedure TCustomTreeControl.EndUpdateContents;
 begin
-  if (csDestroying in ComponentState) then
-    Exit;
-
   inherited;
   if HeaderRows <> nil then
     THeaderRowList(HeaderRows).LastResizedColumnByUser := -1;
@@ -8082,23 +8031,39 @@ begin
   if (HScrollBar <> nil) and (HScrollBar.Visible) then
   begin
    { restore previous value for horz. scroll box.
+
+     Alex: Cannot reproduce it already.
+     Deprecated:
+     ----
      Need to do this in ForceQueue because Tree changes FMaxTarget.X twice
      After user refreshed a Tree with Datachanged flag - restore Viewport X.
      Issue: Scroll to the maximum of viewport.X (to the right), decrease column size, this will decrease MaxVP.
-     Result: Viewport will not be on available maximum value. }
+     Result: Viewport will not be on available maximum value.
+     ----
+     Now we need to restore horz scrollbar early as possible, so outside of ForceQueue, because now after each V. scrolling action
+     Tree calls Datachanged, and if this part is in ForceQueue, Tree blinks while scrolling vertically. Because at first Tree draws
+     items with horz. scroll bar = 0 and user sees it, and then in ForceQueue change it horz.SB value.
+      }
     if _lastUpdatedViewportPosition.X > 0 then
       ViewportPosition := PointF(_lastUpdatedViewportPosition.X, ViewportPosition.Y);
-
-     // After user resized a column and Hscrollbar appeared, Tree draws 2
-     // H. scroll bars on top of each other - it just does not clear HScrollBar canvas.
-      HScrollBar.Repaint;
    end;
 
-   if (VScrollBar <> nil) then
-     VScrollBar.Repaint;
 
-  if Assigned(_EndUpdateContents) then
-    _EndUpdateContents(Self);
+  TThread.ForceQueue(nil, procedure
+  begin
+    if (VScrollBar <> nil) then
+      VScrollBar.Repaint;
+
+
+    // Alex: cannot reproduce it.
+    // After user resized a column and Hscrollbar appeared, Tree draws 2
+    // H. scroll bars on top of each other - it just does not clear HScrollBar canvas.
+    // if (HScrollBar <> nil) and (HScrollBar.Visible) then
+    //   HScrollBar.Repaint;
+
+    if Assigned(_EndUpdateContents) then
+      _EndUpdateContents(Self);
+  end);
 end;
 
 procedure TCustomTreeControl.OnCellChanged(e: CellChangedEventArgs);
@@ -8409,7 +8374,7 @@ begin
     _Tag := _src.Tag;
     _Width := _src.Width;
     _WidthType := _src.WidthType;
-    // set_TabStops(_src.TabStops); 
+    // set_TabStops(_src.TabStops);
   end;
 end;
 
@@ -8461,27 +8426,15 @@ begin
     Result := TCellControl.Create(AOwner, Cell);
     Result.HitTest := False;
 
-    var text := ScrollableRowControl_DefaultTextClass.Create(Result);
-    text.Align := TAlignLayout.Client;
-    text.Margins.Left := 10;
+    var text := CreateDefaultTextClassControl(Result);
     text.Margins.Left := CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN;
-    text.HitTest := False;
-
-    var ts: ITextSettings;
-    if interfaces.Supports<ITextSettings>(text, ts) then
-    begin
-      ts.TextSettings.HorzAlign := TTextAlign.Leading;
-      ts.TextSettings.WordWrap := False;
-      ts.TextSettings.Trimming := TTextTrimming.Character;
-    end;
-
     Result.AddObject(text);
 
     Cell.InfoControl := text;
   end else
     Result := TStyledCellControl.Create(AOwner, Cell);
 
-  // code related to label has been moved into TCellControl.ApplyStyle
+  // see also TStyledCellControl.ApplyStyle;
 end;
 
 function TFMXTreeColumn.GetCellText(const Cell: ITreeCell): CString;
@@ -9455,9 +9408,9 @@ begin
   Result.Height := InitialRowHeight;
   Result.Width := 0;
 
-  if (Cell.Control is TStyledControl) then
+  if (Cell.Control is TStyledControl) then   // usually TStyledCellControl
   begin
-    var CellControl := TStyledControl(Cell.Control);  // usually TStyledCellControl
+    var CellControl := TStyledControl(Cell.Control);
     CellControl.ApplyStyleLookup;
   end;
 
@@ -9466,6 +9419,10 @@ begin
   // data from the Text cotrol
   var textSettings: TTextSettings := nil;  // reference only
   var text: string;
+
+  // styled control (e.g. 'headercell') may have own 'text' control in style
+  if (Cell.InfoControl = nil) and (Cell.Control is TStyledControl) then
+    Cell.InfoControl := TStyledControl(Cell.Control).FindStyleResource('text') as TControl;
 
   if (Cell.InfoControl <> nil) then
   begin
@@ -9478,7 +9435,6 @@ begin
   if _IsWidthChangedByUser then  //if fmxColumn._IsWidthChangedByUser then
     Result.Width := CMath.Max(Self._Width, Cell.Column.Width)
 
-  // combining AutoSizeToContent and TWidthType (2) = 4 modes. Read details in ADato.Controls.FMX.Tree.Intf.pas unit
   else if fmxColumn._AutoSizeToContent then
   begin
     if (text <> '') and (textSettings <> nil) then
@@ -9496,10 +9452,10 @@ begin
      { When width of a column caption (which is in _LongestCellWidth) is longer than longest cell
        (Control does not decrease _LongestCellWidth) so in this case it saves width of a column caption -
        latest longest width) - set width of column caption }
-
-       // Is it a header cell (=0)? - init _LongestCellWidth
-      if fmxColumn._LongestCellWidth = 0 then
-        fmxColumn._LongestCellWidth := Result.Width;
+//
+//      // Is it a header cell (=0)? - init _LongestCellWidth
+//      if fmxColumn._LongestCellWidth = 0 then
+//        fmxColumn._LongestCellWidth := Result.Width;
     end;
   end
 
@@ -9513,6 +9469,7 @@ begin
       TColumnWidthType.Percentage: Result.Width := FMXColumn._Width; //Self._Width;
     end;
   end;
+
 
   // process Min\Max Width
   if (fmxColumn._MaxWidth <> COLUMN_MAX_WIDTH_NOT_USED) and (Result.Width > fmxColumn._MaxWidth) then
@@ -9529,6 +9486,10 @@ begin
       Result.Height := Ceil(textHeight) + EXTRA_CELL_HEIGHT else
       Result.Height := InitialRowHeight;
   end;
+
+  // Is it a header cell (=0)? - init _LongestCellWidth
+  if fmxColumn._LongestCellWidth = 0 then
+    fmxColumn._LongestCellWidth := Result.Width;
 end;
 
 procedure TTreeLayoutColumn.set_Left(Value: Single);
@@ -11634,7 +11595,7 @@ var
   propInfo: _PropertyInfo;
   i : Integer;
   col : ITreeColumn;
-  dummy: CObject;
+//  dummy: CObject;
 
 begin
   var treeControl := TFMXTreeControl(_Control);
@@ -11653,9 +11614,9 @@ begin
       begin
         propInfo := _ColumnPropertyInfos[i];
         try
-          // Try accessing this property, it might not be supported!
-          if _data.Count > 0 then
-            dummy := propInfo.GetValue(_data[0], []);
+//          // Try accessing this property, it might not be supported!
+//          if _data.Count > 0 then
+//            dummy := propInfo.GetValue(_data[0], []);
 
           col := TFMXTreeColumn.Create;
           col.PropertyName := propInfo.Name;
@@ -12697,6 +12658,7 @@ begin
   if (StyleLookup = '') and (Owner as TCustomTreeControl)._IsCellStyleStandard then
   begin
     var obj: TControl;
+
     if interfaces.Supports<ITreeCheckboxColumn>(_TreeCell.Column) then
     begin
       var checkBox := ScrollableRowControl_DefaultCheckboxClass.Create(Self);
@@ -12705,23 +12667,12 @@ begin
       checkBox.HitTest := True;
 
       obj := checkBox;
-    end else
-    begin
-      var text := ScrollableRowControl_DefaultTextClass.Create(Self);
-      text.Align := TAlignLayout.Client;
-      text.Margins.Left := CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN;
-      text.HitTest := False;
-
-      var ts: ITextSettings;
-      if interfaces.Supports<ITextSettings>(text, ts) then
+    end
+    else
       begin
-        ts.TextSettings.HorzAlign := TTextAlign.Leading;
-        ts.TextSettings.WordWrap := False;
-        ts.TextSettings.Trimming := TTextTrimming.Character;
+        obj := CreateDefaultTextClassControl(Self);
+        obj.Margins.Left := CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN;
       end;
-
-      obj := text;
-    end;
 
     var bkrect := FindBackgroundRectangle;
     Assert(bkrect <> nil, 'Std ''cell'' style was changed or somth. wrong. Please recheck. _IsCellStyleStandard should be False in this case too.');
@@ -12731,9 +12682,8 @@ begin
     else
       AddObject(obj);
 
-    TreeCell.InfoControl := obj;
+    TreeCell.InfoControl := obj; // text or checkbox
   end;
-  // otherwise user can use own 'cell' style, with own label
 end;
 
 function TStyledCellControl.FindBackgroundRectangle: TRectangle;

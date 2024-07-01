@@ -1002,10 +1002,10 @@ begin
       FDManager.ConnectionDefFileName := '..\..\Inspector.ini';
     {$ELSE}
     // Look in current directory
-    if not FileExists('Inspector.ini') then
-      raise Exception.Create('Configuration file not found: ''Inspector.ini'');
+    if not FileExists('../../Inspector.ini') then
+      raise Exception.Create('Configuration file not found: ''Inspector.ini''');
 
-    FDManager.ConnectionDefFileName := 'Inspector.ini';
+    FDManager.ConnectionDefFileName := '../../Inspector.ini';
     {$ENDIF}
 
     FDManager.ConnectionDefs.Load;

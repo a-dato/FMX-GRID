@@ -165,8 +165,8 @@ type
     _MultiSelect: Boolean;
     _cellSelected: TNotifyEvent;
     _selectionTimer: TTimer;
-    _startTimerTicks: Int64;
-    _selectionTimerInterval: Int64;
+    _startTimerTicks: UInt64;
+    _selectionTimerInterval: UInt64;
     _lastSelected: CObject;
 
     function  GetNextKeyboardSelectionRow(AKey: integer): integer;
@@ -178,7 +178,7 @@ type
 
   public
     function  IsSelecting: Boolean;
-    property  SelectionTimerInterval: Int64 write _selectionTimerInterval;
+    property  SelectionTimerInterval: UInt64 write _selectionTimerInterval;
 
   published
     property  CellSelected: TNotifyEvent read _CellSelected write _CellSelected;
@@ -671,6 +671,11 @@ begin
     _ExtraSpaceContentBounds := 0;
   end;
 
+
+  if Trunc(OldViewportPosition.Y) <> Trunc(NewViewportPosition.Y) then  // for vert.scrolling only
+    if (_lastUpdatedViewportPosition.Y <> MinComp) then
+    // _lastUpdatedViewportPosition is empty. No scrolling action was perfomed. When control was resized or
+    // hscrollbar was hidden - VPY will be changed too. Do not process.
   DetectFastScrolling;
 
   if ANIMATE_HIGHLIGHT_ROW and HighlightRows and Assigned(_Highlight1) and Assigned(_Highlight2) then
@@ -752,7 +757,7 @@ begin
   end;
 end;
 
-procedure TScrollableRowControl<T>.OnFastScrollingStopTimer(Sender: TObject);
+procedure TScrollableRowControl<T>.OnFastScrollingStopTimer(Sender: TObject);  // FAST_SCROLLING_STOP_INTERVAL
 begin
   _fsStopTimer.Enabled := False;
   if _scrollingType <> TScrollingType.None then
@@ -822,7 +827,9 @@ var
   clip: TRectF;
   vp: TPointF;
 begin
-  if (_View = nil) or (_View.RowCount = 0) then Exit;
+  if (_View = nil) {or (_View.RowCount = 0) } then Exit;
+  //  commented because column headers are not showing when empty collection is loaded
+
   if not Force and _IsDeniedUpdateContent then Exit;
 
  // inc(_updateContentIndex);
@@ -838,7 +845,8 @@ begin
   // and in VScrollChange; overrided - in both cases Control resets Smallchanges and uses default value
 
   if not Force then
-    if (_View <> nil) and not (_contentBounds.Bottom <= _contentBounds.Top) then
+    if (_View <> nil) then
+      if not ( (_contentBounds.Bottom <= _contentBounds.Top) and (_View.RowCount > 0) ) then  // About this line: when RowCount = 0 - _contentBounds.Bottom(0) may = _contentBounds.Top - allow this case (when dataset is empty we also need to calculate\show columns and limit (do not call) UpdateContens after that)
       if (_lastUpdatedViewportPosition.Y = vp.Y) and (_lastSize = Size.Size) then
         Exit;
 
@@ -865,6 +873,8 @@ procedure TScrollableRowControl<T>.HandleContentRowChanges(Clip: TRectF);
 var
   position: Single;
 begin
+  if _View.RowCount = 0 then Exit;
+
   var totalHeight := 0.0;
   // 3-3-21 JvA: Do not re-use value, for previous loads can have different average row heights
     //_averageRowHeight := 0; => 2020 KV: Re-use value taken from previous loads
@@ -1031,7 +1041,7 @@ begin
   // calls Invalidate - it does not work inside Begin\EndUpdate
   CalcContentBounds;
 
-  if (_View <> nil) and (_View.Count > 0) then
+  if (_View <> nil) {and (_View.Count > 0)} then // commented because column headers are not showing when empty collection is loaded
   begin
     var IsNeedRepaint: boolean := false;
     DoPostProcessColumns(IsNeedRepaint);
@@ -1046,10 +1056,10 @@ begin
   { Workaround for case: Scroll down Tree fast ASAP (10k rows), - sometimes it shows (30-40%) empty list with one row
     at the bottom. If user moves full window under another window or click on a control - Control will draw all rows
     correctly. Detect this case and redraw it forcibly. }
-    if (_View.Count = 1) and (_View.RowCount {_View.List.Count} > 1) and (_ExtraSpaceContentBounds = 0) then
+    if (_View.Count = 1) and (_View.RowCount > 1) and (_ExtraSpaceContentBounds = 0) then
     begin
       var R: IRow := _View[_View.Count -1];
-      if (R.index = _View.RowCount{_View.List.Count} - 1) then
+      if (R.index = _View.RowCount - 1) then
       { Detect and skip the case when height of the row takes all height in the Tree and it is really one row in a View.
         On the other side, if row height will be smaller, - _View.Count will be > 1 and it will not come here. }
       begin
@@ -1066,11 +1076,13 @@ begin
 
   ApplyScrollBarsVisibility;
 
-  TThread.ForceQueue(nil, procedure
-  begin
+  // Some part of EndUpdateContents do not need ForceQueue. See TCustomTreeControl.EndUpdateContents;
+
+ // TThread.ForceQueue(nil, procedure
+ // begin
     if not (csDestroying in Self.ComponentState) then
       EndUpdateContents;
-  end);
+ // end);
 end;
 
 procedure TScrollableRowControl<T>.UpdateContentsQueuedAfterRowsChange;
@@ -1481,6 +1493,7 @@ begin
   var obj := _view.DataList[_view.Transpose(RowIndex)];
   Result := InitRow(obj, RowIndex, Position, MinHeight);
 
+
   AnimateAddRow(Result, Position);  // this will set Y position of row control
 
   _View.Add(Result);
@@ -1554,8 +1567,7 @@ begin
 
     UpdateContentsQueuedAfterRowsChange;
     // not sure we need it here, possibly Jan added this related to row collapsing\expanding. Check.
-    // now it is used while usual Gant scrolling in NegotiateRowheight. Before this method is called once, now it
-    // it can be called twice. Can we improve it? Alex.
+    // now it is used while usual Gant scrolling in NegotiateRowheight. Alex.
   end;
 end;
 
