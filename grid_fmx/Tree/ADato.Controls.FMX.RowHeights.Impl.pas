@@ -68,14 +68,14 @@ function TFMXRowHeightCollection.NegotiateRowHeight(Sender: TObject; ARow: IRow;
 begin
   Result := false;
 
-  // for var procNegotiate in _ProcList do (slower)
-  for var i := 0 to _ProcList.Count - 1 do
-  begin
-    Result := _ProcList.InnerArray[i](Sender, ARow, {var} AHeight);
-    if Result then Exit;
-    // if it was changed in one control - it will not be changed in a second
-    // (because "if Sender = Self then exit" in procNegotiate)
-  end;
+//  // for var procNegotiate in _ProcList do (slower)
+//  for var i := 0 to _ProcList.Count - 1 do
+//  begin
+//    Result := _ProcList.InnerArray[i](Sender, ARow, {var} AHeight);
+//    if Result then Exit;
+//    // if it was changed in one control - it will not be changed in a second
+//    // (because "if Sender = Self then exit" in procNegotiate)
+//  end;
 end;
 
 procedure TFMXRowHeightCollection.BeginUpdate;

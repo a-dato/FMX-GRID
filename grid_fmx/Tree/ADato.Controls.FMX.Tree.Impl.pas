@@ -4943,7 +4943,9 @@ begin
     end;
 
     var lIndent: single := 0;
-    if (_scrollingType = TScrollingType.None) and FMXColumn._ShowHierarchy then
+    // disabled _scrollingType - while v. scrolling, Tree draws hierarchy cells text to the left, after scrolling
+    // stopped - moves cells to the right, according to the treeCell.Indent value.
+    if{ (_scrollingType = TScrollingType.None) and }FMXColumn._ShowHierarchy then
       lIndent := treeCell.Indent;
 
     // Data cell position inside the row control
