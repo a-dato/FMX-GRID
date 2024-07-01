@@ -167,6 +167,7 @@ type
     _selectionTimer: TTimer;
     _startTimerTicks: Int64;
     _selectionTimerInterval: Int64;
+    _lastSelected: CObject;
 
     function  GetNextKeyboardSelectionRow(AKey: integer): integer;
     procedure ShowKeyboardCursorFocus(ARowIndex: integer; const AColumnIndex: integer = USE_CURRENT_COLUMN);
@@ -1840,6 +1841,27 @@ begin
 
   _selectionTimer.Enabled := False;
   _selectionTimer.Tag := 0;
+
+  var row: IRow := nil;
+  if (_selectionControl <> nil) and (_selectionControl.Position <> nil) then
+   row := Self.GetRowAt(_selectionControl.Position.Y + 2);
+
+  if row = nil then
+  begin
+    if _lastSelected <> nil then
+    begin
+      _lastSelected := nil;
+      DoOnSelected;
+    end;
+
+    Exit;
+  end;
+
+  if CObject.ReferenceEquals(row.DataItem, _lastSelected) then
+    Exit;
+
+  _lastSelected := row.DataItem;
+
   DoOnSelected;
 end;
 

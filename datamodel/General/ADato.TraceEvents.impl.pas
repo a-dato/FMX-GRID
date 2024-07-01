@@ -255,7 +255,13 @@ end;
 procedure TEventTraceToFile.TraceMessageInternal(const Group, AMessage: string; const Level: TLevel);
 begin
   inherited;
+
+  {$IF defined(DEBUG) and defined(LYNXX)}
+  if (Group = 'LOADDATA') or (Group = 'SERVERCOMMUNICATION') or (Group = 'WAITCURSOR') then
+    FDefaultTraceItem.WriteLine(FormatTraceMessage(group, AMessage));
+  {$ELSE}
   FDefaultTraceItem.WriteLine(FormatTraceMessage(group, AMessage));
+  {$ENDIF}
 end;
 
 procedure TEventTraceToFile.TraceToFile(const AMessage: string);

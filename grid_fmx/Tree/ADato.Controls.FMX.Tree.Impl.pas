@@ -10091,15 +10091,18 @@ end;
 
 procedure TTreeDataModelViewRowList.DataModelListChanged(Sender: TObject; e: ListChangedEventArgs);
 begin
-  TFMXTreeControl(_Control).RefreshControl([TreeState.DataChanged]);
+  TThread.Queue(nil, procedure
+  begin
+    TFMXTreeControl(_Control).RefreshControl([TreeState.DataChanged]);
+  end);
 end;
 
-procedure TTreeDataModelViewRowList.DataModelViewChanged(
-  Sender: TObject;
-  Args: EventArgs);
-
+procedure TTreeDataModelViewRowList.DataModelViewChanged( Sender: TObject; Args: EventArgs);
 begin
-  TFMXTreeControl(_Control).RefreshControl([TreeState.DataChanged]);
+  TThread.Queue(nil, procedure
+  begin
+    TFMXTreeControl(_Control).RefreshControl([TreeState.DataChanged]);
+  end);
 end;
 
 function TTreeDataModelViewRowList.DataType(const Cell: ITreeCell): &Type;
@@ -13235,5 +13238,3 @@ begin
 end;
 
 end.
-
-
