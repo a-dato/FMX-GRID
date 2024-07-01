@@ -8428,6 +8428,11 @@ begin
 
     var text := CreateDefaultTextClassControl(Result);
     text.Margins.Left := CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN;
+
+    var ts: ITextSettings;
+    if interfaces.Supports<ITextSettings>(text, ts) then
+      ts.TextSettings.WordWrap := True;
+
     Result.AddObject(text);
 
     Cell.InfoControl := text;
@@ -9433,7 +9438,10 @@ begin
   end;
 
   if _IsWidthChangedByUser then  //if fmxColumn._IsWidthChangedByUser then
-    Result.Width := CMath.Max(Self._Width, Cell.Column.Width)
+    //Result.Width := CMath.Max(Self._Width, Cell.Column.Width)
+    { CMath.Max(...) This creates an issue, when user cannot reduce column width manually, with mouse, below the value
+      which was set initially before in Column.Width. Self._Width contains the user manual width.}
+    Result.Width := Self._Width
 
   else if fmxColumn._AutoSizeToContent then
   begin
@@ -12671,6 +12679,11 @@ begin
     else
       begin
         obj := CreateDefaultTextClassControl(Self);
+
+        var ts: ITextSettings;
+        if interfaces.Supports<ITextSettings>(obj, ts) then
+          ts.TextSettings.WordWrap := True;
+
         obj.Margins.Left := CELL_DEFAULT_STYLE_LEFT_TEXT_MARGIN;
       end;
 
