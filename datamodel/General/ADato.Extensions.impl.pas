@@ -45,6 +45,7 @@ type
     // ICustomTypeDescriptor
     function  GetProperties(const AType: &Type) : PropertyInfoArray;
     function  GetCustomProperties(const AType: &Type) : PropertyInfoArray;
+    function  PropertyByName(const AType: &Type; const Name: string) : _PropertyInfo;
 
     function  get_OnTypePropertiesChanged: TypePropertiesChangedEventHandler;
 
@@ -221,6 +222,13 @@ begin
       Result[i] := prop;
       inc(i);
     end;
+end;
+
+function TExtensionManager.PropertyByName(const AType: &Type; const Name: string) : _PropertyInfo;
+begin
+  for var prop in GetProperties(AType) do
+    if prop.Name.Equals(Name) then
+      Exit(prop);
 end;
 
 function TExtensionManager.GetProperties(const AType: &Type): PropertyInfoArray;

@@ -2388,6 +2388,7 @@ type
     ['{6346757D-5A44-4C66-9848-8403EFDA5DCD}']
     function  GetProperties(const AType: &Type) : PropertyInfoArray;
     function  GetCustomProperties(const AType: &Type) : PropertyInfoArray;
+    function  PropertyByName(const AType: &Type; const Name: string) : _PropertyInfo;
   end;
 
   ICustomProperties = interface(IBaseInterface)
