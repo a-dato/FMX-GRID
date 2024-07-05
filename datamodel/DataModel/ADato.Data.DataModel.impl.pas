@@ -478,6 +478,7 @@ type
     procedure AddExpressionSamples(const List: IList);
     function  CanAccessProperties: Boolean; virtual;
     function  DoGetRowObjectType(const ARow: IDataRow) : &Type; virtual;
+    function  FindAutoCreatedRow(const Row: IDataRow) : Integer;
     function  FindColumnByName(const PropertyName: CString): IDatamodelColumn;
     function  InternalAdd(const Row: IDataRow; const Location: IDataRow; const Position: InsertPosition) : Integer;
     function  InternalAddNew(const Location: IDataRow; const Position: InsertPosition): Integer;
@@ -1276,29 +1277,25 @@ begin
   Result := DisplayFormat(FindColumnByName(PropertyName), Row);
 end;
 
+function TDataModel.FindAutoCreatedRow(const Row: IDataRow) : Integer;
+var
+  n: Integer;
+  dataRow: IDataRow;
+
+begin
+  for n := 0 to _autoCreatedRows.Count - 1 do
+  begin
+    dataRow := _autoCreatedRows[n];
+    if CObject.Equals(dataRow.Data, Row.Data) then
+      Exit(n);
+  end;
+  Result := -1;
+end;
+
 function TDataModel.InternalAdd(
   const Row: IDataRow;
   const Location: IDataRow;
   const Position: InsertPosition) : Integer;
-
-  function FindRowCompareData: Integer;
-  var
-    n: Integer;
-    dataRow: IDataRow;
-
-  begin
-    for n := 0 to _autoCreatedRows.Count - 1 do
-    begin
-      dataRow := _autoCreatedRows[n];
-
-      if CObject.Equals(dataRow.Data, Row.Data) then
-      begin
-        Result := n;
-        Exit;
-      end;
-    end;
-    Result := -1;
-  end;
 
 var
   autoCreated       : IDataRow;
@@ -1314,7 +1311,7 @@ begin
   // Check if a row with the same key was auto created before
   if not Row.AutoCreated and (Row.Data <> nil) then
   begin
-    i := FindRowCompareData;
+    i := FindAutoCreatedRow(Row);
     if i <> -1 then
       // An auto created row already exists.
       // Replace this row with Row
@@ -1375,6 +1372,8 @@ begin
 
   if Row.AutoCreated then
   begin
+    Assert(FindAutoCreatedRow(Row) = -1);
+
     if Row.Data.Equals(nil) then
       raise Exception.Create('Cannot add an ''auto create'' row where data=nil');
     _autoCreatedRows.Add(Row);
@@ -1409,9 +1408,22 @@ begin
         // Add an AutoCreated row
         // as placeholder for row to insert
       begin
-        locationRow := TDataRow.Create(Location, 0, False);
-        locationRow.AutoCreated := True;
-        InternalAdd(locationRow, nil, InsertPosition.After);
+        for var dr in _autoCreatedRows do
+        begin
+          if CObject.Equals(dr.Data, Location) then
+          begin
+            locationRow := dr;
+            break;
+          end;
+        end;
+
+        if locationRow = nil then
+        begin
+          locationRow := TDataRow.Create(Location, 0, False);
+          locationRow.AutoCreated := True;
+          InternalAdd(locationRow, nil, InsertPosition.After);
+        end;
+
         lvl := 1;
       end else
         raise EDataModelException.Create('Row Location not found');
@@ -2205,7 +2217,7 @@ begin
   end;
 end;
 
-function  TDataModel.HasChildren(const Row: IDataRow): Boolean;
+function TDataModel.HasChildren(const Row: IDataRow): Boolean;
 var
   i: Integer;
 
