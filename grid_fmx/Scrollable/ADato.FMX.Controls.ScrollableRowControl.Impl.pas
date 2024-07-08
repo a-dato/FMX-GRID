@@ -49,6 +49,8 @@ type
     property ColumnIndex: integer read _ColumnIndex;
   end;
 
+  TRowControl = class;
+
   TScrollableRowControl<T: IRow> = class(TScrollableControl)
   public
   type
@@ -66,6 +68,7 @@ type
   const
     USE_CURRENT_COLUMN = -1; // internal, for SelectRowCell func.
     STYLE_ROW = 'row';
+    STYLE_ROW_ALT = 'alternatingrow';
     STYLE_SELECTION_CURRENT_ROW = 'selection';
     STYLE_MULTISELECTION = 'multiselection';
     STYLE_FOCUS_SELECTION = 'focusselection'; // ShowKeyboardCursorRectangle
@@ -115,6 +118,12 @@ type
     procedure UnclickClickLMB;
     procedure SetShowHScrollBar(const Value: Boolean);
     procedure SetShowVScrollBar(const Value: Boolean);
+  protected //various
+    _rowStyle: TRectangle;
+    _rowAltStyle: TRectangle;
+    { Row  take Fill and Stroke from this rectangles (Row and AltRow), without separating them by class, in cache and easily changing
+      type of the row (usual or alt) in Runtime at any time - e.g. after scrolling - on datachanged, without reloading style.  }
+    procedure SetRowAsAltRow(RowControl: TRowControl; AsAltRow: Boolean);
   strict private  // Highlight rows on hover
   type
     THighlightRect = class
@@ -292,6 +301,8 @@ type
     procedure Initialize; virtual; abstract;
     function GetStyleObject: TFmxObject; override;
     procedure ApplyStyle; override;
+    procedure FreeStyle; override;
+
     function LoadLineStrokeStyle(const AStyleName: string; out AStroke: TStrokeBrush): Boolean;
     function  GetTopRow: Integer;
     procedure SetTopRow(Value: Integer); virtual;
@@ -426,7 +437,7 @@ type
     _CacheRows: Boolean; // default = true
     _IsDataModelView: Boolean;
     _rowHeights: IFMXRowHeightCollection;
-    _checkAltRowInCache: Boolean;
+    //_checkAltRowInCache: Boolean;
     function get_TopRow: Integer; virtual;
     function get_DataList: IList; virtual; abstract;
     function get_Current: Integer; virtual; abstract;
@@ -469,17 +480,21 @@ type
     procedure ClearRowCache;
   end;
 
-  TRowControl = class(TOwnerStyledPanel)
+  TRowControl = class(TRectangle) // see 5705 class(TOwnerStyledPanel)
   private
     function GetBackgroundColor: TAlphaColor;
-    procedure SetBackgroundColor(const Value: TAlphaColor);
+  //  procedure SetBackgroundColor(const Value: TAlphaColor);
   protected
-    _BackgroundRowRect: TRectangle;
-    function GetDefaultStyleLookupName: string; override;
-    function FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
+   // _BackgroundRowRect: TRectangle;
+   //function GetDefaultStyleLookupName: string; override;
+   // function FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
   public
-    procedure ApplyStyleLookup; override;
-    property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+   // procedure ApplyStyleLookup; override;
+
+    property BackgroundColor: TAlphaColor read GetBackgroundColor;
+      // write SetBackgroundColor;
   end;
 
   TRow = class(TBaseInterfacedObject, IRow, IFreeNotification)
@@ -490,6 +505,13 @@ type
     _Index: Integer; // can be DataModel View index or for usual mode - _data index. While filtering (only) control resets it - first Row0.Index = 0.
     _canCacheInnerControls: Boolean;
   protected
+    _RowLevelCached: integer;
+    { Row level for cache feature. Cache returns row by proper level (different number of hierarchical lines
+      in one row (cell). Need to save it because row asks level via Datamodel interface.
+      But in cache we clear data + should not add Datamodel in this unit.
+      _RowLevelCached and Row does NOT change its level during full life (because GRID has proper number of vert.
+      hierarchical grid lines for each row level), when user changes level - Tree should load row
+      with proper level from the cache. }
     procedure ResetRowData(const ADataItem: CObject; AIndex: Integer); virtual;
   strict protected // interface
     function get_BoundsRect: TRectF;
@@ -1214,12 +1236,14 @@ end;
 
 function TScrollableRowControl<T>.GetStyleObject: TFmxObject;
 const
-  ctrlNames: array [0..5] of string = (STYLE_SELECTION_CURRENT_ROW,
+  ctrlNames: array [0..7] of string = (STYLE_SELECTION_CURRENT_ROW,
                                        STYLE_MULTISELECTION,
                                        STYLE_FOCUS_SELECTION,
                                        STYLE_HIGHLIGHT_ROW,
                                        STYLE_HINT,
-                                       STYLE_DRAG_DROP_HORZ_LINE);
+                                       STYLE_DRAG_DROP_HORZ_LINE,
+                                       STYLE_ROW,
+                                       STYLE_ROW_ALT);
 begin
   Result := inherited GetStyleObject;
 
@@ -1230,6 +1254,22 @@ procedure TScrollableRowControl<T>.ApplyStyle;
 begin
   inherited;
 
+  // load "alternatingrow" and "row" rectangle styles, control will still uses "row" style but takes Fill, Stroke data
+  // from them. It does not load this style direclty, because row control is inherited from TRectangle, not from Panel
+  var rowstyletemp : TControl;
+  if FindStyleResourceBase<TControl>(STYLE_ROW, False {do not clone}, rowstyletemp) then
+  begin
+    if rowstyletemp is TRectangle then
+      _rowStyle := TRectangle(rowstyletemp);
+  end;
+
+  rowstyletemp := nil;
+  if FindStyleResourceBase<TControl>(STYLE_ROW_ALT, False {do not clone}, rowstyletemp) then
+  begin
+    if rowstyletemp is TRectangle then
+      _rowAltStyle := TRectangle(rowstyletemp);
+  end;
+
   if FindStyleResourceBase(STYLE_SELECTION_CURRENT_ROW, False  {don't clone}, _selectionControl) then
   begin
     _selectionControl.Parent := Self;
@@ -1237,6 +1277,14 @@ begin
   end;
 
   // Load multiselection style in ShowMultiSelections
+end;
+
+procedure TScrollableRowControl<T>.FreeStyle;
+begin
+  inherited;
+
+  _rowStyle := nil;
+  _rowAltStyle := nil;
 end;
 
 function TScrollableRowControl<T>.LoadLineStrokeStyle(const AStyleName: string; out AStroke: TStrokeBrush): Boolean;
@@ -2703,6 +2751,32 @@ begin
   _TimerHintDelay.Interval := Value;
 end;
 
+procedure TScrollableRowControl<T>.SetRowAsAltRow(RowControl: TRowControl; AsAltRow: Boolean);
+begin
+  var rowstyle: TRectangle;
+
+  if AsAltRow then
+    rowstyle := _rowAltStyle
+  else
+    rowstyle := _rowStyle;
+
+  RowControl.BeginUpdate;
+  try
+    //RowControl.Assign(rowstyle);
+    RowControl.Stroke.Assign(rowstyle.Stroke);
+    RowControl.Fill.Assign(rowstyle.Fill);
+    RowControl.XRadius := rowstyle.XRadius;
+    RowControl.YRadius := rowstyle.YRadius;
+    RowControl.Sides := rowstyle.Sides;
+    RowControl.Corners := rowstyle.Corners;
+    RowControl.Margins := rowstyle.Margins;
+    RowControl.Padding := rowstyle.Padding;
+    RowControl.Opacity := rowstyle.Opacity;
+  finally
+    RowControl.EndUpdate;
+  end;
+end;
+
 function TScrollableRowControl<T>.SameInRange1(Val1, Val2: integer): Boolean;
 begin
   Result := (Val1 = Val2) or (Val1 = Val2 + 1) or (Val1 = Val2 - 1);
@@ -3183,6 +3257,7 @@ begin
   if _CacheRows then
   begin
     var NeedAltRow := (AIndex mod 2) <> 0;
+
     Result := FindRowInCache(NeedAltRow, {HasChildren(Data)} False, ARowLevel);
   end;
 
@@ -3287,15 +3362,12 @@ begin
   for var i := _CacheList.Count - 1 downto 0 do
   begin
     var row := _CacheList.List[i];
-    if not _checkAltRowInCache or (aAltRow = ((row.Index  mod 2) <> 0)) then
-    begin
-      // Filler and Level will be ignored during scrolling and added later
-//      if _IsDataModelView and ((row.HasChildren <> aWithFiller) or (TRow(row)._RowLevelCached <> ALevel)) then
-//        Continue;    // Row.HasChildren = has plus-minus filler
 
-      _CacheList.Delete(i);
-      Exit(Row);
-    end;
+    if _IsDataModelView and (TRow(row)._RowLevelCached <> ALevel) then
+      Continue;
+
+    _CacheList.Delete(i);
+    Exit(Row);
   end;
 end;
 
@@ -3337,7 +3409,7 @@ begin
       begin
         _CacheList.Add(removedRow);
         removedRow.Control.Opacity := 0;
-//        removedRow.Control.Visible := False;
+       // removedRow.Control.Visible := False;
       end;
 
       //RemoveAt(i);
@@ -3536,70 +3608,29 @@ end;
 
 { TRowControl }
 
-procedure TRowControl.ApplyStyleLookup;
+constructor TRowControl.Create(AOwner: TComponent);
 begin
-  if not IsNeedStyleLookup then Exit;
-
-  _BackgroundRowRect := nil;   // do not free, this is the style object, which FMX controls
   inherited;
+
+  HitTest := False;
 end;
 
-function TRowControl.GetDefaultStyleLookupName: string;
-begin
-  Result := TScrollableRowControl<IRow>.STYLE_ROW;
-end;
 
-function TRowControl.FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
-var
-  control: TControl;
-begin
-  Result := False;
-  aRectangle := nil;
-
-  for var i := 0 to Controls.Count - 1 do
-  begin
-    control := Controls.List[i];
-
-    if control is TRectangle then
-    begin
-      aRectangle := TRectangle( control );
-      exit(True);
-    end;
-
-    // Special for TADatoRectangle structure, which has own style
-    if control.ClassName = 'TADatoRectangle' then
-    begin
-      var scontrol := (control as TStyledControl);
-      if scontrol.StyleState = TStyleState.Unapplied then
-        scontrol.ApplyStyleLookup;
-
-      Result := scontrol.FindStyleResource<TRectangle>('rect', aRectangle);
-      Assert(aRectangle <> nil, 'Style ''ma_rectangle_style'' was changed, cannot find background rectangle.');
-
-      if Result then Exit;
-    end;
-  end;
-end;
 
 function TRowControl.GetBackgroundColor: TAlphaColor;
 begin
   Result := 0;
 
-  if _BackgroundRowRect = nil then
-    FindBackgroundRectangle(_BackgroundRowRect);
+  if Fill.Kind = TBrushKind.Solid then
+    Result := Fill.Color;
 
-  if _BackgroundRowRect <> nil then
-    Result := _BackgroundRowRect.Fill.Color;
+//  if _BackgroundRowRect = nil then
+//    FindBackgroundRectangle(_BackgroundRowRect);
+//
+//  if _BackgroundRowRect <> nil then
+//    Result := _BackgroundRowRect.Fill.Color;
 end;
 
-procedure TRowControl.SetBackgroundColor(const Value: TAlphaColor);
-begin
-  if _BackgroundRowRect = nil then
-    FindBackgroundRectangle(_BackgroundRowRect);
-
-  if _BackgroundRowRect <> nil then
-    _BackgroundRowRect.Fill.Color := Value;
-end;
 
 
 end.

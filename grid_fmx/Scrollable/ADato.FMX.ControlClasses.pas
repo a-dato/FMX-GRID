@@ -48,7 +48,6 @@ uses
 
 
 function CreateDefaultTextClassControl(AOwner: TComponent): TControl;
-// used in TStyledCellControl, TCellControl, THeaderItem
 begin
   Result := ScrollableRowControl_DefaultTextClass.Create(AOwner);
   Result.Align := TAlignLayout.Client;

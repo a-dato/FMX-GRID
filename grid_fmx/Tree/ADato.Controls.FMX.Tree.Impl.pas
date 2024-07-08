@@ -405,8 +405,7 @@ type
     constructor Create( TreeControl: TCustomTreeControl;
                         const Data: IList;
                         const ItemType: &Type;
-                        const RowHeights: IFMXRowHeightCollection;
-                        const CheckAltRows: Boolean); reintroduce; virtual;
+                        const RowHeights: IFMXRowHeightCollection); reintroduce; virtual;
 
     procedure BeforeDestruction; override;
 
@@ -510,7 +509,7 @@ type
     procedure SortInternalList; override;
     function  CreateRowClass(const Data: CObject; AIndex: Integer; IsTemporaryRow: Boolean): ITreeRow; override;
   public
-    constructor Create(TreeControl: TCustomTreeControl; const Data: IDataModelView; const RowHeights: IFMXRowHeightCollection; const CheckAltRows: Boolean);
+    constructor Create(TreeControl: TCustomTreeControl; const Data: IDataModelView; const RowHeights: IFMXRowHeightCollection);
     destructor  Destroy; override;
 
     procedure ClearSort;
@@ -1796,10 +1795,10 @@ type
     constructor Create(AOwner: TComponent); override;
   end;
 
-  TAlternatingRowControl = class(TRowControl)
-  protected
-    function GetDefaultStyleLookupName: string; override;
-  end;
+//  TAlternatingRowControl = class(TRowControl)
+//  protected
+//    function GetDefaultStyleLookupName: string; override;
+//  end;
 
   TStyledCellControl = class(TOwnerStyledPanel)
   strict private
@@ -4206,9 +4205,20 @@ begin
     UpdateCountDec;
   end;
 
-  if cellChanged then
+
+
+  //if cellChanged then
     // Event must be Queued because we are inside Paint method
-    TThread.ForceQueue(nil, procedure begin DoCellChanged(nil, Cell); end);
+  //  TThread.ForceQueue(nil, procedure begin DoCellChanged(nil, Cell); end);
+
+    { Unclear code.
+      Why need to call DoCellChanged here and for the CURRENT cell which in most cases is out of view?
+      This code will call "Cell" (= cell of the CURRENT ROW) - which will get the cell from the CURRENT row.
+      When user is scrolling, CURRENT row is usually outside of visible area (e.g. Current = 0), and row does not exists.
+      So asking for "current cell" will forcibly create a temporary row here and TRowControl too (outside of cache),
+      return cell and then destroyes this row with controls. Which slows down performance, especially now,
+      when datachanged is called after each scrolling action.
+      I think we should call DoCellChanged only while selecting a cell. Alex. }
 end;
 
 procedure TCustomTreeControl.InitView;
@@ -4219,17 +4229,15 @@ begin
 
   _IndicatorColumnExists := False;
 
-  var checkAlt := (TreeOption.AlternatingRowBackground in Self.Options);
-
   // If we have a property name, then test for DataList first and then DataModelView
   if not CString.IsNullOrEmpty(_DataPropertyName) and (DataList <> nil) then
-    _View := TTreeRowList.Create(Self, DataList, _itemType, _RowHeightsGlobal, checkAlt) as ITreeRowList
+    _View := TTreeRowList.Create(Self, DataList, _itemType, _RowHeightsGlobal) as ITreeRowList
   // If we do not have a property name, then test for DataModelView first and then for DataList
   else if Interfaces.Supports(_data, IDataModelView, dataModelView) then
-    _View := TTreeDataModelViewRowList.Create(Self, dataModelView, _RowHeightsGlobal, checkAlt) as ITreeRowList
+    _View := TTreeDataModelViewRowList.Create(Self, dataModelView, _RowHeightsGlobal) as ITreeRowList
   // Finally test for DataList again
   else if DataList <> nil then
-    _View := TTreeRowList.Create( Self, DataList, _itemType, _RowHeightsGlobal, checkAlt) as ITreeRowList;
+    _View := TTreeRowList.Create( Self, DataList, _itemType, _RowHeightsGlobal) as ITreeRowList;
 
   { Changed to function GetCellPropertiesProvider instead of saving in a variable. Because saving increases
     RefCount for _View, and _View := nil does not destroy View and Rows in Reset. }
@@ -4734,21 +4742,16 @@ begin
     isCachedRow := (treeRow.Control <> nil);
 
     if not isCachedRow then
-    begin
-      // this will also set Control.Height from RowHeights in TRow.set_Control
-      var rowControl : TRowControl;
-      if (TreeOption.AlternatingRowBackground in _options) and ((ViewRowIndex mod 2) <> 0) then
-        rowControl := TAlternatingRowControl.Create(Self)
-      else
-        rowControl := TRowControl.Create(Self);
-
-      treeRowClass.Control := rowControl;
-
-      //  treeRowClass.Control := TAlternatingRowControl.Create(Self) else
-      //  treeRowClass.Control := TRowControl.Create(Self);
-    end
+      treeRowClass.Control := TRowControl.Create(Self)
     else if not SameValue(treeRowClass.Control.Height, treeRowClass.Height) then // update Height for cached row
       treeRowClass.Control.Height := treeRowClass.Height;
+      // this will also set Control.Height from RowHeights in TRow.set_Control
+
+    // set as alt or usual row style, this works fast, because code sets color of row rectangle directly
+    if (TreeOption.AlternatingRowBackground in _options) and ((ViewRowIndex mod 2) <> 0) then
+      SetRowAsAltRow(treeRowClass.Control, True)
+    else
+      SetRowAsAltRow(treeRowClass.Control, False); // usual row
 
     // Need to add the row control into the Tree, or we cannot calculate sizes of different controls (cells, row)
     // Tree row control sets Y position in TScrollableRowControl<T>.AnimateAddRow
@@ -4776,9 +4779,9 @@ begin
     DoRowLoaded(treeRow);
 
     {$IFDEF DEBUG}
-    if _RowHeightsGlobal <> nil then
-      if rowHeight <> treeRowClass.Height then
-        raise Exception.Create('Not allowed to change the height of a row in RowLoaded. Please see the comment.');
+  //  if _RowHeightsGlobal <> nil then
+   //   if rowHeight <> treeRowClass.Height then
+   //     raise Exception.Create('Not allowed to change the height of a row in RowLoaded. Please see the comment.');
     {$ENDIF}
 
     { Do not allow to change height of the row in RowLoaded event (Kees), because if we use DoRowLoaded AFTER NegotiateRowHeight -
@@ -4896,11 +4899,11 @@ begin
       treeRowClass.Control.AddObject(treeCell.Control);
     end;
 
-    if not isCachedRow or not treeRow.CanCacheInnerControls then
-    begin
-      // Frozen cell takes a bk color from the row style. So ApplyStyle to get styles
-      (treeRowClass.Control as TStyledControl).ApplyStyleLookup;
-    end;
+//    if not isCachedRow or not treeRow.CanCacheInnerControls then
+//    begin
+//      // Frozen cell takes a bk color from the row style. So ApplyStyle to get styles
+//      (treeRowClass.Control as TStyledControl).ApplyStyleLookup;
+//    end;
 
     // Calculate size of the cell
     var size: TSizeF := treeCell.Control.Size.Size;
@@ -6628,13 +6631,11 @@ end;
 
 function TCustomTreeControl.GetStyleObject: TFmxObject;
 const
-  CtrlNames: array [0..7] of string = ( //STYLE_CHECKBOX_CELL,
+  CtrlNames: array [0..5] of string = ( //STYLE_CHECKBOX_CELL,
                                       STYLE_FILLER_0,
                                       STYLE_CELL,
                                       STYLE_FROZEN_CELL_LINE,
                                       STYLE_HEADER_CELL,
-                                      STYLE_ROW,
-                                      STYLE_ROW_ALT,
                                       STYLE_GRID_LINE,
                                       STYLE_HEADER);
 begin
@@ -6678,7 +6679,7 @@ begin
   // Std cell style - is a TRectangle, as a one control, without any other controls.
   var cellStyle: TControl;
   if FindStyleResourceBase<TControl>(STYLE_CELL, False {do not clone}, cellStyle) then
-    _IsCellStyleStandard := (cellStyle is TRectangle) and (cellStyle.ControlsCount = 0)
+    _IsCellStyleStandard := (cellStyle is TRectangle) and (cellStyle.ControlsCount = 0);
 end;
 
 procedure TCustomTreeControl.SetParent(const Value: TFmxObject);
@@ -9847,7 +9848,8 @@ begin
 
 end;
 
-constructor TTreeDataModelViewRowList.Create(TreeControl: TCustomTreeControl; const Data: IDataModelView; const RowHeights : IFMXRowHeightCollection; const CheckAltRows: Boolean);
+constructor TTreeDataModelViewRowList.Create(TreeControl: TCustomTreeControl; const Data: IDataModelView;
+  const RowHeights : IFMXRowHeightCollection);
 begin
   inherited Create(TreeControl, Data, RowHeights);
 
@@ -9857,7 +9859,7 @@ begin
   _DataModelView.CurrencyManager.TopRowChanged.Add(TopRowChanged);
 
   _CacheRows := TreeControl.CacheRows;
-  _checkAltRowInCache := CheckAltRows;
+ // _checkAltRowInCache := CheckAltRows;
 end;
 
 destructor TTreeDataModelViewRowList.Destroy;
@@ -11123,7 +11125,7 @@ end;
 function TTreeRow.Level: Integer;
 begin
   Result := _Owner.Level(Self);
-//  _RowLevelCached := Result; // see comment
+  _RowLevelCached := Result;
 end;
 
 procedure TTreeRow.set_IsExpanded(Value: Boolean);
@@ -11266,8 +11268,7 @@ constructor TTreeRowList.Create(
   TreeControl: TCustomTreeControl;
   const Data: IList;
   const ItemType: &Type;
-  const RowHeights: IFMXRowHeightCollection;
-  const CheckAltRows: Boolean);
+  const RowHeights: IFMXRowHeightCollection);
 
 var
   CollectionNotification: INotifyCollectionChanged;
@@ -11296,7 +11297,6 @@ begin
 
   // InitializeColumnPropertiesFromColumns;
   _CacheRows := TreeControl.CacheRows;
-  _checkAltRowInCache := CheckAltRows;
 end;
 
 procedure TTreeRowList.BeforeDestruction;
@@ -12606,14 +12606,6 @@ end;
 procedure TObjectListModelItemChangedDelegate.EndUpdate;
 begin
   dec(_UpdateCount);
-end;
-
-
-{ TAlternatingRowControl }
-
-function TAlternatingRowControl.GetDefaultStyleLookupName: string;
-begin
-  Result := STYLE_ROW_ALT;
 end;
 
 { TExpandCollapsePanel }

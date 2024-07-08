@@ -327,7 +327,7 @@ begin
     AStyleObject := nil;
 
   // this is the central check for all styles for Gantt and Tree
-  Assert(Result, 'Style "' + AStyleName + '" is not found');
+  Assert(Result,  Format('Style "%s" is not found in "%s"', [AStyleName, Name]));
 end;
 
 function TScrollableControl.ForceCloneStyleWithChildren(AStyle: TFmxObject): TFmxObject;
