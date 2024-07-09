@@ -233,7 +233,7 @@ uses Variants,
 //{$IFDEF PM_D6}
 //  , SqlTimSt
 //{$ENDIF}
-  ;
+  , System.Rtti;
 
 const
   bfNA = TBookmarkFlag(Ord(High(TBookmarkFlag)) + 1);
