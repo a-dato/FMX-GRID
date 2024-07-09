@@ -490,7 +490,7 @@ type
    // function FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
   public
     constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
+    // destructor Destroy; override;
    // procedure ApplyStyleLookup; override;
 
     property BackgroundColor: TAlphaColor read GetBackgroundColor;
