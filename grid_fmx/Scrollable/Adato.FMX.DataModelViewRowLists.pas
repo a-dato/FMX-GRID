@@ -394,13 +394,10 @@ var
    IDataModel holds the (hierachical) list of data. This data is unsorted and unfiltered.
    IDataModelView holds a sub-set of the rows contained in the IDataModel (filtered rows). If row was collapsed this list
    does not contain its children. }
-  h: Single;
   i: Integer;
   newPos: Single;
   nextdrv: IDataRowView;
   rect: TRectF;
-  rows: List<T>;
-  vpos: Single;
 begin
   // get clicked IDataRowView (IDataRowView and ITreeRow are rows in different lists but ITreeRow has link to IDataRowView)
   i := 0;
@@ -421,42 +418,59 @@ begin
   end;
 
   if clickedViewRowIndex = - 1 then Exit;
-// user can expand rows with Expand All feature
 
-  var firstChildRowY := lRow.Control.Position.Y + lRow.Control.Height;
-  // move animation for child rows while collapsing\expanding
+  var parentRowYBottom := lRow.Control.BoundsRect.Bottom; //lRow.Control.Position.Y + lRow.Control.Height;
 
   // Expand?
   if RowFlag.Expanded in Args.NewProperties.Flags then
   begin
-    h := 0;
-    vpos := lRow.Control.BoundsRect.Bottom;
+    var totalRowsHeight : Single := 0;
     var bottom := _Control.Content.ClipRect.Bottom;
 
     // Init children of the expanded row
-    rows := CList<T>.Create;
+    var rows := CList<T>.Create;
     var newChildrenCount := _dataModelView.ChildCount(clickedDRV);
+    var viewIndexAfterAddedRow := clickedViewRowIndex + 1;
 
     for i := 1 to newChildrenCount do
     begin
       var rowIndex := i + clickedDRV.ViewIndex;
 
       lRow := _Control.InitRow(get_DataList[Transpose(rowIndex)], rowIndex);
-      h := h + lRow.Height;
+
+      totalRowsHeight := totalRowsHeight + lRow.Height;
       rows.Add(lRow);
 
-      if h + vpos > bottom then
+      { Add into View here, because in InitRow row may change width and position of CELLS in OTHER, previous rows,
+        in ResizeRepositionCells, which uses View.Count loop.
+        So if there are several expanded rows, and some of the cell in these rows is wider - Tree could not change another row
+        cells width, position relatively, in newly expanded rows. So add expanded rows one by one here to fix it. }
+      Self.Insert(viewIndexAfterAddedRow, lRow);
+      inc(viewIndexAfterAddedRow);
+
+      if totalRowsHeight + parentRowYBottom > bottom then
         break;
+    end;
+
+    // separate loop, need to know total height of expanded rows to show moving animation
+    var newRowY := parentRowYBottom;
+    for i := 0 to rows.Count - 1 do
+    begin
+      lRow := rows[i];
+      _Control.AnimateAddRow(lRow, parentRowYBottom, i * ANIMATE_EXPANDED_ROW_SHOW_DELAY, False {do not skip fade-in animation });
+      _Control.AnimateMoveRowY(lRow, newRowY {vpos});
+      //vpos := vpos + lRow.Height;
+      newRowY := newRowY + lRow.Height;
     end;
 
     // Move bottom rows down if needed, children rows are not in View yet.
     var currentSelected := Current;
     var isCurrentChanged := False;
 
-    for i := clickedViewRowIndex + 1 to Count - 1 do
+    for i := viewIndexAfterAddedRow {clickedViewRowIndex + 1} to Count - 1 do
     begin
       lRow := Self[i];
-      newPos := lRow.Control.Position.Y + h;
+      newPos := lRow.Control.Position.Y + totalRowsHeight;
       _Control.AnimateMoveRowY(lRow, newPos);
 
       // update index for the rows below
@@ -473,19 +487,7 @@ begin
 
     lRow := nil;
 
-   // Row will be auto freed in UpdateContents if it is out of visible area or collapsed, when animation completes.
-
-    // Add new rows to view
-    Self.InsertRange(clickedViewRowIndex + 1, rows);
-
-    // Insert new rows
-    for i := 0 to rows.Count - 1 do
-    begin
-      lRow := rows[i];
-      _Control.AnimateAddRow(lRow, firstChildRowY, i * ANIMATE_EXPANDED_ROW_SHOW_DELAY, False {ASkipAnimation - show fade-in});
-      _Control.AnimateMoveRowY(lRow, vpos);
-      vpos := vpos + lRow.Height;
-    end;
+     // Row will be auto freed in UpdateContents if it is out of visible area or collapsed, when animation completes.
   end
   else
   // Collapse
@@ -495,7 +497,7 @@ begin
     inc(i);
     var removedChildrenCount := 0;
     var firstChildPos := -1.0;
-    h := 0;
+    var totalRowsHeight : Single := 0;
 
     // fade out and move children rows up (animation)
     while i < Count do
@@ -514,9 +516,9 @@ begin
       if firstChildPos = -1 then
         firstChildPos := lRow.Top;
 
-      h := h + lRow.Height;
+      totalRowsHeight := totalRowsHeight + lRow.Height;
       _Control.AnimateRemoveRow(lRow);  // fade out
-      _Control.AnimateMoveRowY(lRow, firstChildRowY); // animate the child row moving up to the parent row
+      _Control.AnimateMoveRowY(lRow, parentRowYBottom); // animate the child row moving up to the parent row
       inc(removedChildrenCount);
       inc(i);
     end;
@@ -546,7 +548,7 @@ begin
     begin
       rect := lRow.Control.BoundsRect;
       rect.Offset(0, rect.Height);
-      rect.Height := h;
+      rect.Height := totalRowsHeight;
       RecentlyAddedRowsCount := _Control.AppendRowsBelow(rect, nextdrv.ViewIndex, rect.Top);
     end;
 

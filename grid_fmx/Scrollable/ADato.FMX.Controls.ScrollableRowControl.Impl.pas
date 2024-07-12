@@ -77,9 +77,9 @@ type
     STYLE_DRAG_DROP_HORZ_LINE = 'dragdropline';
   strict private
   const  // See also: Animate: boolean
-    ANIMATE_SHOW_ROW_DURATION = 0.35; // 0 // fade-in for all rows, seconds. Includes expanding rows. See also ANIMATE_EXPANDED_ROW_SHOW_DELAY
-    ANIMATE_HIDE_ROW_DURATION = 0.3; // 0.4 // fade out row while collapsing parent row
-    ANIMATE_MOVE_ROW_DURATION = 0.3; //0.4; // collapse\expand
+    ANIMATE_SHOW_ROW_DURATION = 0.35; // fade-in for all rows, seconds. Includes expanding rows. See also ANIMATE_EXPANDED_ROW_SHOW_DELAY
+    ANIMATE_HIDE_ROW_DURATION = 0.3; // fade out row while collapsing parent row
+    ANIMATE_MOVE_ROW_DURATION = 0.3; // collapse\expand
     ANIMATE_SELECTION_DURATION = 0.12; // moving selection controls:  row selection and focusselection
 
     ANIMATE_HIGHLIGHT_ROW = False; // Do row highlighting with animation (opacity) while hovering mouse cursor
@@ -483,18 +483,9 @@ type
   TRowControl = class(TRectangle) // see 5705 class(TOwnerStyledPanel)
   private
     function GetBackgroundColor: TAlphaColor;
-  //  procedure SetBackgroundColor(const Value: TAlphaColor);
-  protected
-   // _BackgroundRowRect: TRectangle;
-   //function GetDefaultStyleLookupName: string; override;
-   // function FindBackgroundRectangle(out aRectangle: TRectangle): boolean;
   public
     constructor Create(AOwner: TComponent); override;
-    // destructor Destroy; override;
-   // procedure ApplyStyleLookup; override;
-
     property BackgroundColor: TAlphaColor read GetBackgroundColor;
-      // write SetBackgroundColor;
   end;
 
   TRow = class(TBaseInterfacedObject, IRow, IFreeNotification)
@@ -1657,7 +1648,6 @@ begin
     ARow.Control.AddObject(A);
     A.Start;
     _IsDeniedUpdateContent := True;
-    // flag will be reset in DoFinishAllCollapseExpandAnimations with UpdateContents(True {Force});
   end
   else begin
     ARow.Control.Position.Y := NewY;
@@ -3615,20 +3605,12 @@ begin
   HitTest := False;
 end;
 
-
-
 function TRowControl.GetBackgroundColor: TAlphaColor;
 begin
   Result := 0;
 
   if Fill.Kind = TBrushKind.Solid then
     Result := Fill.Color;
-
-//  if _BackgroundRowRect = nil then
-//    FindBackgroundRectangle(_BackgroundRowRect);
-//
-//  if _BackgroundRowRect <> nil then
-//    Result := _BackgroundRowRect.Fill.Color;
 end;
 
 

@@ -4550,7 +4550,8 @@ begin
   row := TTreeRow(treeCell.Row);
 
   row.IsExpanded := AExpandRow;
-  // this will trigger expanding\collapsing and change View.Count ( TTreeDataModelViewRowList.RowPropertiesChanged )
+  // See expanding code in Adato.FMX.DataModelViewRowLists.pas > TBaseDataModelViewList<T>.RowPropertiesChanged.
+  // This will trigger expanding\collapsing and change View.Count ( TTreeDataModelViewRowList.RowPropertiesChanged )
   // if row was collapsed, at this stage children rows were removed from View, View.Count changed (same while expanding).
 end;
 
@@ -4946,8 +4947,8 @@ begin
     end;
 
     var lIndent: single := 0;
-    // disabled _scrollingType - while v. scrolling, Tree draws hierarchy cells text to the left, after scrolling
-    // stopped - moves cells to the right, according to the treeCell.Indent value.
+    // disabled _scrollingType. Issue: while v. scrolling, Tree draws hierarchy cells text to the left and then, after scrolling
+    // stopped - moves cells to the right, according to the treeCell.Indent value. User sees cell movings
     if{ (_scrollingType = TScrollingType.None) and }FMXColumn._ShowHierarchy then
       lIndent := treeCell.Indent;
 
