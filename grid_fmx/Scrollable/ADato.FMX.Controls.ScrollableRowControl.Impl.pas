@@ -429,6 +429,7 @@ type
       function Compare(const Left, Right: T): Integer;
     end;
   strict private
+    _rowsToDestroyLater: List<T>;
     _comparer: IComparer<T>;
     _CacheList: TList<T>;
     function FindRowInCache(aAltRow, aWithFiller: Boolean; ALevel: integer): T;
@@ -437,7 +438,6 @@ type
     _CacheRows: Boolean; // default = true
     _IsDataModelView: Boolean;
     _rowHeights: IFMXRowHeightCollection;
-    //_checkAltRowInCache: Boolean;
     function get_TopRow: Integer; virtual;
     function get_DataList: IList; virtual; abstract;
     function get_Current: Integer; virtual; abstract;
@@ -450,6 +450,8 @@ type
     function HasChildren(const DataItem: CObject): boolean; overload; virtual;
     function HasChildren(const ARow: T): Boolean; overload; virtual;
     procedure DoOnCacheRowBeforeHide(const ARow: IRow; var CanCache: Boolean); virtual;
+    procedure MoveRowToCache(const ARow: IRow);
+    procedure ProcessDelayedRows;
   public
     constructor Create(Control: TScrollableRowControl<T>; const RowHeights: IFMXRowHeightCollection);
     destructor Destroy; override;
@@ -459,7 +461,6 @@ type
 
     function FindRowByDataIndex(const ARow: T): Integer;
    // function FindRowByDataIndex(ADataIndex: Integer): Integer;
-
     // Search for a proper Row.index in View. For DVM mode it's a DataModeView index,
     // for TTreeRowList - _data index. Returns View index.
 
@@ -474,6 +475,7 @@ type
     // for usual mode - searches with _data.IndexOf (slow)
     procedure RemoveRange(Index: Integer; Count: Integer); override;
     procedure RemoveAt(index: Integer); override;
+    procedure RemoveRowDestroyLater(Index: integer);
     function IndexOf(const ARow: T): Integer; override;
     function IndexOf(const DataItem: CObject): Integer; override;
     function IsDataModelView: Boolean;
@@ -493,7 +495,7 @@ type
     _Control: TRowControl;
     _DataItem: CObject; { in DMV mode - _DataItem is IDataRowView, to access a data itself use _DataItem.AsType<IDataRowView>.Row.Data
                           in usual mode - _DataItem is the data itself}
-    _Index: Integer; // can be DataModel View index or for usual mode - _data index. While filtering (only) control resets it - first Row0.Index = 0.
+    _Index: Integer; // Not a View Index! Can be DataModel View index or for usual mode - _data index. While filtering (only) control resets it - first Row0.Index = 0.
     _canCacheInnerControls: Boolean;
   protected
     _RowLevelCached: integer;
@@ -888,6 +890,9 @@ var
 begin
   if _View.RowCount = 0 then Exit;
 
+  if _RowAnimationsCountNow = 0 then
+    _View.ProcessDelayedRows;
+
   var totalHeight := 0.0;
   // 3-3-21 JvA: Do not re-use value, for previous loads can have different average row heights
     //_averageRowHeight := 0; => 2020 KV: Re-use value taken from previous loads
@@ -908,7 +913,7 @@ begin
   var toprow: IRow := nil;
   while viewindex < _View.Count do
   begin
-    var row := _View[viewindex];
+    var row: IRow := _View[viewindex];
 
     totalHeight := totalHeight + row.Height;
     var rowBoundsRect := row.BoundsRect;
@@ -968,7 +973,7 @@ begin
     // when user scrolls up - add new rows to the top
     while (toprect.Top > clipTop) and (viewindex >= 0) do
     begin
-      var row := InitRow(_view.DataList[_view.Transpose(viewindex)], viewindex);
+      var row: IRow := InitRow(_view.DataList[_view.Transpose(viewindex)], viewindex);
 
       toprect.Offset(0, -row.Height);
       AnimateAddRow(row, topRect.Top);
@@ -2524,7 +2529,7 @@ var
 begin
   if not TPlatformServices.Current.SupportsPlatformService(IFMXDragDropService, ddService) then Exit;
 
-  var row := GetRowAt(Y + ViewportPosition.Y);
+  var row: IRow := GetRowAt(Y + ViewportPosition.Y);
   if row = nil then Exit;
 
   _IsDraggingNow := True;
@@ -2652,7 +2657,7 @@ function TScrollableRowControl<T>.GetRowHitInfo(const Point: TPointF; out HitInf
 begin
   HitInfo.Point := Point;
  // HitInfo.Point.Offset(ViewportPosition);
-  var row := GetRowAt(Point.Y + ViewportPosition.Y);
+  var row: IRow := GetRowAt(Point.Y + ViewportPosition.Y);
   HitInfo.Row := row;
 
   Result := row <> nil;
@@ -3364,18 +3369,7 @@ end;
 procedure TBaseViewList<T>.RemoveAt(index: Integer);
 begin
   if _CacheRows then
-  begin
-    var [unsafe] removedRow: IRow := Self[index];
-    var CanCache := True;
-    DoOnCacheRowBeforeHide(removedRow, CanCache);
-
-    if CanCache then
-    begin
-      _CacheList.Add(removedRow);
-      removedRow.Control.Opacity := 0;
-//      removedRow.Control.Visible := False;
-    end;
-  end;
+    MoveRowToCache(Self.InnerArray[index]);
 
   inherited;
 end;
@@ -3389,26 +3383,62 @@ begin
   begin
     for var i := Index to Self.Count - 1 do
     begin
-      if processedCount = Count {Count - is an argument, not View.Count!}  then break;
+      if processedCount = Count {Count - is an argument, not Self.Count!}  then break;
 
-      var [unsafe] removedRow: IRow := Self.InnerArray[i];
-      var CanCache := True;
-      DoOnCacheRowBeforeHide(removedRow, CanCache);
-
-      if CanCache then
-      begin
-        _CacheList.Add(removedRow);
-        removedRow.Control.Opacity := 0;
-       // removedRow.Control.Visible := False;
-      end;
-
+      MoveRowToCache(Self.InnerArray[i]);
       //RemoveAt(i);
-
       inc(processedCount);
     end;
    end;
 
   inherited;
+end;
+
+procedure TBaseViewList<T>.MoveRowToCache(const ARow: IRow);
+begin
+  var CanCache := True;
+  DoOnCacheRowBeforeHide(ARow, CanCache);
+
+  if CanCache then
+  begin
+    _CacheList.Add(ARow);
+   //  ARow.Control.Opacity := 0;
+     ARow.Control.Visible := False; // should hide, because row with Opacity = 0 overlaps visible rows and user cannot click on them
+  end;
+end;
+
+procedure TBaseViewList<T>.RemoveRowDestroyLater(Index: integer);
+  // Row will be deleted from View but destroyed later when all animations (collapsing, moving) is completed
+  // if Cache is On - row will be hidden not destroyed
+begin
+  if _rowsToDestroyLater = nil then
+    _rowsToDestroyLater := CList<T>.Create;
+
+  _rowsToDestroyLater.Add(Self[Index]);
+  inherited RemoveAt(Index);
+  // Remove from View, but from the list only, not calling TBaseViewList<T>.RemoveAt, because it will make row Visible False,
+  // ARow may show an animation now
+end;
+
+procedure TBaseViewList<T>.ProcessDelayedRows;
+var
+  Test: IList<T>;
+begin
+  if _rowsToDestroyLater = nil then Exit;
+
+  // these rows are not in View already, we remove them from View at once, but destroy or cache (= hide) them later,
+  // because of collapsing\moving animation
+
+
+
+  for var i := 0 to _rowsToDestroyLater.Count - 1 do
+    if _CacheRows then
+    begin
+      var t1 := _rowsToDestroyLater[i];
+      MoveRowToCache(t1);  // else row will be release by refcount
+
+    end;
+  _rowsToDestroyLater := nil;
 end;
 
 function TBaseViewList<T>.get_RowHeight(const DataRow: CObject): Single;

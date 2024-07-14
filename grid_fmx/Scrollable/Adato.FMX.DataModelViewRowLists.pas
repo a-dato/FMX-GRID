@@ -382,7 +382,7 @@ procedure TBaseDataModelViewList<T>.RowPropertiesChanged(Sender: TObject; Args: 
 var
   continueFromLastRowInView: Boolean;
   clickedViewRowIndex: integer;
-  lRow: IRow;
+  [unsafe] lRow: IRow;
   clickedDRV, drv: IDataRowView;
   {Clicked DataRowView. Note: In Hierarchy mode (only!) each lTreeRow.DataItem contains IDataRowView (unlike other modes).
    IDataRowView (TDataModelView) is a separate list of rows in TreeControl.DataModelView.Rows and contains invisible rows too
@@ -428,14 +428,13 @@ begin
     var bottom := _Control.Content.ClipRect.Bottom;
 
     // Init children of the expanded row
-    var rows := CList<T>.Create;
+    var rows: IList<T> := CList<T>.Create;
     var newChildrenCount := _dataModelView.ChildCount(clickedDRV);
     var viewIndexAfterAddedRow := clickedViewRowIndex + 1;
 
     for i := 1 to newChildrenCount do
     begin
       var rowIndex := i + clickedDRV.ViewIndex;
-
       lRow := _Control.InitRow(get_DataList[Transpose(rowIndex)], rowIndex);
 
       totalRowsHeight := totalRowsHeight + lRow.Height;
@@ -582,11 +581,16 @@ begin
       inc(i);
     end;
 
-    // remove child rows from view. IMPORTANT TO DO THIS HERE AND NOT LATER!!! 
-    // if not in agreement with this comment then contact Jan :)
-    Self.RemoveRange(clickedViewRowIndex + 1, removedChildrenCount);
+    // Self.RemoveRange(clickedViewRowIndex + 1, removedChildrenCount);
+    // Alex: commented, because of issues: Collapsing row(s) is flickering, unclickable row, changes in cache.
+    // Jan has been aprooved: "Putting the rows in a delayed list is a fine idea". see details in 5701.
 
-    // Row will be auto freed in UpdateContents if it is out of visible area or collapsed, when animation completes.
+    // Row will be removed from View now, but destroyed in UpdateContents, when animation completes.
+    var viewIndex := clickedViewRowIndex {+ 1} + removedChildrenCount;
+    repeat
+      RemoveRowDestroyLater(viewIndex);
+      dec(viewIndex);
+    until viewIndex = clickedViewRowIndex;
   end;
 end;
 

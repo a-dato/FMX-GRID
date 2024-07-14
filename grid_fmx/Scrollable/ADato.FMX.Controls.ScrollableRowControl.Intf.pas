@@ -89,11 +89,11 @@ type
       Row.DataItem for TTreeRowList or for DataModelMode Row.DataItem.AsType<IDataRowView>.Row.Data.  }
     //function FindRowByDataIndex(DataIndex: Integer): Integer; // Index in a View
     function FindRowByDataIndex(const ARow: T): Integer;
-
     function GetRowDataIndex(const ARowDataItem: CObject {const ARow: T}): Integer;
     // for DVM it returns value directly from the variable in IDataRowView (fast), for usual mode - searches in a _data (slow)
     procedure MoveRow(const SrcRow, DestRow: IRow; const Position: TMovePosition = TMovePosition.Below);
     // Move the row at the position of DestRow, DestRow will be under SrcRow. MakeAsChild - True works only in DataModelView
+    procedure ProcessDelayedRows; // destroy them or put into cache
     property DataList: IList read  {$IFDEF DELPHI}get_DataList{$ENDIF};
     { In DVM mode Rowidnex must be DataRowView index, not DataModel. Because when some row is collapsed,
        _view.DataList will SHIFT index related to the collapsed chicldren, e.g: Collapsed 2 children rows : row1 and row2,
