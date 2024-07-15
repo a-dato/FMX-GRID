@@ -3428,9 +3428,6 @@ begin
 
   // these rows are not in View already, we remove them from View at once, but destroy or cache (= hide) them later,
   // because of collapsing\moving animation
-
-
-
   for var i := 0 to _rowsToDestroyLater.Count - 1 do
     if _CacheRows then
     begin
