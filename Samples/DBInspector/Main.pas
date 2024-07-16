@@ -28,7 +28,8 @@ uses
   FireDAC.Phys.MongoDB, FireDAC.Phys.PGDef, FireDAC.Phys.OracleDef,
   FireDAC.Phys.FBDef, FireDAC.Phys.IBDef, FireDAC.Phys.ODBCDef,
   FireDAC.Phys.MongoDBDef, FireDAC.Phys.IBBase, FireDAC.Phys.ODBCBase,
-  FireDAC.Phys.MySQLDef;
+  FireDAC.Phys.MySQLDef, FireDAC.Stan.ExprFuncs,
+  FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Phys.SQLiteDef, FireDAC.Phys.SQLite;
 
 type
   {$M+} // Load RTTI information for IDBItem interface
@@ -88,6 +89,7 @@ type
     lblConnection: TLabel;
     Label1: TLabel;
     Label2: TLabel;
+    FDPhysSQLiteDriverLink1: TFDPhysSQLiteDriverLink;
 
     procedure FormDestroy(Sender: TObject);
     procedure acAddConnectionExecute(Sender: TObject);

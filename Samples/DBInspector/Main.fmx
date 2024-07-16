@@ -876,4 +876,8 @@ object frmInspector: TfrmInspector
     Left = 641
     Top = 345
   end
+  object FDPhysSQLiteDriverLink1: TFDPhysSQLiteDriverLink
+    Left = 776
+    Top = 264
+  end
 end
