@@ -1272,6 +1272,7 @@ begin
     _selectionControl.Visible := False;
   end;
 
+  ClearSelections;
   // Load multiselection style in ShowMultiSelections
 end;
 
@@ -1279,6 +1280,8 @@ procedure TScrollableRowControl<T>.FreeStyle;
 begin
   inherited;
 
+  _MultiSelectionControl := nil;
+  _KeyCursorControl := nil;
   _rowStyle := nil;
   _rowAltStyle := nil;
 end;
@@ -2264,12 +2267,13 @@ begin
   if csDestroying in Self.ComponentState then Exit;
 
   if _Selection <> nil then
-   _Selection.Clear;
+  begin
+    _Selection.Clear;
+    if Assigned(_OnSelectionChanged) then
+      _OnSelectionChanged(Self);
+  end;
 
   _MultiSelectionDone := False;
-
-  if Assigned(_OnSelectionChanged) then
-    _OnSelectionChanged(Self);
 end;
 
 procedure TScrollableRowControl<T>.SelectAll;
