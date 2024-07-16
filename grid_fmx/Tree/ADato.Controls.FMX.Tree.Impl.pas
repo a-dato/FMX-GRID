@@ -1795,11 +1795,6 @@ type
     constructor Create(AOwner: TComponent); override;
   end;
 
-//  TAlternatingRowControl = class(TRowControl)
-//  protected
-//    function GetDefaultStyleLookupName: string; override;
-//  end;
-
   TStyledCellControl = class(TOwnerStyledPanel)
   strict private
     _NeedFreeBackgroundRect: Boolean; // True - created manually, False - styled object
@@ -1815,7 +1810,7 @@ type
       are visible (bug). Apply negative left margin for the _BackgroundRect (see BackgroundColor),
       when frozen cell will be shifted to the right (with Indent), bk rectangle inside the cell will be shifted to the left
       by the same number of pixels in BackgroundRectangleMargin and this will hide the transparent area. }
-
+          
      _GridBottomLine: TLine;
     { Need to access to this line to change its margin when user collapses\expands children of this row.
       Yes we could search it in Cell.Control, but it could be mixed with another TLine, e.g. part of the custom style }
@@ -1828,8 +1823,9 @@ type
     property TreeCell: ITreeCell read _TreeCell;
     property BackgroundColor: TAlphaColor read GetBackgroundColor write SetBackgroundColor;  //  TAlphaColorRec.Null to reset
   end;
+                                                 
 
-  TCellControl = class(TControl)
+  TCellControl = class(TRectangle) //class(TControl)
   strict private
     [unsafe] _TreeCell: ITreeCell;
     function GetBackgroundColor: TAlphaColor;
@@ -4823,14 +4819,11 @@ function TCustomTreeControl.InitRowCells(const TreeRow: ITreeRow; const IsCached
     // can be TStyleState.Unapplied if style specified in Stylelookup was not found
     // this can create possible issues with Frozen cells and OnInitCell, see below.
     Assert(CellControl.StyleState = TStyleState.Applied,
-      Format('After ApplyStyleLookup, StyleState = Unapplied, style "%s" does not exist?', [CellControl.StyleLookup]));
+      Format('After ApplyStyleLookup, StyleState = Unapplied, style "%s" does not exist in tree "%s"?',
+        [CellControl.StyleLookup, Self.Name]));
 
     if (CellControl.StyleState = TStyleState.Applied) then
     begin
-      // frozen cell should be non-transparent or cells scrolled under it would be visible
-      if treeCell.Column.Frozen and (treeCell.Column.StyleLookup = '') then
-        TreeCell.BackgroundColor := TreeCell.Row.BackgroundColor;
-
       if Assigned(onInitCellProc) then
         onInitCellProc(Self, TreeCell);
     end;
@@ -4910,6 +4903,12 @@ begin
     var size: TSizeF := treeCell.Control.Size.Size;
 
     InitCellStyles(treeCell);
+
+    // Frozen cells
+    // should be non-transparent or cells scrolled under it would be visible
+    if treeCell.Column.Frozen then
+     //  if (treeCell.Column.StyleLookup = '') then
+      TreeCell.BackgroundColor := TreeCell.Row.BackgroundColor;
 
     var OptionalHeaderResizing : TUpdateColumnReason := TUpdateColumnReason.TNone;
     if (HeaderRows <> nil) and FMXColumn.AllowResize and
@@ -8423,10 +8422,9 @@ end;
 
 function TFMXTreeColumn.CreateCellControl(AOwner: TComponent; const Cell: ITreeCell) : TControl;
 begin
-  // TCellControl is about 20% faster than TStyledCellControl
-
   if Cell.Column.StyleLookup = string.Empty then
   begin
+    // TCellControl is about 20% faster than TStyledCellControl
     Result := TCellControl.Create(AOwner, Cell);
     Result.HitTest := False;
 
@@ -8441,9 +8439,7 @@ begin
 
     Cell.InfoControl := text;
   end else
-    Result := TStyledCellControl.Create(AOwner, Cell);
-
-  // see also TStyledCellControl.ApplyStyle;
+    Result := TStyledCellControl.Create(AOwner, Cell);  // see also TStyledCellControl.ApplyStyle;
 end;
 
 function TFMXTreeColumn.GetCellText(const Cell: ITreeCell): CString;
@@ -10820,7 +10816,7 @@ end;
 function TTreeCell.get_BackgroundColor: TAlphaColor;
 begin
   if _Control is TCellControl then
-    Result := (_Control as TCellControl).BackgroundColor else
+    Result := TCellControl(_Control).BackgroundColor else
     Result := (_Control as TStyledCellControl).BackgroundColor;
 end;
 
@@ -10831,17 +10827,19 @@ begin
   // can be 'TCheckboxCellItem'
   if (_Control is TCellControl) then
   begin
+    var cellctrl := TCellControl(_Control);
     if _column.Frozen and _column.ShowHierarchy then
-      TCellControl(_Control)._BackgroundRectangleMargin :=  -(_Indent);
+      cellctrl._BackgroundRectangleMargin :=  -(_Indent);
 
-    TCellControl(_Control).BackgroundColor := Color;
+    cellctrl.BackgroundColor := Color;
   end
   else if (_Control is TStyledCellControl) then
   begin
+    var cellctrl := TStyledCellControl(_Control);
     if _column.Frozen and _column.ShowHierarchy then
-      TStyledCellControl(_Control)._BackgroundRectangleMargin :=  -(_Indent);
+      cellctrl._BackgroundRectangleMargin :=  -(_Indent);
 
-    TStyledCellControl(_Control).BackgroundColor := Color;
+    cellctrl.BackgroundColor := Color;
   end;
 end;
 
@@ -13154,6 +13152,10 @@ begin
   TagObject := TObject(Cell);  // see also property TCellControl.TreeCell: ITreeCell
 
   Height := INITIAL_CELL_HEIGHT;
+
+  // default style for cell rectangle
+  Fill.Kind := TBrushKind.None;
+  Stroke.Kind := TBrushKind.None;
 end;
 
 destructor TCellControl.Destroy;
@@ -13169,16 +13171,27 @@ end;
 
 function TCellControl.GetBackgroundColor: TAlphaColor;
 begin
-  Result := TAlphaColorRec.Null;
-end;
+  Result := TAlphaColors.Null;
 
-function TCellControl.GetBackIndex: Integer;
-begin
-  Result := 0;
+  if Fill.Kind = TBrushKind.Solid then
+    Result := Fill.Color;
 end;
 
 procedure TCellControl.SetBackgroundColor(const Value: TAlphaColor);
 begin
+  if Value = TAlphaColors.Null then
+    Fill.Kind := TBrushKind.None
+  else
+    begin
+      Fill.Kind := TBrushKind.Solid;
+      Fill.Color := Value;
+    end;
+end;
+
+
+function TCellControl.GetBackIndex: Integer;
+begin
+  Result := 0;
 end;
 
 initialization
