@@ -1406,7 +1406,8 @@ type
     procedure RemoveRowsFromView(const MakeViewNil: Boolean = False; const StartIndex: Integer = -1; const Count: Integer = -1); override;
 
   protected
-    procedure DoFastScrollingStopped; override;
+    procedure DoScrollingTypeChanged(const OldScrollingType, NewScrollingType: TScrollableControl.TScrollingType); override;
+    //procedure DoFastScrollingStopped; override;
     procedure ShowSelections; override;
     function GetSelectionRectange(RowViewIndex: integer; const ColumnIndex: integer = -1): TRectF; override;
     function GetCurrentCell: Integer; override;
@@ -1511,6 +1512,8 @@ type
     procedure DoOnSelected; override;
 
   public
+
+    _testOnDatachanged: TNotifyEvent; // !!! remove 
     constructor Create(AOwner: TComponent); override;
     destructor  Destroy; override;
     procedure BeginUpdate; override;
@@ -2962,7 +2965,7 @@ begin
   Result := True;
   if Assigned(_CellLoading) then
   begin
-    AutoObject.Guard(CellLoadingEventArgs.Create(Cell, Flags, (_scrollingType = TScrollingType.FastScrolling)), e);
+    AutoObject.Guard(CellLoadingEventArgs.Create(Cell, Flags, (ScrollingType = TScrollingType.FastScrolling)), e);
 
     _CellLoading(Self, e);
     Result := e.LoadDefaultData;
@@ -2973,13 +2976,13 @@ begin
   end;
 end;
 
-procedure TCustomTreeControl.DoFastScrollingStopped;
+procedure TCustomTreeControl.DoScrollingTypeChanged(const OldScrollingType, NewScrollingType: TScrollableControl.TScrollingType);
 begin
   inherited;
 
-//  // DataChanged tells the tree to reload all it's data and calculate correct sizes
-//  RefreshControl([TreeState.DataChanged]);
-  RefreshControl([TreeState.DataChanged]);
+  // scrolling stopped, Tree will be fully refreshed
+  if NewScrollingType = TScrollingType.None then
+    RefreshControl([TreeState.DataChanged]);
 end;
 
 function TCustomTreeControl.DoColumnChangingByUser(
@@ -4646,7 +4649,7 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
       if c = nil then Continue;
       cell := TTreeCell(c);
 
-      if cell.Column.Frozen and (_scrollingType = TScrollingType.None) then
+      if cell.Column.Frozen and (ScrollingType = TScrollingType.None) then
       begin
         cell.Control.BringToFront;
         cell.Control.Repaint;
@@ -4656,7 +4659,7 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
         cell.Control.Height := RowHeight;
 
       // Add/Remove plus-minus filler
-      if (_scrollingType = TScrollingType.None) then
+      if (ScrollingType = TScrollingType.None) then
       begin
         var showHierarchy := cell.Column.ShowHierarchy and _View.IsDataModelView and cell.Row.HasChildren;
 
@@ -4695,7 +4698,7 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
       end;
 
       // Grid
-      if (TreeOption.ShowGrid in _Options) and (_scrollingType = TScrollingType.None) then
+      if (TreeOption.ShowGrid in _Options) and (ScrollingType = TScrollingType.None) then
         DrawGrid(cell);
     end;
   end;
@@ -4760,15 +4763,15 @@ begin
     if rowHeight > treeRowClass.Height then
       treeRowClass.Height := rowHeight;
 
-    // Negotiate the final height of the row. This will init and add a row in another paired control (Gantt or Tree)
-    if not _SkipRowHeightNegotiation and (_RowHeightsGlobal <> nil) then
-    begin
-      _RowHeightsGlobal.NegotiateRowHeight(Self, treeRow, {var} rowHeight);
-
-      // When we apply value to treeRow.Height, it also applies for Row.Control. But if treeRow.Height was set in
-      // another control, - it did not affected Row.Control.Height in a current control. So apply it.
-      treeRowClass.Control.Height := rowHeight;
-    end;
+//    // Negotiate the final height of the row. This will init and add a row in another paired control (Gantt or Tree)
+//    if not _SkipRowHeightNegotiation and (_RowHeightsGlobal <> nil) then
+//    begin
+//      _RowHeightsGlobal.NegotiateRowHeight(Self, treeRow, {var} rowHeight);
+//
+//      // When we apply value to treeRow.Height, it also applies for Row.Control. But if treeRow.Height was set in
+//      // another control, - it did not affected Row.Control.Height in a current control. So apply it.
+//      treeRowClass.Control.Height := rowHeight;
+//    end;
 
     ProcessCellsInRow(treeRowClass, isCachedRow);
 
@@ -4806,7 +4809,7 @@ function TCustomTreeControl.InitRowCells(const TreeRow: ITreeRow; const IsCached
     if not (treeCell.Control is TStyledControl) then exit;
 
     // performance upgrade
-    if (_scrollingType <> TScrollingType.None) and ((treeCell.Control as TStyledControl).StyleState <> TStyleState.Applied) then
+    if (ScrollingType <> TScrollingType.None) and ((treeCell.Control as TStyledControl).StyleState <> TStyleState.Applied) then
       Exit;
 
     var CellControl := TStyledControl(treeCell.Control);
@@ -4916,13 +4919,13 @@ begin
       OptionalHeaderResizing := TUpdateColumnReason.HeaderSizing;
     // without this flag UpdateColumnWidthAndCells does not decrease Column width (only enlarge), case if DesignedWidth > Auto width.
 
-    if (treeCell.InfoControl = nil) and (_scrollingType = TScrollingType.None) then
+    if (treeCell.InfoControl = nil) and (ScrollingType = TScrollingType.None) then
       treeCell.InfoControl := GetCellInfoControl(treeCell.Control, treeCell.Column.ColumnType = TColumnType.Checkbox);
 
     if loadDefaultData then
       FMXColumn.LoadDefaultData(treeCell);
 
-    if _scrollingType = TScrollingType.None then
+    if ScrollingType = TScrollingType.None then
     begin
       // if CellControl.Height was not changed in InitCellStyles and it is still default - adjust it to text width:
       if (size = treeCell.Control.Size.Size) then
@@ -4982,7 +4985,7 @@ begin
   var lastLayoutColumn := Columns[Columns.Count - 1];
   var w := lastLayoutColumn.Left + lastLayoutColumn.Width;
 
-  if (_scrollingType = TScrollingType.None) then
+  if (ScrollingType = TScrollingType.None) then
     if not SameValue(treeRowClass.Control.Width, w) or (w <> _contentBounds.Right) then
     begin
       treeRowClass.Control.Width := w;
@@ -5286,6 +5289,12 @@ begin
     _lastUpdatedViewportPosition.Y := MinComp; // Do not use MinSingle because MinSingle < 0 = False!!
     _lastUpdatedViewportPosition.X := ViewportPosition.X; // this will be restored after update
   end;
+
+
+  // test !!! remove
+  if Flags * [TreeState.DataChanged] <> [] then
+    if Assigned(_testOnDatachanged) then
+      _testOnDatachanged(Self);
 
   _InternalState := _InternalState + Flags; // - TreeState.DataBindingChanged];
 
@@ -6852,7 +6861,7 @@ end;
 
 procedure TCustomTreeControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 begin
-  _ClickEnable := (Button <> TMouseButton.mbLeft) or (AniCalculations.TouchTracking = []) or not IsScrollingToFastToClick;
+  _ClickEnable := (Button <> TMouseButton.mbLeft) or (AniCalculations.TouchTracking = []) or not IsScrollingTooFastToClick;
 
   // Fix: while editing a cell click on other row = AV.
   // Do not call EndEdit in TCustomDateTimeEdit.DoExit; because EndEdit may call a destructor of the editor control
@@ -6869,7 +6878,7 @@ begin
 
   // during touch scroll the timer is not called if a click is to short.
   // Resetting the Animation will force a click to make the control stop scrolling
-  if IsScrollingToFastToClick then
+  if IsScrollingTooFastToClick then
   begin
     AniCalculations.Animation := not AniCalculations.Animation;
     AniCalculations.Animation := not AniCalculations.Animation;
@@ -6894,7 +6903,7 @@ begin
     // not AniCalculations.Moved or (AniCalculations.CurrentVelocity.Y > 0) => When scrolling by keeping mouse down and moving mouse, the CurrentVelocity.Y = 0, but AniCalculations.Moved = True
     startingTouchScroll := AniCalculations.Moved and (AniCalculations.CurrentVelocity.Y = 0) and (_MouseDownHitInfo <> nil) and ((Y > _MouseDownHitInfo.Location.Y + 5) or (Y < _MouseDownHitInfo.Location.Y - 5));
 
-    if not startingTouchScroll and not IsScrollingToFastToClick and _ClickEnable and (_View <> nil) then
+    if not startingTouchScroll and not IsScrollingTooFastToClick and _ClickEnable and (_View <> nil) then
     begin
       // set current "Row" and current "Cell" (column)
       if _MouseDownHitInfo <> nil then

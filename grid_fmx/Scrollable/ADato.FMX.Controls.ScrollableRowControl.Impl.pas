@@ -91,8 +91,6 @@ type
     ANIMATE_SELECTION_ON_TOP_BOTTOM_ROW  = False;  { When user scrolls to the bottom or top invisible row, Control first
       scrolls itself, shows a new row and then moves selection rectangle with animation to the new row. This makes it
       very jumpy. False - do not animate selection in this case.}
-    FAST_SCROLLING_DETECT_INTERVAL = 50; // ms See FastScrollingScrolledPercentage
-    FAST_SCROLLING_STOP_INTERVAL = 150;
     DRAGDROP_TOP_BORDER_ROW_RANGE_PX = 5; // range of pixels from the top border of the topmost row to detect
       // if user wants to make a dragging row as topmost
     HINT_HOVER_DELAY = 200; // ms, hover delay for Hint. See also HintHoverDelay. Fade-in effect in "hint" style (0.2 ms)
@@ -121,7 +119,7 @@ type
   protected //various
     _rowStyle: TRectangle;
     _rowAltStyle: TRectangle;
-    { Row  take Fill and Stroke from this rectangles (Row and AltRow), without separating them by class, in cache and easily changing
+    { Row takes Fill and Stroke from these rectangles (Row and AltRow), without separating them by class, in cache and easily changing
       type of the row (usual or alt) in Runtime at any time - e.g. after scrolling - on datachanged, without reloading style.  }
     procedure SetRowAsAltRow(RowControl: TRowControl; AsAltRow: Boolean);
   strict private  // Highlight rows on hover
@@ -191,28 +189,14 @@ type
 
   published
     property  CellSelected: TNotifyEvent read _CellSelected write _CellSelected;
-
-  strict private  // FastScrolling optimization (partial load) routins
-    _VPYStart: Single;
-    _VPY_End: Single;
-    _fsStopTimer: TTimer; // detect fast scrolling stop with a timer
-    _fastScrollStartTime: LongWord;  // ms, measure interval to detect Fast scrolling
-
-    procedure DetectFastScrolling;
-    procedure OnFastScrollingStopTimer(Sender: TObject);
-  protected
-    _scrollingType: TScrollableControl.TScrollingType;
-    procedure MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean); override;
-    procedure DoFastScrollingStopped; virtual;
-  public
-    property ScrollingType: TScrollableControl.TScrollingType read _scrollingType;
   protected
     _FixedRowHeight: Single;
-    _averageRowHeight: Single;  
+    _averageRowHeight: Single;
     _NegotiateInitiatedRows: TList<T>; // newly added rows in NegotiateRowHeight, which will be repositioned later
       // and added into View without calling InitRow for the second time
     _SkipRowHeightNegotiation: Boolean;
     function GetRowFromNegotiateList(ViewRowIndex: integer; const DataItem: CObject): T;
+    procedure DoScrollingTypeChanged(const OldScrollingType, NewScrollingType: TScrollableControl.TScrollingType); override;
   protected
     _View: IRowList<T>;
     _IsDeniedUpdateContent: Boolean;
@@ -322,7 +306,7 @@ type
     procedure DoPostProcessColumns(out NeedRepaint: boolean); virtual;
     procedure ViewportPositionChange(const OldViewportPosition: TPointF; const NewViewportPosition: TPointF; const ContentSizeChanged: Boolean); override;
     function GetYScrollingDirection: TScrollingDirection;
-    function IsScrollingToFastToClick: Boolean; inline;
+    //function IsScrollingToFastToClick: Boolean; inline;
     function NeedResetView: boolean;
     function get_Current: Integer; virtual; abstract;
     procedure set_Current(Value: Integer); virtual; // current row changed
@@ -555,10 +539,6 @@ begin
   _selectionTimerInterval := 50;
   _ScrollPerRow := False;
 
-  _fsStopTimer := TTimer.Create(Self);
-  _fsStopTimer.Interval := FAST_SCROLLING_STOP_INTERVAL;
-  _fsStopTimer.OnTimer := OnFastScrollingStopTimer;
-
   _TimerHintDelay := THintTimer.Create(Self);
   _TimerHintDelay.Enabled := False;
   _TimerHintDelay.Interval := HINT_HOVER_DELAY;
@@ -686,12 +666,12 @@ begin
     _ExtraSpaceContentBounds := 0;
   end;
 
-
-  if Trunc(OldViewportPosition.Y) <> Trunc(NewViewportPosition.Y) then  // for vert.scrolling only
-    if (_lastUpdatedViewportPosition.Y <> MinComp) then
-    // _lastUpdatedViewportPosition is empty. No scrolling action was perfomed. When control was resized or
-    // hscrollbar was hidden - VPY will be changed too. Do not process.
-  DetectFastScrolling;
+//  // Why here and not in VScrollChange? VScrollChange is not triggered while mouse wheeling or touching
+//  if Trunc(OldViewportPosition.Y) <> Trunc(NewViewportPosition.Y) then  // for vert.scrolling only
+//    if (_lastUpdatedViewportPosition.Y <> MinComp) then
+//    // _lastUpdatedViewportPosition is empty. No scrolling action was perfomed. When control was resized or
+//    // hscrollbar was hidden - VPY will be changed too. Do not process.
+//  DetectFastScrolling;
 
   if ANIMATE_HIGHLIGHT_ROW and HighlightRows and Assigned(_Highlight1) and Assigned(_Highlight2) then
   begin
@@ -720,76 +700,35 @@ begin
   end;
 end;
 
-procedure TScrollableRowControl<T>.MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
+procedure TScrollableRowControl<T>.DoScrollingTypeChanged(const OldScrollingType,
+  NewScrollingType: TScrollableControl.TScrollingType);
 begin
   inherited;
-  // the CPU can be to slow to handle all MouseWheel events, and can get stuk for a little while
-  // in the meantime we don't want the timer "OnFastScrollingStopTimer" to be executed, because this results in extra performance for the already slow CPU
 
-  if _scrollingType <> TScrollingType.None then
+  if NewScrollingType = TScrollingType.None then
   begin
-    // in case if this is the last ViewportPositionChange event - reset _isFastScrolling to False in timer
-    _fsStopTimer.Enabled := False; // truly reset timer here!!
-    _fsStopTimer.Enabled := True;
-  end;
-end;
+    // NegotiateRowHeight(
 
-procedure TScrollableRowControl<T>.DetectFastScrolling;
-begin
-  // in case if this is the last ViewportPositionChange event - reset _isFastScrolling to False in timer
-  _fsStopTimer.Enabled := False; // truly reset timer here!!
-  _fsStopTimer.Enabled := True;
-
-  if _scrollingType = TScrollingType.None then
-  begin
-    // detect next scroll move
-    _fastScrollStartTime := TThread.GetTickCount;
-
-    // later we decide if it is fast scrolling. At least we now we are scrolling here
-    _scrollingType := TScrollingType.ScrollingStarted;
   end
-  else
-  begin
-    var endTime := TThread.GetTickCount - LongWord(_FastScrollStartTime);
-    if endTime < FAST_SCROLLING_DETECT_INTERVAL then
-      Exit;
+  else //  if ScrollingType <> TScrollingType.None then
+    _lastSize := TSize.Create(0, 0);  // this will trigger UpdateContent
 
-    if _VPY_End = ViewportPosition.Y then exit;
-
-    // detect next scroll move
-    _fastScrollStartTime := TThread.GetTickCount;
-
-    _VPY_End := ViewportPosition.Y;
-    var scrolledPx := Abs(_VPYStart - _VPY_End);
-
-    var pxPerTick := scrolledPx / endTime;
-    if (pxPerTick > 2) then
-      _scrollingType := TScrollingType.FastScrolling
-    else if (pxPerTick > 0) and (_scrollingType <> TScrollingType.FastScrolling) then
-      _scrollingType := TScrollingType.SlowScrolling;
-
-    _VPYStart := _VPY_End;
-  end;
 end;
 
-procedure TScrollableRowControl<T>.OnFastScrollingStopTimer(Sender: TObject);  // FAST_SCROLLING_STOP_INTERVAL
-begin
-  _fsStopTimer.Enabled := False;
-  if _scrollingType <> TScrollingType.None then
-  begin
-    _scrollingType := TScrollingType.None;
-    _lastSize := TSize.Create(0, 0);
-
-    // uncomment it to load cells for the second time, after IsFastScrolling
-    DoFastScrollingStopped;
-    _FastScrollStartTime := 0;
-  end;
-end;
-
-procedure TScrollableRowControl<T>.DoFastScrollingStopped;
-// User has slow down scrolling or stopped, AFTER fast scrolling
-begin
-end;
+// Moved into TScrollableControl
+//procedure TScrollableRowControl<T>.MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
+//begin
+//  inherited;
+//  // the CPU can be to slow to handle all MouseWheel events, and can get stuk for a little while
+//  // in the meantime we don't want the timer "OnFastScrollingStopTimer" to be executed, because this results in extra performance for the already slow CPU
+//
+//  if _scrollingType <> TScrollingType.None then
+//  begin
+//    // in case if this is the last ViewportPositionChange event - reset _isFastScrolling to False in timer
+//    _fsStopTimer.Enabled := False; // truly reset timer here!!
+//    _fsStopTimer.Enabled := True;
+//  end;
+//end;
 
 function TScrollableRowControl<T>.NeedResetView: boolean;
  { Workaround for low accuracy of averageHeight: Fully reset list when:
@@ -815,7 +754,7 @@ begin
     Initialize;
     UpdateContents(False);
 
-    if _scrollingType = TScrollingType.None then
+    if ScrollingType = TScrollingType.None then
       ShowSelections
     else // scrolling in progress
       begin
@@ -1044,7 +983,7 @@ end;
 procedure TScrollableRowControl<T>.AfterUpdateContents(ViewPortYPosition: Single);
 begin
   // otherwise this will be executed in "OnFastScrollingStopTimer"
-  if _scrollingType <> TScrollingType.None then
+  if ScrollingType <> TScrollingType.None then
     Exit;
 
   if (GetYScrollingDirection = TScrollingDirection.sdUp) and (_View.Count > 1) then
@@ -1106,7 +1045,7 @@ end;
 procedure TScrollableRowControl<T>.UpdateContentsQueuedAfterRowsChange;
 begin
   // if animations running or user is scrolling, UpdateContents will be executed later
-  if (_scrollingType <> TScrollingType.None) or (_RowAnimationsCountNow > 0) then
+  if (ScrollingType <> TScrollingType.None) or (_RowAnimationsCountNow > 0) then
     Exit;
 
   {$OVERFLOWCHECKS OFF}
@@ -1123,7 +1062,7 @@ begin
       Exit;
 
     //if animations running or user is scrolling, UpdateContents will be executed later
-    if (_scrollingType = TScrollingType.None) and (_RowAnimationsCountNow = 0) then
+    if (ScrollingType = TScrollingType.None) and (_RowAnimationsCountNow = 0) then
       UpdateContents(True);
   end);
 end;
@@ -2302,10 +2241,10 @@ begin
   ResetView;
 end;
 
-function TScrollableRowControl<T>.IsScrollingToFastToClick: Boolean; // inline
-begin
-  Result := (AniCalculations.CurrentVelocity.Y > 100) or (AniCalculations.CurrentVelocity.Y < -100);
-end;
+//function TScrollableRowControl<T>.IsScrollingToFastToClick: Boolean; // inline
+//begin
+//  Result := (AniCalculations.CurrentVelocity.Y > 100) or (AniCalculations.CurrentVelocity.Y < -100);
+//end;
 
 function TScrollableRowControl<T>.IsRowSelected(Index: integer): boolean;
 begin
@@ -3058,7 +2997,7 @@ begin
     NonHL := _Highlight2;
 
   Assert(NonHL <> nil); // if nil, the code below should be reorganised, but looks like it is going good at this moment
-  if IsVerticalBoundsAnimationWorkingNow or IsScrollingToFastToClick then
+  if IsVerticalBoundsAnimationWorkingNow or IsScrollingTooFastToClick then
     NonHL.SetForNewRow(nil)
   else begin // position and size
     NonHL.SetForNewRow(Row);
@@ -3455,8 +3394,8 @@ end;
 
 procedure TBaseViewList<T>.set_RowHeight(const DataRow: CObject; Value: Single);
 begin
-  if _RowHeights = nil then
-    _RowHeights := TFMXRowHeightCollection.Create; // may be global RowHeights also
+  if _RowHeights = nil then     // may be global RowHeights also
+    _RowHeights := TFMXRowHeightCollection.Create;
 
   _RowHeights[DataRow] := Value;
 end;
