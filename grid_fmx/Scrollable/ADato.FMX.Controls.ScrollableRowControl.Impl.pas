@@ -3364,8 +3364,6 @@ begin
 end;
 
 procedure TBaseViewList<T>.ProcessDelayedRows;
-var
-  Test: IList<T>;
 begin
   if _rowsToDestroyLater = nil then Exit;
 

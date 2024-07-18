@@ -88,7 +88,7 @@ begin
   begin
     {$IF defined(DEBUG) and defined(LYNXX)}
     if not AFilename.ToLower.Contains('lynx') then
-      Exit;
+      Exit(False);
     {$ENDIF}
 
     if FileTicks = 0 then
