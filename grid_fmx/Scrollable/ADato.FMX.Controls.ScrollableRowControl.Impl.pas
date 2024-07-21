@@ -715,12 +715,6 @@ begin
 
 end;
 
-procedure TScrollableRowControl<T>.DoNegotiateRowsHeights;
-begin
-
-
-end;
-
 function TScrollableRowControl<T>.NeedResetView: boolean;
  { Workaround for low accuracy of averageHeight: Fully reset list when:
    1. When Viewport.Y is on the most top - Tree does not show Row 0, but shows row 1 or 2.
