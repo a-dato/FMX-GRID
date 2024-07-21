@@ -299,6 +299,8 @@ begin
   // Scrollbars were created
   if _UseCustomHorzScrollbar then
     ReplaceDefaultHorzScrollBar;
+
+  _StyleWasFreedByFMX := False;
 end;
 
 procedure TScrollableControl.FreeStyle;

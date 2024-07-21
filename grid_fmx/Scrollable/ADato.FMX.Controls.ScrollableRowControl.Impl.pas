@@ -421,7 +421,7 @@ type
     _Control: TScrollableRowControl<T>;  // Gantt or Tree
     _CacheRows: Boolean; // default = true
     _IsDataModelView: Boolean;
-    _rowHeights: IFMXRowHeightCollection;
+    [weak] _rowHeights: IFMXRowHeightCollection;
     function get_TopRow: Integer; virtual;
     function get_DataList: IList; virtual; abstract;
     function get_Current: Integer; virtual; abstract;
@@ -707,7 +707,7 @@ begin
 
   if NewScrollingType = TScrollingType.None then
   begin
-    // NegotiateRowHeight(
+
 
   end
   else //  if ScrollingType <> TScrollingType.None then
@@ -715,20 +715,11 @@ begin
 
 end;
 
-// Moved into TScrollableControl
-//procedure TScrollableRowControl<T>.MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
-//begin
-//  inherited;
-//  // the CPU can be to slow to handle all MouseWheel events, and can get stuk for a little while
-//  // in the meantime we don't want the timer "OnFastScrollingStopTimer" to be executed, because this results in extra performance for the already slow CPU
-//
-//  if _scrollingType <> TScrollingType.None then
-//  begin
-//    // in case if this is the last ViewportPositionChange event - reset _isFastScrolling to False in timer
-//    _fsStopTimer.Enabled := False; // truly reset timer here!!
-//    _fsStopTimer.Enabled := True;
-//  end;
-//end;
+procedure TScrollableRowControl<T>.DoNegotiateRowsHeights;
+begin
+
+
+end;
 
 function TScrollableRowControl<T>.NeedResetView: boolean;
  { Workaround for low accuracy of averageHeight: Fully reset list when:
@@ -1316,12 +1307,10 @@ end;
 
 procedure TScrollableRowControl<T>.SetStepForScrollPerRow;
 begin
-  if _View.Count > 0 then
+  if (VScrollBar <> nil) and (_View.Count > 0) then
   begin
     var firstRow: IRow := _View[0];
-
-    if VScrollBar <> nil then
-      VScrollBar.SmallChange := firstRow.Height;
+    VScrollBar.SmallChange := firstRow.Control.Height;
   end;
 end;
 
@@ -3162,7 +3151,7 @@ begin
   _Control := Control;
 
   // Do not create always, create it when setting a custom height only
-  // if (RowHeights = nil) and (TreeControl.FixedRowHeight = 0) 
+  // if (RowHeights = nil) and (TreeControl.FixedRowHeight = 0)
   //   _RowHeights := TFMXRowHeightCollection.Create
   //  else
   _RowHeights := RowHeights; // global RowHeights list, if exists
@@ -3371,11 +3360,9 @@ begin
   // because of collapsing\moving animation
   for var i := 0 to _rowsToDestroyLater.Count - 1 do
     if _CacheRows then
-    begin
-      var t1 := _rowsToDestroyLater[i];
-      MoveRowToCache(t1);  // else row will be release by refcount
+      MoveRowToCache(_rowsToDestroyLater[i]);
+    // else (_CacheRows = False) - row will be released by refcount
 
-    end;
   _rowsToDestroyLater := nil;
 end;
 
