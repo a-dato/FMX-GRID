@@ -8,8 +8,8 @@ interface
 uses
   System_, ADato.FMX.Controls.ScrollableRowControl.Intf {IRow};
 
-const
-  INITIAL_ROW_HEIGHT = 25;  // For Tree and Gantt, there is only one constant
+//const
+ // INITIAL_ROW_HEIGHT = 25;  // moved into ADato.FMX.Controls.ScrollableRowControl.Impl
 
 type
   TNegotiateRowHeightProc = function (Sender: TObject; ARow: IRow; var AHeight: Single) : Boolean of object;

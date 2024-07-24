@@ -634,7 +634,6 @@ begin
 
   if _scrollingType <> TScrollingType.None then
   begin
-    var t1 := _VPYStart - _VPY_End;
     ScrollingType := TScrollingType.None;
 
     _FastScrollStartTime := 0;
