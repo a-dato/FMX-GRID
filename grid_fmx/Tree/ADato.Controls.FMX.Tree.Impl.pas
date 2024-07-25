@@ -5540,6 +5540,8 @@ function TCustomTreeControl.get_Cell: ITreeCell;
 var
   col: Integer;
 begin
+  Result := nil;
+
   var row: ITreeRow := Rows[Current];
   if row <> nil then
   begin
