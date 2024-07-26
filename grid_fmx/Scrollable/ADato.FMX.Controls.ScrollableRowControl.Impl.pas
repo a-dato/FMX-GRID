@@ -76,7 +76,9 @@ type
     STYLE_HINT = 'hint'; // show a hint while dragging a row
     STYLE_DRAG_DROP_HORZ_LINE = 'dragdropline';
   strict private
-  const  // See also: Animate: boolean
+  const
+    INITIAL_ROW_HEIGHT = 25;  // For Tree and Gantt, there is only one constant. Use GetInitialRowHeight instead.
+    // See also: Animate: boolean
     ANIMATE_SHOW_ROW_DURATION = 0.35; // fade-in for all rows, seconds. Includes expanding rows. See also ANIMATE_EXPANDED_ROW_SHOW_DELAY
     ANIMATE_HIDE_ROW_DURATION = 0.3; // fade out row while collapsing parent row
     ANIMATE_MOVE_ROW_DURATION = 0.3; // collapse\expand
@@ -197,6 +199,7 @@ type
     _SkipRowHeightNegotiation: Boolean;
     function GetRowFromNegotiateList(ViewRowIndex: integer; const DataItem: CObject): T;
     procedure DoScrollingTypeChanged(const OldScrollingType, NewScrollingType: TScrollableControl.TScrollingType); override;
+    function GetInitialRowHeight: single; inline;
   protected
     _View: IRowList<T>;
     _IsDeniedUpdateContent: Boolean;
@@ -466,7 +469,7 @@ type
     procedure ClearRowCache;
   end;
 
-  TRowControl = class(TRectangle) // see 5705 class(TOwnerStyledPanel)
+  TRowControl = class(TRectangle) // see 5705 // class(TOwnerStyledPanel)
   private
     function GetBackgroundColor: TAlphaColor;
   public
@@ -476,7 +479,7 @@ type
 
   TRow = class(TBaseInterfacedObject, IRow, IFreeNotification)
   strict protected
-    _Control: TRowControl;
+    _Control: TRowControl;  // Note: TRowControl has "Owner" as Tree or Gantt
     _DataItem: CObject; { in DMV mode - _DataItem is IDataRowView, to access a data itself use _DataItem.AsType<IDataRowView>.Row.Data
                           in usual mode - _DataItem is the data itself}
     _Index: Integer; // Not a View Index! Can be DataModel View index or for usual mode - _data index. While filtering (only) control resets it - first Row0.Index = 0.
@@ -967,10 +970,7 @@ end;
 
 procedure TScrollableRowControl<T>.AfterUpdateContents(ViewPortYPosition: Single);
 begin
-  // otherwise this will be executed in "OnFastScrollingStopTimer"
-  if ScrollingType <> TScrollingType.None then
-    Exit;
-
+  // need to call this code while scrolling, or Tree has bugs described in NeedResetView
   if (GetYScrollingDirection = TScrollingDirection.sdUp) and (_View.Count > 1) then
     if NeedResetView then
     begin
@@ -979,6 +979,10 @@ begin
       Tree does not call Paint.}
       ResetView;
     end;
+
+  // otherwise this will be executed in "OnFastScrollingStopTimer"
+  if ScrollingType <> TScrollingType.None then
+    Exit;
 
   // calls Invalidate - it does not work inside Begin\EndUpdate
   CalcContentBounds;
@@ -2704,6 +2708,14 @@ begin
   Result := (Val1 = Val2) or (Val1 = Val2 + 1) or (Val1 = Val2 - 1);
 end;
 
+function TScrollableRowControl<T>.GetInitialRowHeight: Single; // inline
+begin
+  if _FixedRowHeight > 0 then
+    Result := _FixedRowHeight
+  else
+    Result := INITIAL_ROW_HEIGHT;
+end;
+
 procedure TScrollableRowControl<T>.OnTimerHintHoverDelay(Sender: TObject);
 begin
   _TimerHintDelay.Enabled := False;
@@ -3145,10 +3157,6 @@ begin
   _CacheRows := USE_ROW_CACHE;
   _Control := Control;
 
-  // Do not create always, create it when setting a custom height only
-  // if (RowHeights = nil) and (TreeControl.FixedRowHeight = 0)
-  //   _RowHeights := TFMXRowHeightCollection.Create
-  //  else
   _RowHeights := RowHeights; // global RowHeights list, if exists
 
   //if Interfaces.Supports(_RowHeights, INotifyCollectionChanged, CollectionNotification) then
@@ -3329,8 +3337,14 @@ begin
   if CanCache then
   begin
     _CacheList.Add(ARow);
-   //  ARow.Control.Opacity := 0;
-     ARow.Control.Visible := False; // should hide, because row with Opacity = 0 overlaps visible rows and user cannot click on them
+    ARow.Control.Visible := False; // should hide, because row with Opacity = 0 overlaps visible rows and user cannot click on them
+
+    // reset row height
+    var defaultRowHeight := _Control.FixedRowHeight;
+    if defaultRowHeight = 0 then
+      defaultRowHeight := _Control.GetInitialRowHeight;
+
+    ARow.Control.Height := defaultRowHeight;
   end;
 end;
 
@@ -3363,13 +3377,13 @@ end;
 
 function TBaseViewList<T>.get_RowHeight(const DataRow: CObject): Single;
 begin
-  if _Control.FixedRowHeight > 0 then
-    Result := _Control.FixedRowHeight
-  else
-    if _RowHeights <> nil then
-      Result := _RowHeights[DataRow]
-    else
-      Result := INITIAL_ROW_HEIGHT;
+  Result := -1;
+
+  if _RowHeights <> nil then
+    Result := _RowHeights[DataRow];
+
+  if Result = -1 then
+    Result := _Control.GetInitialRowHeight;
 end;
 
 procedure TBaseViewList<T>.set_RowHeight(const DataRow: CObject; Value: Single);
@@ -3506,6 +3520,12 @@ begin
   begin
     _Control.Opacity := 1;
     _Control.Visible := True;
+
+    // var mainControl := TScrollableRowControl<IRow>(_Control.Owner);  // Tree\Gantt
+    { Note: This: "(_Control.Owner AS TScrollableRowControl<IRow>)" shows error invalid typecast (IS = False), but everything
+      is correct, owner is Tree or Gantt inherited from TScrollableRowControl<IRow>. This is because TScrollableRowControl has
+      own IRow - ITreeRow or IGanttRow, both interfaces inherited from IRow. 'ClassParent = TScrollableRowControl<ITreeRow>'
+      Seems compiler does not check this part - interface inheritance in <T>. So do it directly. }
   end;
 end;
 

@@ -134,10 +134,13 @@ var
 begin
   Assert(DataRow <> nil);
 
-  if _RowHeights.TryGetValue(DataRow, DW) then
+  if (_RowHeights.Count > 0) and _RowHeights.TryGetValue(DataRow, DW) then
     Result := DW
   else
-    Result := INITIAL_ROW_HEIGHT;
+    Result := -1;
+//    Result := INITIAL_ROW_HEIGHT;
+// commented, because Tree also has FixedRowHeight and if _RowHeights returns False (-1) -
+// we should use FixedRowHeight value, not INITIAL_ROW_HEIGHT. See TBaseViewList<T>.get_RowHeight
 end;
 
 procedure TFMXRowHeightCollection.set_RowHeight(

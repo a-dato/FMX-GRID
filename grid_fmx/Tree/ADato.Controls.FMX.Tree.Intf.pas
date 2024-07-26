@@ -704,7 +704,7 @@ type
   ITreeControl = {$IFDEF DOTNET}public{$ENDIF} interface(IInterface)
   {$IFDEF DELPHI}
     ['{91622B4C-A72D-4E2E-AC6B-1B3D026A21CB}']
-    function  get_Cell: ITreeCell;
+    [Result: unsafe] function  get_Cell: ITreeCell;
     procedure set_Cell(const Value: ITreeCell);
     function  get_CellItemClicked: CellItemClickedEvent;
     procedure set_CellItemClicked(Value: CellItemClickedEvent);
@@ -1399,7 +1399,7 @@ type
   ITreeRow = {$IFDEF DOTNET}public{$ENDIF} interface(IRow)
     {$IFDEF DELPHI}
     ['{7CEE36C0-298A-4B74-9FD9-189BB1A197C0}']
-    function  get_Cells: ITreeCellList;
+    [Result: Unsafe] function  get_Cells: ITreeCellList;
     function  get_Checked: Boolean;
     procedure set_Checked(const Value: Boolean);
     function  get_Enabled: Boolean;

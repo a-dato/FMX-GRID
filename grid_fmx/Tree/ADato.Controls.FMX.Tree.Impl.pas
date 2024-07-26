@@ -293,7 +293,7 @@ type
   protected
     [unsafe] _Owner   : ITreeRowList;
     procedure UpdatePlusMinusFillerState; // in all cells
-    function  get_Cells: ITreeCellList;
+    [Result: Unsafe] function get_Cells: ITreeCellList;
     //IOverwritableTreeRow
     procedure set_DataItem(const Value: CObject);
     function  get_Enabled: Boolean;
@@ -1419,7 +1419,7 @@ type
     procedure HScrollChange; override;
 
     // ITreeControl methods
-    function  get_Cell: ITreeCell;
+    [Result: unsafe] function  get_Cell: ITreeCell;
     procedure set_Cell(const Value: ITreeCell);
     function  get_CellItemClicked: CellItemClickedEvent;
     procedure set_CellItemClicked(Value: CellItemClickedEvent);
@@ -4651,7 +4651,7 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
     begin
       // when using cell.Colspan, a cell can be nil
 
-      var c := ATreeRow.Cells.InnerArray[i];
+      var [unsafe] c := ATreeRow.Cells.InnerArray[i];
       if c = nil then Continue;
       cell := TTreeCell(c);
 
@@ -4711,12 +4711,7 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
 
 var
   isCachedRow: Boolean; // cached row is a row which Tree re-uses, it has already controls and styles
-//  treeCell: ITreeCell;
   treeRow: ITreeRow;
-//  FMXColumn: TFMXTreeColumn;
-//  layoutColumn      : ITreeLayoutColumn;
- // columnIndex       : Integer;
-//  LoadDefaultData   : Boolean;
   rowHeight         : Single;
   treeRowClass      : TTreeRow;
 begin
@@ -4745,12 +4740,12 @@ begin
       treeRowHeight := AMinHeight;
     end;
 
-    isCachedRow := (treeRow.Control <> nil);
+    isCachedRow := (treeRowClass.Control <> nil);
 
     if not isCachedRow then
       treeRowClass.Control := TRowControl.Create(Self)
-    else if not SameValue(treeRowClass.Control.Height, treeRowClass.Height) then // update Height for cached row
-      treeRowClass.Control.Height := treeRowClass.Height;
+    else if not SameValue(treeRowClass.Control.Height, treeRowHeight) then // update Height for cached row
+      treeRowClass.Control.Height := treeRowHeight; //treeRowClass.Height;
       // this will also set Control.Height from RowHeights in TRow.set_Control
 
     // set as alt or usual row style, this works fast, because code sets color of row rectangle directly
@@ -4766,7 +4761,7 @@ begin
     rowHeight := InitRowCells(treeRow, isCachedRow, treeRowHeight);
 
     // Now rowHeight is calculated related to the max cell height
-    if rowHeight > treeRowClass.Height then
+    if rowHeight > treeRowHeight {treeRowClass.Height} then
       treeRowClass.Height := rowHeight;
 
 //    // Negotiate the final height of the row. This will init and add a row in another paired control (Gantt or Tree)
@@ -4935,7 +4930,7 @@ begin
     begin
       // if CellControl.Height was not changed in InitCellStyles and it is still default - adjust it to text width:
       if (size = treeCell.Control.Size.Size) then
-        size := layoutColumn.CalculateControlSize(treeCell, INITIAL_ROW_HEIGHT) else
+        size := layoutColumn.CalculateControlSize(treeCell, GetInitialRowHeight {INITIAL_ROW_HEIGHT}) else
         size := treeCell.Control.Size.Size;
 
       // at this stage "size" can be custom control size or from CalculateControlSize.
@@ -5546,18 +5541,20 @@ begin
   end;
 end;
 
+[Result: unsafe]
 function TCustomTreeControl.get_Cell: ITreeCell;
 var
   col: Integer;
-
 begin
+  Result := nil;
+
   var row: ITreeRow := Rows[Current];
   if row <> nil then
   begin
     col := Column;
     if (col >= 0) and (col < row.Cells.Count) then
     begin
-      Result := row.Cells[col];
+      Result := row.Cells.InnerArray[col];
       if row.IsTemporaryRow then
         Result := TTreeCellWithRowLock.Create(row, Result);
     end;
@@ -6822,7 +6819,7 @@ begin
           var clmnIndex := _Layout.ColumnToCellIndex(treeCell.Column);
 
           // calc cell width and height
-          NewCellSize := _Layout.Columns[clmnIndex].CalculateControlSize(treeCell, INITIAL_ROW_HEIGHT);
+          NewCellSize := _Layout.Columns[clmnIndex].CalculateControlSize(treeCell, GetInitialRowHeight {INITIAL_ROW_HEIGHT});
 
           UpdateColumnWidthAndCells(clmnIndex, NewCellSize.Width, TreeCell.ColSpan,
             [TUpdateColumnReason.UpdateRows, TUpdateColumnReason.UpdateHeader{, TUpdateColumnReason.HeaderSizing}]);
@@ -11003,17 +11000,23 @@ end;
 
 procedure TTreeRow.ResetRowData(const ADataItem: CObject; AIndex: Integer);
 begin
-//  for var i := 0 to Cells.Count - 1 do // for var cell in Cells
-//  begin
-//    var cell := Cells[i];
-//    if cell = nil then
-//      Continue;
-//
-//    var c := Cells[i].Control;
-//    if c <> nil then
-//      c.Height := INITIAL_CELL_HEIGHT;
-//  end;
+  { Row with cells is invisible now.
+    Need to reset cells height, or while scrolling rows with different rows heights, newly appeared rows from cache,
+    at first comes as large size (as they were cached) and then change to the smaller when scrolling stopped. User sees these changes.
+    This is because cell re-calculates own size only when scrolling is stopped}
 
+  for var i := 0 to Cells.Count - 1 do // for var cell in Cells
+  begin
+    var [unsafe] cell := Cells.InnerArray[i];
+    if cell = nil then
+      Continue;
+
+    var c := cell.Control;
+    if c <> nil then
+      c.Height := TScrollableRowControl<IRow>(_Control.Owner).GetInitialRowHeight;
+  end;
+
+  // make row control visible:
   inherited;
 end;
 
@@ -11061,6 +11064,7 @@ begin
   Result := Control.BackgroundColor;
 end;
 
+[Result: Unsafe]
 function TTreeRow.get_Cells: ITreeCellList;
 begin
   Result := _Cells;
