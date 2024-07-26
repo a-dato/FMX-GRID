@@ -520,7 +520,7 @@ type
 implementation
 
 uses
-  ADato.TraceEvents.intf;
+  ADato.TraceEvents.intf, ADato.FMX.ControlClasses;
 
 {$REGION 'TScrollableRowControl<T>'}
 
@@ -1220,15 +1220,16 @@ begin
 
   if not FindStyleResourceBase(AStyleName, DO_NOT_CLONE, line) then
   begin
-    Line := TLine.Create(nil);  // no style, use default
-    Line.Stroke.Color := TAlphaColorRec.Red;
+    Line := ScrollableRowControl_LineClass.Create(nil);  // no style, use default
+    Line.Stroke.Color := TAlphaColorRec.Lightgrey;
   end;
 
   try
     AStroke := TStrokeBrush.Create(Line.Stroke.Kind, Line.Stroke.Color);
     AStroke.Assign(Line.Stroke);
   finally
-    Line.Free;  //do not need it in future
+    // do not need it in future
+    Line.Free;
   end;
 
   Result := AStroke <> nil;

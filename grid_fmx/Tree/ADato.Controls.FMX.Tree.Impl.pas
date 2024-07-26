@@ -118,8 +118,8 @@ type
     _LayoutComplete : Boolean;
     _ColSpan        : Byte;
   private
-    procedure DrawHierachicalBorder(AGridLineStyle: TStrokeBrush; ABaseIndent: single);
-    procedure DrawRectangleBorder(AGridLineStyle: TStrokeBrush);
+    procedure DrawLineBorder(AGridLineStyle: TStrokeBrush; FullHorzAndVertGrid: Boolean);
+    procedure DrawLineBorderInHierarchy(AGridLineStyle: TStrokeBrush; ABaseIndent: single; FullHorzAndVertGrid: Boolean);
     procedure UpdateBottomHierarchicalBorder;
     procedure UpdateLeftHierarchicalBorders;
   protected
@@ -1388,6 +1388,7 @@ type
     function  get_Options: TreeOptions;
     procedure set_Options(const Value: TreeOptions);
     procedure set_RowHeights(const Value: IFMXRowHeightCollection);
+    function  get_Layout: ITreeLayout;
 
     procedure Initialize; override;
     procedure InitCellContent(const TreeCell: ITreeCell; const LayoutColumn: ITreeLayoutColumn);
@@ -1610,7 +1611,7 @@ type
     //Current - Current Row index in the source list (= View.List), not in a current View list
     property HeaderRows: IHeaderRowList read get_HeaderRows;
     // property Images: TCustomImageList read GetImages write SetImages;
-    property Layout: ITreeLayout read _Layout;
+    property Layout: ITreeLayout read get_Layout;
     property Row: ITreeRow read get_Row;
     property TopRowPosition: Single read _TopRowPosition;
     property TreeRowList: ITreeRowList read get_TreeRowList;
@@ -4578,30 +4579,35 @@ begin
   UpdateRowExpandedState(Sender, True);
 end;
 
-function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integer; const Y: single = 0;
-  const AMinHeight: Single = 0): ITreeRow;
+function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integer; const Y: single = 0; const AMinHeight: Single = 0): ITreeRow;
 
   procedure DrawGrid(ACell: TTreeCell);
   begin
+
+    var isTopRow := ACell.Row.Index = 0;
+    var drawVertical := (TreeOption.AllowCellSelection in _Options);
+
+    // update grid
     if ACell._GridWasDrawn then
-    begin  // update grid
+    begin
       if ACell.Column.ShowHierarchy and _View.IsDataModelView then
       begin
         ACell.UpdateBottomHierarchicalBorder;
-        ACell.UpdateLeftHierarchicalBorders;
+
+        if drawVertical then
+          ACell.UpdateLeftHierarchicalBorders;
       end;
     end
-    else // Draw Grid
-      begin
-        // load style
-        if _GridLineStroke = nil then
-          if not LoadLineStrokeStyle(STYLE_GRID_LINE, _GridLineStroke) then Exit;
 
-        if ACell.Column.ShowHierarchy and _View.IsDataModelView then
-          ACell.DrawHierachicalBorder(_GridLineStroke, _Indent)
-        else
-          ACell.DrawRectangleBorder(_GridLineStroke);
-      end;
+    // Draw Grid
+    else begin
+      if _GridLineStroke = nil then // load style
+        if not LoadLineStrokeStyle(STYLE_GRID_LINE, _GridLineStroke) then Exit;
+
+      if ACell.Column.ShowHierarchy and _View.IsDataModelView then
+        ACell.DrawLineBorderInHierarchy(_GridLineStroke, _Indent, drawVertical) else
+        ACell.DrawLineBorder(_GridLineStroke, drawVertical);
+    end;
   end;
 
 
@@ -5798,6 +5804,11 @@ end;
 function TCustomTreeControl.get_ItemType: &Type;
 begin
   Result := _itemType;
+end;
+
+function TCustomTreeControl.get_Layout: ITreeLayout;
+begin
+  Result := _layout;
 end;
 
 procedure TCustomTreeControl.set_ItemType(const Value: &Type);
@@ -10615,13 +10626,66 @@ begin
   inherited;
 end;
 
-procedure TTreeCell.DrawHierachicalBorder(AGridLineStyle: TStrokeBrush; ABaseIndent: single);
+procedure TTreeCell.DrawLineBorder(AGridLineStyle: TStrokeBrush; FullHorzAndVertGrid: Boolean);
+
+  function CreateLine: TLine;
+  begin
+    var l := ScrollableRowControl_LineClass.Create(_Control);
+    l.Stroke.Assign(AGridLineStyle);
+    l.Width := l.Stroke.Thickness;
+    Result := l;
+  end;
+
+begin
+  Assert(not _GridWasDrawn);
+
+  if FullHorzAndVertGrid then
+  begin
+    // top line of the border
+    var line := CreateLine;
+    line.LineType := TLineType.Top;
+    line.Height := line.Stroke.Thickness;
+    line.Align := TAlignLayout.Top; // AutofitColumns\user may resize a column
+    line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
+    _Control.AddObject(line);
+  end;
+
+  // bottom line
+  var bottomLine := CreateLine;
+  bottomLine.LineType := TLineType.Bottom;
+  bottomLine.Height := bottomLine.Stroke.Thickness;
+  bottomLine.Align := TAlignLayout.Bottom; // user may resize a column
+
+  // bottom line X of the cell must always start from the first parent, - this line will be hidden by cell controls
+  // from below and it will be visible only for the last row (nothing below)
+  bottomLine.Margins.Bottom := GRID_LINE_NEGATIVE_OFFSET; // hide bottom line under the next cell from below
+  _Control.AddObject(bottomLine);
+
+  if FullHorzAndVertGrid then
+  begin
+    const specY = -0.7;
+
+    // right line
+    var line := CreateLine;
+    line.LineType := TLineType.Left;
+    line.Width := line.Stroke.Thickness;
+    line.Align := TAlignLayout.MostRight;     // AutofitColumns\user may resize a column
+    line.Margins.Top := specY;
+    line.Margins.Bottom := -HEIGHT_BORDER_OFFSET;
+    line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
+    _Control.AddObject(line);
+  end;
+
+  _GridWasDrawn := True;
+end;
+
+procedure TTreeCell.DrawLineBorderInHierarchy(AGridLineStyle: TStrokeBrush; ABaseIndent: single; FullHorzAndVertGrid: Boolean);
 // ANextRowExist = true - if user expands a row with child(s) (= create new or use cached) and below of these rows
 // other rows  already exist
 
   function CreateLine: TLine;
   begin
-    var l := TLine.Create(_Control);
+    var l := ScrollableRowControl_LineClass.Create(_Control);
     l.Stroke.Assign(AGridLineStyle);
     l.Width := l.Stroke.Thickness;
     Result := l;
@@ -10632,79 +10696,86 @@ begin
   // we can not use Rectangle to draw a border, because the top line can be smaller than the bottom line, it draws also
   // several left lines in one row to show heirarchy
 
-  // top line of the border
-  var line := CreateLine;
-  line.LineType := TLineType.Top;
-  line.Height := line.Stroke.Thickness;
-  line.Align := TAlignLayout.Top; // AutofitColumns\user may resize a column
+  if FullHorzAndVertGrid then
+  begin
+    // top line of the border
+    var line := CreateLine;
+    line.LineType := TLineType.Top;
+    line.Height := line.Stroke.Thickness;
+    line.Align := TAlignLayout.Top; // AutofitColumns\user may resize a column
 
-  if Self.Row.HasChildren then  // filler has negative value, top line border should cover it too
-    line.Margins.Left := -(ABaseIndent) + GRID_LINE_NEGATIVE_OFFSET
-  else
-    line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
+    if Self.Row.HasChildren then  // filler has negative value, top line border should cover it too
+      line.Margins.Left := -(ABaseIndent) + GRID_LINE_NEGATIVE_OFFSET
+    else
+      line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
 
-  _Control.AddObject(line);
+    _Control.AddObject(line);
+  end;
 
   // bottom line
-  line := CreateLine;
-  line.LineType := TLineType.Bottom;
-  line.Height := line.Stroke.Thickness;
-  line.Align := TAlignLayout.Bottom; // user may resize a column
+  var bottomLine := CreateLine;
+  bottomLine.LineType := TLineType.Bottom;
+  bottomLine.Height := bottomLine.Stroke.Thickness;
+  bottomLine.Align := TAlignLayout.Bottom; // user may resize a column
 
   // bottom line X of the cell must always start from the first parent, - this line will be hidden by cell controls
   // from below and it will be visible only for the last row (nothing below)
-  line.Margins.Bottom := GRID_LINE_NEGATIVE_OFFSET; // hide bottom line under the next cell from below
-  _Control.AddObject(line);
+  bottomLine.Margins.Bottom := GRID_LINE_NEGATIVE_OFFSET; // hide bottom line under the next cell from below
+  _Control.AddObject(bottomLine);
 
   if _Control is TCellControl then
-    (_Control as TCellControl)._GridBottomLine := line else   // see comment in TCellControl
-    (_Control as TStyledCellControl)._GridBottomLine := line;   // see comment in TCellControl
+    (_Control as TCellControl)._GridBottomLine := bottomLine else   // see comment in TCellControl
+    (_Control as TStyledCellControl)._GridBottomLine := bottomLine;   // see comment in TCellControl
 
   UpdateBottomHierarchicalBorder;
 
-  const specY = -0.7;
-
-  // right line
-  line := CreateLine;
-  line.LineType := TLineType.Left;
-  line.Width := line.Stroke.Thickness;
-  line.Align := TAlignLayout.MostRight;     // AutofitColumns\user may resize a column
-  line.Margins.Top := specY;
-  line.Margins.Bottom := -HEIGHT_BORDER_OFFSET;
-  line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
-  _Control.AddObject(line);
-
-  { • Draw several left vertical lines in this row control ONLY, for this row and parent rows (border of parent rows goes through
-      children rows)
-    • We cannot use parentRow.Parent here, because when user EXPANDS a row with children parent (not AbsParent,
-    some subparent) may be still = nil, this case is ONLY while expanding, in usual case (AppendRowsBelow) - Tree first
-    adds a parent into the View and then calls InitRow for its child.  }
-
-  var cellIndentX: Single;
-  var parentRowLevel := _Row.Level; //Self.Row;
-  var rowHasChildren: Boolean := _Row.HasChildren;
-
-  while parentRowLevel > -1 do
+  if FullHorzAndVertGrid then
   begin
-    if rowHasChildren then
-      cellIndentX := ABaseIndent * (parentRowLevel + 1) // X of the parent border, will be negative offset related to a cell control
-    else
-      cellIndentX := 0;   // without plus-minus filler
+    const specY = -0.7;
 
-    line := CreateLine;
+    // right line
+    var line := CreateLine;
     line.LineType := TLineType.Left;
-    line.Tag := LEFT_GRID_LINE_ID; // set ID for such type of lines to find it later in UpdateLeftAndBottomHierarchicalBorders
-
-    // -(cellIndentX) - (offset is related to cell control)  show the left line before the filler (filler has negative offset)
-    line.SetBounds( -(cellIndentX) + GRID_LINE_NEGATIVE_OFFSET, specY, line.Width, _Control.Height + HEIGHT_BORDER_OFFSET);
+    line.Width := line.Stroke.Thickness;
+    line.Align := TAlignLayout.MostRight;     // AutofitColumns\user may resize a column
+    line.Margins.Top := specY;
+    line.Margins.Bottom := -HEIGHT_BORDER_OFFSET;
+    line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
     _Control.AddObject(line);
 
-    Dec(parentRowLevel);
-    rowHasChildren := True;
+    { • Draw several left vertical lines in this row control ONLY, for this row and parent rows (border of parent rows goes through
+        children rows)
+      • We cannot use parentRow.Parent here, because when user EXPANDS a row with children parent (not AbsParent,
+      some subparent) may be still = nil, this case is ONLY while expanding, in usual case (AppendRowsBelow) - Tree first
+      adds a parent into the View and then calls InitRow for its child.  }
+
+    var cellIndentX: Single;
+    var parentRowLevel := _Row.Level; //Self.Row;
+    var rowHasChildren: Boolean := _Row.HasChildren;
+
+    while parentRowLevel > -1 do
+    begin
+      if rowHasChildren then
+        cellIndentX := ABaseIndent * (parentRowLevel + 1) // X of the parent border, will be negative offset related to a cell control
+      else
+        cellIndentX := 0;   // without plus-minus filler
+
+      line := CreateLine;
+      line.LineType := TLineType.Left;
+      line.Tag := LEFT_GRID_LINE_ID; // set ID for such type of lines to find it later in UpdateLeftAndBottomHierarchicalBorders
+
+      // -(cellIndentX) - (offset is related to cell control)  show the left line before the filler (filler has negative offset)
+      line.SetBounds( -(cellIndentX) + GRID_LINE_NEGATIVE_OFFSET, specY, line.Width, _Control.Height + HEIGHT_BORDER_OFFSET);
+      _Control.AddObject(line);
+
+      Dec(parentRowLevel);
+      rowHasChildren := True;
+    end;
   end;
 
   _GridWasDrawn := True;
 end;
+
 procedure TTreeCell.UpdateBottomHierarchicalBorder;
   // for cached row only
 begin
@@ -10747,24 +10818,6 @@ begin
     if _Control.Controls.List[i].Tag = LEFT_GRID_LINE_ID then
       _Control.Controls.List[i].Height := _Control.Height + HEIGHT_BORDER_OFFSET;
   end;
-end;
-
-procedure TTreeCell.DrawRectangleBorder(AGridLineStyle: TStrokeBrush);
-begin
-  Assert(not _GridWasDrawn);
-
-  var border := TRectangle.Create(_Control);
-  border.Fill.Kind := TBrushKind.None;
-  border.Stroke.Assign(AGridLineStyle);
-  border.HitTest := False;
-
-  border.Align := TAlignLayout.Contents;
-  border.Sides := [TSide.Top, TSide.Bottom, TSide.Left, TSide.Right];
-  border.Margins.Bottom := GRID_LINE_NEGATIVE_OFFSET;
-  border.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
-  _Control.AddObject(border);
-
-  _GridWasDrawn := True;
 end;
 
 procedure TTreeCell.FreeNotification(AObject: TObject);
