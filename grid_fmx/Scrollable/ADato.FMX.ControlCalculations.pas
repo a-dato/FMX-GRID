@@ -57,14 +57,13 @@ begin
     Result := CMath.Min(Result, MaxWidth);
 end;
 
-function TextControlHeight(const TextControl: TControl; const Settings: TTextSettings; const Text: string;
-  MinHeight: Single = -1; MaxHeight: Single = -1; TextWidth: Single = -1): Single;
+function TextControlHeight(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinHeight: Single = -1; MaxHeight: Single = -1; TextWidth: Single = -1): Single;
 begin
   var layout := TTextLayoutManager.DefaultTextLayout.Create;
   try
     Layout.BeginUpdate;
     try
-      Layout.TopLeft := PointF(6, 6);
+      Layout.TopLeft := PointF(0, 0);
       Layout.MaxSize := PointF(IfThen(TextWidth <> -1, TextWidth, TextControl.Width), 9999);
       Layout.WordWrap := Settings.WordWrap;
       Layout.HorizontalAlign := TTextAlign.Leading;
@@ -81,7 +80,7 @@ begin
       Layout.EndUpdate;
     end;
 
-    Result := Layout.TextRect.Bottom;
+    Result := Ceil(Layout.TextRect.Bottom);
   finally
     Layout.Free;
   end;
