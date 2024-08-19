@@ -38,7 +38,6 @@ type
     _Control2FinishedRender: Boolean;
     _rowHeights: Dictionary<CObject, Single>;
     _UpdateCount: Integer;
-    _ViewportY: integer;
     _ProcList: List<TNotifyEvent>;
   strict private
     _CollectionChanged: NotifyCollectionChangedEventHandler;
@@ -146,8 +145,8 @@ begin
 end;
 
 procedure TFMXRowHeightCollection.Clear;
-var
-  e: NotifyCollectionChangedEventArgs;
+//var
+//  e: NotifyCollectionChangedEventArgs;
 
 begin
   { Do this only after heights were already synched, because Control (Tree\Gantt) clears Rowheigths in Datachanged,
@@ -187,7 +186,7 @@ end;
 procedure TFMXRowHeightCollection.set_RowHeight(const DataRow: CObject; Value: Single);
 var
   foundValue: Single;
-  e: NotifyCollectionChangedEventArgs;
+  //e: NotifyCollectionChangedEventArgs;
 begin
   Assert(DataRow <> nil);
 

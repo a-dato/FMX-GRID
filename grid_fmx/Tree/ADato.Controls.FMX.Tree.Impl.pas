@@ -4603,7 +4603,7 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
   procedure DrawGrid(ACell: TTreeCell);
   begin
 
-    var isTopRow := ACell.Row.Index = 0;
+   // var isTopRow := ACell.Row.Index = 0;
     var drawVertical := (TreeOption.AllowCellSelection in _Options);
 
     // update grid
