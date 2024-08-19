@@ -38,6 +38,7 @@ type
   ITreeSortDescription = {$IFDEF DOTNET}public{$ENDIF} interface;
   ITreeFilterDescription = {$IFDEF DOTNET}public{$ENDIF} interface;
   ITreeCheckboxColumn = {$IFDEF DOTNET}public{$ENDIF} interface;
+  ITreeLayout = {$IFDEF DOTNET}public{$ENDIF} interface;
 
   {$IFDEF DELPHI}
  // TResizeType = (None, PercentageOnly, ShowColumnOnFit);
@@ -714,6 +715,7 @@ type
     function  get_Column: Integer;
     procedure set_Column(Value: Integer);
     function  get_ColumnList: ITreeColumnList;
+    function  get_Layout: ITreeLayout;
     function  get_Current: Integer;
     procedure set_Current(Value: Integer);
     function  get_FirstColumn: Integer;
@@ -771,6 +773,9 @@ type
 
     property Columns: ITreeColumnList
       read  {$IFDEF DELPHI}get_ColumnList{$ENDIF};
+
+    property Layout: ITreeLayout
+      read  {$IFDEF DELPHI}get_Layout{$ENDIF};
 
     property Current: Integer
       read  {$IFDEF DELPHI}get_Current{$ENDIF}

@@ -23,6 +23,7 @@ type
   TMemoClass = class of TMemo;
   TDateEditClass = class of TDateEdit;
   TComboEditClass = class of TComboEdit;
+  TLineClass = class of TLine;
 
   TDateTimeEditOnKeyDownOverride = class(TDateEdit)
   protected
@@ -40,6 +41,7 @@ var  // see Initialization section
   ScrollableRowControl_DefaultMemoClass: TMemoClass;
   ScrollableRowControl_DefaultDateEditClass: TDateEditClass;
   ScrollableRowControl_DefaultComboEditClass: TComboEditClass;
+  ScrollableRowControl_LineClass: TLineClass;
 
 implementation
 
@@ -108,5 +110,6 @@ initialization
   ScrollableRowControl_DefaultMemoClass := TMemo;
   ScrollableRowControl_DefaultDateEditClass := TDateTimeEditOnKeyDownOverride;
   ScrollableRowControl_DefaultComboEditClass := TComboEdit;
+  ScrollableRowControl_LineClass := TLine;
 
 end.
