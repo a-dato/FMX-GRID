@@ -881,6 +881,12 @@ begin
     inc(viewindex);
   end;
 
+
+  // test version, if we will approve it, later add and use it via interface part
+  var _RowHeightsGlobalClass: TFMXRowHeightCollection := nil;
+  if _RowHeightsGlobal <> nil then
+    _RowHeightsGlobalClass := TFMXRowHeightCollection(_RowHeightsGlobal);
+
   // viewindex = #of rows hidden and visible
   if viewindex > 0 then
   begin
@@ -889,22 +895,19 @@ begin
     if _IsMasterScrollingControl and (_View.Count > 0) then
     begin
       var [unsafe] lRow: IRow := _View[0];
-      TFMXRowHeightCollection(_RowHeightsGlobal).SaveTopRow(lRow.Index, lRow.Top);
+      _RowHeightsGlobalClass.SaveTopRow(lRow.Index, lRow.Top);
     end;
 
     // RowHeights will decide - apply or not a new AverageHeight from this control, must be same value for both for the one render session
-    TFMXRowHeightCollection(_RowHeightsGlobal).AverageRowHeight := _averageRowHeight;
-    _averageRowHeight := TFMXRowHeightCollection(_RowHeightsGlobal).AverageRowHeight;
+    if _RowHeightsGlobalClass <> nil then
+    begin
+      _RowHeightsGlobalClass.AverageRowHeight := _averageRowHeight;
+      _averageRowHeight := _RowHeightsGlobalClass.AverageRowHeight;
+    end;
   end;
 
   if _averageRowHeight = 0 then
     _averageRowHeight := GetInitialRowHeight;
-
-//    if viewindex > 0 then
-//    begin
-//      _averageRowHeight := totalHeight / viewindex;
-//      TFMXRowHeightCollection(_RowHeightsGlobal).TestAH := _averageRowHeight;
-//    end;
 
   // remove rows in invisible area
   if (tophidden <> -1) and (GetYScrollingDirection = TScrollingDirection.sdDown) then
@@ -914,12 +917,23 @@ begin
 
   var rowindex: Integer;
 
-  //  test - set top row from another control
-  var rowHeightsGlobalTopRowIndex := TFMXRowHeightCollection(_RowHeightsGlobal).TopRowIndex;
-  if not _IsMasterScrollingControl and (Toprow <> nil) and (Toprow.Index <> rowHeightsGlobalTopRowIndex) then
+  var rowHeightsGlobalTopRowIndex := -1;
+  if _RowHeightsGlobalClass <> nil then
+    rowHeightsGlobalTopRowIndex := _RowHeightsGlobalClass.TopRowIndex;
+
+  if Assigned(_RowHeightsGlobalClass) and not _IsMasterScrollingControl and (Toprow <> nil)
+     and (Toprow.Index <> rowHeightsGlobalTopRowIndex) then
   begin
-    rowindex := TFMXRowHeightCollection(_RowHeightsGlobal).TopRowIndex;
-    position := TFMXRowHeightCollection(_RowHeightsGlobal).TopRowPosition;
+    { Shared TopRow. When user scrolls fast the MasterControl (= control which user scrolls now, e.g. Gantt, to the right),
+      the paired control (e.g. Tree, to the left) cannot be scrolled synchroniously, because of diff. speed of scrolling,
+      diff. speed because FMX can start rendering non master Control (left control), control which user does not scroll,
+      at first, so the left control loads rows with default heights and paint them and during this time user may scroll
+      MasterControl (right control) to another position, so TopRow will be changed. To scroll synchronously, the left control
+      should show the same TopRow as the Control1. Only MasterControl can set shared row. This works slowly during fast
+      scrolling, because left control often need to clear and rebuild itself, to show same TopRow as the MasterControl. }
+
+    rowindex := _RowHeightsGlobalClass.TopRowIndex;
+    position := _RowHeightsGlobalClass.TopRowPosition;
     _View.Clear;
     var newRow: IRow := InitRow(_view.DataList[_view.Transpose(rowindex)], rowindex, position);
     _View.Add(newRow);
@@ -928,7 +942,7 @@ begin
     inc(rowindex);
     position := position + newRow.Height;
   end
-  else
+  else // move rows only (change position), without clearing\rebuilding the list of rows.
   begin
     {$region 'Determine the index and position of a row'}
     if toprow <> nil then
