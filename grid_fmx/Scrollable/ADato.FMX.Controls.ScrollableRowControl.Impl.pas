@@ -523,7 +523,7 @@ type
     procedure FreeNotification(AObject: TObject);
     function Equals(const Other: IRow): Boolean;
   public
-    constructor Create; reintroduce;
+    constructor Create; //reintroduce;
     destructor Destroy; override;
     function HasChildren: Boolean; virtual; abstract;
     function Level: Integer; virtual; // interface
@@ -848,11 +848,11 @@ begin
   _View.SortInternalList;
 
   // set toprow (toprect), bottomrow(bottomrect), totalHeight. Tophidden, bottomhidden - to remove proper rows
-  var [unsafe] bottomrow: IRow := nil;
-  var [unsafe] toprow: IRow := nil;
+  var bottomrow: IRow := nil;
+  var toprow: IRow := nil;
   while viewindex < _View.Count do
   begin
-    var [unsafe] row: IRow := _View.InnerArray[viewindex];
+    var row: IRow := _View.InnerArray[viewindex];
 
     totalHeight := totalHeight + row.Height;
     var rowBoundsRect := row.BoundsRect;
@@ -921,6 +921,7 @@ begin
   if _RowHeightsGlobalClass <> nil then
     rowHeightsGlobalTopRowIndex := _RowHeightsGlobalClass.TopRowIndex;
 
+    // test code (should be optimized) Alex.
   if Assigned(_RowHeightsGlobalClass) and not _IsMasterScrollingControl and (Toprow <> nil)
      and (Toprow.Index <> rowHeightsGlobalTopRowIndex) then
   begin
@@ -942,7 +943,7 @@ begin
     inc(rowindex);
     position := position + newRow.Height;
   end
-  else // move rows only (change position), without clearing\rebuilding the list of rows.
+  else  // move rows only (change position), without clearing\rebuilding the list of rows.
   begin
     {$region 'Determine the index and position of a row'}
     if toprow <> nil then
