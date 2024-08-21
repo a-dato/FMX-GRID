@@ -5136,7 +5136,7 @@ begin
     Assert(not interfaces.Supports<IComparableList>(_data));
 
     // create a default comparer.. Can be overwritten (in OnSortApplied )
-    _listComparer := TListComparer.Create(get_SortDescriptions, get_FilterDescriptions, View.ListHoldsOrdinalType);
+    _listComparer := TListComparer.Create(get_SortDescriptions, get_FilterDescriptions, function: Boolean begin Result := View.ListHoldsOrdinalType; end);
     _listComparer.OnComparingChanged := Self.OnSortApplied;
     _listComparer.FuncDataList :=
       function: IList begin
