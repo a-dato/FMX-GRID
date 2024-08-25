@@ -17,6 +17,7 @@ type
   IListComparer = interface;
   TOnComparingChanged = reference to procedure;
   TGetDataList = reference to function:IList;
+  TlistHoldsOrdinalType = reference to function: Boolean;
 
   ISortable = interface(IBaseInterface)
     ['{D19EEC1A-FD4F-4EBC-A78C-49C3E0A921BD}']
