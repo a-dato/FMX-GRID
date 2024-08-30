@@ -632,7 +632,7 @@ procedure TScrollableControl.OnFastScrollingStopTimer(Sender: TObject);   // FAS
 begin
   _fsStopTimer.Enabled := False;
 
-  if AniCalculations.Down or AniCalculations.Moved then
+  if AniCalculations.Down {or AniCalculations.Moved} {We have turned this off because it messes up touch scrolling and double click} then
   begin
     // user keeps scrolling now but slower (related only to touch screen events, not to mouse)
     _fsStopTimer.Enabled := True;

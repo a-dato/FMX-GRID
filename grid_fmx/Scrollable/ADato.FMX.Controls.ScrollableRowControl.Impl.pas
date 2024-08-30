@@ -1976,6 +1976,9 @@ begin
   if _startTimerTicks > TThread.GetTickCount64 - _selectionTimerInterval then
     Exit;
 
+  if (_selectionControl = nil) or (_View = nil) then
+    Exit;
+
   _selectionTimer.Enabled := False;
   _selectionTimer.Tag := 0;
 
