@@ -24,6 +24,8 @@ type
   strict private const
     //DEFAULT_ROW_HEIGHT = 25; // use TScrollableRowControl<T>.GetInitialRowHeight instead.
   strict private
+
+
     _TopRowIndex: integer;
     _TopRowPosition: single;
     _AverageRowHeight: Single;
@@ -34,6 +36,7 @@ type
     _NeedSynchRowHeights: Boolean;
     _Control1: TObject;
     _Control2: TObject;
+    _MasterScrollingControl: TObject;
     _Control1FinishedRender,
     _Control2FinishedRender: Boolean;
     _rowHeights: Dictionary<CObject, Single>;
@@ -49,10 +52,13 @@ type
     procedure set_RowHeight(const DataRow: CObject; Value: Single);
     procedure set_AverageRowHeight(const Value: Single);
   public
+    // test
+    //_VPYAfterRenderFinished: Single;
     procedure AfterConstruction; override;
     procedure Clear;
     procedure AddProcUpdateRowHeights(Sender: TObject; AProc: TNotifyEvent);
-    procedure PairedControlFinishedRendering(Sender: TObject);
+    procedure ControlFinishedRendering(Sender: TObject);
+   // function IsPairedControlFinishedRendering(ThisControl: TObject): Boolean;
 
    //  procedure AddNegotiateProc(AProc: TNegotiateRowHeightProc);
    // function NegotiateRowHeight(Sender: TObject; ARow: IRow; var AHeight: Single): Boolean;
@@ -62,7 +68,6 @@ type
     property TopRowIndex: integer read _TopRowIndex;
     property TopRowPosition: Single read _TopRowPosition;
     property AverageRowHeight: single read _AverageRowHeight write set_AverageRowHeight;
-
   end;
 
 implementation
@@ -89,7 +94,7 @@ begin
   Assert(_ProcList.Count <= 2, 'RowHeightSynchronizer works with 2 controls only.')
 end;
 
-procedure TFMXRowHeightCollection.PairedControlFinishedRendering(Sender: TObject);
+procedure TFMXRowHeightCollection.ControlFinishedRendering(Sender: TObject);
 var
   i: Integer;
 begin
@@ -190,7 +195,7 @@ var
 begin
   Assert(DataRow <> nil);
 
-  if not _RowHeights.TryGetValue(DataRow, foundValue) and (Value > foundValue) {or (DW <> Value) }then
+  if not _RowHeights.TryGetValue(DataRow, foundValue) or (foundValue <> Value) then
   begin
     _RowHeights[DataRow] := Value;
     _NeedSynchRowHeights := True;

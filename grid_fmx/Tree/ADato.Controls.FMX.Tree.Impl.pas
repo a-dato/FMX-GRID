@@ -3977,7 +3977,6 @@ procedure TCustomTreeControl.InitUpdateRowHeights(Sender: TObject);
 begin
   // at this stage both controls - this and paired already finished rendering and set rows heights
   RefreshControl([TreeState.RowHeightsChanged, TreeState.DataChanged]);
-  // do with DataChanged, now RowHeightsChanged + DataChanged - will not clear rowheights
 end;
 
 procedure TCustomTreeControl.Initialize;
@@ -4004,9 +4003,6 @@ begin
 
   cellChanged := TreeState.CellChanged in _InternalState;
 
-
-  // RowHeightsChanged: resize and reposition rows without removing
- // if (TreeState_RowHeightsChanged in _InternalState) { and not (TreeState_DataChanged in _InternalState) } then
   //  ResetView;
     //DoUpdateRowHeights;
 

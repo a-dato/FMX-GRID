@@ -24,7 +24,7 @@ type
   {$ENDIF}
     procedure Clear;
     procedure AddProcUpdateRowHeights(Sender: TObject; AProc: TNotifyEvent);
-    procedure PairedControlFinishedRendering(Sender: TObject);
+    procedure ControlFinishedRendering(Sender: TObject);
 
     //procedure AddNegotiateProc(AProc: TNegotiateRowHeightProc);
    // function NegotiateRowHeight(Sender: TObject; ARow: IRow; var AHeight: Single): Boolean;
