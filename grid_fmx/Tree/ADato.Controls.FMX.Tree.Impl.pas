@@ -1261,10 +1261,6 @@ type
     _GridLineStroke: TStrokeBrush;
     _IsCellStyleStandard: Boolean;
 
-   // _RowHeightsGlobal: IFMXRowHeightCollection;
-    // Global _RowHeights to synch. height between controls (Tree\Gantt). In case if it is nil, each View has own
-    // internal _RowHeights (to save user custom row height values), in TBaseViewList<T: IRow> in the ADato.FMX.Controls.ScrollableRowControl.Impl unit.
-
     _SortingChangedMustBeCalled : Boolean;
     _listComparer       : IListComparer;
     _TopRowPosition : Single;
@@ -1398,7 +1394,6 @@ type
     function  InitRowCells(const TreeRow: ITreeRow; const IsCachedRow: Boolean; const TreeRowHeight: Single): Single;
     function  InitTemporaryRow(const DataItem: CObject; ViewRowIndex: Integer): ITreeRow; override;
     procedure EndUpdateContents; override;
-
     procedure SetAutoFitColumns(Value: Boolean); override;
     function  GetRowRectangle(const Row: ITreeRow) : TRectF;
     procedure ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
@@ -1406,9 +1401,8 @@ type
     procedure RemoveRowsFromView(const MakeViewNil: Boolean = False; const StartIndex: Integer = -1; const Count: Integer = -1); override;
 
   protected
-    procedure InitUpdateRowHeights(Sender: TObject); override;
-    //procedure ClearRowHeights; // Kees in chat: This should never be called.
-    procedure set_RowHeights(const Value: IFMXRowHeightCollection);
+    procedure ClearRowHeights; 
+    // procedure set_RowHeights(const Value: IFMXRowHeightCollection); // moved into the base class
   protected
     procedure DoScrollingTypeChanged(const OldScrollingType, NewScrollingType: TScrollableControl.TScrollingType); override;
     //procedure DoFastScrollingStopped; override;
@@ -1632,7 +1626,6 @@ type
     property Model: IObjectListModel read _model write set_Model;
     property Options: TreeOptions read _Options write set_Options;
     property HeaderHeight: Single read GetHeaderHeight write _HeaderHeight;
-    property RowHeights: IFMXRowHeightCollection read _RowHeightsGlobal write set_RowHeights;
     property SortColumns: CString read  get_SortColumns write set_SortColumns;
     property SortDescriptions: List<IListSortDescription> read get_SortDescriptions;
 
@@ -1732,6 +1725,7 @@ type
     property FixedRowHeight;
     property TabStop;
     property HighlightRows;
+    property IsMasterScrollingControl;
     //
     // Events
     //
@@ -3958,26 +3952,21 @@ begin
   Result := Column;
 end;
 
-//procedure TCustomTreeControl.ClearRowHeights;
-//begin
-//  if _RowHeightsGlobal <> nil then
-//  begin
-//    (_RowHeightsGlobal as IUpdatableObject).BeginUpdate;
-//    try
-//      _RowHeightsGlobal.Clear
-//    finally
-//    (_RowHeightsGlobal as IUpdatableObject).EndUpdate;
-//    end;
-//  end
-//  else if _view <> nil then
-//    (_view as ITreeRowList).RefreshRowHeights;
-//end;
-
-procedure TCustomTreeControl.InitUpdateRowHeights(Sender: TObject);
+procedure TCustomTreeControl.ClearRowHeights;
 begin
-  // at this stage both controls - this and paired already finished rendering and set rows heights
-  RefreshControl([TreeState.RowHeightsChanged, TreeState.DataChanged]);
+  if _RowHeightsGlobal <> nil then
+  begin
+    (_RowHeightsGlobal as IUpdatableObject).BeginUpdate;
+    try
+      _RowHeightsGlobal.Clear
+    finally
+    (_RowHeightsGlobal as IUpdatableObject).EndUpdate;
+    end;
+  end
+  else if _view <> nil then
+    (_view as ITreeRowList).RefreshRowHeights;
 end;
+
 
 procedure TCustomTreeControl.Initialize;
 
@@ -4198,8 +4187,6 @@ begin
       the Tree, and at this stage calls Datachanged - Tree will scrolls one row up and show previous row as a last row. }
 
 // Kees in chat: This should never be called.
-      // moved to the top, need to do this BEFORE first row is added into the View in Datachanged,
-      // because InitRow sets these row height, - it will be used later to calc. averageheight.
 //    if _IsMasterScrollingControl and (_RowAnimationsCountNow = 0) then // when not expanding\collapsing
 //      if not (TreeState.RowHeightsChanged in _InternalState) then
 //        if not (TreeOption.PreserveRowHeights in Options) and
@@ -4599,7 +4586,6 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
   procedure DrawGrid(ACell: TTreeCell);
   begin
 
-   // var isTopRow := ACell.Row.Index = 0;
     var drawVertical := (TreeOption.AllowCellSelection in _Options);
 
     // update grid
@@ -4745,25 +4731,35 @@ begin
     treeRow := CreateRow(DataItem, ViewRowIndex, rowLevel);
 
     DoRowLoading(treeRow);
+    // Now user may set custom row height in DoRowLoading\Loaded. 
 
     treeRowClass := TTreeRow(treeRow);
-   // Now user may set custom row height in DoRowLoading\Loaded. Do not apply row custom user height while scrolling.
-   // See TRow.set_Height
 
-    var treeRowHeight := treeRowClass.Height;  // speedup, because each call is searching in dictionary
-    if AMinHeight > treeRowHeight then
+
+    //var treeRowHeight := treeRowClass.Height;
+    rowHeight := treeRowClass.Height;     // note that each call is searching in dictionary
+    if AMinHeight > rowHeight then
     begin
       treeRowClass.Height := AMinHeight;
-      treeRowHeight := AMinHeight;
+      rowHeight := AMinHeight;
     end;
 
     isCachedRow := (treeRowClass.Control <> nil);
 
+//    if isCachedRow then
+//    begin  // update Height for cached row
+//       if not treeRowClass.Control.Height <> rowHeight then
+//         treeRowClass.Control.Height := rowHeight;  //treeRowClass.Height;
+//    end
+//    else
+//      treeRowClass.Control := TRowControl.Create(Self);
+
     if not isCachedRow then
-      treeRowClass.Control := TRowControl.Create(Self)
-    else if not SameValue(treeRowClass.Control.Height, treeRowHeight) then // update Height for cached row
-      treeRowClass.Control.Height := treeRowHeight; //treeRowClass.Height;
-      // this will also set Control.Height from RowHeights in TRow.set_Control
+      treeRowClass.Control := TRowControl.Create(Self);
+
+    { Set row height directly to control, user may use it in Row\Cell events. Do not set it for treeRowClass.Height
+    (this saves in RowHeights) yet, because Later in this method it may be recalculated in InitRowCells (CellLoading). }
+    treeRowClass.Control.Height := rowHeight;  //treeRowClass.Height;
 
     // set as alt or usual row style, this works fast, because code sets color of row rectangle directly
     if (TreeOption.AlternatingRowBackground in _options) and ((ViewRowIndex mod 2) <> 0) then
@@ -4775,28 +4771,27 @@ begin
     // Tree row control sets Y position in TScrollableRowControl<T>.AnimateAddRow
     AnimateAddRow(treeRow, Y);
 
-    rowHeight := InitRowCells(treeRow, isCachedRow, treeRowHeight);
+    rowHeight := InitRowCells(treeRow, isCachedRow, rowHeight {treeRowHeight});
+    // user can change RowHeight here in CellLoading
 
     // Now rowHeight is calculated related to the max cell height
-    if rowHeight > treeRowHeight {treeRowClass.Height} then
-      treeRowClass.Height := rowHeight;
+    treeRowClass.Height := rowHeight;
 
 //    // Negotiate the final height of the row. This will init and add a row in another paired control (Gantt or Tree)
-//    if not _SkipRowHeightNegotiation and (_RowHeightsGlobal <> nil) then
-//    begin
-//      _RowHeightsGlobal.NegotiateRowHeight(Self, treeRow, {var} rowHeight);
-//
-//      // When we apply value to treeRow.Height, it also applies for Row.Control. But if treeRow.Height was set in
-//      // another control, - it did not affected Row.Control.Height in a current control. So apply it.
-//      treeRowClass.Control.Height := rowHeight;
-//    end;
+    if not _SkipRowHeightNegotiation and (_RowHeightsGlobal <> nil) then
+    begin
+      _RowHeightsGlobal.NegotiateRowHeight(Self, treeRow, {var} rowHeight);
+
+      // When we apply value to treeRow.Height, it also applies for Row.Control. But if treeRow.Height was set in
+      // another control, - it did not affected Row.Control.Height in a current control. So apply it.
+      treeRowClass.Control.Height := rowHeight;
+    end;
 
     ProcessCellsInRow(treeRowClass, isCachedRow);
 
 
     DoRowLoaded(treeRow);
-    // Now user may set custom row height in DoRowLoading\Loaded. Do not apply row custom user height while scrolling.
-    // See TRow.set_Height
+    // Now user may set custom row height in DoRowLoading\Loaded.
 
     {$IFDEF DEBUG}
   //  if _RowHeightsGlobal <> nil then
@@ -4890,9 +4885,12 @@ begin
       CellLoadingFlags := CellLoadingFlags + [TCellLoading.NeedControl];
 
     var loadDefaultData := DoCellLoading(treeCell, CellLoadingFlags);
-    { User can: set a new height of the row here (in TreeCellLoading) this will trigger TFMXRowHeightCollection.set_RowHeight,
-      or create a custom control. Please pay atention - if row was cached, CellLoading has NO TCellLoading.NeedControl,
+    { User can: set a new height of the row here (Row.Height in TreeCellLoading) this will trigger TFMXRowHeightCollection.set_RowHeight,
+      Please pay atention - if row was cached, CellLoading has NO TCellLoading.NeedControl,
       because user should re-use it. See also TCellLoading = (NeedControl, [..]) in Tree.intf}
+
+    Result := Max(TreeRow.Control.Height, // TRow.SetHeight sets height in 2 places at once - RowHeights list and Control
+                  Result);
 
     if treeCell.Control = nil then
       treeCell.Control := FMXColumn.CreateCellControl(Self, treeCell); //  TCellControl.Create \ TCheckboxCellItem
@@ -4915,12 +4913,6 @@ begin
        // Component must be added to control because ResizeControl will call ApplyStyleLookup
       treeRowClass.Control.AddObject(treeCell.Control);
     end;
-
-//    if not isCachedRow or not treeRow.CanCacheInnerControls then
-//    begin
-//      // Frozen cell takes a bk color from the row style. So ApplyStyle to get styles
-//      (treeRowClass.Control as TStyledControl).ApplyStyleLookup;
-//    end;
 
     // Calculate size of the cell
     var size: TSizeF := treeCell.Control.Size.Size;
@@ -6032,22 +6024,6 @@ end;
 //end;
 //
 
-procedure TCustomTreeControl.set_RowHeights(const Value: IFMXRowHeightCollection);
-begin
-  RefreshControl([TreeState.Refresh]);
-
-  {$IFDEF DELPHI}
-  ReferenceInterface(_RowHeightsGlobal, opRemove);
-  {$ENDIF}
-
-  _RowHeightsGlobal := Value;
-  if _RowHeightsGlobal <> nil then
-    _RowHeightsGlobal.AddProcUpdateRowHeights(Self, InitUpdateRowHeights); //AddNegotiateProc(NegotiateRowHeight);
-
-  {$IFDEF DELPHI}
-  ReferenceInterface(_RowHeightsGlobal, opInsert);
-  {$ENDIF}
-end;
 
 function TCustomTreeControl.IsCellSelectable(RowIndex, CellIndex: Integer): Boolean;
 var
@@ -6489,7 +6465,7 @@ end;
 
 procedure TCustomTreeControl.AlignViewToCurrent(const SavedTopRow: ITreeRow);
 begin
-  if _View = nil then Exit;
+  if (_View = nil) then Exit;
 
   var current := View.Current;
   if current = -1 then Exit;
@@ -10070,9 +10046,8 @@ end;
 
 procedure TTreeDataModelViewRowList.RowHeightsCollectionChanged(Sender: TObject; e: NotifyCollectionChangedEventArgs);
 begin
-
- // TFMXTreeControl(_Control).RefreshControl([TreeState.DataChanged, TreeState.RowHeightsChanged]);
-
+  
+ // TFMXTreeControl(_Control).RefreshControl([{TreeState.DataChanged,} TreeState.RowHeightsChanged]);
 
   // old info
   { Disabled TreeState.DataChanged - when user specifies a custom row height in TreeRowLoaded - Control always
@@ -11143,22 +11118,7 @@ begin
     get_Owner.TreeControl.RefreshControl([TreeState.Refresh]);
   end;
 end;
-//
-//function TTreeRow.get_Height: Single;
-//begin
-//  Result := _Owner.RowHeight[DataItem];
-//end;
-//
-//procedure TTreeRow.set_Height(const Value: Single);
-//begin
-//  if DataItem = nil then Exit;  // E.g. when TemporaryRow + RowLoaded which sets height
-//
-//  if _Owner.RowHeight[DataItem] <> Value then
-//    _Owner.RowHeight[DataItem] := Value;
-//
-//  if (_Control <> nil) and (_Control.Height <> Value) then
-//    _Control.Height := Value;
-//end;
+
 
 function TTreeRow.get_IsExpanded: Boolean;
 begin
@@ -12049,8 +12009,8 @@ begin
 end;
 
 function TTreeRowList.GetRowDataIndex(const ARowDataItem: CObject): Integer;
-begin
-  Assert(False, 'Warning, this operation takes time, cache it if you are using this index often.');
+begin                      
+  //Assert(False, 'Warning, this operation takes time, cache it if you are using this index often.');
   Result := FindDataIndexByData(ARowDataItem);
 end;
 
@@ -12350,6 +12310,7 @@ end;
 
 procedure TTreeRowList.RowHeightsCollectionChanged(Sender: TObject; e: NotifyCollectionChangedEventArgs);
 begin
+  // disabled, because we are using NegotiateRowHeight
   // _treeControl.RefreshControl([TreeState_RowHeightsChanged]);
 
   {Disable AlignViewToCurrent after column width was changed - row height also changes.

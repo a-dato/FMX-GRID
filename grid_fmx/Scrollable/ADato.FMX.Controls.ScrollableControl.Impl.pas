@@ -614,8 +614,6 @@ procedure TScrollableControl.DoScrollingTypeChanged(const OldScrollingType, NewS
 begin
   inherited;
 
- // if True then
-
 end;
 
 procedure TScrollableControl.ViewportPositionChange(const OldViewportPosition, NewViewportPosition: TPointF;
