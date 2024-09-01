@@ -24,6 +24,7 @@ type
   strict private const
     //DEFAULT_ROW_HEIGHT = 25; // Moved into ADato.Controls.FMX.RowHeights.Intf with name INITIAL_ROW_HEIGHT
   strict private
+    _ViewportY: Single;
     _TopRowIndex: integer;
     _TopRowPosition: single;
     _rowHeights: Dictionary<CObject, Single>;
@@ -39,15 +40,17 @@ type
     procedure set_RowHeight(const DataRow: CObject; Value: Single);
     function get_TopRowIndex: integer;
     function get_TopRowPosition: Single;
+    function get_ViewportY: Single;
   public
     procedure AfterConstruction; override;
     procedure Clear;
     procedure AddNegotiateProc(Sender: TObject; AProc: TNegotiateRowHeightProc);
-    procedure SaveTopRow(RowIndex: integer; Position: Single);
+    procedure SaveTopRow(RowIndex: integer; Position, ViewportY: Single);
     function NegotiateRowHeight(Sender: TObject; ARow: IRow; var AHeight: Single): Boolean;
     property RowHeight[const DataRow: CObject] : Single read  get_RowHeight write set_RowHeight;
     property TopRowIndex: integer read _TopRowIndex;
     property TopRowPosition: Single read _TopRowPosition;
+    property ViewportY: Single read _ViewportY;
   end;
 
 implementation
@@ -82,12 +85,13 @@ begin
   end;
 end;
 
-procedure TFMXRowHeightCollection.SaveTopRow(RowIndex: integer; Position: Single);
+procedure TFMXRowHeightCollection.SaveTopRow(RowIndex: integer; Position, ViewportY: Single);
 begin
   if (RowIndex = _TopRowIndex) and (Position = _TopRowPosition) then Exit;
 
   _TopRowIndex := RowIndex;
   _TopRowPosition := Position;
+  _ViewportY := ViewportY;
 end;
 
 procedure TFMXRowHeightCollection.BeginUpdate;
@@ -122,6 +126,11 @@ end;
 function TFMXRowHeightCollection.get_TopRowPosition: Single;
 begin
   Result := _TopRowPosition;
+end;
+
+function TFMXRowHeightCollection.get_ViewportY: Single;
+begin
+  Result := _ViewportY;
 end;
 
 function TFMXRowHeightCollection.get_CollectionChanged: NotifyCollectionChangedEventHandler;

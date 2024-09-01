@@ -21,14 +21,16 @@ type
     procedure set_RowHeight(const DataRow: CObject; Value: Single);
     function get_TopRowIndex: integer;
     function get_TopRowPosition: Single;
+    function get_ViewportY: Single;
   {$ENDIF}
     procedure Clear;
     procedure AddNegotiateProc(Sender: TObject; AProc: TNegotiateRowHeightProc);
     function NegotiateRowHeight(Sender: TObject; ARow: IRow; var AHeight: Single): Boolean;
     property RowHeight[const DataRow: CObject] : Single read get_RowHeight write set_RowHeight; default;
-    procedure SaveTopRow(RowIndex: integer; Position: Single);
+    procedure SaveTopRow(RowIndex: integer;  Position, ViewportY: Single);
     property TopRowIndex: integer read get_TopRowIndex;
     property TopRowPosition: Single read get_TopRowPosition;
+    property ViewportY: Single read get_ViewportY;
   end;
 
 implementation

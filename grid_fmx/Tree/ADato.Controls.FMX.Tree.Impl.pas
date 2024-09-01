@@ -1397,7 +1397,7 @@ type
     procedure SetAutoFitColumns(Value: Boolean); override;
     function  GetRowRectangle(const Row: ITreeRow) : TRectF;
     procedure ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
-      const ATopRowMinHeight: Single = 0); override; // see also public Clear method
+      const CallDataChanged: Boolean = True); override; // see also public Clear method
     procedure RemoveRowsFromView(const MakeViewNil: Boolean = False; const StartIndex: Integer = -1; const Count: Integer = -1); override;
 
   protected
@@ -3992,9 +3992,6 @@ begin
 
   cellChanged := TreeState.CellChanged in _InternalState;
 
-  //  ResetView;
-    //DoUpdateRowHeights;
-
   UpdateCountInc;
   try
     if _InternalState * [TreeState.DataBindingChanged] <> [] then
@@ -4787,11 +4784,14 @@ begin
       treeRowClass.Control.Height := rowHeight;
     end;
 
-    ProcessCellsInRow(treeRowClass, isCachedRow);
-
 
     DoRowLoaded(treeRow);
     // Now user may set custom row height in DoRowLoading\Loaded.
+
+    ProcessCellsInRow(treeRowClass, isCachedRow);
+    // moved after DoRowLoaded, because user can set size of the row, so cell should use it also, otherwise -
+    // cell.height at first start <> row.height, and text content aligned incorrectly while scrolling.
+    // This will also set cell height same as Row.Height.
 
     {$IFDEF DEBUG}
   //  if _RowHeightsGlobal <> nil then
@@ -5022,7 +5022,7 @@ begin
   try
     treeRow := View.CreateRow(DataItem, ViewRowIndex, True);
 
-    DoRowLoading(treeRow);
+   // DoRowLoading(treeRow); // Why need to trigger user row events for temporary row which does not have controls? Alex.
     // rowHeight := treeRow.Height;
 
     // Add visible cells to this row
@@ -5035,7 +5035,7 @@ begin
     begin
       layoutColumn := columns[columnIndex];
       treeCell := layoutColumn.Column.CreateTreeCell(treeRow, columnIndex);
-      DoCellLoading(treeCell, []);
+      //DoCellLoading(treeCell, []);  // Why need to trigger user row events for temporary row which does not have controls? Alex.
       treeRow.Cells.Add(treeCell);
 
       dummyCells := CMath.Min(columns.Count - columnIndex - 1, 0); // treeCell.Style.ColSpan - 1);
@@ -5048,7 +5048,7 @@ begin
       inc(columnIndex, 1); // treeCell.Style.ColSpan);
     end;
 
-    DoRowLoaded(treeRow);
+    // DoRowLoaded(treeRow); // Why need to trigger user row events for temporary row which does not have controls? Alex.
     Result := treeRow;
   finally
     UpdateCountDec;
@@ -5320,7 +5320,7 @@ begin
 end;
 
 procedure TCustomTreeControl.ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
-  const ATopRowMinHeight: Single = 0);
+  const CallDataChanged: Boolean = True);
 begin
   if not Full and (_View <> nil) then
     _currentPosition := View.Current;
@@ -5333,16 +5333,16 @@ begin
     _HeaderRows := nil;
 
   if Full then
-    RefreshControl([TreeState.DataChanged, TreeState_ColumnsChanged]) // without flag - it exits from Initialization
-  // note: TreeState_ColumnsChanged - will reset column width if it was resized by user
+  begin
+    if CallDataChanged then
+      RefreshControl([TreeState.DataChanged, TreeState_ColumnsChanged]) // without flag - it exits from Initialization
+      // note: TreeState_ColumnsChanged - will reset column width if it was resized by user
+    else
+      RefreshControl([TreeState_ColumnsChanged])
+  end
   else
-    RefreshControl([TreeState.DataChanged]);
-
-//  Disabled because of AV (hard to reproduce), seems this code does not change behaviour of headers
-//  if _header <> nil then
-//    TThread.ForceQueue(nil, procedure begin
-//      _header.Repaint;
-//    end);
+    if CallDataChanged then
+      RefreshControl([TreeState.DataChanged]);
 end;
 
 procedure TCustomTreeControl.AdjustVScrollbarHeight;
@@ -8437,7 +8437,7 @@ begin
     if interfaces.Supports<ITextSettings>(text, ts) then
       ts.TextSettings.WordWrap := True;
 
-    Result.AddObject(text);
+   Result.AddObject(text);
 
     Cell.InfoControl := text;
   end else
