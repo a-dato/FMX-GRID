@@ -2336,7 +2336,11 @@ begin
     TMouseButton.mbRight:
     begin
       var XY := (Sender as TControl).LocalToScreen( PointF(X, Y) );
-      ShowHeaderPopupMenu(XY, Layout.Columns[header.LayoutColumnIndex] );
+
+      // column := _Layout.FlatColumns[_Layout.ColumnToFlatIndex(columnIndex)];
+      var column := _Layout.Columns[header.LayoutColumnIndex];
+      if column.Column.ShowSortMenu or column.Column.ShowFilterMenu or column.Column.AllowHide then
+        ShowHeaderPopupMenu(XY, Layout.Columns[header.LayoutColumnIndex] );
     end;
   end;
 end;
