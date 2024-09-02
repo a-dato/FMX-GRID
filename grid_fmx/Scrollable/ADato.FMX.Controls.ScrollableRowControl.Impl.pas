@@ -54,7 +54,7 @@ type
   TScrollableRowControl<T: IRow> = class(TScrollableControl)
   public
   type
-    TOnSynchronizeControl = procedure (Sender: TObject; const TopRow: IRow; TopRowOffset: single) of object;
+    TOnSynchronizeControl = procedure (Sender: TObject; ViewportY: Single) of object;
     TScrollingDirection = (sdNone, sdUp, sdDown);
 
     THitInfo = record
@@ -111,8 +111,10 @@ type
     _CanResetExtraSpace: Boolean;
     _isAliveObject: IInterface;
 
-    function RecalcWhenUserScrollsDown(var NewContentBounds: TRectF): boolean;
-    function RecalcWhenUserScrollsUp(var NewContentBounds: TRectF): boolean;
+    function RecalcWhenScrollDown(var NewContentBounds: TRectF): boolean;
+    function RecalcWhenScrollUp(var NewContentBounds: TRectF): boolean;
+    function RecalcWhenScrollStopped(var NewContentBounds: TRectF): boolean;
+
 //    function IsVisibleRow(Index: integer): Boolean;
 //    function IsRowFirstLastVisibleInView(Index: integer): Boolean;
     procedure UnclickClickLMB;
@@ -207,9 +209,6 @@ type
     function GetRowFromNegotiateList(ViewRowIndex: integer; const DataItem: CObject): T;
     procedure DoScrollingTypeChanged(const OldScrollingType, NewScrollingType: TScrollableControl.TScrollingType); override;
     function GetInitialRowHeight: single; inline;
-    procedure InitUpdateRowHeights(Sender: TObject); virtual; abstract;
-    // InitUpdateRowHeights - is triggered by RowHeigths to synch them with the paired control.
-    procedure DoUpdateRowHeights;
   protected
     _View: IRowList<T>;
     _IsDeniedUpdateContent: Boolean;
@@ -307,7 +306,7 @@ type
     function  InitRow(const DataItem: CObject; ViewRowIndex: Integer; const Y: Single = 0;
       const AMinHeight: Single = 0): T; virtual;
     procedure UpdateContents(Force: Boolean);
-    procedure AfterUpdateContents(ViewPortYPosition: Single);
+    procedure AfterUpdateContents;
     procedure HandleContentRowChanges(Clip: TRectF);
     procedure EndUpdateContents; virtual;
     procedure CalcContentBounds; override;
@@ -315,7 +314,7 @@ type
       const Count: Integer = -1); virtual;
     procedure ApplyScrollBarsVisibility;
     function AppendRow(RowIndex: integer; Position, MinHeight: Single): IRow;
-    function AppendRowsBelow(Clip: TRectF; RowIndex: Integer; Position: Single): integer;
+    function AppendRowsBelow(const Clip: TRectF; RowIndex: Integer; Position: Single): integer;
     procedure DoPostProcessColumns(out NeedRepaint: boolean); virtual;
     procedure ViewportPositionChange(const OldViewportPosition: TPointF; const NewViewportPosition: TPointF; const ContentSizeChanged: Boolean); override;
     function GetYScrollingDirection: TScrollingDirection;
@@ -342,17 +341,14 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X: Single; Y: Single); override;
     procedure DoMouseLeave; override;
     procedure KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
+    procedure SetRowHeights(const Value: IFMXRowHeightCollection);
   protected
     procedure ShowSelections; virtual;
     function  GetSelectionRectange(RowViewIndex: integer; const ColumnIndex: integer = USE_CURRENT_COLUMN): TRectF; virtual;
-    // GetSelectionRectange: -1 - use currently selected column
     function  SelectRowCell(const RowIndex: integer; var ColumnIndex: integer): Boolean; virtual;
     function  IsRowSelected(Index: integer): boolean;
     procedure ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
-      const ATopRowMinHeight: Single = 0); virtual;
-    // Full - True: nils View and _HeaderRows (Tree) and add also TreeState_ColumnsChanged, which will reset user column
-    // width. Clears ViewportPosition and _contentBounds.
-    // Full - False: View.Clear and do not call TreeState_ColumnsChanged, only DataChanged
+      const CallDataChanged: Boolean = True); virtual;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -372,9 +368,7 @@ type
         Extra space for ContentBounds will be reset to 0 after user changes the Viewport (scrolling, etc).
       • StrictTopRow = False - when user sets row 10 from 10 as TopRow, Tree will scroll to row 10 according to the
         traditional scrolling conditions, without adding an empty space below, so row may be not always on top. }
-
-    //function NegotiateRowHeight(Sender: TObject; ARow: IRow; var AHeight: Single): Boolean;
-
+    function NegotiateRowHeight(Sender: TObject; ARow: IRow; var AHeight: Single): Boolean;
     // ARowDataViewIndex = View.Row.Index, they match. Do not mix with View index which starts from 0
     property Animate: Boolean read _Animate write _Animate;
     // use animation: selecting row, future actions. Default = true
@@ -417,7 +411,8 @@ type
     property ShowHScrollBar: Boolean read _ShowHScrollBar write SetShowHScrollBar default True;
     property ContentBounds: TRectF read _contentBounds;
     property HintHoverDelay: integer read GetHintHoverDelay write SetHintHoverDelay; // ms
-    property IsMasterScrollingControl: Boolean read _IsMasterScrollingControl write _IsMasterScrollingControl;
+    property RowHeights: IFMXRowHeightCollection read _RowHeightsGlobal write SetRowHeights;
+    property IsMasterScrollingControl: Boolean read _IsMasterScrollingControl write _IsMasterScrollingControl default False;
   end;
 
    // base class from which inherited all Views: TTreeRowList, TTreeDataModelViewRowList and TGanttDatamodelViewRowList.
@@ -511,7 +506,7 @@ type
     function get_Control: TControl;
     procedure set_Control(const Value: TRowControl);
     function get_Height: Single;
-    procedure set_Height(const Value: Single);
+    procedure set_Height(Value: Single);
     function get_Index: Integer;
     procedure set_Index(Value: Integer);
     function get_DataIndex: Integer; virtual; abstract;
@@ -523,7 +518,7 @@ type
     procedure FreeNotification(AObject: TObject);
     function Equals(const Other: IRow): Boolean;
   public
-    constructor Create; //reintroduce;
+    constructor Create;
     destructor Destroy; override;
     function HasChildren: Boolean; virtual; abstract;
     function Level: Integer; virtual; // interface
@@ -591,6 +586,21 @@ begin
   inherited;
 end;
 
+procedure TScrollableRowControl<T>.SetRowHeights(const Value: IFMXRowHeightCollection);
+begin
+  {$IFDEF DELPHI}
+  ReferenceInterface(_RowHeightsGlobal, opRemove);
+  {$ENDIF}
+
+  _RowHeightsGlobal := Value;
+  if _RowHeightsGlobal <> nil then
+    _RowHeightsGlobal.AddNegotiateProc(Self, NegotiateRowHeight);
+
+  {$IFDEF DELPHI}
+  ReferenceInterface(_RowHeightsGlobal, opInsert);
+  {$ENDIF}
+end;
+
 procedure TScrollableRowControl<T>.SaveQueuedRepaint([weak]IsAlive: IInterface; Index: Integer);
 begin
   TThread.ForceQueue(nil, procedure
@@ -602,15 +612,16 @@ begin
   end);
 end;
 
-procedure TScrollableRowControl<T>.ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False; const ATopRowMinHeight: Single = 0);
+procedure TScrollableRowControl<T>.ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
+  const CallDataChanged: Boolean = True);
+    // Full - True: nils View and _HeaderRows (Tree) and add also TreeState_ColumnsChanged, which will reset user column
+    // width. Clears ViewportPosition and _contentBounds.
+    // Full - False: View.Clear and do not call TreeState_ColumnsChanged, only DataChanged
 var
   lTopRow: T;
 begin
   if SaveTopRow and Full then
     raise Exception.Create('Cannot SaveTopRow if Full = True, because flag "Full" nils the View, so can''t add a row there');
-
-  var clip := Content.LocalRect;
-  clip.Offset(0, ViewportPosition.Y);
 
   lTopRow := nil; // do not use VAR lTopRow: T here, because of bug with generic T inline var and refcount (it does not descrease it).
 
@@ -631,7 +642,7 @@ begin
       var lDataItem: CObject := _View.DataList[CMath.Max(0, _view.Transpose(OldTopRowIndex))];
 
       // destroy old TopRow and re-create to apply possible new data
-      lTopRow := InitRow(lDataItem, OldTopRowIndex, OldTopRowY, ATopRowMinHeight);
+      lTopRow := InitRow(lDataItem, OldTopRowIndex, OldTopRowY);
 
       _View.Add(lTopRow);
     end;
@@ -645,13 +656,20 @@ begin
   if Full then
   begin
     ViewportPosition := PointF(ViewportPosition.X, 0);
+    if (_RowHeightsGlobal <> nil) and IsMasterScrollingControl then
+      _RowHeightsGlobal.SaveTopRow(0, 0, 0);
+
     //_contentBounds.Top := 0;
     //_contentBounds.Bottom := 0;
   end;
 
-   // fix isssue when user expands all items at one click and ContentBounds was not changed
-  _contentBounds.Top := 0;
-  _contentBounds.Bottom := 0; // := TRectF.Empty;
+  { Fix in another way.
+   Commented, this creates another issue - when calling datachanged in Gantt, after it was scrolled down,
+   it resets VPY and incorreclty restores TopRow position (much lower), because VPYMax = 0 (because contentBounds.Bottom = 0). Alex. }
+
+  // fix isssue when user expands all items at one click and ContentBounds was not changed
+  //_contentBounds.Top := 0;
+  // _contentBounds.Bottom := 0; // := TRectF.Empty;
 
 
   _lastUpdatedViewportPosition.Y := MinComp; // Do not use MinSingle because MinSingle < 0 = False
@@ -681,13 +699,6 @@ begin
     _CanResetExtraSpace := False;
     _ExtraSpaceContentBounds := 0;
   end;
-
-//  // Why here and not in VScrollChange? VScrollChange is not triggered while mouse wheeling or touching
-//  if Trunc(OldViewportPosition.Y) <> Trunc(NewViewportPosition.Y) then  // for vert.scrolling only
-//    if (_lastUpdatedViewportPosition.Y <> MinComp) then
-//    // _lastUpdatedViewportPosition is empty. No scrolling action was perfomed. When control was resized or
-//    // hscrollbar was hidden - VPY will be changed too. Do not process.
-//  DetectFastScrolling;
 
   if ANIMATE_HIGHLIGHT_ROW and HighlightRows and Assigned(_Highlight1) and Assigned(_Highlight2) then
   begin
@@ -798,6 +809,13 @@ begin
   // I tried to set it at the beginning of scrolling - MouseWheel proc (overrided)
   // and in VScrollChange; overrided - in both cases Control resets Smallchanges and uses default value
 
+  // test: Syncing paired control by VPY only - visually control is slowly updating. Alex.
+//  if not _IsMasterScrollingControl then
+//  begin
+//    var t1 := TFMXRowHeightCollection(_RowHeightsGlobal).testVPY;
+//    if t1 <>  ViewportPosition.Y then exit;
+//  end;
+
   if not Force then
     if (_View <> nil) then
       if not ( (_contentBounds.Bottom <= _contentBounds.Top) and (_View.RowCount > 0) ) then  // About this line: when RowCount = 0 - _contentBounds.Bottom(0) may = _contentBounds.Top - allow this case (when dataset is empty we also need to calculate\show columns and limit (do not call) UpdateContens after that)
@@ -819,7 +837,7 @@ begin
     _IsDeniedUpdateContent := False;
     EndUpdate;
 
-    AfterUpdateContents(vp.Y);
+    AfterUpdateContents;
   end;
 end;
 
@@ -843,7 +861,6 @@ begin
   var viewindex := 0;
   var tophidden := -1;
   var bottomhidden := -1;
-  var clipTop := clip.Top;
 
   _View.SortInternalList;
 
@@ -869,7 +886,7 @@ begin
       bottomrect := rowBoundsRect;
     end;
 
-    if rowBoundsRect.Bottom <= clipTop then
+    if rowBoundsRect.Bottom <= clip.Top then
       tophidden := viewindex
     else if (bottomhidden = -1) and (rowBoundsRect.Top >= clip.Bottom) then
     begin
@@ -881,163 +898,145 @@ begin
     inc(viewindex);
   end;
 
-
-  // test version, if we will approve it, later add and use it via interface part
-  var _RowHeightsGlobalClass: TFMXRowHeightCollection := nil;
-  if _RowHeightsGlobal <> nil then
-    _RowHeightsGlobalClass := TFMXRowHeightCollection(_RowHeightsGlobal);
-
   // viewindex = #of rows hidden and visible
   if viewindex > 0 then
-  begin
     _averageRowHeight := totalHeight / viewindex;
-
-    if _IsMasterScrollingControl and (_View.Count > 0) then
-    begin
-      var [unsafe] lRow: IRow := _View[0];
-      _RowHeightsGlobalClass.SaveTopRow(lRow.Index, lRow.Top);
-    end;
-
-    // RowHeights will decide - apply or not a new AverageHeight from this control, must be same value for both for the one render session
-    if _RowHeightsGlobalClass <> nil then
-    begin
-      _RowHeightsGlobalClass.AverageRowHeight := _averageRowHeight;
-      _averageRowHeight := _RowHeightsGlobalClass.AverageRowHeight;
-    end;
-  end;
 
   if _averageRowHeight = 0 then
     _averageRowHeight := GetInitialRowHeight;
 
-  // remove rows in invisible area
+  // remove rows in invisible area from View, this will change TopRow index
   if (tophidden <> -1) and (GetYScrollingDirection = TScrollingDirection.sdDown) then
     RemoveRowsFromView(False, 0, tophidden + 1)
   else if (bottomhidden <> -1) and not (GetYScrollingDirection = TScrollingDirection.sdDown) {not IsScrollingDown} then
     RemoveRowsFromView(False, bottomhidden, _View.Count - bottomhidden);
 
+  {$region 'Determine the index and position of a row'}
+  if toprow <> nil then
+  begin
+    //
+    // Add panels before first visible panel
+    //
+    if toprect.Top > clip.Bottom then
+    begin
+      var cnt := Trunc((toprect.Top - clip.Bottom) / _averageRowHeight);
+      viewindex := toprow.Index - cnt;
+      topRect.Offset(0, -(cnt * _averageRowHeight));
+    end
+    // Need to insert new items before current top item?
+    else if toprect.Top > clip.Top then
+      viewindex := toprow.Index - 1; // value can be negative, previous:  Max(0, toprow.Index - 1);
+
+
+    // when user scrolls up - add new rows to the top
+    while ( Trunc(toprect.Top) > Trunc(clip.Top) ) and (viewindex >= 0) do
+    begin
+      var row: IRow := InitRow(_view.DataList[_view.Transpose(viewindex)], viewindex);
+
+      toprect.Offset(0, -row.Height);
+      AnimateAddRow(row, topRect.Top);
+      _View.Insert(0, row);
+      dec(viewindex);
+    end;
+
+    // This code is not usually triggered, seems it was fixed.
+    // "There is a gap between the first row and the top of the control
+    // This is normally caused by method AlignViewToCurrent that puts a marker row
+    // at the bottom of the client area.
+    // Move all rows to the top of the control, possibly adding additional rows below"
+    if (_View.Count > 0) and ( (toprect.Top > clip.Top) and (viewindex < 0) ) then
+    begin
+      position := clip.Top;   // First row starting Y
+      var [unsafe] row: IRow := nil;
+      for viewindex := 0 to _View.Count - 1 do
+      begin
+        row := _View.InnerArray[viewindex];
+        row.Top := position;
+        position := position + row.Height;
+      end;
+
+      bottomrow := row;
+      bottomrect := row.BoundsRect;
+    end;
+  end;
+
+  var recalcAverageRowHeights := False;
+  // Append rows below bottom row
   var rowindex: Integer;
 
-  var rowHeightsGlobalTopRowIndex := -1;
-  if _RowHeightsGlobalClass <> nil then
-    rowHeightsGlobalTopRowIndex := _RowHeightsGlobalClass.TopRowIndex;
-
-    // test code (should be optimized) Alex.
-  if Assigned(_RowHeightsGlobalClass) and not _IsMasterScrollingControl and (Toprow <> nil)
-     and (Toprow.Index <> rowHeightsGlobalTopRowIndex) then
+  if (bottomrow <> nil) then
   begin
-    { Shared TopRow. When user scrolls fast the MasterControl (= control which user scrolls now, e.g. Gantt, to the right),
-      the paired control (e.g. Tree, to the left) cannot be scrolled synchroniously, because of diff. speed of scrolling,
-      diff. speed because FMX can start rendering non master Control (left control), control which user does not scroll,
-      at first, so the left control loads rows with default heights and paint them and during this time user may scroll
-      MasterControl (right control) to another position, so TopRow will be changed. To scroll synchronously, the left control
-      should show the same TopRow as the Control1. Only MasterControl can set shared row. This works slowly during fast
-      scrolling, because left control often need to clear and rebuild itself, to show same TopRow as the MasterControl. }
 
-    rowindex := _RowHeightsGlobalClass.TopRowIndex;
-    position := _RowHeightsGlobalClass.TopRowPosition;
-    _View.Clear;
-    var newRow: IRow := InitRow(_view.DataList[_view.Transpose(rowindex)], rowindex, position);
-    _View.Add(newRow);
+    if (bottomrect.Bottom < clip.Top) then
+    begin
+      // how many rows approximately can fit in remain space between new clip.Top and old bottomrect.Bottom, which is above clipTop
+      var cnt: integer := Trunc((clip.Top - bottomrect.Bottom) / _averageRowHeight);
 
-    // next row:
-    inc(rowindex);
-    position := position + newRow.Height;
+      // so we can calc. approx. index of row in a new bottomrow to draw
+      rowIndex := bottomrow.Index + cnt;
+
+      if rowindex > _View.RowCount then
+        rowindex := _View.RowCount - 1;
+
+      // move old bottom rect to the new average bottom position
+      bottomrect.Offset(0, cnt * _averageRowHeight);
+    end else
+      rowindex := bottomrow.Index + 1;
+
+    position := bottomrect.Bottom;
   end
-  else  // move rows only (change position), without clearing\rebuilding the list of rows.
-  begin
-    {$region 'Determine the index and position of a row'}
-    if toprow <> nil then
-    begin
-      //
-      // Add panels before first visible panel
-      //
-      if toprect.Top > clip.Bottom then
-      begin
-        var cnt := Trunc((toprect.Top - clip.Bottom) / _averageRowHeight);
-        viewindex := toprow.Index - cnt;
-        topRect.Offset(0, -(cnt * _averageRowHeight));
-      end
-      // Need to insert new items before current top item?
-      else if toprect.Top > clipTop then
-        viewindex := toprow.Index - 1; // value can be negative, previous:  Max(0, toprow.Index - 1);
-  //      else
-  //        // Noo need to add items, toppanel is the first visible panel in the gird
-  //        firstrow := toprow.Index;
-
-      // when user scrolls up - add new rows to the top
-      while ( Trunc(toprect.Top) > Trunc(clipTop) ) and (viewindex >= 0) do
-      begin
-        var row: IRow := InitRow(_view.DataList[_view.Transpose(viewindex)], viewindex);
-
-        toprect.Offset(0, -row.Height);
-        AnimateAddRow(row, topRect.Top);
-        _View.Insert(0, row);
-        dec(viewindex);
-      end;
-
-      // This code is not usually triggered, seems it was fixed.
-      // "There is a gap between the first row and the top of the control
-      // This is normally caused by method AlignViewToCurrent that puts a marker row
-      // at the bottom of the client area.
-      // Move all rows to the top of the control, possibly adding additional rows below"
-      if (_View.Count > 0) and ( (toprect.Top > clipTop) and (viewindex < 0) ) then
-      begin
-        position := clipTop;   // First row starting Y
-        var [unsafe] row: IRow := nil;
-        for viewindex := 0 to _View.Count - 1 do
-        begin
-          row := _View.InnerArray[viewindex];
-          row.Top := position;
-          position := position + row.Height;
-        end;
-
-        bottomrow := row;
-        bottomrect := row.BoundsRect;
-      end;
-    end;
-
-    // Append rows below bottom row
-   // var rowindex: Integer;
-    if (bottomrow <> nil) then
-    begin
-      if (bottomrect.Bottom < clipTop) then
-      begin
-        // how many rows approximately can fit in remain space between new clipTop and old bottomrect.Bottom, which is above clipTop
-        var cnt: integer := Trunc((clipTop - bottomrect.Bottom) / _averageRowHeight);
-        // so we can calc. approx. index of row in a new bottomrow to draw
-        rowIndex := bottomrow.Index + cnt;
-
-        if rowindex > _View.RowCount then
-          rowindex := _View.RowCount - 1;
-
-        // move old bottom rect to the new average bottom position
-        bottomrect.Offset(0, cnt * _averageRowHeight);
-      end else
-        rowindex := bottomrow.Index + 1;
-
-      position := bottomrect.Bottom;
-    end
-    else // first row
+  else  // first row (now control is empty)
     begin
       rowindex := 0;
-      position := clipTop; // First row starting Y
+      position := clip.Top; // First row starting Y
+      recalcAverageRowHeights := True; // so we can set correct ContentBounds at once in CalcContentBounds
     end;
-   {$endregion}
+ {$endregion}
+
+  // sync toprow between 2 controls
+  if RowHeights <> nil then
+  begin
+    if not _IsMasterScrollingControl then
+    begin
+      var topRowIndex := -1;
+      if _View.Count = 0 then
+        topRowIndex := rowindex
+      else
+        topRowIndex := _View[0].Index;
+
+      // clear it only if the same VPY, else will be incorrect position
+      if _RowHeightsGlobal.ViewportY = ViewportPosition.Y then
+        if (topRowIndex >= 0) and (topRowIndex <> _RowHeightsGlobal.TopRowIndex) then
+        begin
+          _View.Clear;
+          rowindex := _RowHeightsGlobal.TopRowIndex;
+          position := _RowHeightsGlobal.TopRowPosition;
+        end;
+    end;
   end;
 
   AppendRowsBelow(clip, rowindex, position);
 
-//  // On the first pass we have no rows
-//  if (_averageRowHeight = 0) and (_View.Count > 0) then
-//  begin
-//    for viewindex := 0 to _View.Count - 1 do
-//      totalHeight := totalHeight + _View[viewindex].Height;
-//
-//    _averageRowHeight := totalHeight / _View.Count;
-//  end;
+  // save top row index from master control
+  if _IsMasterScrollingControl and (_View.Count > 0) then
+  begin
+     var [unsafe] actualTopRow: IRow := _View[0];
+    _RowHeightsGlobal.SaveTopRow(actualTopRow.Index, actualTopRow.Top, ViewportPosition.Y);
+  end;
+
+  // only at first start or after full reset
+  if recalcAverageRowHeights and (_View.Count > 0) then
+  begin
+    totalHeight := 0;
+
+    for var i := 0 to _View.Count - 1 do
+      totalHeight := totalHeight + _View[i].Control.Height;  // faster than "_View[i].Height" - not from dictionary
+
+    _averageRowHeight := totalHeight / _View.Count;
+  end;
 end;
 
-procedure TScrollableRowControl<T>.AfterUpdateContents(ViewPortYPosition: Single);
+procedure TScrollableRowControl<T>.AfterUpdateContents;
 begin
   // need to call this code while scrolling, or Tree has bugs described in NeedResetView
   if (GetYScrollingDirection = TScrollingDirection.sdUp) and (_View.Count > 1) then
@@ -1046,63 +1045,87 @@ begin
     { need to check it only after all rows were added. We will get row height only in InitRow from user event -
       so we cannot calculate it on early stage without creating a row. Use outside of Begin\EndUpdate, or sometimes
       Tree does not call Paint.}
-      ResetView;
+      ResetView; // full
     end;
 
-  _lastUpdatedViewportPosition.Y := ViewPortYPosition;
-
-  // otherwise this will be executed in "OnFastScrollingStopTimer"
-  if ScrollingType <> TScrollingType.None then
-    Exit;
+  // Added only for DoPostProcessColumns. Need to recalc ContentBounds closer to the end, ecpecially with different row heights.
+  // Btw "OnFastScrollingStopTimer" is not executed. Alex.
+  // Jan: otherwise this will be executed in "OnFastScrollingStopTimer"
+  //if ScrollingType <> TScrollingType.None then
+  //  Exit;
 
   // calls Invalidate - it does not work inside Begin\EndUpdate
   CalcContentBounds;
 
-  if (_View <> nil) {and (_View.Count > 0)} then // commented because column headers are not showing when empty collection is loaded
-  begin
-    var IsNeedRepaint: boolean := false;
-    DoPostProcessColumns(IsNeedRepaint);
-    // process Percentage columns and call AutofitColumns to hide\show some columns. Call it after CalcContentBounds
-    // to find out status of VScroll.Visible. Method can set ColumnChanged(=DataChanged) flag, in this case IsNeedRepaint = true.
+  // should be after CalcContentBounds
+  _lastUpdatedViewportPosition.Y := ViewportPosition.Y;
 
-    if not IsNeedRepaint then
-      _lastSize := Size.Size;
+  if ScrollingType = TScrollingType.None then
+    if (_View <> nil) {and (_View.Count > 0)} then // commented because column headers are not showing when empty collection is loaded
+    begin
+      var IsNeedRepaint: boolean := false;
+      DoPostProcessColumns(IsNeedRepaint);
+      // process Percentage columns and call AutofitColumns to hide\show some columns. Call it after CalcContentBounds
+      // to find out status of VScroll.Visible. Method can set ColumnChanged(=DataChanged) flag, in this case IsNeedRepaint = true.
 
-  // _lastUpdatedViewportPosition.Y := ViewPortYPosition;
-  // moved up because control calls UpdateContents multiple time.  _lastUpdatedViewportPosition.Y := ViewPortYPosition;
+      if not IsNeedRepaint then
+        _lastSize := Size.Size;
 
-  { Workaround for case: Scroll down Tree fast ASAP (10k rows), - sometimes it shows (30-40%) empty list with one row
-    at the bottom. If user moves full window under another window or click on a control - Control will draw all rows
-    correctly. Detect this case and redraw it forcibly. }
+    { Workaround for case: Scroll down Tree fast ASAP (10k rows), - sometimes it shows (30-40%) empty list with one row
+      at the bottom. If user moves full window under another window or click on a control - Control will draw all rows
+      correctly. Detect this case and redraw it forcibly. }
+      if (_View.Count = 1) and (_View.RowCount > 1) and (_ExtraSpaceContentBounds = 0) then
+      begin
+        var R: IRow := _View[_View.Count -1];
+        if (R.index = _View.RowCount - 1) then
+        { Detect and skip the case when height of the row takes all height in the Tree and it is really one row in a View.
+          On the other side, if row height will be smaller, - _View.Count will be > 1 and it will not come here. }
+        begin
+          var headerHeight := GetHeaderHeight;
 
-   // disabled, because while scrolling paired controls, CB is calced incorrectly and control calls this part in a loop. Alex
-//    if (_View.Count = 1) and (_View.RowCount > 1) and (_ExtraSpaceContentBounds = 0) then
-//    begin
-//      var R: IRow := _View[_View.Count -1];
-//      if (R.index = _View.RowCount - 1) then
-//      { Detect and skip the case when height of the row takes all height in the Tree and it is really one row in a View.
-//        On the other side, if row height will be smaller, - _View.Count will be > 1 and it will not come here. }
-//      begin
-//        var headerHeight := GetHeaderHeight;
-//
-//        if (R.Control.Height + headerHeight + 3) < Height then
-//          TThread.ForceQueue(nil, procedure
-//          begin
-//            UpdateContents(True); // Repaint;  // InvalidateContentSize;
-//          end);
-//      end;
-//    end;
-  end;
+          if (R.Control.Height + headerHeight + 3) < Height then
+            TThread.ForceQueue(nil, procedure
+            begin
+              UpdateContents(True); // Repaint;  // InvalidateContentSize;
+            end);
+        end;
+      end;
+    end;
 
   ApplyScrollBarsVisibility;
 
-  // Some part of EndUpdateContents do not need ForceQueue. See TCustomTreeControl.EndUpdateContents;
+  // Some part of EndUpdateContents does not need ForceQueue. See TCustomTreeControl.EndUpdateContents;
 
  // TThread.ForceQueue(nil, procedure
  // begin
     if not (csDestroying in Self.ComponentState) then
       EndUpdateContents;
  // end);
+end;
+
+procedure TScrollableRowControl<T>.EndUpdateContents;
+begin
+  inherited;
+
+  if Assigned(_OnSynchronizeControl) then
+  begin
+   // var VPYChanged := Trunc(_AppliedViewportPosition.Y) <> Trunc(ViewportPosition.Y);
+
+    if (_View <> nil) {and VPYChanged }then
+    begin
+      _AppliedViewportPosition := ViewportPosition;
+
+     // _OnSynchronizeControl(Self, ViewportPosition.Y);
+      // There is an issue - while updating VPY of paired control from Paint. The paired control triggers UpdateContents,
+      // I tried with counter in EndUpdateContents, but FMX does not draw rows, but control prepares rows.
+      // Also same with AfterPaint.
+      // So now syncing controls via OnViewportPositionChange
+
+    end;
+  end;
+
+  _CanResetExtraSpace := True;  // reset in ViewportPositionChange
+
 end;
 
 procedure TScrollableRowControl<T>.UpdateContentsQueuedAfterRowsChange;
@@ -1132,110 +1155,83 @@ begin
   end);
 end;
 
-procedure TScrollableRowControl<T>.EndUpdateContents;
+function TScrollableRowControl<T>.NegotiateRowHeight(Sender: TObject; ARow: IRow; var AHeight: Single): Boolean;
+var
+  addedRow: IRow;
 begin
-  inherited;
+  Result := False;
+  if Sender = Self then exit;
 
-  if Assigned(_OnSynchronizeControl) then
-  begin
-    var VPYChanged := Trunc(_AppliedViewportPosition.Y) <> Trunc(ViewportPosition.Y);
+  _SkipRowHeightNegotiation := True;
+  try
+    if StyleState = TStyleState.Unapplied then
+      ApplyStyleLookup;
 
-    if (_View <> nil) and VPYChanged then
+    if _View = nil then
+      Initialize;
+
+    // Do we have this row in a View of THIS control? (we have 2 controls Tree and Gantt)
+    var rowViewIndex := (_View as TBaseViewList<T>).FindRowByDataIndex(ARow);
+
+    if rowViewIndex >= 0 then
     begin
-     _AppliedViewportPosition := ViewportPosition;
+      addedRow := _View[rowViewIndex];
 
-     var lTopRow: IRow := nil;
-     if _View.Count > 0 then
-     begin
-       lTopRow := _View[0];
+      { Process the case when height of a row in Tree was changed (e.g. user decreased column width), Tree triggers DataChanged
+        and cleared all rows > load a new row, but Gantt still has rows - so need to clear it too, to reposition rows with
+        new heights. Checking if Height was changed (in Tree) in the global RowHeightList but row control in Gantt still has
+        old height - height was not updated - need to rebuild all Gantt.
+        Another way - when one control1 triggers DataChanged - triggers it in a control2, but it could be processed in
+        Control2 not immediately (we use Paint for this), and Tree may ask for a Negotiate before Datachanged will be processed.
+        That's why reset it here immediately.  }
+      if addedRow.Height <> addedRow.Control.Height then
+      begin
+        ResetView(False, True {save top row (but reload it)}{, _View[0].Height});
 
-      _OnSynchronizeControl(Self, lTopRow, ViewportPosition.Y - lTopRow.Top);
-     end;
+        var lTopRow: IRow := _View[0];
+        if addedRow.DataIndex = lTopRow.DataIndex then
+          addedRow := lTopRow // top row was reloaded in ResetView, use it
+        else
+          addedRow := nil; // recreate a new row with this index, because View was reset
+      end;
     end;
-  end;
 
-  if _RowHeightsGlobal <> nil then
-    _RowHeightsGlobal.PairedControlFinishedRendering(Self);
+    // Row was not found - create it to get its size.
+    if addedRow = nil then
+    begin
+    { InitRow and add it into _NegotiateInitiatedRows, later in any place, e.g. UpdateContent will add them into the View
+      and reposition correctly (expecially when row is children). Do not add it into the View because UpdateContent will
+      add new rows with other indexes.
+      So in such way we have a row which was already initiated but not in a View. }
+
+      var obj := _view.DataList[_view.Transpose(ARow.Index)]; // warning, use only DataRowViewIndex here, not DataModel index
+      // - row is returned related to collapsed children. View.DataList[4] - will return Row 6 (4 + 2 (children were collapsed)
+
+      addedRow := InitRow(obj, ARow.Index, -1000 {Y Position}, AHeight);
+      { Set Y = -1000, to place control outside of the visible area. Fixed issue: First row is incorrect.
+        E.g. Row8 instead of row0.
+        Before it was "Y = 0".  Another control from Negotiate (Gantt) created all rows in the position Y = 0
+        and row8 remains to stay at the old position (Y = 0) (because it is out of View in Tree), and overlaps Row0.   }
+
+      if _NegotiateInitiatedRows = nil then
+        _NegotiateInitiatedRows := TList<T>.Create;
+
+      _NegotiateInitiatedRows.Add(addedRow);
+   end;
+
+    var addedRowHeight := addedRow.Height;
+
+    // Do not take row height from the dest. control if FixedRowHeight specified in dest. control.
+    // E.g. If Gantt asks for row height in Tree and Tree.FixedRowHeight <> 0 - Gantt will use own (or default) height
+    if (FixedRowHeight = 0) and (addedRowHeight > AHeight) then
+    begin
+      Result := True;
+      AHeight := addedRowHeight;
+    end;
+  finally
+    _SkipRowHeightNegotiation := False;
+  end;
 end;
-//
-//function TScrollableRowControl<T>.NegotiateRowHeight(Sender: TObject; ARow: IRow; var AHeight: Single): Boolean;
-//var
-//  addedRow: IRow;
-//begin
-//  Result := False;
-//  if Sender = Self then exit;
-//
-//  _SkipRowHeightNegotiation := True;
-//  try
-//    if StyleState = TStyleState.Unapplied then
-//      ApplyStyleLookup;
-//
-//    if _View = nil then
-//      Initialize;
-//    Assert(_View.IsDataModelView, 'NegotiateRowHeight is adapted for DataModelView mode only.');
-//
-//    // Do we have this row in a View of THIS control? (we have 2 controls Tree and Gantt)
-//    var rowViewIndex := (_View as TBaseViewList<T>).FindRowByDataIndex(ARow);
-//
-//    if rowViewIndex >= 0 then
-//    begin
-//      addedRow := _View[rowViewIndex];
-//
-//      { Process the case when height of a row in Tree was changed (e.g. user decreased column width), Tree triggers DataChanged
-//        and cleared all rows > load a new row, but Gantt still has rows - so need to clear it too, to reposition rows with
-//        new heights. Checking if Height was changed (in Tree) in the global RowHeightList but row control in Gantt still has
-//        old height - height was not updated - need to rebuild all Gantt.
-//        Another way - when one control1 triggers DataChanged - triggers it in a control2, but it could be processed in
-//        Control2 not immediately (we use Paint for this), and Tree may ask for a Negotiate before Datachanged will be processed.
-//        That's why reset it here immediately.  }
-//      if addedRow.Height <> addedRow.Control.Height then
-//      begin
-//        ResetView(False, True {save top row (but reload it)}, _View[0].Height);
-//
-//        var lTopRow: IRow := _View[0];
-//        if addedRow.DataIndex = lTopRow.DataIndex then
-//          addedRow := lTopRow // top row was reloaded in ResetView, use it
-//        else
-//          addedRow := nil; // recreate a new row with this index, because View was reset
-//      end;
-//    end;
-//
-//    // Row was not found - create it to get its size.
-//    if addedRow = nil then
-//    begin
-//    { InitRow and add it into _NegotiateInitiatedRows, later in any place, e.g. UpdateContent will add them into the View
-//      and reposition correctly (expecially when row is children). Do not add it into the View because UpdateContent will
-//      add new rows with other indexes.
-//      So in such way we have a row which was already initiated but not in a View. }
-//
-//      var obj := _view.DataList[_view.Transpose(ARow.Index)]; // warning, use only DataRowViewIndex here, not DataModel index
-//      // - row is returned related to collapsed children. View.DataList[4] - will return Row 6 (4 + 2 (children were collapsed)
-//
-//      addedRow := InitRow(obj, ARow.Index, -1000 {Y Position}, AHeight);
-//      { Set Y = -1000, to place control outside of the visible area. Fixed issue: First row is incorrect.
-//        E.g. Row8 instead of row0.
-//        Before it was "Y = 0".  Another control from Negotiate (Gantt) created all rows in the position Y = 0
-//        and row8 remains to stay at the old position (Y = 0) (because it is out of View in Tree), and overlaps Row0.   }
-//
-//      if _NegotiateInitiatedRows = nil then
-//        _NegotiateInitiatedRows := TList<T>.Create;
-//
-//      _NegotiateInitiatedRows.Add(addedRow);
-//   end;
-//
-//    var addedRowHeight := addedRow.Height;
-//
-//    // Do not take row height from the dest. control if FixedRowHeight specified in dest. control.
-//    // E.g. If Gantt asks for row height in Tree and Tree.FixedRowHeight <> 0 - Gantt will use own (or default) height
-//    if (FixedRowHeight = 0) and (addedRowHeight > AHeight) then
-//    begin
-//      Result := True;
-//      AHeight := addedRowHeight;
-//    end;
-//  finally
-//    _SkipRowHeightNegotiation := False;
-//  end;
-//end;
 
 function TScrollableRowControl<T>.GetStyleObject: TFmxObject;
 const
@@ -1553,17 +1549,17 @@ begin
   var obj := _view.DataList[_view.Transpose(RowIndex)];
   Result := InitRow(obj, RowIndex, Position, MinHeight);
 
-
   AnimateAddRow(Result, Position);  // this will set Y position of row control
 
   _View.Add(Result);
 end;
 
-function TScrollableRowControl<T>.AppendRowsBelow(Clip: TRectF; RowIndex: Integer; Position: Single): Integer;
+function TScrollableRowControl<T>.AppendRowsBelow(const Clip: TRectF; RowIndex: Integer; Position: Single): Integer;
   // Result - number of added rows
 var
   row: IRow;
 begin
+  if rowindex < 0 then Exit;
   Result := 0;
 
   while (Position < Clip.Bottom) and (RowIndex < _View.RowCount) do
@@ -1710,11 +1706,10 @@ begin
 
   TopRow := _View[0];
 
-  //// lTop of _contentBounds is always > 0
- // lTop := CMath.Max(0, TopRow.Top - (TopRow.Index * _averageRowHeight));
+  // lTop of _contentBounds is always > 0
+  lTop := CMath.Max(0, TopRow.Top - (TopRow.Index * _averageRowHeight));
 
-  // LTop can be negative or we may have an issue with empty CB in the bottom while diff. row heights and jumping scrolling
-  lTop := TopRow.Top - (TopRow.Index * _averageRowHeight);
+ // lTop := TopRow.Top - (TopRow.Index * _averageRowHeight);
 
   NewContentBounds := TRectF.Create(_contentBounds.Left, lTop, _contentBounds.Right,
      _ExtraSpaceContentBounds + lTop + _View.RowCount {_View.List.Count} * _averageRowHeight);
@@ -1723,21 +1718,18 @@ begin
   if not ForceRecalc then
   begin
     case GetYScrollingDirection of
-      TScrollingDirection.sdUp: ForceRecalc := RecalcWhenUserScrollsUp(NewContentBounds);
-      TScrollingDirection.sdDown: ForceRecalc := RecalcWhenUserScrollsDown(NewContentBounds);
-      TScrollingDirection.sdNone: ForceRecalc := (NewContentBounds.Height <> _contentBounds.Height) or
-       ( (NewContentBounds.Height = _contentBounds.Height) and (NewContentBounds.Top <> _contentBounds.Top) );
-
+      TScrollingDirection.sdUp: ForceRecalc := RecalcWhenScrollUp(NewContentBounds);
+      TScrollingDirection.sdDown: ForceRecalc := RecalcWhenScrollDown(NewContentBounds);
+      TScrollingDirection.sdNone: ForceRecalc := RecalcWhenScrollStopped(NewContentBounds);
     end;
   end;
 
   if ForceRecalc or (NewContentBounds.Right > _contentBounds.Right) then
-   // if _contentBounds <> NewContentBounds then
+    if _contentBounds <> NewContentBounds then
     begin
       // fix issue with jittering while scrolling
       if _ExtraSpaceContentBounds = 0 then
         UnclickClickLMB;
-
       _contentBounds := NewContentBounds;
 
       RealignContent; // InvalidateContentSize;
@@ -1745,7 +1737,8 @@ begin
 end;
 
 procedure TScrollableRowControl<T>.UnclickClickLMB;
-{ Workaround to fix jitter effect issue in TScrollbar.
+{ Workaround to fix jitter effect issue in TScrollbar while scrolling rows with DIFFERENT heights.
+  Usually effect can be reproduced if ContentBounds is changing often.
   <Note: when Tree is using a cache this effect reproduces rarely. So I disabled part which changes the cursor position,
   because cursor jumps from Tree to Gantt during processing this case.>
 
@@ -1753,48 +1746,53 @@ procedure TScrollableRowControl<T>.UnclickClickLMB;
   reproduces jitter effect. Release held LMB to untie it from scrollbar silder and press again
   this will not interrupt scrolling process. Issue is also reproduced when Tree calls Reset proc}
 begin
-  {$IFDEF MSWINDOWS}
-  if (VScrollBar = nil) or (Scene = nil) or (Screen = nil) then exit;
 
-  // If LMB is pressed (user is scrolling holding LMB)
-  if GetKeyState(VK_LBUTTON) < 0 then
-  begin
-    var FMXTControl := ( ObjectAtPoint(Screen.MousePos) as TControl );
+// Disabled, now while scrolling Gantt sometimes LMB remains in the pressed state even if the button is not pressed
 
-    // if cursor is over the TThumb control of Scrollbar?
-    if FMXTControl is TThumb then   // can be nil
-    begin
-      mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0); //release left button
-      mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-    end;
-    (* Disabled, because when Tree + Gantt works in one form - cursor jumps from Tree to Gantt (because of using same parent class).
-    else
-      // During scrolling by draggin lift, while LMB is pressed, user may move cursor out of the scrollbar area,
-      // move it back to v. scrollbar, change only X. Or without this we can click on any other control on a screen.
-      begin
-		{$IFNDEF LYNXX}
-        var WinCursorPos: TPoint;
-        GetCursorPos(WinCursorPos);
+//
+//  {$IFDEF MSWINDOWS}
+//  if (VScrollBar = nil) or (Scene = nil) or (Screen = nil) then exit;
+//
+//  // If LMB is pressed (user is scrolling holding LMB)
+//  if GetKeyState(VK_LBUTTON) < 0 then
+//  begin
+//    var FMXTControl := ( ObjectAtPoint(Screen.MousePos) as TControl );
+//
+//    // if cursor is over the TThumb control of Scrollbar?
+//    if FMXTControl is TThumb then   // can be nil
+//    begin
+//      mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0); //release left button
+//      mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+//    end;
+//    (* Disabled, because when Tree + Gantt works in one form - cursor jumps from Tree to Gantt (because of using same parent class).
+//    else
+//      // During scrolling by draggin lift, while LMB is pressed, user may move cursor out of the scrollbar area,
+//      // move it back to v. scrollbar, change only X. Or without this we can click on any other control on a screen.
+//      begin
+//		{$IFNDEF LYNXX}
+//        var WinCursorPos: TPoint;
+//        GetCursorPos(WinCursorPos);
+//
+//        var pnt := PointF( VScrollBar.Width / 2, 0);
+//        pnt := VScrollBar.LocalToAbsolute(pnt);
+//        pnt := Scene.LocalToScreen(pnt);
+//
+//        var Scale := Scene.GetSceneScale;
+//
+//        WinCursorPos.X := Trunc(pnt.X * Scale);
+//        SetCursorPos(WinCursorPos.X, WinCursorPos.Y);
+//
+//        // and again click-unclick LMB on the scrollbar thumb
+//        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0); //release left button
+//        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+//		{$ENDIF}
+//      end;     *)
+//  end;
+//  {$ENDIF}
 
-        var pnt := PointF( VScrollBar.Width / 2, 0);
-        pnt := VScrollBar.LocalToAbsolute(pnt);
-        pnt := Scene.LocalToScreen(pnt);
-
-        var Scale := Scene.GetSceneScale;
-
-        WinCursorPos.X := Trunc(pnt.X * Scale);
-        SetCursorPos(WinCursorPos.X, WinCursorPos.Y);
-
-        // and again click-unclick LMB on the scrollbar thumb
-        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0); //release left button
-        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-		{$ENDIF}
-      end;     *)
-  end;
-  {$ENDIF}
 end;
 
-function TScrollableRowControl<T>.RecalcWhenUserScrollsDown(var NewContentBounds: TRectF): boolean;
+function TScrollableRowControl<T>.RecalcWhenScrollDown(var NewContentBounds: TRectF): Boolean;
   // related to CalcContentBounds. Because local procedure in generic method is not supported
 var
   [unsafe] LastVisibleRow: T;
@@ -1802,6 +1800,7 @@ var
 begin
   Result := false;
   LastVisibleRow := _View[_View.Count - 1];
+
   var RemainSpace := _contentBounds.Bottom - (ViewportPosition.Y + ClientHeight);
 
    // if latest row is already in View - set exact space for ContentBounds
@@ -1844,10 +1843,23 @@ begin
     end;
 end;
 
-function TScrollableRowControl<T>.RecalcWhenUserScrollsUp(var NewContentBounds: TRectF): boolean;
+function TScrollableRowControl<T>.RecalcWhenScrollUp(var NewContentBounds: TRectF): Boolean;
 begin
   var RemainSpace := (ViewportPosition.Y - ClientHeight) - _contentBounds.Top;
   Result := RemainSpace <= END_OF_LIST_SPACE;
+end;
+
+function TScrollableRowControl<T>.RecalcWhenScrollStopped(var NewContentBounds: TRectF): boolean;
+begin
+  var LastVisibleRow := _View[_View.Count - 1];
+
+  if _View.RowCount - 1 = LastVisibleRow.Index then
+    Result := RecalcWhenScrollDown(NewContentBounds)
+  else
+    Result := (NewContentBounds.Height <> _contentBounds.Height);
+    // or ( (NewContentBounds.Height = _contentBounds.Height) and (NewContentBounds.Top <> _contentBounds.Top) );
+    // added this line, to fix issue while synch. scrollng paired controls - Control2 does not update ContentBounds
+    // upd: this adds more jittering and unstable scrolling
 end;
 
 procedure TScrollableRowControl<T>.RemoveRowsFromView(const MakeViewNil: Boolean = False; const StartIndex: Integer = -1;
@@ -2810,47 +2822,6 @@ begin
     Result := INITIAL_ROW_HEIGHT;
 end;
 
-procedure TScrollableRowControl<T>.DoUpdateRowHeights;
- // resize and reposition rows in accordance with [new] heights in _RowHeightsGlobal, without removing rows
-begin
-  if _RowHeightsGlobal = nil then Exit;
-
-
-  _View.Clear; //ResetView()
-
-//
-//  BeginUpdate;
-//  try
-//    var rowYOffset: Single := 0;
-//
-//    for var i := 0 to _View.Count - 1 do
-//    begin
-//      var [unsafe] row: IRow := _View.InnerArray[i];
-//      var rowControl := row.Control;
-//
-//       // move the row related to previous row height changes
-//      if rowYOffset <> 0 then
-//      begin
-//        rowControl.Position.Y := rowControl.Position.Y + rowYOffset;
-//        rowYOffset := 0;
-//      end;
-//
-//      // change row height
-//      var rowHeightsHeight := row.Height;
-//      if rowHeightsHeight <> rowControl.Height then
-//      begin
-//        rowYOffset := rowHeightsHeight - rowControl.Height;
-//        rowControl.Height := rowHeightsHeight;
-//      end;
-//
-//    end;
-//
-//  finally
-//    EndUpdate;
-//  end;
-
-
-end;
 
 procedure TScrollableRowControl<T>.OnTimerHintHoverDelay(Sender: TObject);
 begin
@@ -3648,20 +3619,13 @@ begin
   Result := _Owner.RowHeight[DataItem];
 end;
 
-procedure TRow.set_Height(const Value: Single);
+procedure TRow.set_Height(Value: Single);
 begin
-  if DataItem = nil then Exit;  // E.g. when TemporaryRow + RowLoaded which sets height
+  if (DataItem = nil) { or (_Control = nil) }then Exit;
+  // When Row is temporary - Control and DataItem are nil, in this case it does not make sense to set height in Row events,
+  // no control - so user cannot measure height there
 
-  { Change Height only while scrolling stopped or we have different heights while scrolling paired controls,
-   should be std height or previous value.  Issue with synch. scrolling of paired control, which do not know about height
-   and can be rendered with std row h. BEFORE user sets a custom row height in a second control).
-   Also Jan disabled calculating cell height while fast scrolling, so it's logical so disable applying custom row height
-   here too. In RowLoading\RowLoaded user cannot set custom height while scrolling. }
-
-    //!!! enabling this creates new issues while calculating CB
-  var mainControl := TScrollableRowControl<IRow>(_Control.Owner); // Tree\Gantt
-  if mainControl.ScrollingType <> TScrollableControl.TScrollingType.None then Exit;
-
+  //var mainControl := TScrollableRowControl<IRow>(_Control.Owner); // Tree\Gantt
   if _Owner.RowHeight[DataItem] <> Value then
     _Owner.RowHeight[DataItem] := Value;
 
