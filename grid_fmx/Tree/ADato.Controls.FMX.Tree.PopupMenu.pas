@@ -21,12 +21,10 @@ type
     lbiClearSortAndFilter: TListBoxItem;
     lbiHideColumn: TListBoxItem;
     ImageListPopup: TImageList;
-    lbiFilter: TListBoxItem;
     lbiDelimiter: TListBoxItem;
     lbiAddColumnAfter: TListBoxItem;
-    Shadow: TShadowEffect;
     lbiDelimiter2: TListBoxItem;
-    procedure PopupListBoxChange(Sender: TObject);
+    filterlist: TLayout;
     procedure FormDeactivate(Sender: TObject);
     procedure lbiSortSmallToLargeClick(Sender: TObject);
     procedure lbiSortLargeToSmallClick(Sender: TObject);
@@ -35,7 +33,6 @@ type
     procedure lbiClearFilterClick(Sender: TObject);
     procedure lbiClearSortAndFilterClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
-    procedure FormCreate(Sender: TObject);
   public type
     TPopupResult = (ptCancel, ptSortAscending, ptSortDescending, ptAddColumnAfter, ptHideColumn, ptClearFilter, ptClearSortAndFilter, ptClearAll, ptFilter);
 
@@ -51,7 +48,7 @@ type
     //_comparerTreeFilter: TComparerTreeFilter;
     //_filters: List<IListFilterDescription>;
 
-    _FilterBorder: TRectangle;
+    _FilterBorder: TLayout;
     _EbSearch: TEdit;
     _TreeControl: TControl;   // cannot use TFMXTreeControl class because of circular unit reference
     _PopupResult: TPopupResult;
@@ -62,7 +59,6 @@ type
     procedure BtnApplyFilterClick(Sender: TObject);
     procedure SetAllowClearColumnFilter(Value: Boolean);
 
-    procedure OnTreeEndUpdateContents(Sender: TObject);
     procedure OnSearchEditBoxChanging(Sender: TObject);
   public
     procedure ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters, ShowItemSortOptions, ShowItemAddColumAfter,
@@ -124,11 +120,6 @@ uses
 
 {$R *.fmx}
 
-procedure TfrmPopupMenu.FormCreate(Sender: TObject);
-begin
-  Assert(not Shadow.Enabled); // Shadow will be enabled later because of issue. See OnTreeEndUpdateContents
-end;
-
 procedure TfrmPopupMenu.FormDeactivate(Sender: TObject);
 begin
   Close;
@@ -148,20 +139,6 @@ begin
   end;
 end;
 
-procedure TfrmPopupMenu.PopupListBoxChange(Sender: TObject);
-begin
-  if PopupListBox.Selected = nil then exit;
-
-  // hide FilterBorder if user selected pmiFilter item, to prevent mixing with listitem border
-  if _FilterBorder <> nil then
-  begin
-    if PopupListBox.Selected.Index = lbiFilter.Index then
-      _FilterBorder.Stroke.Kind := TBrushKind.None
-    else
-      _FilterBorder.Stroke.Kind := TBrushKind.Solid;
-  end;
-end;
-
 procedure TfrmPopupMenu.ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters, ShowItemSortOptions, ShowItemAddColumAfter,
       ShowItemHideColumn: Boolean);
 { • ShowItemFilters - Tree and filters search box, Clear Filter
@@ -172,6 +149,7 @@ procedure TfrmPopupMenu.ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters,
     item: TListBoxItem;
   begin
     var lbHeight: Double := 0;
+    var filterListHeight := 0;
 
     for var i := 0 to PopupListBox.Count - 1 do
     begin
@@ -181,7 +159,11 @@ procedure TfrmPopupMenu.ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters,
       if item.IsSelected then
         item.IsSelected := false;
     end;
-    Height := Ceil(lbHeight + Padding.Bottom + Padding.Top + 1 );
+
+    if filterlist.Visible then
+      filterListHeight := 202;
+
+    Height := Ceil(lbHeight + filterListHeight + {Padding.Bottom + Padding.Top + 1 +} 20);
   end;
 
 begin
@@ -193,12 +175,11 @@ begin
   if ShowItemFilters then
     CreateItemFiltersControls;
 
-  lbiFilter.Visible := ShowItemFilters;
-
   // ShowItemSortOptions
   lbiSortSmallToLarge.Visible := ShowItemSortOptions;
   lbiSortLargeToSmall.Visible := ShowItemSortOptions;
   lbiClearFilter.Visible := ShowItemFilters;
+  filterlist.Visible := ShowItemFilters;
   lbiClearSortAndFilter.Visible := ShowItemSortOptions;
 
   lbiAddColumnAfter.Visible := ShowItemAddColumAfter;
@@ -217,45 +198,45 @@ begin
     exit;
   end;
 
-  _FilterBorder := TRectangle.Create(lbiFilter);
-  with _FilterBorder do
-  begin
-    Fill.Kind := TBrushKind.None;
-    Stroke.Color := $FFDDDDDD;
-    YRadius := 5;
-    XRadius := 5;
-    Align := TAlignLayout.Client;
-  end;
-  lbiFilter.AddObject(_FilterBorder);
+  _FilterBorder := TLayout.Create(filterlist);
+  _FilterBorder.Align := TAlignLayout.Contents;
 
-  _EbSearch := TEdit.Create(lbiFilter);
-  _EbSearch.Align := TAlignLayout.Top;
-  _EbSearch.StyleLookup := 'transparentedit';
-  _EbSearch.TextPrompt := 'Search';
-  _EbSearch.Margins.Left := 2;
-  _EbSearch.TabOrder := 0;
-  _EbSearch.OnChangeTracking := OnSearchEditBoxChanging;
-  _FilterBorder.AddObject(_EbSearch);
+  filterlist.AddObject(_FilterBorder);
 
-  var layButtons := TLayout.Create(lbiFilter);
-  layButtons.Align := TAlignLayout.Bottom;
+  var layButtons := TLayout.Create(filterlist);
+  layButtons.Align := TAlignLayout.Top;
   layButtons.Margins.Top := 3;
   layButtons.Height := 34;
   _FilterBorder.AddObject(layButtons);
 
-  var btnApplyFilter := TButton.Create(lbiFilter);
+  _EbSearch := TEdit.Create(filterlist);
+  _EbSearch.Align := TAlignLayout.Client;
+  _EbSearch.StyleLookup := 'transparentedit';
+  _EbSearch.TextPrompt := 'Search';
+  _EbSearch.Margins.Right := 2;
+  _EbSearch.TabOrder := 0;
+  _EbSearch.OnChangeTracking := OnSearchEditBoxChanging;
+  layButtons.AddObject(_EbSearch);
+
+  var btnApplyFilter := TButton.Create(filterlist);
   btnApplyFilter.Text := 'Apply filter';
   btnApplyFilter.Width := 70;
   btnApplyFilter.Position.X := 0;
   btnApplyFilter.Position.Y := 5;
   btnApplyFilter.TabOrder := 1;
-  btnApplyFilter.Align := TAlignLayout.Center;
+
+  btnApplyFilter.Margins.Left := 5;
+  btnApplyFilter.Margins.Top := 5;
+  btnApplyFilter.Margins.Right := 5;
+  btnApplyFilter.Margins.Bottom := 5;
+
+  btnApplyFilter.Align := TAlignLayout.Right;
   btnApplyFilter.OnClick := btnApplyFilterClick;
   layButtons.AddObject(btnApplyFilter);
 
   // create tree in runtime because of circular unit reference - cannot use in design time
   var tree := TFMXTreeControl.Create(Self);
-  tree.Options := tree.Options + [TreeOption.ShowCheckboxes] - [TreeOption.ShowHeaders];
+  tree.Options := tree.Options - [TreeOption.ShowHeaders];
   tree.Align := TAlignLayout.Client;
   _FilterBorder.AddObject(tree);
 
@@ -266,15 +247,18 @@ begin
   tree.AutoFitColumns := false;
   // disable AutoFitColumns, because this will hide columns
 
-  Tree.OnEndUpdateContents := OnTreeEndUpdateContents;
-
   _TreeControl := tree;
 
-  var column1 := TFMXTreeColumn.Create;
-  column1.PropertyName := TREE_COLUMN_NAME_TEXT;
-  column1.ReadOnly := True;
-  column1.Width := 10; // Just to see it in case if Autosize goes wrong
+  var column1 := TFMXTreeCheckboxColumn.Create;
+  column1.Width := 25;
   tree.Columns.Add(column1);
+
+  var column2 := TFMXTreeColumn.Create;
+  column2.PropertyName := TREE_COLUMN_NAME_TEXT;
+  column2.ReadOnly := True;
+  column2.WidthType := TColumnWidthType.Percentage;
+  column2.Width := 100; // Just to see it in case if Autosize goes wrong
+  tree.Columns.Add(column2);
 end;
 
 procedure TfrmPopupMenu.LoadFilterItems(const Data: Dictionary<CObject, CString>; Comparer: IComparer<CObject>;
@@ -318,30 +302,25 @@ begin
 end;
 
 function TfrmPopupMenu.get_SelectedFilters: List<IFilterItem>;
-var
-  item: IFilterItem;
 begin
   Result := CList<IFilterItem>.Create;
   var items := (_TreeControl as TFMXTreeControl).DataList as List<IFilterItem>;
 
-  for item in items do
-    if item.Checked then
-      Result.Add(item);
+  // TODO: Code below correctly adds checked items to result, but ApplySort at later point fails
+  // Seems because it tries to compare task with item selected here, types are not same so it fails.
+  // Turn on when know how to fix.
+
+//  var tree := (_TreeControl as TFMXTreeControl);
+//  for var I := 0 to tree.RowCount - 1 do
+//  begin
+//    if tree.Rows[I].Checked then
+//      Result.Add(items[I]);
+//  end;
 end;
 
 procedure TfrmPopupMenu.SetAllowClearColumnFilter(Value: Boolean);
 begin
   EnableItem(lbiClearFilter.Index, Value);
-end;
-
-procedure TfrmPopupMenu.OnTreeEndUpdateContents(Sender: TObject);
-begin
-  if not Shadow.Enabled then
-    Shadow.Enabled := True;
-
- {Enable Shadow later. This is workaround for issue: Tree (AutoFitColumns = False) does not calculate automatically width of
-  Column after first start of Tree and column is cut off (= user width). When shadow is on in design time,
-  FResourceLink = nil in TCustomTreeControl.InitRow and cell cannot load its style because Tree has InPaintTo = True. }
 end;
 
 procedure TfrmPopupMenu.OnSearchEditBoxChanging(Sender: TObject);

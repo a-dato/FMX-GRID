@@ -11923,7 +11923,15 @@ begin
 
   var rowIndex := 0;
   var tmpRow: ITreeRow := TFMXTreeControl(_Control).InitTemporaryRow(dataItem, rowIndex);
-  var tmpCell: ITreeCell := tmpRow.Cells[columnIndex];
+
+  var cellIndex := columnIndex;
+  for var I := 0 to columnIndex - 1 do
+  begin
+    if not TFMXTreeControl(_Control).Columns[I].Visible then
+      Dec(cellIndex);
+  end;
+
+  var tmpCell: ITreeCell := tmpRow.Cells[cellIndex];
 
   while GetNextRow(rowIndex, dataItem) do
   begin
