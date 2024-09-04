@@ -19,6 +19,17 @@ type
     property  StoredContexts: Dictionary<CObject, IObjectModelContext> read get_StoredContexts;
   end;
 
+  IStorageObjectModelContext = interface
+    ['{F76914C2-B6F5-4E9C-884C-00CCBFF67515}']
+    function  get_itemIsInControlOfOtherModelContexts: Boolean;
+    procedure set_itemIsInControlOfOtherModelContexts(const Value: Boolean);
+
+    function get_listObjectModelContext: IObjectModelContext;
+
+    property ListObjectModelContext: IObjectModelContext read get_listObjectModelContext;
+    property ItemIsInControlOfOtherModelContexts: Boolean read get_itemIsInControlOfOtherModelContexts write set_itemIsInControlOfOtherModelContexts;
+  end;
+
 implementation
 
 end.
