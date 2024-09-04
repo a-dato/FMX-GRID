@@ -194,8 +194,9 @@ type
       Alex}
 {$IFDEF DEBUG} // remove it later after tests. 10.10.23 Alex
     function GetCB: TRectF;
-    function GetVPMax: Single;
-    function GetVPMin: Single;
+    function GetVPYMax: Single;
+    function GetVPXMax: Single;
+    function GetVPXMin: Single;
 {$ENDIF}
     property ViewportPosition: TPointF read GetViewportPosition write SetViewportPosition;
     property ScrollingType: TScrollingType read _scrollingType write SetScrollingType;
@@ -463,15 +464,21 @@ begin
 end;
 
 {$IFDEF DEBUG}
-function TScrollableControl.GetVPMax: Single;
+function TScrollableControl.GetVPXMax: Single;
 begin
   Result := TScrollableAniCalculations(AniCalculations).MaxTarget.Point.X;
 end;
 
-function TScrollableControl.GetVPMin: Single;
+function TScrollableControl.GetVPXMin: Single;
 begin
    Result := TScrollableAniCalculations(AniCalculations).MinTarget.Point.X;
 end;
+
+function TScrollableControl.GetVPYMax: Single;
+begin
+  Result := TScrollableAniCalculations(AniCalculations).MaxTarget.Point.Y;
+end;
+
 {$ENDIF}
 
 procedure TScrollableControl.HideControlsInBaseStyle(const AStyleNames: array of string);
@@ -607,8 +614,6 @@ procedure TScrollableControl.DoScrollingTypeChanged(const OldScrollingType, NewS
 begin
   inherited;
 
- // if True then
-
 end;
 
 procedure TScrollableControl.ViewportPositionChange(const OldViewportPosition, NewViewportPosition: TPointF;
@@ -627,7 +632,7 @@ begin
 
   if AniCalculations.Down {or AniCalculations.Moved} {We have turned this off because it messes up touch scrolling and double click} then
   begin
-    // user keeps scrolling now but slower
+    // user keeps scrolling now but slower (related only to touch screen events, not to mouse)
     _fsStopTimer.Enabled := True;
     Exit;
   end;

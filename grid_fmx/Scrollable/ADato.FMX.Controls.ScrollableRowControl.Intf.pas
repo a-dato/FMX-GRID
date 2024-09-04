@@ -23,7 +23,7 @@ type
     function get_BoundsRect: TRectF;
     function get_Control: TControl;
     function get_Height: Single;
-    procedure set_Height(const Value: Single);
+    procedure set_Height(Value: Single);
     function get_Index: Integer;
     procedure set_Index(Value: Integer);
     function get_DataIndex: Integer;
