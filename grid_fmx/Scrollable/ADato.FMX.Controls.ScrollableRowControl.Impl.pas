@@ -3677,7 +3677,7 @@ begin
     if FindStyleResource<TText>('text', _TextControl) then // clone = false here, do not destroy _TextControl
       _TextControl.Align := TAlignLayout.None;  // We change parent size according to the TText Autosize values
 
-  if _TextControl <> nil then
+  if (_TextControl <> nil) and (_TextControl.Scene <> nil) then
   begin
     _TextControl.Width := MaxInt;
     _TextControl.Text := AText;

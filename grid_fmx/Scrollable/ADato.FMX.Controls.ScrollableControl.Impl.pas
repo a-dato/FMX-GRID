@@ -604,9 +604,9 @@ procedure TScrollableControl.SetScrollingType(const Value: TScrollingType);
 begin
   if _scrollingType <> Value then
   begin
-    var oldScrollingType := _scrollingType;
-    _scrollingType := Value;
-    DoScrollingTypeChanged(oldScrollingType, Value);
+//    var oldScrollingType := _scrollingType;
+//    _scrollingType := Value;
+//    DoScrollingTypeChanged(oldScrollingType, Value);
   end;
 end;
 
@@ -647,6 +647,10 @@ end;
 
 procedure TScrollableControl.DetectFastScrolling;
 begin
+  // temporary work without _scrollingtype to load all data
+  _fsStopTimer.Enabled := False;
+  Exit;
+
   // in case if this is the last ViewportPositionChange event - reset _isFastScrolling to False in timer
   _fsStopTimer.Enabled := False; // truly reset timer here!!
   _fsStopTimer.Enabled := True;
