@@ -593,8 +593,8 @@ type
       function  get_Values: ICollection<TValue>;
 
       procedure Add(const key: TKey; const value: TValue);
-      function ContainsKey(const key: TKey): boolean;
-      function Remove(const key: TKey): boolean;
+      function ContainsKey(const key: TKey): Boolean;
+      function Remove(const key: TKey): Boolean;
       function TryGetValue(const key: TKey; out value: TValue): boolean;
 
       // Properties
@@ -621,7 +621,7 @@ type
     function CastValue(const Value: TValue): CObject;
 
     function ContainsValue(const value: TValue): Boolean;
-    function  FindEntry(const key: TKey): Integer;
+    function FindEntry(const key: TKey): Integer;
 
     property Entries[index: Integer]: Entry<TKey, TValue> read get_Entry;
     property Version: Integer read get_Version;

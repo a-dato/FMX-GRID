@@ -118,8 +118,8 @@ type
     _LayoutComplete : Boolean;
     _ColSpan        : Byte;
   private
-    procedure DrawHierachicalBorder(AGridLineStyle: TStrokeBrush; ABaseIndent: single);
-    procedure DrawRectangleBorder(AGridLineStyle: TStrokeBrush);
+    procedure DrawLineBorder(AGridLineStyle: TStrokeBrush; FullHorzAndVertGrid: Boolean);
+    procedure DrawLineBorderInHierarchy(AGridLineStyle: TStrokeBrush; ABaseIndent: single; FullHorzAndVertGrid: Boolean);
     procedure UpdateBottomHierarchicalBorder;
     procedure UpdateLeftHierarchicalBorders;
   protected
@@ -291,15 +291,15 @@ type
   protected
     procedure ResetRowData(const ADataItem: CObject; AIndex: Integer); override;
   protected
-    [unsafe] _Owner   : ITreeRowList;
+    // [unsafe] _Owner   : ITreeRowList; // moved into the base class
     procedure UpdatePlusMinusFillerState; // in all cells
-    function  get_Cells: ITreeCellList;
+    [Result: Unsafe] function get_Cells: ITreeCellList;
     //IOverwritableTreeRow
     procedure set_DataItem(const Value: CObject);
     function  get_Enabled: Boolean;
     procedure set_Enabled(const Value: Boolean);
-    function  get_Height: Single; override;
-    procedure set_Height(const Value: Single); override;
+    // function  get_Height: Single; override;   // moved into the base class
+    // procedure set_Height(const Value: Single); override;
     function  get_IsExpanded: Boolean;
     procedure set_IsExpanded(Value: Boolean);
     function  get_IsSelected: Boolean;
@@ -1261,10 +1261,6 @@ type
     _GridLineStroke: TStrokeBrush;
     _IsCellStyleStandard: Boolean;
 
-    _RowHeightsGlobal: IFMXRowHeightCollection;
-    // Global _RowHeights to synch. height between controls (Tree\Gantt). In case if it is nil, each View has own
-    // internal _RowHeights (to save user custom row height values), in TBaseViewList<T: IRow> in the ADato.FMX.Controls.ScrollableRowControl.Impl unit.
-
     _SortingChangedMustBeCalled : Boolean;
     _listComparer       : IListComparer;
     _TopRowPosition : Single;
@@ -1373,7 +1369,6 @@ type
     procedure AlignViewToCell;
 
   protected
-   // procedure Paint; override;
     procedure AfterPaint; override;
     procedure SetParent(const Value: TFmxObject); override;
 
@@ -1387,7 +1382,8 @@ type
     procedure set_FirstColumn(Value: Integer);
     function  get_Options: TreeOptions;
     procedure set_Options(const Value: TreeOptions);
-    procedure set_RowHeights(const Value: IFMXRowHeightCollection);
+    function  get_Layout: ITreeLayout;
+
 
     procedure Initialize; override;
     procedure InitCellContent(const TreeCell: ITreeCell; const LayoutColumn: ITreeLayoutColumn);
@@ -1398,15 +1394,18 @@ type
     function  InitRowCells(const TreeRow: ITreeRow; const IsCachedRow: Boolean; const TreeRowHeight: Single): Single;
     function  InitTemporaryRow(const DataItem: CObject; ViewRowIndex: Integer): ITreeRow; override;
     procedure EndUpdateContents; override;
-    procedure ClearRowHeights;
     procedure SetAutoFitColumns(Value: Boolean); override;
     function  GetRowRectangle(const Row: ITreeRow) : TRectF;
     procedure ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
-      const ATopRowMinHeight: Single = 0); override; // see also public Clear method
+      const CallDataChanged: Boolean = True); override; // see also public Clear method
     procedure RemoveRowsFromView(const MakeViewNil: Boolean = False; const StartIndex: Integer = -1; const Count: Integer = -1); override;
 
   protected
-    procedure DoFastScrollingStopped; override;
+    procedure ClearRowHeights; 
+    // procedure set_RowHeights(const Value: IFMXRowHeightCollection); // moved into the base class
+  protected
+    procedure DoScrollingTypeChanged(const OldScrollingType, NewScrollingType: TScrollableControl.TScrollingType); override;
+    //procedure DoFastScrollingStopped; override;
     procedure ShowSelections; override;
     function GetSelectionRectange(RowViewIndex: integer; const ColumnIndex: integer = -1): TRectF; override;
     function GetCurrentCell: Integer; override;
@@ -1417,7 +1416,7 @@ type
     procedure HScrollChange; override;
 
     // ITreeControl methods
-    function  get_Cell: ITreeCell;
+    [Result: unsafe] function  get_Cell: ITreeCell;
     procedure set_Cell(const Value: ITreeCell);
     function  get_CellItemClicked: CellItemClickedEvent;
     procedure set_CellItemClicked(Value: CellItemClickedEvent);
@@ -1607,7 +1606,7 @@ type
     //Current - Current Row index in the source list (= View.List), not in a current View list
     property HeaderRows: IHeaderRowList read get_HeaderRows;
     // property Images: TCustomImageList read GetImages write SetImages;
-    property Layout: ITreeLayout read _Layout;
+    property Layout: ITreeLayout read get_Layout;
     property Row: ITreeRow read get_Row;
     property TopRowPosition: Single read _TopRowPosition;
     property TreeRowList: ITreeRowList read get_TreeRowList;
@@ -1627,7 +1626,6 @@ type
     property Model: IObjectListModel read _model write set_Model;
     property Options: TreeOptions read _Options write set_Options;
     property HeaderHeight: Single read GetHeaderHeight write _HeaderHeight;
-    property RowHeights: IFMXRowHeightCollection read _RowHeightsGlobal write set_RowHeights;
     property SortColumns: CString read  get_SortColumns write set_SortColumns;
     property SortDescriptions: List<IListSortDescription> read get_SortDescriptions;
 
@@ -1727,6 +1725,7 @@ type
     property FixedRowHeight;
     property TabStop;
     property HighlightRows;
+    property IsMasterScrollingControl;
     //
     // Events
     //
@@ -2300,8 +2299,8 @@ begin
     DoColumnChangedByUser(nil, col.Column);
     THeaderRowList(HeaderRows).LastResizedColumnByUser := hi.LayoutColumnIndex;
 
-    if _RowHeightsGlobal <> nil then
-      _RowHeightsGlobal.Clear;
+    //if _RowHeightsGlobal <> nil then
+    //  _RowHeightsGlobal.Clear;
 
     // DataChanged tells the tree to reload all it's data
     RefreshControl([TreeState.DataChanged]);
@@ -2331,7 +2330,11 @@ begin
     TMouseButton.mbRight:
     begin
       var XY := (Sender as TControl).LocalToScreen( PointF(X, Y) );
-      ShowHeaderPopupMenu(XY, Layout.Columns[header.LayoutColumnIndex] );
+
+      // column := _Layout.FlatColumns[_Layout.ColumnToFlatIndex(columnIndex)];
+      var column := _Layout.Columns[header.LayoutColumnIndex];
+      if column.Column.ShowSortMenu or column.Column.ShowFilterMenu or column.Column.AllowHide then
+        ShowHeaderPopupMenu(XY, Layout.Columns[header.LayoutColumnIndex] );
     end;
   end;
 end;
@@ -2962,7 +2965,7 @@ begin
   Result := True;
   if Assigned(_CellLoading) then
   begin
-    AutoObject.Guard(CellLoadingEventArgs.Create(Cell, Flags, (_scrollingType = TScrollingType.FastScrolling)), e);
+    AutoObject.Guard(CellLoadingEventArgs.Create(Cell, Flags, (ScrollingType = TScrollingType.FastScrolling)), e);
 
     _CellLoading(Self, e);
     Result := e.LoadDefaultData;
@@ -2973,13 +2976,13 @@ begin
   end;
 end;
 
-procedure TCustomTreeControl.DoFastScrollingStopped;
+procedure TCustomTreeControl.DoScrollingTypeChanged(const OldScrollingType, NewScrollingType: TScrollableControl.TScrollingType);
 begin
   inherited;
 
-//  // DataChanged tells the tree to reload all it's data and calculate correct sizes
-//  RefreshControl([TreeState.DataChanged]);
-  RefreshControl([TreeState.DataChanged]);
+  // scrolling stopped, Tree will be fully refreshed
+  if NewScrollingType = TScrollingType.None then
+    RefreshControl([TreeState.DataChanged]);
 end;
 
 function TCustomTreeControl.DoColumnChangingByUser(
@@ -3968,6 +3971,7 @@ begin
     (_view as ITreeRowList).RefreshRowHeights;
 end;
 
+
 procedure TCustomTreeControl.Initialize;
 
   procedure ShowCheckBoxColumn;
@@ -4154,6 +4158,7 @@ begin
     end;
 
     // at this stage View.Count = 0
+
     if TreeState.AlignViewToCurrent in _InternalState then
       AlignViewToCurrent(lTopRow) //AlignViewToCurrent(nil)
     else
@@ -4182,11 +4187,12 @@ begin
       SB sets a new VPY with a new MaxTargetY. As a result: when Tree is showing HScrollbox, and user scrolls to the end of
       the Tree, and at this stage calls Datachanged - Tree will scrolls one row up and show previous row as a last row. }
 
-    if _RowAnimationsCountNow = 0 then // when not expanding\collapsing
-      if not (TreeState.RowHeightsChanged in _InternalState) then
-        if not (TreeOption.PreserveRowHeights in Options) and
-          ([TreeState.DataChanged, TreeState.ColumnsChanged] * _InternalState <> []) then
-          ClearRowHeights;
+// Kees in chat: This should never be called.
+//    if _IsMasterScrollingControl and (_RowAnimationsCountNow = 0) then // when not expanding\collapsing
+//      if not (TreeState.RowHeightsChanged in _InternalState) then
+//        if not (TreeOption.PreserveRowHeights in Options) and
+//          ([TreeState.DataChanged, TreeState.ColumnsChanged] * _InternalState <> []) then
+//          ClearRowHeights;
 
     if _InternalState - [TreeState.Refresh] <> [] then
       DoInitializationComplete(_InternalState);
@@ -4580,25 +4586,30 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
 
   procedure DrawGrid(ACell: TTreeCell);
   begin
+
+    var drawVertical := (TreeOption.AllowCellSelection in _Options);
+
+    // update grid
     if ACell._GridWasDrawn then
-    begin  // update grid
+    begin
       if ACell.Column.ShowHierarchy and _View.IsDataModelView then
       begin
         ACell.UpdateBottomHierarchicalBorder;
-        ACell.UpdateLeftHierarchicalBorders;
+
+        if drawVertical then
+          ACell.UpdateLeftHierarchicalBorders;
       end;
     end
-    else // Draw Grid
-      begin
-        // load style
-        if _GridLineStroke = nil then
-          if not LoadLineStrokeStyle(STYLE_GRID_LINE, _GridLineStroke) then Exit;
 
-        if ACell.Column.ShowHierarchy and _View.IsDataModelView then
-          ACell.DrawHierachicalBorder(_GridLineStroke, _Indent)
-        else
-          ACell.DrawRectangleBorder(_GridLineStroke);
-      end;
+    // Draw Grid
+    else begin
+      if _GridLineStroke = nil then // load style
+        if not LoadLineStrokeStyle(STYLE_GRID_LINE, _GridLineStroke) then Exit;
+
+      if ACell.Column.ShowHierarchy and _View.IsDataModelView then
+        ACell.DrawLineBorderInHierarchy(_GridLineStroke, _Indent, drawVertical) else
+        ACell.DrawLineBorder(_GridLineStroke, drawVertical);
+    end;
   end;
 
 
@@ -4642,11 +4653,11 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
     begin
       // when using cell.Colspan, a cell can be nil
 
-      var c := ATreeRow.Cells.InnerArray[i];
+      var [unsafe] c := ATreeRow.Cells.InnerArray[i];
       if c = nil then Continue;
       cell := TTreeCell(c);
 
-      if cell.Column.Frozen and (_scrollingType = TScrollingType.None) then
+      if cell.Column.Frozen and (ScrollingType = TScrollingType.None) then
       begin
         cell.Control.BringToFront;
         cell.Control.Repaint;
@@ -4656,7 +4667,7 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
         cell.Control.Height := RowHeight;
 
       // Add/Remove plus-minus filler
-      if (_scrollingType = TScrollingType.None) then
+      if (ScrollingType = TScrollingType.None) then
       begin
         var showHierarchy := cell.Column.ShowHierarchy and _View.IsDataModelView and cell.Row.HasChildren;
 
@@ -4695,19 +4706,14 @@ function TCustomTreeControl.InitRow(const DataItem: CObject; ViewRowIndex: Integ
       end;
 
       // Grid
-      if (TreeOption.ShowGrid in _Options) and (_scrollingType = TScrollingType.None) then
+      if (TreeOption.ShowGrid in _Options) and (ScrollingType = TScrollingType.None) then
         DrawGrid(cell);
     end;
   end;
 
 var
   isCachedRow: Boolean; // cached row is a row which Tree re-uses, it has already controls and styles
-//  treeCell: ITreeCell;
   treeRow: ITreeRow;
-//  FMXColumn: TFMXTreeColumn;
-//  layoutColumn      : ITreeLayoutColumn;
- // columnIndex       : Integer;
-//  LoadDefaultData   : Boolean;
   rowHeight         : Single;
   treeRowClass      : TTreeRow;
 begin
@@ -4726,23 +4732,35 @@ begin
     treeRow := CreateRow(DataItem, ViewRowIndex, rowLevel);
 
     DoRowLoading(treeRow);
+    // Now user may set custom row height in DoRowLoading\Loaded. 
 
     treeRowClass := TTreeRow(treeRow);
 
-    var treeRowHeight := treeRowClass.Height;  // speedup, because each call is searching in dictionary
-    if AMinHeight > treeRowHeight then
+
+    //var treeRowHeight := treeRowClass.Height;
+    rowHeight := treeRowClass.Height;     // note that each call is searching in dictionary
+    if AMinHeight > rowHeight then
     begin
       treeRowClass.Height := AMinHeight;
-      treeRowHeight := AMinHeight;
+      rowHeight := AMinHeight;
     end;
 
-    isCachedRow := (treeRow.Control <> nil);
+    isCachedRow := (treeRowClass.Control <> nil);
+
+//    if isCachedRow then
+//    begin  // update Height for cached row
+//       if not treeRowClass.Control.Height <> rowHeight then
+//         treeRowClass.Control.Height := rowHeight;  //treeRowClass.Height;
+//    end
+//    else
+//      treeRowClass.Control := TRowControl.Create(Self);
 
     if not isCachedRow then
-      treeRowClass.Control := TRowControl.Create(Self)
-    else if not SameValue(treeRowClass.Control.Height, treeRowClass.Height) then // update Height for cached row
-      treeRowClass.Control.Height := treeRowClass.Height;
-      // this will also set Control.Height from RowHeights in TRow.set_Control
+      treeRowClass.Control := TRowControl.Create(Self);
+
+    { Set row height directly to control, user may use it in Row\Cell events. Do not set it for treeRowClass.Height
+    (this saves in RowHeights) yet, because Later in this method it may be recalculated in InitRowCells (CellLoading). }
+    treeRowClass.Control.Height := rowHeight;  //treeRowClass.Height;
 
     // set as alt or usual row style, this works fast, because code sets color of row rectangle directly
     if (TreeOption.AlternatingRowBackground in _options) and ((ViewRowIndex mod 2) <> 0) then
@@ -4754,13 +4772,13 @@ begin
     // Tree row control sets Y position in TScrollableRowControl<T>.AnimateAddRow
     AnimateAddRow(treeRow, Y);
 
-    rowHeight := InitRowCells(treeRow, isCachedRow, treeRowHeight);
+    rowHeight := InitRowCells(treeRow, isCachedRow, rowHeight {treeRowHeight});
+    // user can change RowHeight here in CellLoading
 
     // Now rowHeight is calculated related to the max cell height
-    if rowHeight > treeRowClass.Height then
-      treeRowClass.Height := rowHeight;
+    treeRowClass.Height := rowHeight;
 
-    // Negotiate the final height of the row. This will init and add a row in another paired control (Gantt or Tree)
+//    // Negotiate the final height of the row. This will init and add a row in another paired control (Gantt or Tree)
     if not _SkipRowHeightNegotiation and (_RowHeightsGlobal <> nil) then
     begin
       _RowHeightsGlobal.NegotiateRowHeight(Self, treeRow, {var} rowHeight);
@@ -4770,10 +4788,14 @@ begin
       treeRowClass.Control.Height := rowHeight;
     end;
 
-    ProcessCellsInRow(treeRowClass, isCachedRow);
 
-    // Tell client row is ready
     DoRowLoaded(treeRow);
+    // Now user may set custom row height in DoRowLoading\Loaded.
+
+    ProcessCellsInRow(treeRowClass, isCachedRow);
+    // moved after DoRowLoaded, because user can set size of the row, so cell should use it also, otherwise -
+    // cell.height at first start <> row.height, and text content aligned incorrectly while scrolling.
+    // This will also set cell height same as Row.Height.
 
     {$IFDEF DEBUG}
   //  if _RowHeightsGlobal <> nil then
@@ -4806,7 +4828,7 @@ function TCustomTreeControl.InitRowCells(const TreeRow: ITreeRow; const IsCached
     if not (treeCell.Control is TStyledControl) then exit;
 
     // performance upgrade
-    if (_scrollingType <> TScrollingType.None) and ((treeCell.Control as TStyledControl).StyleState <> TStyleState.Applied) then
+    if (ScrollingType <> TScrollingType.None) and ((treeCell.Control as TStyledControl).StyleState <> TStyleState.Applied) then
       Exit;
 
     var CellControl := TStyledControl(treeCell.Control);
@@ -4867,9 +4889,12 @@ begin
       CellLoadingFlags := CellLoadingFlags + [TCellLoading.NeedControl];
 
     var loadDefaultData := DoCellLoading(treeCell, CellLoadingFlags);
-    { User can: set a new height of the row here (in TreeCellLoading) this will trigger TFMXRowHeightCollection.set_RowHeight,
-      or create a custom control. Please pay atention - if row was cached, CellLoading has NO TCellLoading.NeedControl,
+    { User can: set a new height of the row here (Row.Height in TreeCellLoading) this will trigger TFMXRowHeightCollection.set_RowHeight,
+      Please pay atention - if row was cached, CellLoading has NO TCellLoading.NeedControl,
       because user should re-use it. See also TCellLoading = (NeedControl, [..]) in Tree.intf}
+
+    Result := Max(TreeRow.Control.Height, // TRow.SetHeight sets height in 2 places at once - RowHeights list and Control
+                  Result);
 
     if treeCell.Control = nil then
       treeCell.Control := FMXColumn.CreateCellControl(Self, treeCell); //  TCellControl.Create \ TCheckboxCellItem
@@ -4893,12 +4918,6 @@ begin
       treeRowClass.Control.AddObject(treeCell.Control);
     end;
 
-//    if not isCachedRow or not treeRow.CanCacheInnerControls then
-//    begin
-//      // Frozen cell takes a bk color from the row style. So ApplyStyle to get styles
-//      (treeRowClass.Control as TStyledControl).ApplyStyleLookup;
-//    end;
-
     // Calculate size of the cell
     var size: TSizeF := treeCell.Control.Size.Size;
 
@@ -4916,17 +4935,17 @@ begin
       OptionalHeaderResizing := TUpdateColumnReason.HeaderSizing;
     // without this flag UpdateColumnWidthAndCells does not decrease Column width (only enlarge), case if DesignedWidth > Auto width.
 
-    if (treeCell.InfoControl = nil) and (_scrollingType = TScrollingType.None) then
+    if (treeCell.InfoControl = nil) and (ScrollingType = TScrollingType.None) then
       treeCell.InfoControl := GetCellInfoControl(treeCell.Control, treeCell.Column.ColumnType = TColumnType.Checkbox);
 
     if loadDefaultData then
       FMXColumn.LoadDefaultData(treeCell);
 
-    if _scrollingType = TScrollingType.None then
+    if ScrollingType = TScrollingType.None then
     begin
       // if CellControl.Height was not changed in InitCellStyles and it is still default - adjust it to text width:
       if (size = treeCell.Control.Size.Size) then
-        size := layoutColumn.CalculateControlSize(treeCell, INITIAL_ROW_HEIGHT) else
+        size := layoutColumn.CalculateControlSize(treeCell, GetInitialRowHeight {INITIAL_ROW_HEIGHT}) else
         size := treeCell.Control.Size.Size;
 
       // at this stage "size" can be custom control size or from CalculateControlSize.
@@ -4982,7 +5001,7 @@ begin
   var lastLayoutColumn := Columns[Columns.Count - 1];
   var w := lastLayoutColumn.Left + lastLayoutColumn.Width;
 
-  if (_scrollingType = TScrollingType.None) then
+  if (ScrollingType = TScrollingType.None) then
     if not SameValue(treeRowClass.Control.Width, w) or (w <> _contentBounds.Right) then
     begin
       treeRowClass.Control.Width := w;
@@ -5007,7 +5026,7 @@ begin
   try
     treeRow := View.CreateRow(DataItem, ViewRowIndex, True);
 
-    DoRowLoading(treeRow);
+   // DoRowLoading(treeRow); // Why need to trigger user row events for temporary row which does not have controls? Alex.
     // rowHeight := treeRow.Height;
 
     // Add visible cells to this row
@@ -5020,7 +5039,7 @@ begin
     begin
       layoutColumn := columns[columnIndex];
       treeCell := layoutColumn.Column.CreateTreeCell(treeRow, columnIndex);
-      DoCellLoading(treeCell, []);
+      //DoCellLoading(treeCell, []);  // Why need to trigger user row events for temporary row which does not have controls? Alex.
       treeRow.Cells.Add(treeCell);
 
       dummyCells := CMath.Min(columns.Count - columnIndex - 1, 0); // treeCell.Style.ColSpan - 1);
@@ -5033,7 +5052,7 @@ begin
       inc(columnIndex, 1); // treeCell.Style.ColSpan);
     end;
 
-    DoRowLoaded(treeRow);
+    // DoRowLoaded(treeRow); // Why need to trigger user row events for temporary row which does not have controls? Alex.
     Result := treeRow;
   finally
     UpdateCountDec;
@@ -5132,7 +5151,7 @@ begin
     Assert(not interfaces.Supports<IComparableList>(_data));
 
     // create a default comparer.. Can be overwritten (in OnSortApplied )
-    _listComparer := TListComparer.Create(get_SortDescriptions, get_FilterDescriptions, View.ListHoldsOrdinalType);
+    _listComparer := TListComparer.Create(get_SortDescriptions, get_FilterDescriptions, function: Boolean begin Result := View.ListHoldsOrdinalType; end);
     _listComparer.OnComparingChanged := Self.OnSortApplied;
     _listComparer.FuncDataList :=
       function: IList begin
@@ -5276,8 +5295,9 @@ begin
     RemoveRowsFromView(True);
     _ColumnPropertiesTypeData := &Type.Unknown;
 
-    if not (TreeOption.PreserveRowHeights in Options) then
-      ClearRowHeights;
+    // Kees in chat: This should never be called.
+    //if not (TreeOption.PreserveRowHeights in Options) then
+    //  ClearRowHeights;
   end
 
   else if Flags * [TreeState.DataChanged, TreeState.DataRowChanged,
@@ -5304,7 +5324,7 @@ begin
 end;
 
 procedure TCustomTreeControl.ResetView(const Full: Boolean = True; const SaveTopRow: Boolean = False;
-  const ATopRowMinHeight: Single = 0);
+  const CallDataChanged: Boolean = True);
 begin
   if not Full and (_View <> nil) then
     _currentPosition := View.Current;
@@ -5317,16 +5337,16 @@ begin
     _HeaderRows := nil;
 
   if Full then
-    RefreshControl([TreeState.DataChanged, TreeState_ColumnsChanged]) // without flag - it exits from Initialization
-  // note: TreeState_ColumnsChanged - will reset column width if it was resized by user
+  begin
+    if CallDataChanged then
+      RefreshControl([TreeState.DataChanged, TreeState_ColumnsChanged]) // without flag - it exits from Initialization
+      // note: TreeState_ColumnsChanged - will reset column width if it was resized by user
+    else
+      RefreshControl([TreeState_ColumnsChanged])
+  end
   else
-    RefreshControl([TreeState.DataChanged]);
-
-//  Disabled because of AV (hard to reproduce), seems this code does not change behaviour of headers
-//  if _header <> nil then
-//    TThread.ForceQueue(nil, procedure begin
-//      _header.Repaint;
-//    end);
+    if CallDataChanged then
+      RefreshControl([TreeState.DataChanged]);
 end;
 
 procedure TCustomTreeControl.AdjustVScrollbarHeight;
@@ -5449,11 +5469,6 @@ begin
   //ClearSelections;
   UninstallDataPropertyEvent;
 
-  // ForceQueue was disabled in TCustomTreeControl.ResetView some time ago, so we do not need this part now.
-  // ResetView will be called in Clear.
-  // if Value <> nil then
-  //  ResetView; // prevent issue with ForceQueue, when Control is destroyed but delayed Forcequeue calls Repaint = AV.
-
   RefreshControl([TreeState.DataBindingChanged]);
 
   {$IFDEF DELPHI}
@@ -5531,18 +5546,20 @@ begin
   end;
 end;
 
+[Result: unsafe]
 function TCustomTreeControl.get_Cell: ITreeCell;
 var
   col: Integer;
-
 begin
+  Result := nil;
+
   var row: ITreeRow := Rows[Current];
   if row <> nil then
   begin
     col := Column;
     if (col >= 0) and (col < row.Cells.Count) then
     begin
-      Result := row.Cells[col];
+      Result := row.Cells.InnerArray[col];
       if row.IsTemporaryRow then
         Result := TTreeCellWithRowLock.Create(row, Result);
     end;
@@ -5791,6 +5808,11 @@ begin
   Result := _itemType;
 end;
 
+function TCustomTreeControl.get_Layout: ITreeLayout;
+begin
+  Result := _layout;
+end;
+
 procedure TCustomTreeControl.set_ItemType(const Value: &Type);
 begin
   _itemType := Value;
@@ -6006,22 +6028,6 @@ end;
 //end;
 //
 
-procedure TCustomTreeControl.set_RowHeights(const Value: IFMXRowHeightCollection);
-begin
-  RefreshControl([TreeState.Refresh]);
-
-  {$IFDEF DELPHI}
-  ReferenceInterface(_RowHeightsGlobal, opRemove);
-  {$ENDIF}
-
-  _RowHeightsGlobal := Value;
-  if _RowHeightsGlobal <> nil then
-    _RowHeightsGlobal.AddNegotiateProc(NegotiateRowHeight);
-
-  {$IFDEF DELPHI}
-  ReferenceInterface(_RowHeightsGlobal, opInsert);
-  {$ENDIF}
-end;
 
 function TCustomTreeControl.IsCellSelectable(RowIndex, CellIndex: Integer): Boolean;
 var
@@ -6463,7 +6469,7 @@ end;
 
 procedure TCustomTreeControl.AlignViewToCurrent(const SavedTopRow: ITreeRow);
 begin
-  if _View = nil then Exit;
+  if (_View = nil) then Exit;
 
   var current := View.Current;
   if current = -1 then Exit;
@@ -6802,7 +6808,7 @@ begin
           var clmnIndex := _Layout.ColumnToCellIndex(treeCell.Column);
 
           // calc cell width and height
-          NewCellSize := _Layout.Columns[clmnIndex].CalculateControlSize(treeCell, INITIAL_ROW_HEIGHT);
+          NewCellSize := _Layout.Columns[clmnIndex].CalculateControlSize(treeCell, GetInitialRowHeight {INITIAL_ROW_HEIGHT});
 
           UpdateColumnWidthAndCells(clmnIndex, NewCellSize.Width, TreeCell.ColSpan,
             [TUpdateColumnReason.UpdateRows, TUpdateColumnReason.UpdateHeader{, TUpdateColumnReason.HeaderSizing}]);
@@ -6852,7 +6858,7 @@ end;
 
 procedure TCustomTreeControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 begin
-  _ClickEnable := (Button <> TMouseButton.mbLeft) or (AniCalculations.TouchTracking = []) or not IsScrollingToFastToClick;
+  _ClickEnable := (Button <> TMouseButton.mbLeft) or (AniCalculations.TouchTracking = []) or not IsScrollingTooFastToClick;
 
   // Fix: while editing a cell click on other row = AV.
   // Do not call EndEdit in TCustomDateTimeEdit.DoExit; because EndEdit may call a destructor of the editor control
@@ -6869,7 +6875,7 @@ begin
 
   // during touch scroll the timer is not called if a click is to short.
   // Resetting the Animation will force a click to make the control stop scrolling
-  if IsScrollingToFastToClick then
+  if IsScrollingTooFastToClick then
   begin
     AniCalculations.Animation := not AniCalculations.Animation;
     AniCalculations.Animation := not AniCalculations.Animation;
@@ -6894,7 +6900,7 @@ begin
     // not AniCalculations.Moved or (AniCalculations.CurrentVelocity.Y > 0) => When scrolling by keeping mouse down and moving mouse, the CurrentVelocity.Y = 0, but AniCalculations.Moved = True
     startingTouchScroll := AniCalculations.Moved and (AniCalculations.CurrentVelocity.Y = 0) and (_MouseDownHitInfo <> nil) and ((Y > _MouseDownHitInfo.Location.Y + 5) or (Y < _MouseDownHitInfo.Location.Y - 5));
 
-    if not startingTouchScroll and not IsScrollingToFastToClick and _ClickEnable and (_View <> nil) then
+    if not startingTouchScroll and not IsScrollingTooFastToClick and _ClickEnable and (_View <> nil) then
     begin
       // set current "Row" and current "Cell" (column)
       if _MouseDownHitInfo <> nil then
@@ -8435,7 +8441,7 @@ begin
     if interfaces.Supports<ITextSettings>(text, ts) then
       ts.TextSettings.WordWrap := True;
 
-    Result.AddObject(text);
+   Result.AddObject(text);
 
     Cell.InfoControl := text;
   end else
@@ -10044,7 +10050,10 @@ end;
 
 procedure TTreeDataModelViewRowList.RowHeightsCollectionChanged(Sender: TObject; e: NotifyCollectionChangedEventArgs);
 begin
-  TFMXTreeControl(_Control).RefreshControl([{TreeState.DataChanged,} TreeState.RowHeightsChanged]);
+  
+ // TFMXTreeControl(_Control).RefreshControl([{TreeState.DataChanged,} TreeState.RowHeightsChanged]);
+
+  // old info
   { Disabled TreeState.DataChanged - when user specifies a custom row height in TreeRowLoaded - Control always
     triggers Datachanged for each scroll action (for each new row added), because: TreeRowLoaded > TTreeRow.set_Height
     > RowHeightsCollectionChanged.
@@ -10606,13 +10615,66 @@ begin
   inherited;
 end;
 
-procedure TTreeCell.DrawHierachicalBorder(AGridLineStyle: TStrokeBrush; ABaseIndent: single);
+procedure TTreeCell.DrawLineBorder(AGridLineStyle: TStrokeBrush; FullHorzAndVertGrid: Boolean);
+
+  function CreateLine: TLine;
+  begin
+    var l := ScrollableRowControl_LineClass.Create(_Control);
+    l.Stroke.Assign(AGridLineStyle);
+    l.Width := l.Stroke.Thickness;
+    Result := l;
+  end;
+
+begin
+  Assert(not _GridWasDrawn);
+
+  if FullHorzAndVertGrid then
+  begin
+    // top line of the border
+    var line := CreateLine;
+    line.LineType := TLineType.Top;
+    line.Height := line.Stroke.Thickness;
+    line.Align := TAlignLayout.Top; // AutofitColumns\user may resize a column
+    line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
+    _Control.AddObject(line);
+  end;
+
+  // bottom line
+  var bottomLine := CreateLine;
+  bottomLine.LineType := TLineType.Bottom;
+  bottomLine.Height := bottomLine.Stroke.Thickness;
+  bottomLine.Align := TAlignLayout.Bottom; // user may resize a column
+
+  // bottom line X of the cell must always start from the first parent, - this line will be hidden by cell controls
+  // from below and it will be visible only for the last row (nothing below)
+  bottomLine.Margins.Bottom := GRID_LINE_NEGATIVE_OFFSET; // hide bottom line under the next cell from below
+  _Control.AddObject(bottomLine);
+
+  if FullHorzAndVertGrid then
+  begin
+    const specY = -0.7;
+
+    // right line
+    var line := CreateLine;
+    line.LineType := TLineType.Left;
+    line.Width := line.Stroke.Thickness;
+    line.Align := TAlignLayout.MostRight;     // AutofitColumns\user may resize a column
+    line.Margins.Top := specY;
+    line.Margins.Bottom := -HEIGHT_BORDER_OFFSET;
+    line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
+    _Control.AddObject(line);
+  end;
+
+  _GridWasDrawn := True;
+end;
+
+procedure TTreeCell.DrawLineBorderInHierarchy(AGridLineStyle: TStrokeBrush; ABaseIndent: single; FullHorzAndVertGrid: Boolean);
 // ANextRowExist = true - if user expands a row with child(s) (= create new or use cached) and below of these rows
 // other rows  already exist
 
   function CreateLine: TLine;
   begin
-    var l := TLine.Create(_Control);
+    var l := ScrollableRowControl_LineClass.Create(_Control);
     l.Stroke.Assign(AGridLineStyle);
     l.Width := l.Stroke.Thickness;
     Result := l;
@@ -10623,79 +10685,86 @@ begin
   // we can not use Rectangle to draw a border, because the top line can be smaller than the bottom line, it draws also
   // several left lines in one row to show heirarchy
 
-  // top line of the border
-  var line := CreateLine;
-  line.LineType := TLineType.Top;
-  line.Height := line.Stroke.Thickness;
-  line.Align := TAlignLayout.Top; // AutofitColumns\user may resize a column
+  if FullHorzAndVertGrid then
+  begin
+    // top line of the border
+    var line := CreateLine;
+    line.LineType := TLineType.Top;
+    line.Height := line.Stroke.Thickness;
+    line.Align := TAlignLayout.Top; // AutofitColumns\user may resize a column
 
-  if Self.Row.HasChildren then  // filler has negative value, top line border should cover it too
-    line.Margins.Left := -(ABaseIndent) + GRID_LINE_NEGATIVE_OFFSET
-  else
-    line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
+    if Self.Row.HasChildren then  // filler has negative value, top line border should cover it too
+      line.Margins.Left := -(ABaseIndent) + GRID_LINE_NEGATIVE_OFFSET
+    else
+      line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
 
-  _Control.AddObject(line);
+    _Control.AddObject(line);
+  end;
 
   // bottom line
-  line := CreateLine;
-  line.LineType := TLineType.Bottom;
-  line.Height := line.Stroke.Thickness;
-  line.Align := TAlignLayout.Bottom; // user may resize a column
+  var bottomLine := CreateLine;
+  bottomLine.LineType := TLineType.Bottom;
+  bottomLine.Height := bottomLine.Stroke.Thickness;
+  bottomLine.Align := TAlignLayout.Bottom; // user may resize a column
 
   // bottom line X of the cell must always start from the first parent, - this line will be hidden by cell controls
   // from below and it will be visible only for the last row (nothing below)
-  line.Margins.Bottom := GRID_LINE_NEGATIVE_OFFSET; // hide bottom line under the next cell from below
-  _Control.AddObject(line);
+  bottomLine.Margins.Bottom := GRID_LINE_NEGATIVE_OFFSET; // hide bottom line under the next cell from below
+  _Control.AddObject(bottomLine);
 
   if _Control is TCellControl then
-    (_Control as TCellControl)._GridBottomLine := line else   // see comment in TCellControl
-    (_Control as TStyledCellControl)._GridBottomLine := line;   // see comment in TCellControl
+    (_Control as TCellControl)._GridBottomLine := bottomLine else   // see comment in TCellControl
+    (_Control as TStyledCellControl)._GridBottomLine := bottomLine;   // see comment in TCellControl
 
   UpdateBottomHierarchicalBorder;
 
-  const specY = -0.7;
-
-  // right line
-  line := CreateLine;
-  line.LineType := TLineType.Left;
-  line.Width := line.Stroke.Thickness;
-  line.Align := TAlignLayout.MostRight;     // AutofitColumns\user may resize a column
-  line.Margins.Top := specY;
-  line.Margins.Bottom := -HEIGHT_BORDER_OFFSET;
-  line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
-  _Control.AddObject(line);
-
-  { • Draw several left vertical lines in this row control ONLY, for this row and parent rows (border of parent rows goes through
-      children rows)
-    • We cannot use parentRow.Parent here, because when user EXPANDS a row with children parent (not AbsParent,
-    some subparent) may be still = nil, this case is ONLY while expanding, in usual case (AppendRowsBelow) - Tree first
-    adds a parent into the View and then calls InitRow for its child.  }
-
-  var cellIndentX: Single;
-  var parentRowLevel := _Row.Level; //Self.Row;
-  var rowHasChildren: Boolean := _Row.HasChildren;
-
-  while parentRowLevel > -1 do
+  if FullHorzAndVertGrid then
   begin
-    if rowHasChildren then
-      cellIndentX := ABaseIndent * (parentRowLevel + 1) // X of the parent border, will be negative offset related to a cell control
-    else
-      cellIndentX := 0;   // without plus-minus filler
+    const specY = -0.7;
 
-    line := CreateLine;
+    // right line
+    var line := CreateLine;
     line.LineType := TLineType.Left;
-    line.Tag := LEFT_GRID_LINE_ID; // set ID for such type of lines to find it later in UpdateLeftAndBottomHierarchicalBorders
-
-    // -(cellIndentX) - (offset is related to cell control)  show the left line before the filler (filler has negative offset)
-    line.SetBounds( -(cellIndentX) + GRID_LINE_NEGATIVE_OFFSET, specY, line.Width, _Control.Height + HEIGHT_BORDER_OFFSET);
+    line.Width := line.Stroke.Thickness;
+    line.Align := TAlignLayout.MostRight;     // AutofitColumns\user may resize a column
+    line.Margins.Top := specY;
+    line.Margins.Bottom := -HEIGHT_BORDER_OFFSET;
+    line.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
     _Control.AddObject(line);
 
-    Dec(parentRowLevel);
-    rowHasChildren := True;
+    { • Draw several left vertical lines in this row control ONLY, for this row and parent rows (border of parent rows goes through
+        children rows)
+      • We cannot use parentRow.Parent here, because when user EXPANDS a row with children parent (not AbsParent,
+      some subparent) may be still = nil, this case is ONLY while expanding, in usual case (AppendRowsBelow) - Tree first
+      adds a parent into the View and then calls InitRow for its child.  }
+
+    var cellIndentX: Single;
+    var parentRowLevel := _Row.Level; //Self.Row;
+    var rowHasChildren: Boolean := _Row.HasChildren;
+
+    while parentRowLevel > -1 do
+    begin
+      if rowHasChildren then
+        cellIndentX := ABaseIndent * (parentRowLevel + 1) // X of the parent border, will be negative offset related to a cell control
+      else
+        cellIndentX := 0;   // without plus-minus filler
+
+      line := CreateLine;
+      line.LineType := TLineType.Left;
+      line.Tag := LEFT_GRID_LINE_ID; // set ID for such type of lines to find it later in UpdateLeftAndBottomHierarchicalBorders
+
+      // -(cellIndentX) - (offset is related to cell control)  show the left line before the filler (filler has negative offset)
+      line.SetBounds( -(cellIndentX) + GRID_LINE_NEGATIVE_OFFSET, specY, line.Width, _Control.Height + HEIGHT_BORDER_OFFSET);
+      _Control.AddObject(line);
+
+      Dec(parentRowLevel);
+      rowHasChildren := True;
+    end;
   end;
 
   _GridWasDrawn := True;
 end;
+
 procedure TTreeCell.UpdateBottomHierarchicalBorder;
   // for cached row only
 begin
@@ -10738,24 +10807,6 @@ begin
     if _Control.Controls.List[i].Tag = LEFT_GRID_LINE_ID then
       _Control.Controls.List[i].Height := _Control.Height + HEIGHT_BORDER_OFFSET;
   end;
-end;
-
-procedure TTreeCell.DrawRectangleBorder(AGridLineStyle: TStrokeBrush);
-begin
-  Assert(not _GridWasDrawn);
-
-  var border := TRectangle.Create(_Control);
-  border.Fill.Kind := TBrushKind.None;
-  border.Stroke.Assign(AGridLineStyle);
-  border.HitTest := False;
-
-  border.Align := TAlignLayout.Contents;
-  border.Sides := [TSide.Top, TSide.Bottom, TSide.Left, TSide.Right];
-  border.Margins.Bottom := GRID_LINE_NEGATIVE_OFFSET;
-  border.Margins.Left := GRID_LINE_NEGATIVE_OFFSET;
-  _Control.AddObject(border);
-
-  _GridWasDrawn := True;
 end;
 
 procedure TTreeCell.FreeNotification(AObject: TObject);
@@ -10931,7 +10982,7 @@ constructor TTreeRow.Create(const AOwner: ITreeRowList; const ADataItem: CObject
   IsTemporaryRow: Boolean);
 begin
   inherited Create;
-  _Owner := AOwner;
+  _Owner := AOwner as IRowList<IRow>;
   _DataItem := ADataItem;
   _Enabled := True;
   _Index := AIndex;
@@ -10941,38 +10992,44 @@ end;
 
 procedure TTreeRow.ResetRowData(const ADataItem: CObject; AIndex: Integer);
 begin
-//  for var i := 0 to Cells.Count - 1 do // for var cell in Cells
-//  begin
-//    var cell := Cells[i];
-//    if cell = nil then
-//      Continue;
-//
-//    var c := Cells[i].Control;
-//    if c <> nil then
-//      c.Height := INITIAL_CELL_HEIGHT;
-//  end;
+  { Row with cells is invisible now.
+    Need to reset cells height, or while scrolling rows with different rows heights, newly appeared rows from cache,
+    at first comes as large size (as they were cached) and then change to the smaller when scrolling stopped. User sees these changes.
+    This is because cell re-calculates own size only when scrolling is stopped}
 
+  for var i := 0 to Cells.Count - 1 do // for var cell in Cells
+  begin
+    var [unsafe] cell := Cells.InnerArray[i];
+    if cell = nil then
+      Continue;
+
+    var c := cell.Control;
+    if c <> nil then
+      c.Height := TScrollableRowControl<IRow>(_Control.Owner).GetInitialRowHeight;
+  end;
+
+  // make row control visible:
   inherited;
 end;
 
 function TTreeRow.AbsParent: ITreeRow;
 begin
-  Result := _Owner.AbsParent(Self);
+  Result := get_Owner.AbsParent(Self); // _Owner.AbsParent(Self);
 end;
 
 function TTreeRow.Parent: ITreeRow;
 begin
-  Result := _Owner.Parent(Self);
+  Result := get_Owner.Parent(Self); //_Owner.Parent(Self);
 end;
 
 function TTreeRow.ChildCount: Integer;
 begin
-  Result := _Owner.ChildCount(Self);
+  Result := get_Owner.ChildCount(Self);  //  _Owner.ChildCount(Self);
 end;
 
 function TTreeRow.ChildIndex: Integer;
 begin
-  Result := _Owner.ChildIndex(Self);
+  Result := get_Owner.ChildIndex(Self); //_Owner.ChildIndex(Self);
 end;
 
 function TTreeRow.Equals(const other: CObject): Boolean;
@@ -10999,6 +11056,7 @@ begin
   Result := Control.BackgroundColor;
 end;
 
+[Result: Unsafe]
 function TTreeRow.get_Cells: ITreeCellList;
 begin
   Result := _Cells;
@@ -11037,7 +11095,7 @@ begin
         check.IsChecked := Value;
     end;
 
-    TCustomTreeControl(_Owner.TreeControl).UpdateCellValue(cell, Value);
+    TCustomTreeControl(get_Owner.TreeControl).UpdateCellValue(cell, Value);
   end;
 end;
 
@@ -11061,34 +11119,19 @@ begin
   if _enabled <> Value then
   begin
     _enabled := Value;
-    _Owner.TreeControl.RefreshControl([TreeState.Refresh]);
+    get_Owner.TreeControl.RefreshControl([TreeState.Refresh]);
   end;
 end;
 
-function TTreeRow.get_Height: Single;
-begin
-  Result := _Owner.RowHeight[DataItem];
-end;
-
-procedure TTreeRow.set_Height(const Value: Single);
-begin
-  if DataItem = nil then Exit;  // E.g. when TemporaryRow + RowLoaded which sets height
-
-  if _Owner.RowHeight[DataItem] <> Value then
-    _Owner.RowHeight[DataItem] := Value;
-
-  if (_Control <> nil) and (_Control.Height <> Value) then
-    _Control.Height := Value;
-end;
 
 function TTreeRow.get_IsExpanded: Boolean;
 begin
-  Result := _Owner.IsExpanded[Self];
+  Result := get_Owner.IsExpanded[Self]; //_Owner.IsExpanded[Self];
 end;
 
 function TTreeRow.get_IsSelected: Boolean;
 begin
-  Result := _Owner.IsSelected[Self];
+  Result := get_Owner.IsSelected[Self]; //_Owner.IsSelected[Self];
 end;
 
 function TTreeRow.get_IsTemporaryRow: Boolean;
@@ -11098,44 +11141,44 @@ end;
 
 function TTreeRow.get_Owner: ITreeRowList;
 begin
-  Result :=  _Owner;
+  Result :=  _Owner as ITreeRowList;
 end;
 
 function TTreeRow.HasChildren: Boolean;
 begin
-  Result := _Owner.HasChildren(Self);
+  Result := get_Owner.HasChildren(Self); //_Owner.HasChildren(Self);
 end;
 
 function TTreeRow.IsEdit: Boolean;
 begin
-  Result := _Owner.IsEdit(Self);
+  Result := get_Owner.IsEdit(Self); //_Owner.IsEdit(Self);
 end;
 
 function TTreeRow.IsEditOrNew: Boolean;
 begin
-  Result := _Owner.IsEditOrNew(Self);
+  Result := get_Owner.IsEditOrNew(Self); //_Owner.IsEditOrNew(Self);
 end;
 
 function TTreeRow.IsNew: Boolean;
 begin
-  Result := _Owner.IsNew(Self);
+  Result := get_Owner.IsNew(Self); //_Owner.IsNew(Self);
 end;
 
 function TTreeRow.Level: Integer;
 begin
-  Result := _Owner.Level(Self);
+  Result := get_Owner.Level(Self); //_Owner.Level(Self);
   _RowLevelCached := Result;
 end;
 
 procedure TTreeRow.set_IsExpanded(Value: Boolean);
 begin
-  _Owner.IsExpanded[Self] := Value;
+  get_Owner.IsExpanded[Self] := Value;
   Self.UpdatePlusMinusFillerState;
 end;
 
 procedure TTreeRow.set_IsSelected(Value: Boolean);
 begin
-  _Owner.IsSelected[Self] := Value;
+  get_Owner.IsSelected[Self] := Value;
 end;
 
 procedure TTreeRow.UpdatePlusMinusFillerState;
@@ -11880,7 +11923,15 @@ begin
 
   var rowIndex := 0;
   var tmpRow: ITreeRow := TFMXTreeControl(_Control).InitTemporaryRow(dataItem, rowIndex);
-  var tmpCell: ITreeCell := tmpRow.Cells[columnIndex];
+
+  var cellIndex := columnIndex;
+  for var I := 0 to columnIndex - 1 do
+  begin
+    if not TFMXTreeControl(_Control).Columns[I].Visible then
+      Dec(cellIndex);
+  end;
+
+  var tmpCell: ITreeCell := tmpRow.Cells[cellIndex];
 
   while GetNextRow(rowIndex, dataItem) do
   begin
@@ -11970,8 +12021,8 @@ begin
 end;
 
 function TTreeRowList.GetRowDataIndex(const ARowDataItem: CObject): Integer;
-begin
-  Assert(False, 'Warning, this operation takes time, cache it if you are using this index often.');
+begin                      
+  //Assert(False, 'Warning, this operation takes time, cache it if you are using this index often.');
   Result := FindDataIndexByData(ARowDataItem);
 end;
 
@@ -12271,10 +12322,9 @@ end;
 
 procedure TTreeRowList.RowHeightsCollectionChanged(Sender: TObject; e: NotifyCollectionChangedEventArgs);
 begin
-
   // disabled, because we are using NegotiateRowHeight
+  // _treeControl.RefreshControl([TreeState_RowHeightsChanged]);
 
- //  _treeControl.RefreshControl([{TreeState.DataChanged,} TreeState_RowHeightsChanged]);
   {Disable AlignViewToCurrent after column width was changed - row height also changes.
    Issue - after editing a cell it calls AlignViewToCurrent here and selected row jumps to the bottom of the tree.
    View.Count = 0 at this stage (if View.Count <> 0  - AlignViewToCurrent would work correctly without scrolling row

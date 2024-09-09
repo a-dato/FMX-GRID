@@ -121,9 +121,38 @@ type
 
 
   TScrollableControl = {$IFDEF DOTNET}public abstract{$ENDIF} class(TCustomScrollBox)
+  // scrolling and FastScrolling optimizations (partial load) routins
   public
   type
     TScrollingType = (None, ScrollingStarted, SlowScrolling, FastScrolling);
+
+  const
+    FAST_SCROLLING_DETECT_INTERVAL = 50;
+    FAST_SCROLLING_STOP_INTERVAL = 300; // 150
+    { Interval was increased, because when user SLOWS down scrolling with lift, holding LMB, Control triggers
+      datachanged very often and repeatedly while user continues to scroll. To fix it need to detect if user is still hodling
+      LMB on the ScrollBar lift control, but in this casee need to replace std scrollabr with our inherited.
+      TScrollableControl.MouseDown-MouseMove do not detect it.
+      I did it already before, see TAdatoScrollBar, but there may be difficulties with different scrollsbars styles - thin and thick.
+      It's not a problem also, but increasing stop interval is more easy way. }
+
+  strict private
+    _scrollingType: TScrollingType;
+    _VPYStart: Single;
+    _VPY_End: Single;
+    _fsStopTimer: TTimer; // detect fast scrolling stop with a timer
+    _fastScrollStartTime: LongWord;  // ms, measure interval to detect Fast scrolling
+    procedure DetectFastScrolling;
+    procedure OnFastScrollingStopTimer(Sender: TObject);
+    procedure SetScrollingType(const Value: TScrollingType);
+  protected
+    function IsScrollingTooFastToClick: Boolean; inline;
+    procedure DoScrollingTypeChanged(const OldScrollingType, NewScrollingType: TScrollingType); virtual; // "ScrollingType" property already changed
+    procedure ViewportPositionChange(const OldViewportPosition: TPointF; const NewViewportPosition: TPointF;
+      const ContentSizeChanged: Boolean); override;
+    procedure MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean); override;
+
+  // various
   strict private
     _StyleWasFreedByFMX: Boolean; {Subchild (Row) uses Owner(Tree).FindStyleResourceBase to get own style and
       Tree style may be freed (for example when changing Tree.Parent). And in this case, FMX can SOMETIMES
@@ -135,6 +164,7 @@ type
   protected
     _UseCustomHorzScrollbar: Boolean;
     _contentBounds: TRectF;
+
     function CreateAniCalculations: TScrollCalculations; override;
     function CreateScrollContent: TScrollContent; override;
     function IsVerticalBoundsAnimationWorkingNow: Boolean; //inline; // at current time user is dragging a scrollbox out of borders
@@ -142,21 +172,20 @@ type
     function GetCurrentPackageHInst: HINST;  virtual;
     function FindStyleResourceBase<T1: TFmxObject>(const AStyleName: string; AClone: Boolean;
       out AStyleObject: T1): Boolean; // virtual; "Virtual methods cannot have type parameters" (with <T>).)
-    procedure FreeStyle; override;
     procedure HideControlsInBaseStyle(const AStyleNames: array of string);
     procedure ApplyStyle; override;
+    procedure FreeStyle; override;
     procedure CalculateContentBounds(Sender: TObject; var ContentBounds: TRectF); virtual;
     // CalculateContentBounds is an internal ScrollBox.OnCalcContentBounds and usually called very often by ScrollBox
     // to get values from our "_contentBounds"
     procedure CalcContentBounds; virtual; //abstract;
     // CalcContentBounds is called by Adato component and called less often than CalculateContentBounds, to calculate
     // bounds, calling order of them is not related to each other.
-    procedure MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean); override;
     procedure DoRealign; override;
     procedure InternalAlign;
   public
     constructor Create(AOwner: TComponent); override;
-    procedure ScrollByAllocBounds(DeltaX, DeltaY: Single); 
+    procedure ScrollByAllocBounds(DeltaX, DeltaY: Single);
     procedure ScrollByAllocBoundsVPX(NewViewportX: Single); inline;
     { property ContentBounds: TRectF read _contentBounds;
       Moved into child class TScrollableRowControl<T: IRow>
@@ -165,16 +194,17 @@ type
       Alex}
 {$IFDEF DEBUG} // remove it later after tests. 10.10.23 Alex
     function GetCB: TRectF;
-    function GetVPMax: Single;
-    function GetVPMin: Single;
+    function GetVPYMax: Single;
+    function GetVPXMax: Single;
+    function GetVPXMin: Single;
 {$ENDIF}
     property ViewportPosition: TPointF read GetViewportPosition write SetViewportPosition;
+    property ScrollingType: TScrollingType read _scrollingType write SetScrollingType;
   end;
 
 implementation
 
-uses
-  FMX.Objects, FMX.Edit;
+
 
 { TOwnerStyledPanel }
 
@@ -235,6 +265,10 @@ constructor TScrollableControl.Create(AOwner: TComponent);
 begin
   inherited;
   Self.OnCalcContentBounds := CalculateContentBounds;
+
+  _fsStopTimer := TTimer.Create(Self);
+  _fsStopTimer.Interval := FAST_SCROLLING_STOP_INTERVAL;
+  _fsStopTimer.OnTimer := OnFastScrollingStopTimer;
 end;
 
 function TScrollableControl.CreateAniCalculations: TScrollCalculations;
@@ -252,7 +286,6 @@ procedure TScrollableControl.ApplyStyle;
   procedure ReplaceDefaultHorzScrollBar;
   begin
     var defScrollBar := GetStandardHorzScrollBar;
-    Assert(defScrollBar <> nil); // usually it always exist
     if defScrollBar = nil then Exit;
 
     var adatoScrollBar := TAdatoScrollBar.Create(Self);
@@ -267,6 +300,21 @@ begin
   // Scrollbars were created
   if _UseCustomHorzScrollbar then
     ReplaceDefaultHorzScrollBar;
+
+  _StyleWasFreedByFMX := False;
+end;
+
+procedure TScrollableControl.FreeStyle;
+begin
+  if VScrollBar <> nil then
+    VScrollBar.Value := 0;
+  { Fixes issue in FMX(D12): (probability 30%): Scroll to the middle of the large Tree list, vertically (e.g. row #4000),
+    call Tree.NeedStyleLookup - AV.
+    Calling Tree.NeedStyleLookup will free style, including scrollbar. While freeing scrollbar it MAY call
+    TCustomValueRange.Assign and sometimes (if equal = true in Assign) can be AV, because it starts to update freed object. }
+
+  inherited;
+  _StyleWasFreedByFMX := True;
 end;
 
 procedure TScrollableControl.CalculateContentBounds(Sender: TObject; var ContentBounds: TRectF);
@@ -297,6 +345,14 @@ begin
     inherited
   else
     Handled := True;
+
+  // Jan: the CPU can be to slow to handle all MouseWheel events, and can get stuk for a little while
+  // in the meantime we don't want the timer "OnFastScrollingStopTimer" to be executed, because this results in extra performance for the already slow CPU
+  if _scrollingType <> TScrollingType.None then
+  begin
+    _fsStopTimer.Enabled := False; // truly reset timer here!!
+    _fsStopTimer.Enabled := True;
+  end;
 end;
 
 function TScrollableControl.FindStyleResourceBase<T1>(const AStyleName: string; AClone: Boolean;
@@ -408,29 +464,22 @@ begin
 end;
 
 {$IFDEF DEBUG}
-function TScrollableControl.GetVPMax: Single;
+function TScrollableControl.GetVPXMax: Single;
 begin
   Result := TScrollableAniCalculations(AniCalculations).MaxTarget.Point.X;
 end;
 
-function TScrollableControl.GetVPMin: Single;
+function TScrollableControl.GetVPXMin: Single;
 begin
    Result := TScrollableAniCalculations(AniCalculations).MinTarget.Point.X;
 end;
-{$ENDIF}
 
-procedure TScrollableControl.FreeStyle;
+function TScrollableControl.GetVPYMax: Single;
 begin
-  if VScrollBar <> nil then
-    VScrollBar.Value := 0;
-  { Fixes issue in FMX(D12): (probability 30%): Scroll to the middle of the large Tree list, vertically (e.g. row #4000),
-    call Tree.NeedStyleLookup - AV.
-    Calling Tree.NeedStyleLookup will free style, including scrollbar. While freeing scrollbar it MAY call
-    TCustomValueRange.Assign and sometimes (if equal = true in Assign) can be AV, because it starts to update freed object. }
-
-  inherited;
-  _StyleWasFreedByFMX := True;
+  Result := TScrollableAniCalculations(AniCalculations).MaxTarget.Point.Y;
 end;
+
+{$ENDIF}
 
 procedure TScrollableControl.HideControlsInBaseStyle(const AStyleNames: array of string);
   { There are some styled controls, which will be cloned later, like "filler_0", "checkboxcell", "headercell" etc,
@@ -445,6 +494,11 @@ begin
     if FindStyleResourceBase<TControl>( AStyleNames[i], False  {don't clone}, ctrl) then
       ctrl.Visible := False;
   end;
+end;
+
+function TScrollableControl.IsScrollingTooFastToClick: Boolean;
+begin
+  Result := (AniCalculations.CurrentVelocity.Y > 100) or (AniCalculations.CurrentVelocity.Y < -100);
 end;
 
 procedure TScrollableControl.ScrollByAllocBoundsVPX(NewViewportX: Single); // inline
@@ -545,6 +599,94 @@ begin
   inherited ViewportPosition := Value;
 {$ENDIF}
 end;
+
+procedure TScrollableControl.SetScrollingType(const Value: TScrollingType);
+begin
+  if _scrollingType <> Value then
+  begin
+//    var oldScrollingType := _scrollingType;
+//    _scrollingType := Value;
+//    DoScrollingTypeChanged(oldScrollingType, Value);
+  end;
+end;
+
+procedure TScrollableControl.DoScrollingTypeChanged(const OldScrollingType, NewScrollingType: TScrollingType);
+begin
+  inherited;
+
+end;
+
+procedure TScrollableControl.ViewportPositionChange(const OldViewportPosition, NewViewportPosition: TPointF;
+  const ContentSizeChanged: Boolean);
+begin
+  inherited;
+
+  // Why here and not in VScrollChange? VScrollChange is not triggered while mouse wheeling or touching
+  if Trunc(OldViewportPosition.Y) <> Trunc(NewViewportPosition.Y) then  // for vert.scrolling only
+    DetectFastScrolling;
+end;
+
+procedure TScrollableControl.OnFastScrollingStopTimer(Sender: TObject);   // FAST_SCROLLING_STOP_INTERVAL
+begin
+  _fsStopTimer.Enabled := False;
+
+  if AniCalculations.Down {or AniCalculations.Moved} {We have turned this off because it messes up touch scrolling and double click} then
+  begin
+    // user keeps scrolling now but slower (related only to touch screen events, not to mouse)
+    _fsStopTimer.Enabled := True;
+    Exit;
+  end;
+
+  if _scrollingType <> TScrollingType.None then
+  begin
+    ScrollingType := TScrollingType.None;
+
+    _FastScrollStartTime := 0;
+  end;
+end;
+
+procedure TScrollableControl.DetectFastScrolling;
+begin
+  // temporary work without _scrollingtype to load all data
+  _fsStopTimer.Enabled := False;
+  Exit;
+
+  // in case if this is the last ViewportPositionChange event - reset _isFastScrolling to False in timer
+  _fsStopTimer.Enabled := False; // truly reset timer here!!
+  _fsStopTimer.Enabled := True;
+
+  if _scrollingType = TScrollingType.None then
+  begin
+    // detect next scroll move
+    _fastScrollStartTime := TThread.GetTickCount;
+
+    // later we decide if it is fast scrolling. At least we now we are scrolling here
+    ScrollingType := TScrollingType.ScrollingStarted;
+  end
+  else
+  begin
+    var endTime := TThread.GetTickCount - LongWord(_FastScrollStartTime);
+    if endTime < FAST_SCROLLING_DETECT_INTERVAL then
+      Exit;
+
+    if _VPY_End = ViewportPosition.Y then exit;
+
+    // detect next scroll move
+    _fastScrollStartTime := TThread.GetTickCount;
+
+    _VPY_End := ViewportPosition.Y;
+    var scrolledPx := Abs(_VPYStart - _VPY_End);
+
+    var pxPerTick := scrolledPx / endTime;
+    if (pxPerTick > 2) then
+      ScrollingType := TScrollingType.FastScrolling
+    else if (pxPerTick > 0) and (_scrollingType <> TScrollingType.FastScrolling) then
+      ScrollingType := TScrollingType.SlowScrolling;
+
+    _VPYStart := _VPY_End;
+  end;
+end;
+
 
 // related to DO_NOT_ROUND_VIEWPORT_VALUES. Copied from TCustomScrollBox.DoRealign without changes,
 // to call own TScrollableControl.InternalAlign;

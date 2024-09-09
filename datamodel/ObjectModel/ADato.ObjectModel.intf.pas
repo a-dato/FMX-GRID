@@ -132,7 +132,7 @@ type
     procedure Bind(const PropName: string; const ABinding: IPropertyBinding); overload;
     procedure Link(const AProperty: _PropertyInfo; const ABinding: IPropertyBinding); overload;
     procedure Link(const PropName: string; const ABinding: IPropertyBinding); overload;
-    procedure Unbind(const ABinding: IPropertyBinding); overload;
+    procedure Unbind({const} ABinding: IPropertyBinding); overload;
     procedure Unbind; overload;
     function  CheckValueFromBoundProperty(const ABinding: IPropertyBinding; const Value: CObject) : Boolean;
     procedure UpdateValueFromBoundProperty(const ABinding: IPropertyBinding; const Value: CObject; ExecuteTriggers: Boolean); overload;

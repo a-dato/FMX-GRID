@@ -42,7 +42,7 @@ type
     _funcDataList: TGetDatalist;
     _sortedRows: List<Integer>;
     _OnComparingChanged: TOnComparingChanged;
-    _listHoldsOrdinalType: Boolean;
+    _listHoldsOrdinalType: TlistHoldsOrdinalType;
     _loading: Boolean;
     _sorts: List<TSortItem>;
     _filters: List<TFilterItem>;
@@ -68,7 +68,7 @@ type
     function  Compare(const x, y: TKeyRow): Integer;
 
   public
-    constructor Create(const SortDescriptions: List<IListSortDescription>; const FilterDescriptions: List<IListFilterDescription>; ListHoldsOrdinalType: Boolean);
+    constructor Create(const SortDescriptions: List<IListSortDescription>; const FilterDescriptions: List<IListFilterDescription>; ListHoldsOrdinalType: TlistHoldsOrdinalType);
 
     procedure ResetSortedRows(ExecuteSortFilterChange: Boolean);
     function  SortCompleted: Boolean;
@@ -161,7 +161,7 @@ begin
   {$ENDIF}
 end;
 
-constructor TListComparer.Create(const SortDescriptions: List<IListSortDescription>; const FilterDescriptions: List<IListFilterDescription>; ListHoldsOrdinalType: Boolean);
+constructor TListComparer.Create(const SortDescriptions: List<IListSortDescription>; const FilterDescriptions: List<IListFilterDescription>; ListHoldsOrdinalType: TListHoldsOrdinalType);
 begin
   inherited Create;
 
@@ -343,7 +343,7 @@ begin
       var f: TFilterItem;
       for f in _filters do
       begin
-        if _listHoldsOrdinalType then
+        if Assigned(_listHoldsOrdinalType) and _listHoldsOrdinalType() then
           value := o else
           value := f.Sort.GetSortableValue(o);
 

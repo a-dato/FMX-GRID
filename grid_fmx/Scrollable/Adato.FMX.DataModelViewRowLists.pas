@@ -555,42 +555,47 @@ begin
     var currentSelected := Current;
     var isCurrentChanged := False;
 
-    var nextPos := firstChildPos;
-    while i < Count do
+    if firstChildPos <> -1 then
     begin
-      lRow := Self[i];
-
-      _Control.AnimateMoveRowY(lRow, nextPos);
-      nextPos := nextPos + lRow.Height;
-
-      // update index for the Treerows below, except newly added rows, they have already correct indexes (without children count)
-      if i < (Count - RecentlyAddedRowsCount) then
+      var nextPos := firstChildPos;
+      while i < Count do
       begin
-        var oldIndex := lRow.Index;
+        lRow := Self[i];
 
-        lRow.Index := lRow.Index - removedChildrenCount;
+        _Control.AnimateMoveRowY(lRow, nextPos);
+        nextPos := nextPos + lRow.Height;
 
-        if not isCurrentChanged then
-          if oldIndex = currentSelected then
-          begin
-            Current := lRow.Index;
-            isCurrentChanged := True;
-          end;
+        // update index for the Treerows below, except newly added rows, they have already correct indexes (without children count)
+        if i < (Count - RecentlyAddedRowsCount) then
+        begin
+          var oldIndex := lRow.Index;
+
+          lRow.Index := lRow.Index - removedChildrenCount;
+
+          if not isCurrentChanged then
+            if oldIndex = currentSelected then
+            begin
+              Current := lRow.Index;
+              isCurrentChanged := True;
+            end;
+        end;
+
+        inc(i);
       end;
 
-      inc(i);
+      // Self.RemoveRange(clickedViewRowIndex + 1, removedChildrenCount);
+      // Alex: commented, because of issues: Collapsing row(s) is flickering, unclickable row, changes in cache.
+      // Jan has been aprooved: "Putting the rows in a delayed list is a fine idea". see details in 5701.
+
+      // Row will be removed from View now, but destroyed in UpdateContents, when animation completes.
+      var viewIndex := clickedViewRowIndex {+ 1} + removedChildrenCount;
+
+      if viewIndex > clickedViewRowIndex then
+        repeat
+          RemoveRowDestroyLater(viewIndex);
+          dec(viewIndex);
+        until viewIndex = clickedViewRowIndex;
     end;
-
-    // Self.RemoveRange(clickedViewRowIndex + 1, removedChildrenCount);
-    // Alex: commented, because of issues: Collapsing row(s) is flickering, unclickable row, changes in cache.
-    // Jan has been aprooved: "Putting the rows in a delayed list is a fine idea". see details in 5701.
-
-    // Row will be removed from View now, but destroyed in UpdateContents, when animation completes.
-    var viewIndex := clickedViewRowIndex {+ 1} + removedChildrenCount;
-    repeat
-      RemoveRowDestroyLater(viewIndex);
-      dec(viewIndex);
-    until viewIndex = clickedViewRowIndex;
   end;
 end;
 
