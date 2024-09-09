@@ -1,4 +1,6 @@
+{$IFNDEF LYNXWEB}
 {$I ..\..\dn4d\Source\Adato.inc}
+{$ENDIF}
 
 unit ADato.Parser.impl;
 
@@ -725,8 +727,9 @@ uses
   {$IFDEF DELPHI}
   System.Rtti, 
   System.TypInfo,
+  System.ClassHelpers,
   {$ENDIF}
-  ADato.Resources, System.ClassHelpers;
+  ADato.Resources;
 
 function TParser.fmod(x, y: extended): extended;
 begin

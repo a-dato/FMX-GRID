@@ -1,4 +1,6 @@
+{$IFNDEF LYNXWEB}
 {$I ..\..\dn4d\Source\Adato.inc}
+{$ENDIF}
 
 unit ADato.Data.DataModel.intf;
 
@@ -133,7 +135,7 @@ type
   IDataRowView = Interface;
   IRowProperties = Interface;
 
-  TGetRowObjectType = procedure(const Row: IDataRow; var AType: &Type) of object;
+  TGetRowObjectType = reference to function(const Row: IDataRow): &Type;
   TGetRowPropertiesFunc = reference to function (const Value: IDataRow): IRowProperties;
   TValidatePosition = reference to function (const SrcRow, DestRow: IDataRowView; Position: InsertPosition; AutoUpdateCardType: Boolean; DoShowMessage: Boolean) : Boolean;
 
@@ -512,7 +514,7 @@ type
     procedure Invoke(const Sender: IBaseInterface; Args: RowChangedEventArgs);
   end;
   {$ELSE}
-  RowChangedEventHandler = public delegate ( Sender: Object; Args: RowChangedEventArgs);
+  RowChangedEventHandler = public delegate (Sender: IBaseInterface; Args: RowChangedEventArgs);
   {$ENDIF}
 
   IDataModelCurrencyManager = interface(IInterface)
@@ -591,12 +593,12 @@ type
     {$IFDEF DELPHI}
     // Events
     function  get_DataModelChanged: EventHandler;
-    function  get_GetRowObjectType : TGetRowObjectType;
-    procedure set_GetRowObjectType(const Value: TGetRowObjectType);
     function  get_ListChanged: ListChangedEventHandler;
     function  get_RowMoving: RowMovingEventHandler;
     function  get_RowMoved: RowMovedEventHandler;
     {$ENDIF}
+    function  get_GetRowObjectType : TGetRowObjectType;
+    procedure set_GetRowObjectType(const Value: TGetRowObjectType);
 
     // Property getters
     function  get_AutoCreatedRows: List<IDataRow>;
@@ -683,7 +685,8 @@ type
     property RowMoved: RowMovedEventHandler read get_RowMoved;
     {$ELSE}
     event DataModelChanged: EventHandler;
-    event GetRowObjectType : TGetRowObjectType;
+    property GetRowObjectType: TGetRowObjectType read get_GetRowObjectType write set_GetRowObjectType;
+    //event GetRowObjectType : TGetRowObjectType;
     event ListChanged: ListChangedEventHandler;
     event RowMoving: RowMovingEventHandler;
     event RowMoved: RowMovedEventHandler;

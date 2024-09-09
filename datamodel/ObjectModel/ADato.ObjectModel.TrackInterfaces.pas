@@ -1,4 +1,6 @@
+{$IFNDEF LYNXWEB}
 {$I ..\..\dn4d\Source\ADato.inc}
+{$ENDIF}
 
 unit ADato.ObjectModel.TrackInterfaces;
 

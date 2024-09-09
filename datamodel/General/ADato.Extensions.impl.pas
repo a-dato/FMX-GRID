@@ -1,4 +1,6 @@
+{$IFNDEF LYNXWEB}
 {$I ..\..\dn4d\Source\Adato.inc}
+{$ENDIF}
 
 unit ADato.Extensions.impl;
 
@@ -225,8 +227,10 @@ begin
 end;
 
 function TExtensionManager.PropertyByName(const AType: &Type; const Name: string) : _PropertyInfo;
+var
+  prop: _PropertyInfo;
 begin
-  for var prop in GetProperties(AType) do
+  for prop in GetProperties(AType) do
     if prop.Name.Equals(Name) then
       Exit(prop);
 end;

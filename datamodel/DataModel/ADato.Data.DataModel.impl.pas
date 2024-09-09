@@ -1,4 +1,6 @@
+{$IFNDEF LYNXWEB}
 {$I ..\..\dn4d\Source\Adato.inc}
+{$ENDIF}
 
 unit ADato.Data.DataModel.impl;
 
@@ -18,6 +20,8 @@ uses
   //System.Reflection,
   ADato.ComponentModel,
   //System.ComponentModel,
+  {$ELSE}
+  ADato.TypeCustomization,
   {$ENDIF}
   System_,
   System.Runtime.Serialization,
@@ -437,12 +441,12 @@ type
     // Events
     {$IFDEF DELPHI}
     function  get_DataModelChanged: EventHandler;
-    function  get_GetRowObjectType : TGetRowObjectType;
-    procedure set_GetRowObjectType(const Value: TGetRowObjectType);
     function  get_ListChanged: ListChangedEventHandler;
     function  get_RowMoving: RowMovingEventHandler;
     function  get_RowMoved: RowMovedEventHandler;
     {$ENDIF}
+    function  get_GetRowObjectType : TGetRowObjectType;
+    procedure set_GetRowObjectType(const Value: TGetRowObjectType);
 
     function  get_ValidatePosition: TValidatePosition;
     procedure set_ValidatePosition(const Value: TValidatePosition);
@@ -600,10 +604,11 @@ type
       read get_Rows;
 
     {$IFDEF DOTNET}
-      event DataModelChanged: EventHandler delegate _DataModelChanged;
-      event ListChanged: ListChangedEventHandler delegate _ListChanged;
-      event RowMoving: RowMovingEventHandler delegate _RowMoving;
-      event RowMoved: RowMovedEventHandler delegate _RowMoved;
+    event DataModelChanged: EventHandler delegate _DataModelChanged;
+    event ListChanged: ListChangedEventHandler delegate _ListChanged;
+    event RowMoving: RowMovingEventHandler delegate _RowMoving;
+    event RowMoved: RowMovedEventHandler delegate _RowMoved;
+    property GetRowObjectType : TGetRowObjectType read get_GetRowObjectType write set_GetRowObjectType;
     {$ENDIF}
   end;
 
@@ -1367,8 +1372,13 @@ begin
   Row.UpdateIndex(Index);
   Row.UpdateTable(Self);
 
+  {$IFDEF DELPHI}
   if not Row.Data.Equals(nil) then
     _keys.Add(Row.Data, Row);
+  {$ELSE}
+  if Row.Data <> nil then
+    _keys.Add(Row.Data, Row);
+  {$ENDIF}
 
   if Row.AutoCreated then
   begin
@@ -1408,7 +1418,8 @@ begin
         // Add an AutoCreated row
         // as placeholder for row to insert
       begin
-        for var dr in _autoCreatedRows do
+        var dr: IDataRow;
+        for dr in _autoCreatedRows do
         begin
           if CObject.Equals(dr.Data, Location) then
           begin
@@ -1945,6 +1956,7 @@ var
 begin
   Result := TDataModel.Create;
 
+  {$IFDEF DELPHI}
   for prop in AObjectType.GetProperties do
   begin
     column := DataModelColumn.Create;
@@ -1952,6 +1964,17 @@ begin
     column.DataType := prop.GetType;
     Result.Columns.Add(column);
   end;
+  {$ELSE}
+  var objType := new TypeExtensions(AObjectType);
+  
+  for prop in TypeExtensions(objType).GetProperties do
+  begin
+    column := DataModelColumn.Create;
+    column.Name := prop.Name;
+    column.DataType := prop.GetType;
+    Result.Columns.Add(column);
+  end;
+  {$ENDIF}
 end;
 
 function TDataModel.get_ValidatePosition: TValidatePosition;
@@ -2033,7 +2056,7 @@ end;
 function TDataModel.DoGetRowObjectType(const ARow: IDataRow) : &Type;
 begin
   if Assigned(_GetRowObjectType) then
-    _GetRowObjectType(ARow, {var} Result) else
+    Result := _GetRowObjectType(ARow) else
     Result := ARow.Data.GetType;
 end;
 
@@ -2736,7 +2759,11 @@ begin
     if prop <> nil then
     begin
       FlagEditRow(Row, [RowEditState.DataHasChanged]);
+      {$IFDEF DELPHI}
       prop.SetValue(Row.Data, Data, [], True);
+      {$ELSE}
+      prop.SetValue(Row.Data, Data, []);
+      {$ENDIF}
     end;
   end;
 end;
@@ -2791,14 +2818,6 @@ begin
   Result := LevelCount = -1;
 end;
 
-{$IFDEF DELPHI}
-function TDataModel.get_DataModelChanged: EventHandler;
-begin
-  if _DataModelChanged = nil then
-    _DataModelChanged := EventHandlerDelegate.Create;
-  Result := _DataModelChanged;
-end;
-
 function TDataModel.get_GetRowObjectType : TGetRowObjectType;
 begin
   Result := _GetRowObjectType;
@@ -2807,6 +2826,14 @@ end;
 procedure TDataModel.set_GetRowObjectType(const Value: TGetRowObjectType);
 begin
   _GetRowObjectType := Value;
+end;
+
+{$IFDEF DELPHI}
+function TDataModel.get_DataModelChanged: EventHandler;
+begin
+  if _DataModelChanged = nil then
+    _DataModelChanged := EventHandlerDelegate.Create;
+  Result := _DataModelChanged;
 end;
 
 function TDataModel.get_ListChanged: ListChangedEventHandler;
@@ -4907,15 +4934,14 @@ begin
 
   for i := 0 to _SortDescriptor.Count - 1 do
   begin
-    {$IFDEF DELPHI}
-    if interfaces.Supports(_SortDescriptor[i], IListSortDescriptionWithProperty, pds) then
+    if interfaces.Supports<IListSortDescriptionWithProperty>(_SortDescriptor[i], pds) then
       _dataModelColumns[i] := _DataModel.Columns.FindByName(pds.PropertyDescriptor) 
     else begin
       _dataModelColumns[i] := nil;
       pds := nil;
     end;
                                                                       
-    interfaces.Supports(_SortDescriptor[i], IListSortDescriptionWithComparer, cmp);
+    interfaces.Supports<IListSortDescriptionWithComparer>(_SortDescriptor[i], cmp);
     if (_dataModelColumns[i] = nil) and ((cmp = nil) or (cmp.Comparer = nil)) then
     begin
       if pds <> nil then
@@ -4929,7 +4955,6 @@ begin
     if cmp <> nil then
       _Comparers[i] := cmp.Comparer else
       _Comparers[i] := nil;
-    {$ENDIF}
   end;
 end;
 

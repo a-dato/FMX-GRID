@@ -1,4 +1,7 @@
+{$IFNDEF LYNXWEB}
 {$I ..\..\dn4d\Source\Adato.inc}
+{$ENDIF}
+
 unit ADato.ObjectModel.intf;
 
 interface
@@ -54,7 +57,7 @@ type
     procedure Invoke(const Sender: IObjectModelContext; const Context: CObject);
   end;
   {$ELSE}
-  ContextCanChangeEventHandler = public delegate (const Sender: IObjectModelContext; const Context: CObject; var AllowChange: Boolean);
+  ContextCanChangeEventHandler = public delegate (const Sender: IObjectModelContext; const Context: CObject): Boolean;
   ContextChangingEventHandler = public delegate (const Sender: IObjectModelContext; const Context: CObject);
   {$ENDIF}
 
@@ -146,6 +149,7 @@ type
     property OnContextChanged: ContextChangedEventHandler read get_OnContextChanged;
     property OnPropertyChanged: PropertyChangedEventHandler read get_OnPropertyChanged;
     {$ELSE}
+    event OnContextCanChange: ContextCanChangeEventHandler;
     event OnContextChanging: ContextChangingEventHandler;
     event OnContextChanged: ContextChangedEventHandler;
     event OnPropertyChanged: PropertyChangedEventHandler;

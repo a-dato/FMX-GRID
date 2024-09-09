@@ -1,4 +1,6 @@
+{$IFNDEF LYNXWEB}
 {$I ..\..\dn4d\Source\Adato.inc}
+{$ENDIF}
 
 unit ADato.ObjectModel.List.intf;
 
@@ -57,7 +59,7 @@ type
     procedure Invoke(const Sender: IObjectListModel; const Context: IList);
   end;
   {$ELSE}
-  ListContextChangingEventHandler = public delegate (const Sender: IObjectListModel; const Context: IList; var AllowChange: Boolean);
+  ListContextChangingEventHandler = public delegate (const Sender: IObjectListModel; const Context: IList);
   {$ENDIF}
 
   {$IFDEF DELPHI}
@@ -204,6 +206,7 @@ end;
 
 { ListContextCanChangeEventDelegate }
 
+{$IFDEF DELPHI}
 procedure ListContextCanChangeEventDelegate.Add(Value: ListContextCanChangeEventHandlerProc);
 begin
   inherited Add(TMethod(Value));
@@ -234,5 +237,6 @@ procedure ListContextCanChangeEventDelegate.Remove(value: ListContextCanChangeEv
 begin
   inherited Remove(TMethod(Value));
 end;
+{$ENDIF}
 
 end.

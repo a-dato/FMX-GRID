@@ -1,4 +1,7 @@
+{$IFNDEF LYNXWEB}
 {$I ..\..\dn4d\Source\Adato.inc}
+{$ENDIF}
+
 unit ADato.ObjectModel.List.Tracking.intf;
 
 interface

@@ -1,4 +1,6 @@
+{$IFNDEF LYNXWEB}
 {$I ..\..\dn4d\Source\Adato.inc}
+{$ENDIF}
 
 unit ADato.ComponentModel;
 
@@ -32,7 +34,11 @@ type
   private
     // QueryInterface provides a way to overide the interface
     // used for querying other interfaces
+    {$IFDEF DELPHI}
     _QueryControllers: array of Pointer;
+    {$ELSE}
+    _QueryControllers: array of IInterface;
+    {$ENDIF}
     [unsafe]_InterfaceComponentReference: IInterfaceComponentReference;
 
   protected
@@ -43,6 +49,7 @@ type
     procedure RemoveQueryController(const Value: IInterface);
 
     function  QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
+    function  DotNetQueryInterface<T>: T;
   end;
 
 implementation
@@ -67,9 +74,11 @@ end;
 
 procedure TRemoteQueryControllerSupport.AddQueryController(const Value: IInterface);
 begin
-  {$IFDEF DELPHI}
   SetLength(_QueryControllers, Length(_QueryControllers) + 1);
+  {$IFDEF DELPHI}
   _QueryControllers[High(_QueryControllers)] := Pointer(Value);
+  {$ELSE}
+  _QueryControllers[High(_QueryControllers)] := Value;
   {$ENDIF}
 end;
 
@@ -78,9 +87,9 @@ var
   i, y: Integer;
 
 begin
-  {$IFDEF DELPHI}
   for i := 0 to High(_QueryControllers) do
   begin
+    {$IFDEF DELPHI}
     if _QueryControllers[i] = Pointer(Value) then
     begin
       for y := i to High(_QueryControllers) - 1 do
@@ -88,8 +97,16 @@ begin
       SetLength(_QueryControllers, High(_QueryControllers));
       Exit;
     end;
+    {$ELSE}
+    if _QueryControllers[i] = Value then
+    begin
+      for y := i to High(_QueryControllers) - 1 do
+        _QueryControllers[y] := _QueryControllers[y+1];
+      SetLength(_QueryControllers, High(_QueryControllers));
+      Exit;
+    end;
+    {$ENDIF}
   end;
-  {$ENDIF}
 
   Assert(False, 'QueryController could not be found');
 end;
@@ -126,6 +143,17 @@ begin
     end;
   end;
   {$ENDIF}
+end;
+
+function TRemoteQueryControllerSupport.DotNetQueryInterface<T>: T;
+begin
+  for item in _QueryControllers do
+  begin
+    if Interfaces.Supports<T>(item, out Result) then
+      Exit(Result);
+  end;
+
+  Result := nil;
 end;
 
 end.
