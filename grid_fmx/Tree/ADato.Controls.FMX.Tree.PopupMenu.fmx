@@ -1,4 +1,4 @@
-object frmPopupMenu: TfrmPopupMenu
+object frmFMXPopupMenu: TfrmFMXPopupMenu
   Left = 480
   Top = 300
   BorderStyle = None
@@ -11,7 +11,6 @@ object frmPopupMenu: TfrmPopupMenu
   Padding.Bottom = 3.000000000000000000
   Position = Designed
   StyleBook = StyleBookPopup
-  Transparency = True
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
