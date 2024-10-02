@@ -12,7 +12,7 @@ uses
 type
   IFilterItem = interface;
 
-  TfrmPopupMenu = class(TForm)
+  TfrmFMXPopupMenu = class(TForm)
     PopupListBox: TListBox;
     lbiSortSmallToLarge: TListBoxItem;
     lbiSortLargeToSmall: TListBoxItem;
@@ -122,17 +122,17 @@ uses
 
 {$R *.fmx}
 
-procedure TfrmPopupMenu.FormDeactivate(Sender: TObject);
+procedure TfrmFMXPopupMenu.FormDeactivate(Sender: TObject);
 begin
   Close;
 end;
 
-procedure TfrmPopupMenu.FormClose(Sender: TObject; var Action: TCloseAction);
+procedure TfrmFMXPopupMenu.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   // Instead of this FormClose will be called TCustomTreeControl.HeaderPopupMenu_Closed!
 end;
 
-procedure TfrmPopupMenu.EnableItem(Index: integer; Value: boolean);
+procedure TfrmFMXPopupMenu.EnableItem(Index: integer; Value: boolean);
 begin
   with PopupListBox.ListItems[Index] do
   begin
@@ -141,7 +141,7 @@ begin
   end;
 end;
 
-procedure TfrmPopupMenu.ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters, ShowItemSortOptions, ShowItemAddColumAfter,
+procedure TfrmFMXPopupMenu.ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters, ShowItemSortOptions, ShowItemAddColumAfter,
       ShowItemHideColumn: Boolean);
 { • ShowItemFilters - Tree and filters search box, Clear Filter
   • ShowItemSortOptions - Sort items(2), Clear All (Filter + Sort) }
@@ -192,7 +192,7 @@ begin
   Show;
 end;
 
-procedure TfrmPopupMenu.CreateItemFiltersControls;
+procedure TfrmFMXPopupMenu.CreateItemFiltersControls;
 begin
   if _FilterBorder <> nil then
   begin
@@ -264,7 +264,7 @@ begin
   tree.Columns.Add(column2);
 end;
 
-procedure TfrmPopupMenu.LoadFilterItems(const Data: Dictionary<CObject, CString>; Comparer: IComparer<CObject>;
+procedure TfrmFMXPopupMenu.LoadFilterItems(const Data: Dictionary<CObject, CString>; Comparer: IComparer<CObject>;
   Selected: List<CObject>; SelectEmptyValue, CompareText: Boolean);
 var
   checked: Boolean;
@@ -304,7 +304,7 @@ begin
   (_TreeControl as TFMXTreeControl).DataList := _Items as IList;
 end;
 
-function TfrmPopupMenu.get_SelectedFilters: List<IFilterItem>;
+function TfrmFMXPopupMenu.get_SelectedFilters: List<IFilterItem>;
 var
   item: IFilterItem;
 begin
@@ -314,18 +314,18 @@ begin
       Result.Add(item);
 end;
 
-procedure TfrmPopupMenu.SetAllowClearColumnFilter(Value: Boolean);
+procedure TfrmFMXPopupMenu.SetAllowClearColumnFilter(Value: Boolean);
 begin
   EnableItem(lbiClearFilter.Index, Value);
 end;
 
-procedure TfrmPopupMenu.set_Items(const Value: List<IFilterItem>);
+procedure TfrmFMXPopupMenu.set_Items(const Value: List<IFilterItem>);
 begin
   _Items := Value;
   (_TreeControl as TFMXTreeControl).DataList := _Items as IList;
 end;
 
-procedure TfrmPopupMenu.OnSearchEditBoxChanging(Sender: TObject);
+procedure TfrmFMXPopupMenu.OnSearchEditBoxChanging(Sender: TObject);
 begin
 //  if _comparerTreeFilter = nil then
 //  begin
@@ -348,43 +348,43 @@ begin
   TFMXTreeControl(_TreeControl).ApplySort(nil, filters);
 end;
 
-procedure TfrmPopupMenu.BtnApplyFilterClick(Sender: TObject);
+procedure TfrmFMXPopupMenu.BtnApplyFilterClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptFilter;
   Close;
 end;
 
-procedure TfrmPopupMenu.lbiSortSmallToLargeClick(Sender: TObject);
+procedure TfrmFMXPopupMenu.lbiSortSmallToLargeClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptSortAscending;
   Close;
 end;
 
-procedure TfrmPopupMenu.lbiSortLargeToSmallClick(Sender: TObject);
+procedure TfrmFMXPopupMenu.lbiSortLargeToSmallClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptSortDescending;
   Close;
 end;
 
-procedure TfrmPopupMenu.lbiAddColumnAfterClick(Sender: TObject);
+procedure TfrmFMXPopupMenu.lbiAddColumnAfterClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptAddColumnAfter;
   Close;
 end;
 
-procedure TfrmPopupMenu.lbiHideColumnClick(Sender: TObject);
+procedure TfrmFMXPopupMenu.lbiHideColumnClick(Sender: TObject);
 begin
  _PopupResult := TPopupResult.ptHideColumn;
   Close;
 end;
 
-procedure TfrmPopupMenu.lbiClearSortAndFilterClick(Sender: TObject);
+procedure TfrmFMXPopupMenu.lbiClearSortAndFilterClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptClearSortAndFilter;
   Close;
 end;
 
-procedure TfrmPopupMenu.lbiClearFilterClick(Sender: TObject);
+procedure TfrmFMXPopupMenu.lbiClearFilterClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptClearFilter;
   Close;
@@ -431,7 +431,7 @@ end;
 
 { TfrmPopupMenu.TComparerTreeFilter }
 
-function TfrmPopupMenu.TComparerTreeFilter.Compare(const L, R: CObject): Integer;
+function TfrmFMXPopupMenu.TComparerTreeFilter.Compare(const L, R: CObject): Integer;
 var
   CellData: CString;
 begin

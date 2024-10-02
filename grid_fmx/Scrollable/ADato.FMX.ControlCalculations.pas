@@ -66,14 +66,11 @@ begin
       Layout.TopLeft := PointF(0, 0);
       Layout.MaxSize := PointF(IfThen(TextWidth <> -1, TextWidth, TextControl.Width), 9999);
       Layout.WordWrap := Settings.WordWrap;
-      Layout.HorizontalAlign := TTextAlign.Leading;
-      Layout.VerticalAlign := TTextAlign.Leading;
       Layout.Font := Settings.Font;
-      Layout.Color := TextControl.Canvas.Fill.Color;
       Layout.RightToLeft := False; // TFillTextFlag.RightToLeft in Flags;
 
       // also empty line height should be taken into account
-      if Text = '' then
+      if Length(Text) = 0 then
         Layout.Text := 'p' else
         Layout.Text := Text;
     finally
