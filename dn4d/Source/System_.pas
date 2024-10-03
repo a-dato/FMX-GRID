@@ -4801,7 +4801,7 @@ end;
 { CRandom }
 constructor CRandom.Create;
 begin
-  Create(Integer(CDateTime.Now.Ticks));
+  Create(Integer(CDateTime.Now.Ticks._value));
 end;
 
 constructor CRandom.Create(Seed: Integer);
