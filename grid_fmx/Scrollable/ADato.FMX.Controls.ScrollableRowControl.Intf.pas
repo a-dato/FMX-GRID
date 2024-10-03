@@ -7,7 +7,9 @@ interface
 uses
   System_,
   System.Collections,
-  System.Collections.Generic, System.ComponentModel, System.Generics.Defaults,
+  System.Collections.Generic,
+  System.ComponentModel,
+  System.Generics.Defaults,
   System.Types, FMX.Controls;
 
 type

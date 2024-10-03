@@ -5105,8 +5105,7 @@ begin
   Assert(_UpdateCount >= 0);
 end;
 
-function TCustomTreeControl.CreateDefaultCellEditor(const ACell: ITreeCell; const APicklist: IList;
-  IsMultilineEditor : Boolean) : ICellEditor;
+function TCustomTreeControl.CreateDefaultCellEditor(const ACell: ITreeCell; const APicklist: IList; IsMultilineEditor : Boolean) : ICellEditor;
 var
   _pickList: IList;
   dataType: &Type;

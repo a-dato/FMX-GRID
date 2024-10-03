@@ -91,6 +91,8 @@ type
     ['{C8130412-27DD-40C2-B1BE-08CB37DB6E2F}']
     function  get_SortDirection: ListSortDirection;
     procedure set_SortDirection(const Value: ListSortDirection);
+    function  get_LoadSortableValueInternal: Boolean;
+    procedure set_LoadSortableValueInternal(const Value: Boolean);
 
     function  Compare(const Left, Right: CObject): Integer;
     function  GetSortableValue(const AObject: CObject): CObject;
@@ -101,17 +103,19 @@ type
     procedure SortCompleted;
     procedure ToggleDirection;
 
-    property SortDirection: ListSortDirection
-      read  get_SortDirection
-      write set_SortDirection;
+    property SortDirection: ListSortDirection read get_SortDirection write set_SortDirection;
+    property LoadSortableValueInternal: Boolean read get_LoadSortableValueInternal write set_LoadSortableValueInternal;
   end;
 
   CListSortDescription = class(TBaseInterfacedObject, IListSortDescription, IComparer<CObject>)
   protected
     _SortDirection: ListSortDirection;
+    _LoadSortableValueInternal: Boolean;
 
     function  get_SortDirection: ListSortDirection;
     procedure set_SortDirection(const Value: ListSortDirection);
+    function  get_LoadSortableValueInternal: Boolean;
+    procedure set_LoadSortableValueInternal(const Value: Boolean);
 
   public
     constructor Create(const ASortDirection: ListSortDirection);
@@ -125,9 +129,8 @@ type
 
     procedure ToggleDirection;
 
-    property SortDirection: ListSortDirection
-      read  get_SortDirection
-      write set_SortDirection;
+    property SortDirection: ListSortDirection read  get_SortDirection write set_SortDirection;
+    property LoadSortableValueInternal: Boolean read get_LoadSortableValueInternal write set_LoadSortableValueInternal;
   end;
 
   IListSortDescriptionWithComparer = interface(IListSortDescription)
@@ -540,6 +543,7 @@ end;
 constructor CListSortDescription.Create(const ASortDirection: ListSortDirection);
 begin
   _SortDirection := ASortDirection;
+  _LoadSortableValueInternal := False;
 end;
 
 function CListSortDescription.Equals(const Sort: IListSortDescription): Boolean;
@@ -552,9 +556,19 @@ begin
   Result := AObject;
 end;
 
+function CListSortDescription.get_LoadSortableValueInternal: Boolean;
+begin
+  Result := _LoadSortableValueInternal;
+end;
+
 function CListSortDescription.get_SortDirection: ListSortDirection;
 begin
   Result := _SortDirection;
+end;
+
+procedure CListSortDescription.set_LoadSortableValueInternal(const Value: Boolean);
+begin
+  _LoadSortableValueInternal := Value;
 end;
 
 procedure CListSortDescription.set_SortDirection(const Value: ListSortDirection);
