@@ -1465,7 +1465,7 @@ type
     function  get_RowLongestCellWidth: Single;
     function  get_TreeRowList: ITreeRowList;
   strict private // headers
-    _frmHeaderPopupMenu: TfrmPopupMenu;
+    _frmHeaderPopupMenu: TfrmFMXPopupMenu;
     _popupMenuClosed: TNotifyEvent;
     _popupMenuColumnIndex : Integer;
   protected   // headers
@@ -2367,7 +2367,7 @@ begin
   // Popup form will be created once, then reused for any column
   if _frmHeaderPopupMenu = nil then
   begin
-    _frmHeaderPopupMenu := TfrmPopupMenu.Create(Self);
+    _frmHeaderPopupMenu := TfrmFMXPopupMenu.Create(Self);
     _frmHeaderPopupMenu.OnClose := HeaderPopupMenu_Closed;
   end;
 
@@ -2522,26 +2522,26 @@ begin
   end;
 
   case _frmHeaderPopupMenu.PopupResult of
-    TfrmPopupMenu.TPopupResult.ptCancel: Exit;
+    TfrmFMXPopupMenu.TPopupResult.ptCancel: Exit;
 
-    TfrmPopupMenu.TPopupResult.ptSortAscending:
+    TfrmFMXPopupMenu.TPopupResult.ptSortAscending:
     begin
       sortDescriptions := SortAscDesc(ListSortDirection.Ascending);
       applySortingOrFilter := True;
     end;
 
-    TfrmPopupMenu.TPopupResult.ptSortDescending:
+    TfrmFMXPopupMenu.TPopupResult.ptSortDescending:
     begin
       sortDescriptions := SortAscDesc(ListSortDirection.Descending);
       applySortingOrFilter := True;
     end;
 
-    TfrmPopupMenu.TPopupResult.ptFilter:
+    TfrmFMXPopupMenu.TPopupResult.ptFilter:
     begin
       applySortingOrFilter := SetFilter;
     end;
 
-    TfrmPopupMenu.TPopupResult.ptHideColumn:
+    TfrmFMXPopupMenu.TPopupResult.ptHideColumn:
     begin
       var column := Layout.Columns[_popupMenuColumnIndex];
 
@@ -2559,14 +2559,14 @@ begin
       DoColumnChangedByUser(nil, column.Column);
     end;
 
-    TfrmPopupMenu.TPopupResult.ptClearFilter:
+    TfrmFMXPopupMenu.TPopupResult.ptClearFilter:
     begin
       var column := Layout.Columns[_popupMenuColumnIndex];
       RemoveFilter(GetColumnFilter(column));
       applySortingOrFilter := true;
   end;
 
-    TfrmPopupMenu.TPopupResult.ptClearSortAndFilter:
+    TfrmFMXPopupMenu.TPopupResult.ptClearSortAndFilter:
     begin
       sortDescriptions := nil;
       filterDescriptions := nil;
