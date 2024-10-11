@@ -9000,7 +9000,9 @@ end;
 
 function CObject.AsType<T>: T;
 begin
-  if not TryAsType<T>(Result, True {nils allowed!}) then
+  if TypeInfo(T) = TypeInfo(TValue) then
+    Result := FValue.AsType<T>
+  else if not TryAsType<T>(Result, True {nils allowed!}) then
     EInvalidCastByNameException(FValue.TypeInfo.NameFld.ToString, PTypeInfo(System.TypeInfo(T)).NameFld.ToString);
 end;
 
