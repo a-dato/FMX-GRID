@@ -49,15 +49,17 @@ type
     //_filters: List<IListFilterDescription>;
 
     _FilterBorder: TLayout;
+    _Items: List<IFilterItem>;
     _EbSearch: TEdit;
     _TreeControl: TControl;   // cannot use TFMXTreeControl class because of circular unit reference
     _PopupResult: TPopupResult;
 
-    function  get_SelectedFilters: List<IFilterItem>;
 
     procedure CreateItemFiltersControls;
     procedure BtnApplyFilterClick(Sender: TObject);
     procedure SetAllowClearColumnFilter(Value: Boolean);
+    procedure set_Items(const Value: List<IFilterItem>);
+    function  get_SelectedFilters: List<IFilterItem>;
 
     procedure OnSearchEditBoxChanging(Sender: TObject);
   public
@@ -251,6 +253,7 @@ begin
 
   var column1 := TFMXTreeCheckboxColumn.Create;
   column1.Width := 25;
+  column1.PropertyName := 'Checked';
   tree.Columns.Add(column1);
 
   var column2 := TFMXTreeColumn.Create;
@@ -268,7 +271,7 @@ var
   item: IFilterItem;
   kv: KeyValuePair<CObject, CString>;
 begin
-  var items := CList<IFilterItem>.Create(Data.Count);
+  _Items := CList<IFilterItem>.Create(Data.Count);
 
   for kv in Data do
   begin
@@ -280,10 +283,10 @@ begin
       checked := (Selected <> nil) and Selected.Contains(kv.Key);
 
     item := TFilterItem.Create(kv.Key, kv.Value, checked);
-    items.Add(item);
+    _Items.Add(item);
   end;
 
-  items.Sort(
+  _Items.Sort(
       function (const x, y: IFilterItem): Integer
       begin
         if CompareText then
@@ -298,29 +301,28 @@ begin
           Result := CObject.Compare(x.Data, y.Data);
       end);
 
-  (_TreeControl as TFMXTreeControl).DataList := items as IList;
+  (_TreeControl as TFMXTreeControl).DataList := _Items as IList;
 end;
 
 function TfrmFMXPopupMenu.get_SelectedFilters: List<IFilterItem>;
+var
+  item: IFilterItem;
 begin
   Result := CList<IFilterItem>.Create;
-  var items := (_TreeControl as TFMXTreeControl).DataList as List<IFilterItem>;
-
-  // TODO: Code below correctly adds checked items to result, but ApplySort at later point fails
-  // Seems because it tries to compare task with item selected here, types are not same so it fails.
-  // Turn on when know how to fix.
-
-//  var tree := (_TreeControl as TFMXTreeControl);
-//  for var I := 0 to tree.RowCount - 1 do
-//  begin
-//    if tree.Rows[I].Checked then
-//      Result.Add(items[I]);
-//  end;
+  for item in _Items do
+    if item.Checked then
+      Result.Add(item);
 end;
 
 procedure TfrmFMXPopupMenu.SetAllowClearColumnFilter(Value: Boolean);
 begin
   EnableItem(lbiClearFilter.Index, Value);
+end;
+
+procedure TfrmFMXPopupMenu.set_Items(const Value: List<IFilterItem>);
+begin
+  _Items := Value;
+  (_TreeControl as TFMXTreeControl).DataList := _Items as IList;
 end;
 
 procedure TfrmFMXPopupMenu.OnSearchEditBoxChanging(Sender: TObject);
