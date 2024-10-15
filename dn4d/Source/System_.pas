@@ -899,6 +899,7 @@ type
     function get_Ticks: CInt64;
     function get_TotalDays: Double;
     function get_TotalHours: Double;
+    function get_TotalMilliseconds: Double;
 
     class function TimeToTicks(hour: Integer; minute: Integer; second: Integer): Int64; static;
 
@@ -964,6 +965,7 @@ type
 
     property TotalDays: Double read get_TotalDays;
     property TotalHours: Double read get_TotalHours;
+    property TotalMilliseconds: Double read get_TotalMilliseconds;
 
     property Ticks: CInt64 read get_Ticks;
   end;
@@ -11271,6 +11273,11 @@ end;
 function CTimeSpan.get_TotalHours: Double;
 begin
   Exit(_ticks / CTimeSpan.TicksPerHour);
+end;
+
+function CTimeSpan.get_TotalMilliseconds: Double;
+begin
+  Exit(_ticks / CTimeSpan.TicksPerMillisecond);
 end;
 
 function CTimeSpan.Add(const Value: CTimeSpan): CTimeSpan;
