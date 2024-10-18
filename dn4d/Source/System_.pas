@@ -8854,6 +8854,8 @@ begin
         Result := THashBobJenkins.GetHashValue(FValue.GetReferenceToRawData^, FValue.DataSize, 0);
     TypeCode.Record:
       Result := THashBobJenkins.GetHashValue(FValue.GetReferenceToRawData^, FValue.DataSize, 0);
+    TypeCode.Variant:
+      Result := ToString.GetHashCode;
   else
     Assert(False);
     Result := -1;
@@ -9580,6 +9582,14 @@ begin
         Result := CTimeSpan(FValue.GetReferenceToRawData^).ToString
       else if FValue.IsType<TGuid> then
         Result := TGuid(FValue.GetReferenceToRawData^).ToString;
+
+    TypeCode.Variant:
+    begin
+      var v := FValue.AsVariant;
+      if VarIsNull(v) then
+        Result := nil else
+        Result := VarToStr(v);
+    end;
   end;
 end;
 
@@ -9623,7 +9633,8 @@ function CObject.IsNull : Boolean;
 begin
   Result := FValue.IsEmpty or
            ((FValue.TypeInfo = TypeInfo(CObject)) and CObject(FValue.GetReferenceToRawData^).IsNull) or
-           ((FValue.TypeInfo = TypeInfo(CString)) and (CString(FValue.GetReferenceToRawData^)._intf = nil));
+           ((FValue.TypeInfo = TypeInfo(CString)) and (CString(FValue.GetReferenceToRawData^)._intf = nil)) or
+           ((FValue.TypeInfo = TypeInfo(variant)) and varIsNull(Variant(FValue.GetReferenceToRawData^)));
 end;
 
 class operator CObject.Equal(const a: CObject; const b: CObject): Boolean;
