@@ -797,6 +797,7 @@ type
     _rowProperties    : IDictionary<IDataRow, IRowProperties>;
     _sortDescriptions : List<IListSortDescription>;
     _groupByDescriptions: List<IListSortDescription>;
+    _internalfilterDescriptions: List<IListFilterDescription>;
     _groupHeaders     : List<IDataRowView>;
     _groupHeadersComparer: IComparer<IDataRowView>;
     _UpdateCount      : Integer;
@@ -838,10 +839,13 @@ type
     function  get_DefaultRowProperties: IRowProperties; virtual;
     procedure set_DefaultRowProperties(const Value: IRowProperties); virtual;
     function  get_SortDescriptions: List<IListSortDescription>;
+    function  get_FilterDescriptions: List<IListFilterDescription>;
 
     // procedures
     procedure ApplySortAndGrouping( const SortBy: List<IListSortDescription>;
                                     const GroupBy: List<IListSortDescription>);
+
+    procedure ApplyInternalFilters( const Filters: List<IListFilterDescription>);
 
     procedure CollapseRowInView(const Row: IDataRow);
     procedure ExpandRowInView(const Row: IDataRow);
@@ -938,6 +942,8 @@ type
 
   public
     constructor Create(const ADataModel: IDataModel; const ASortDescriptor: List<IListSortDescription>);
+    destructor Destroy; override;
+
     function LoadKey(const dataRowView: IDataRowView): CObject;
   end;
 
@@ -3299,6 +3305,17 @@ begin
   end;
 end;
 
+procedure TDataModelView.ApplyInternalFilters(const Filters: List<IListFilterDescription>);
+begin
+  _internalfilterDescriptions := Filters;
+
+  if (_rows <> nil) then
+  begin
+    ResetRows;
+    DoDataModelViewChanged;
+  end;
+end;
+
 function TDataModelView.ChildCount(const ViewRow: IDataRowView): Integer;
 var
   viewIndex : Integer;
@@ -3495,6 +3512,14 @@ begin
     _FilterRecord.Invoke(Self, args);
     Result := not args.Accepted;
   end;
+
+  if not Result and (_internalfilterDescriptions <> nil) then
+    for var internalFilter in _internalfilterDescriptions do
+    begin
+      var filterableData := internalFilter.GetFilterableValue(dataRow.Data);
+      if not internalFilter.IsMatch(filterableData) then
+        Result := True;
+    end;
 end;
 
 procedure TDataModelView.DoDataModelViewChanged;
@@ -4112,6 +4137,11 @@ end;
 function TDataModelView.get_GroupDescriptions: List<IListSortDescription>;
 begin
   Result := _groupByDescriptions;
+end;
+
+function TDataModelView.get_FilterDescriptions: List<IListFilterDescription>;
+begin
+  Result := _internalfilterDescriptions;
 end;
 
 function TDataModelView.get_GroupedView: Boolean;
@@ -4903,7 +4933,7 @@ begin
     _keys.Add(y, key_y);
   end;
 
-  if Length(_dataModelColumns) = 1 then
+  if _SortDescriptor.Count = 1 then
   begin
     if _Comparers[0] <> nil then
       Result := _Multipliers[0] * _Comparers[0].Compare(key_x, key_y) else
@@ -4928,26 +4958,30 @@ begin
   _DataModel := ADataModel;
   _SortDescriptor := ASortDescriptor;
   _keys := CDictionary<IDataRowView, CObject>.Create(0, DataRowViewEqualityComparer.Create);
+
   SetLength(_dataModelColumns, _SortDescriptor.Count);
   SetLength(_Multipliers, _SortDescriptor.Count);
   SetLength(_Comparers, _SortDescriptor.Count);
 
   for i := 0 to _SortDescriptor.Count - 1 do
   begin
-    if interfaces.Supports<IListSortDescriptionWithProperty>(_SortDescriptor[i], pds) then
-      _dataModelColumns[i] := _DataModel.Columns.FindByName(pds.PropertyDescriptor) 
+    var descriptor := _SortDescriptor[i];
+
+    if not descriptor.LoadSortableValueInternal and interfaces.Supports<IListSortDescriptionWithProperty>(descriptor, pds) then
+      _dataModelColumns[i] := _DataModel.Columns.FindByName(pds.PropertyDescriptor)
     else begin
       _dataModelColumns[i] := nil;
       pds := nil;
     end;
-                                                                      
-    interfaces.Supports<IListSortDescriptionWithComparer>(_SortDescriptor[i], cmp);
-    if (_dataModelColumns[i] = nil) and ((cmp = nil) or (cmp.Comparer = nil)) then
+
+    cmp := nil;
+    interfaces.Supports<IListSortDescriptionWithComparer>(descriptor, cmp);
+    if not descriptor.LoadSortableValueInternal and (_dataModelColumns[i] = nil) and ((cmp = nil) or (cmp.Comparer = nil)) then
     begin
       if pds <> nil then
         exceptionStr := CString.Format('A column named ''{0}'' does not exist.', [pds.PropertyDescriptor]) else
         exceptionStr := 'Sort description not valid for model.';
-        
+
       raise EDataModelException.Create(exceptionStr);
     end;
 
@@ -4956,6 +4990,17 @@ begin
       _Comparers[i] := cmp.Comparer else
       _Comparers[i] := nil;
   end;
+
+  for var sort in _SortDescriptor do
+    sort.SortBegin;
+end;
+
+destructor DataRowViewComparer.Destroy;
+begin
+  for var sort in _SortDescriptor do
+    sort.SortCompleted;
+
+  inherited;
 end;
 
 function DataRowViewComparer.LoadKey(const dataRowView: IDataRowView): CObject;
@@ -4963,31 +5008,28 @@ var
   i: Integer;
   arrayKey: CObject.ObjectArray;
 
-begin
-  if Length(_dataModelColumns) = 1 then
+  function GetSortableValue(Index: Integer): CObject;
   begin
-    if (_dataModelColumns[0] <> nil) then // Not all columns actualy have a data column
-    begin
-      Result := _DataModel.GetFieldValue(_dataModelColumns[0], dataRowView.Row);
-      if Result.Equals(DBNull.Value) then
-        Result := nil;
-    end else
-      // Special case, if there is no column, we use current row as key
+    Result := nil;
+    if _SortDescriptor[Index].LoadSortableValueInternal then
+      Result := _SortDescriptor[Index].GetSortableValue(dataRowView)
+    else if _dataModelColumns[Index] <> nil then
+      Result := _DataModel.GetFieldValue(_dataModelColumns[Index], dataRowView.Row)
+    else // Special case, if there is no column, we use current row as key
       Result := dataRowView.Row;
-  end
+
+    if Result.Equals(DBNull.Value) then
+      Result := nil;
+  end;
+
+begin
+  if _SortDescriptor.Count = 1 then
+    Result := GetSortableValue(0)
   else
   begin
     SetLength(arrayKey, _SortDescriptor.Count);
-    for i := 0 to High(_dataModelColumns) do
-    begin
-      if _dataModelColumns[i] <> nil then
-      begin
-        arrayKey[i] := _DataModel.GetFieldValue(_dataModelColumns[i], dataRowView.Row);
-        if arrayKey[i].Equals(DBNull.Value) then
-          arrayKey[i] := nil;
-      end else
-        arrayKey[i] := dataRowView.Row;
-    end;
+    for i := 0 to _SortDescriptor.Count - 1 do
+      arrayKey[i] := GetSortableValue(i);
 
     Result := CObject.FromArray(arrayKey);
   end;

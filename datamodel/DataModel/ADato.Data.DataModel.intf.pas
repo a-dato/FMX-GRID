@@ -746,9 +746,13 @@ type
     function  get_DefaultRowProperties: IRowProperties;
     procedure set_DefaultRowProperties(const Value: IRowProperties);
     function  get_SortDescriptions: List<IListSortDescription>;
+    function  get_FilterDescriptions: List<IListFilterDescription>;
 
     procedure ApplySortAndGrouping( const SortBy: List<IListSortDescription>;
                                     const GroupBy: List<IListSortDescription>);
+    procedure ApplyInternalFilters( const Filters: List<IListFilterDescription>);
+
+
     function  ChildCount(const ViewRow: IDataRowView): Integer;
     function  Children(const ViewRow: IDataRowView; ParentsInclude: TChildren): List<IDataRow>;
     procedure ClearRowProperties;
@@ -817,6 +821,8 @@ type
       read get_Rows;
     property SortDescriptions: List<IListSortDescription>
       read get_SortDescriptions;
+    property FilterDescriptions: List<IListFilterDescription>
+      read get_FilterDescriptions;
   end;
 
   IDataLink = {$IFDEF DOTNET}public{$ENDIF} interface(IInterface)
