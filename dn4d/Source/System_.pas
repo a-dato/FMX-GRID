@@ -9031,7 +9031,7 @@ var
   value_t: TValue;
 
 begin
-  if FValue.IsEmpty and not ReturnEmptyValue then
+  if IsNull and not ReturnEmptyValue then
     Result := False
 
   else
@@ -9634,7 +9634,7 @@ begin
   Result := FValue.IsEmpty or
            ((FValue.TypeInfo = TypeInfo(CObject)) and CObject(FValue.GetReferenceToRawData^).IsNull) or
            ((FValue.TypeInfo = TypeInfo(CString)) and (CString(FValue.GetReferenceToRawData^)._intf = nil)) or
-           ((FValue.TypeInfo = TypeInfo(variant)) and varIsNull(Variant(FValue.GetReferenceToRawData^)));
+           ((FValue.TypeInfo = TypeInfo(variant)) and VarIsNull(Variant(FValue.GetReferenceToRawData^)));
 end;
 
 class operator CObject.Equal(const a: CObject; const b: CObject): Boolean;
