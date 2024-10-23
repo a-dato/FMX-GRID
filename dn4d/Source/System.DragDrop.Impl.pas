@@ -305,6 +305,34 @@ var
 begin
   try
     try
+//      {$IFDEF DEBUG}
+//      var EnumFormatEtc: IEnumFORMATETC;
+//      var FormatEtc: TFormatEtc;
+//      var Fetched: Longint;
+//      var s: string;
+//
+//      if Succeeded(dataObj.EnumFormatEtc(DATADIR_GET, EnumFormatEtc)) then
+//      begin
+//        while EnumFormatEtc.Next(1, FormatEtc, @Fetched) = S_OK do
+//        begin
+//          var FormatName: WideString;
+//          SetLength(FormatName, 255);
+//          var l := GetClipboardFormatName(FormatEtc.cfFormat, PWideChar(FormatName), 255);
+//          if l > 0 then
+//          begin
+//            SetLength(FormatName, l);
+//            s := s + FormatName + ',';
+//          end;
+//
+//          var stg: TStgMedium;
+//          var r := dataObj.GetData(FormatEtc, stg);
+//          if stg.stg <> nil then;
+//
+//
+//        end;
+//      end;
+//      {$ENDIF}
+
       Result := S_OK;
       Args := DragEventArgs.Create(
         _DataObject,

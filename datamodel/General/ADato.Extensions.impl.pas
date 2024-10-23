@@ -417,7 +417,6 @@ begin
   ExtensionManager := nil;
 end;
 
-
 initialization
   TExtensionManager.InitializeGlobalExtensionManager;
 

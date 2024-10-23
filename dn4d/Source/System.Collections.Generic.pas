@@ -13,6 +13,7 @@ uses
   System.SysUtils, System.RTLConsts;
 
 type
+  {$M+}
   Predicate<T> = reference to function (const Value: T): Boolean;
   Comparison<T> = reference to function (const x, y: T): Integer;
   Converter<TInput, TOutput> = reference to function (const Value: TInput): TOutput;
@@ -78,7 +79,6 @@ type
     property  Item[index: Integer]: T read get_Item write set_Item; default;
   end;
 
-  {$M+}
   List<T> = interface(IList<T>)
     ['{2A43E757-7C40-4089-8A95-CD6FDAFE21A1}']
     procedure AddRange(const collection: IEnumerable<T>);

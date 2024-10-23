@@ -899,6 +899,7 @@ type
     function get_Ticks: CInt64;
     function get_TotalDays: Double;
     function get_TotalHours: Double;
+    function get_TotalMilliseconds: Double;
 
     class function TimeToTicks(hour: Integer; minute: Integer; second: Integer): Int64; static;
 
@@ -964,6 +965,7 @@ type
 
     property TotalDays: Double read get_TotalDays;
     property TotalHours: Double read get_TotalHours;
+    property TotalMilliseconds: Double read get_TotalMilliseconds;
 
     property Ticks: CInt64 read get_Ticks;
   end;
@@ -8852,6 +8854,8 @@ begin
         Result := THashBobJenkins.GetHashValue(FValue.GetReferenceToRawData^, FValue.DataSize, 0);
     TypeCode.Record:
       Result := THashBobJenkins.GetHashValue(FValue.GetReferenceToRawData^, FValue.DataSize, 0);
+    TypeCode.Variant:
+      Result := ToString.GetHashCode;
   else
     Assert(False);
     Result := -1;
@@ -9000,7 +9004,9 @@ end;
 
 function CObject.AsType<T>: T;
 begin
-  if not TryAsType<T>(Result, True {nils allowed!}) then
+  if TypeInfo(T) = TypeInfo(TValue) then
+    Result := FValue.AsType<T>
+  else if not TryAsType<T>(Result, True {nils allowed!}) then
     EInvalidCastByNameException(FValue.TypeInfo.NameFld.ToString, PTypeInfo(System.TypeInfo(T)).NameFld.ToString);
 end;
 
@@ -9576,6 +9582,14 @@ begin
         Result := CTimeSpan(FValue.GetReferenceToRawData^).ToString
       else if FValue.IsType<TGuid> then
         Result := TGuid(FValue.GetReferenceToRawData^).ToString;
+
+    TypeCode.Variant:
+    begin
+      var v := FValue.AsVariant;
+      if VarIsNull(v) then
+        Result := nil else
+        Result := VarToStr(v);
+    end;
   end;
 end;
 
@@ -9619,7 +9633,8 @@ function CObject.IsNull : Boolean;
 begin
   Result := FValue.IsEmpty or
            ((FValue.TypeInfo = TypeInfo(CObject)) and CObject(FValue.GetReferenceToRawData^).IsNull) or
-           ((FValue.TypeInfo = TypeInfo(CString)) and (CString(FValue.GetReferenceToRawData^)._intf = nil));
+           ((FValue.TypeInfo = TypeInfo(CString)) and (CString(FValue.GetReferenceToRawData^)._intf = nil)) or
+           ((FValue.TypeInfo = TypeInfo(variant)) and varIsNull(Variant(FValue.GetReferenceToRawData^)));
 end;
 
 class operator CObject.Equal(const a: CObject; const b: CObject): Boolean;
@@ -11269,6 +11284,11 @@ end;
 function CTimeSpan.get_TotalHours: Double;
 begin
   Exit(_ticks / CTimeSpan.TicksPerHour);
+end;
+
+function CTimeSpan.get_TotalMilliseconds: Double;
+begin
+  Exit(_ticks / CTimeSpan.TicksPerMillisecond);
 end;
 
 function CTimeSpan.Add(const Value: CTimeSpan): CTimeSpan;
