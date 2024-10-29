@@ -4810,6 +4810,7 @@ constructor CRandom.Create(Seed: Integer);
 var
   i, j, k, num2, num3, index: Integer;
 begin
+  {$Q-} // Trun of Integer overflow checking
   SetLength(self.SeedArray, $38);
   num2 := ($9a4ec86 - CMath.Abs(Seed));
   self.SeedArray[$37] := num2;
@@ -4840,6 +4841,7 @@ begin
   end;
   self.inext := 0;
   self.inextp := $15;
+  {$Q+}
 //  Seed := 1
 end;
 
