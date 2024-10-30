@@ -109,17 +109,24 @@ begin
   _onViewChanged := OnViewChanged;
 
   var dm: IDataModel;
+  var cmp: IComparableList;
+
   if Interfaces.Supports<IDataModel>(DataList, dm) then
   begin
     _dataModelView := dm.DefaultView;
     _dataModelView.ViewChanged.Add(DataModelViewChanged);
-  end else
+  end
+  else
   begin
-    var data: IList<CObject> := CList<CObject>.Create(DataList.Count);
-    for var item in DataList do
-      data.Add(item);
+    if not Interfaces.Supports<IComparableList>(DataList, _comparer) then
+    begin
+      var data: IList<CObject> := CList<CObject>.Create(DataList.Count);
+      for var item in DataList do
+        data.Add(item);
 
-    _comparer := CComparableList<CObject>.Create(data, CComparableList<CObject>.CreateReusableComparer);
+      _comparer := CComparableList<CObject>.Create(data, CComparableList<CObject>.CreateReusableComparer);
+    end;
+
     _comparer.Comparer.OnComparingChanged := procedure begin OnViewChanged end;
   end;
 

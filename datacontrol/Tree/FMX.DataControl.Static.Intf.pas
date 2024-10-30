@@ -320,12 +320,12 @@ type
 //    procedure SetColumnWidth(const ColumnIndex: Integer; Width: Integer);
     procedure UpdateColumnWidth(const FlatColumnIndex: Integer; const Width: Single);
     procedure RecalcColumnWidthsBasic;
-    procedure RecalcColumnWidthsAutoFit;
+    procedure RecalcColumnWidthsAutoFit;
 
-    function  HasFrozenColumns: Boolean;
-    function  ContentOverFlow: Integer;
-    function  FrozenColumnWidth: Single;
-    function  RecalcRequired: Boolean;
+    function  HasFrozenColumns: Boolean;
+    function  ContentOverFlow: Integer;
+    function  FrozenColumnWidth: Single;
+    function  RecalcRequired: Boolean;
 
     procedure ForceRecalc;
 //
@@ -356,6 +356,8 @@ type
     procedure set_SubInfoControl(const Value: TControl);
     function  get_ExpandButton: TButton;
     procedure set_ExpandButton(const Value: TButton);
+    function  get_HideCellInView: Boolean;
+    procedure set_HideCellInView(const Value: Boolean);
 //    function  get_ColSpan: Byte;
 //    procedure set_ColSpan(const Value: Byte);
     function  get_Data: CObject;
@@ -380,6 +382,7 @@ type
     property InfoControl: TControl read get_InfoControl write set_InfoControl;
     property SubInfoControl: TControl read get_SubInfoControl write set_SubInfoControl;
     property ExpandButton: TButton read get_ExpandButton write set_ExpandButton;
+    property HideCellInView: Boolean read get_HideCellInView write set_HideCellInView;
 
 //    property ColSpan: Byte read get_ColSpan write set_ColSpan;
     property Data: CObject read get_Data write set_Data;

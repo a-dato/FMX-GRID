@@ -11,7 +11,7 @@ uses
   System.Collections;
 
 type
-  TRowInfoRecord = class
+  TRowInfoRecord = record
   private
     CalculatedHeight: Single;
     NeedsResize: Boolean;
@@ -103,8 +103,11 @@ end;
 
 class function TRowInfoRecord.Null: TRowInfoRecord;
 begin
-  Result := TRowInfoRecord.Create;
+//  Result := TRowInfoRecord.Create;
   Result.CalculatedHeight := 0;
+  Result.NeedsResize := True;
+  Result.CellsApplied := False;
+  Result.RowInActiveView := False;
 end;
 
 procedure TRowInfoRecord.OnRowOutOfView;

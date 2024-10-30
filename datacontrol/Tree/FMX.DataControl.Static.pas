@@ -131,11 +131,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    function  TemporaryContentHeight: SIngle;
-
-    procedure AddFilterOnLION1;
-
-  public
+    procedure RefreshColumn(const Column: IDCTreeColumn);
 
   published
     property Columns: IDCTreeColumnList read _columns write _columns;  // stored DoStoreColumns;
@@ -164,14 +160,6 @@ uses
 
 { TStaticDataControl }
 
-procedure TStaticDataControl.AddFilterOnLION1;
-begin
-  var filterDesc: IListFilterDescription := TTreeFilterDescription.Create(interfaces.Supports<IDataModel>(_view.OriginalData), _treeLayout.FlatColumns[1], OnGetCellDataForSorting);
-  (filterDesc as TTreeFilterDescription).FilterText := 'ID: 4';
-
-  AddFilterDescription(filterDesc, True);
-end;
-
 procedure TStaticDataControl.ProcessColumnVisibilityRules;
 begin
   if not _autoFitColumns then
@@ -192,32 +180,53 @@ begin
 
       // step 1: hide all old cells
       var cell: IDCTreeCell;
-      for var oldColumnIndex := 0 to _treeLayout.LayoutColumns.Count - 1 do
-        if treeRow.Cells.TryGetValue(oldColumnIndex, cell) and cell.LayoutColumn.HideColumnInView then
-        begin
-          cell.Control := nil; // this will trigger a free
-          treeRow.Cells.Remove(oldColumnIndex);
-        end;
+      for var layoutColumn in _treeLayout.LayoutColumns do
+        if treeRow.Cells.TryGetValue(layoutColumn.Index, cell) and cell.LayoutColumn.HideColumnInView then
+          cell.HideCellInView := True;
 
-      // step 2: update cells with new column index
-      var oldCells := treeRow.Cells;
-      treeRow.ResetCells;
-      for cell in oldCells.Values do
-        treeRow.Cells.Add(cell.Index, cell);
+//      for var oldColumnIndex := 0 to _treeLayout.LayoutColumns.Count - 1 do
+//        if treeRow.Cells.TryGetValue(oldColumnIndex, cell) and cell.LayoutColumn.HideColumnInView then
+//        begin
+//          cell.Control := nil; // this will trigger a free
+//          treeRow.Cells.Remove(oldColumnIndex);
+//        end;
 
-      // step 3: load new cells into the view
-      if treeRow.Cells.Count < _treeLayout.FlatColumns.Count then
-        for var lyColumn in _treeLayout.FlatColumns do
-          if not treeRow.Cells.ContainsKey(lyColumn.Index) then
-          begin
-            _reloadForSpecificColumn := lyColumn;
-            try
-              InitInnerRow(row);
-            finally
-              _reloadForSpecificColumn := nil;
-            end;
-          end;
+      // step x update cells with new column index
+//      var oldCells := treeRow.Cells;
+//      treeRow.ResetCells;
+//      for cell in oldCells.Values do
+//        treeRow.Cells.Add(cell.Index, cell);
+//
+//      // step 2: load new cells into the view
+//      if treeRow.Cells.Count < _treeLayout.FlatColumns.Count then
+//        for var lyColumn in _treeLayout.FlatColumns do
+//          if not treeRow.Cells.ContainsKey(lyColumn.Index) then
+//          begin
+//            _reloadForSpecificColumn := lyColumn;
+//            try
+//              InitInnerRow(row);
+//            finally
+//              _reloadForSpecificColumn := nil;
+//            end;
+//          end;
     end;
+end;
+
+procedure TStaticDataControl.RefreshColumn(const Column: IDCTreeColumn);
+begin
+  if _view = nil then
+    Exit;
+
+  var clmn := FlatColumnByColumn(Column);
+  _reloadForSpecificColumn := clmn;
+  try
+    for var row in _view.ActiveViewRows do
+      InitInnerRow(row);
+  finally
+    _reloadForSpecificColumn := nil;
+  end;
+
+  RequestRealignContent;
 end;
 
 procedure TStaticDataControl.AfterRealignContent;
@@ -319,13 +328,13 @@ begin
     treeRow.NonFrozenColumnRowControl.Height := Row.Control.Height;
     treeRow.NonFrozenColumnRowControl.Width := _content.Width - frozenColumnWidth;
 
-    for var flatClmnIndex := 0 to _treeLayout.FlatColumns.Count - 1 do
+    for var flatClmn in _treeLayout.FlatColumns do
     begin
       var cell: IDCTreeCell;
-      if not treeRow.Cells.TryGetValue(flatClmnIndex, cell) then
+      if not treeRow.Cells.TryGetValue(flatClmn.Index, cell) then
         Continue;
 
-      var flatClmn := _treeLayout.FlatColumns[flatClmnIndex];
+//      var flatClmn := _treeLayout.FlatColumns[flatClmnIndex];
       flatClmn.UpdateCellControlsPositions(cell);
 
 //      cell.Control.Width := flatClmn.Width - (2*CELL_CONTENT_MARGIN);
@@ -889,6 +898,10 @@ begin
     _treeLayout.ForceRecalc;
 
   _frozenRectLine.Height := _content.Height;
+
+  if _autoFitColumns and (_view <> nil) then
+    for var row in _view.ActiveViewRows do
+      _view.RowLoadedInfo(Row.ViewListIndex).OnRowOutOfView;
 end;
 
 function TStaticDataControl.CreateDummyRowForChanging(const FromSelectionInfo: IRowSelectionInfo): IDCRow;
@@ -1312,11 +1325,6 @@ begin
   _autoFitColumns := Value;
   if _treeLayout <> nil then
     AfterRealignContent;
-end;
-
-function TStaticDataControl.TemporaryContentHeight: SIngle;
-begin
-  Result := _content.Height;
 end;
 
 end.
