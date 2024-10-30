@@ -61,6 +61,8 @@ type
     function Clone: IDCColumnWidthSettings; virtual;
 
   public
+    constructor Create; reintroduce;
+
     procedure Assign(const Source: IBaseInterface); reintroduce; overload; virtual;
 
   published
@@ -122,6 +124,8 @@ type
     _allowHide: Boolean;
     _format: CString;
 
+    _onVisibilityChanged: TProc;
+
     function  get_Visible: Boolean;
     procedure set_Visible(const Value: Boolean);
     function  get_Frozen: Boolean;
@@ -137,7 +141,7 @@ type
 
     function Clone: IDCColumnVisualisation; virtual;
   public
-    constructor Create; reintroduce;
+    constructor Create(const OnVisiblityChanged: TProc); reintroduce;
 
     procedure Assign(const Source: IBaseInterface); reintroduce; overload; virtual;
 
@@ -153,7 +157,7 @@ type
 
   TDCTreeColumn = class(TObservableObject, IDCTreeColumn)
   private
-    _treeControl: TControl;
+    _treeControl: IColumnControl;
 
 //    _index: Integer;
     _caption: CString;
@@ -175,8 +179,8 @@ type
     _visualisation: IDCColumnVisualisation;
     _hierarchy: IDCColumnHierarchy;
 
-    function  get_TreeControl: TControl;
-    procedure set_TreeControl(const Value: TControl);
+    function  get_TreeControl: IColumnControl;
+    procedure set_TreeControl(const Value: IColumnControl);
 
 //    function  get_Index: Integer;
 //    procedure set_Index(Value: Integer);
@@ -211,8 +215,7 @@ type
     function  get_FormatProvider: IFormatProvider;
     procedure set_FormatProvider(const Value: IFormatProvider);
 
-
-    function  get_SortAndFilter: IDCColumnSortAndFilter;
+    function  get_SortAndFilter: IDCColumnSortAndFilter;
     procedure set_SortAndFilter(const Value: IDCColumnSortAndFilter);
     function  get_WidthSettings: IDCColumnWidthSettings;
     procedure set_WidthSettings(const Value: IDCColumnWidthSettings);
@@ -222,6 +225,8 @@ type
     procedure set_Visualisation(const Value: IDCColumnVisualisation);
     function  get_Hierarchy: IDCColumnHierarchy;
     procedure set_Hierarchy(const Value: IDCColumnHierarchy);
+
+    procedure OnVisibilityChanged;
 
   public
     constructor Create; override;
@@ -281,9 +286,9 @@ type
 
   TDCTreeColumnList = class(CObservableCollectionEx<IDCTreeColumn>, IDCTreeColumnList)
   protected
-    _treeControl: TControl;
+    _treeControl: IColumnControl;
 
-    function  get_TreeControl: TControl;
+    function  get_TreeControl: IColumnControl;
 //    procedure OnCollectionChanged(e: NotifyCollectionChangedEventArgs); override;
     function  FindIndexByCaption(const Caption: CString) : Integer;
     function  FindColumnByCaption(const Caption: CString) : IDCTreeColumn;
@@ -297,10 +302,10 @@ type
     procedure Insert(index: Integer; const value: CObject); overload; override;
 
   public
-    constructor Create(const Owner: TControl); overload; virtual;
-    constructor Create(const Owner: TControl; const col: IEnumerable<IDCTreeColumn>); overload; virtual;
+    constructor Create(const Owner: IColumnControl); overload; virtual;
+    constructor Create(const Owner: IColumnControl; const col: IEnumerable<IDCTreeColumn>); overload; virtual;
 
-    property TreeControl: TControl read get_TreeControl;
+    property TreeControl: IColumnControl read get_TreeControl;
   end;
 
   TTreeLayoutColumn = class(TBaseInterfacedObject, IDCTreeLayoutColumn)
@@ -558,14 +563,14 @@ uses
 
 { TDCTreeColumnList }
 
-constructor TDCTreeColumnList.Create(const Owner: TControl);
+constructor TDCTreeColumnList.Create(const Owner: IColumnControl);
 begin
   inherited Create;
   SaveTypeData := True;
   _treeControl := Owner;
 end;
 
-constructor TDCTreeColumnList.Create(const Owner: TControl; const col: IEnumerable<IDCTreeColumn>);
+constructor TDCTreeColumnList.Create(const Owner: IColumnControl; const col: IEnumerable<IDCTreeColumn>);
 begin
   inherited Create;
   for var c in col do
@@ -625,7 +630,7 @@ begin
   Result := -1;
 end;
 
-function TDCTreeColumnList.get_TreeControl: TControl;
+function TDCTreeColumnList.get_TreeControl: IColumnControl;
 begin
   Result := _treeControl;
 end;
@@ -707,6 +712,7 @@ var
       column := TDCTreeCheckboxColumn.Create else
       column := TDCTreeColumn.Create;
 
+    column.TreeControl := _treeControl;
     column.Caption := caption;
     column.PropertyName := StringToCString(propertyname);
     column.Visualisation.ReadOnly := readonly;
@@ -763,8 +769,7 @@ function TDCTreeColumn.Clone: IDCTreeColumn;
 begin
   Result := TDCTreeColumn.Create;
 
-  Result.treeControl := _treeControl;
-
+  Result.TreeControl := _treeControl;
   Result.caption := _caption;
   Result.propertyName := _propertyName;
   Result.tag := _tag;
@@ -783,14 +788,14 @@ end;
 
 constructor TDCTreeColumn.Create;
 begin
-  inherited;
+  inherited Create;
 
   _infoControlClass := TInfoControlClass.Text;
 
   _widthSettings := TDCColumnWidthSettings.Create;
   _sortAndFilter := TDCColumnSortAndFilter.Create;
   _subControlSettings := TDCColumnSubControlSettings.Create;
-  _visualisation := TDCColumnVisualisation.Create;
+  _visualisation := TDCColumnVisualisation.Create(OnVisibilityChanged);
   _hierarchy := TDCColumnHierarchy.Create;
 end;
 
@@ -889,7 +894,7 @@ begin
   Result := _tag;
 end;
 
-function TDCTreeColumn.get_TreeControl: TControl;
+function TDCTreeColumn.get_TreeControl: IColumnControl;
 begin
   Result := _treeControl;
 end;
@@ -937,6 +942,12 @@ end;
 function TDCTreeColumn.IsCheckBoxColumn: Boolean;
 begin
   Result := False;
+end;
+
+procedure TDCTreeColumn.OnVisibilityChanged;
+begin
+  if _treeControl <> nil then
+    _treeControl.ColumnVisibilityChanged(Self);
 end;
 
 function TDCTreeColumn.GetDefaultCellData(const Cell: IDCTreeCell; const CellValue: CObject; FormatApplied: Boolean): CObject;
@@ -1024,7 +1035,7 @@ begin
   _tag := Value;
 end;
 
-procedure TDCTreeColumn.set_TreeControl(const Value: TControl);
+procedure TDCTreeColumn.set_TreeControl(const Value: IColumnControl);
 begin
   _treeControl := Value;
 end;
@@ -2064,6 +2075,15 @@ begin
   clone.Assign(Self);
 end;
 
+constructor TDCColumnWidthSettings.Create;
+begin
+  inherited Create;
+
+  _widthType := TDCColumnWidthType.AlignToContent;
+  _widthMin := 20;
+  _widthMax := 400;
+end;
+
 function TDCColumnWidthSettings.get_Width: Single;
 begin
   Result := _width;
@@ -2214,16 +2234,19 @@ end;
 
 function TDCColumnVisualisation.Clone: IDCColumnVisualisation;
 begin
-  var clone := TDCColumnVisualisation.Create;
+  var clone := TDCColumnVisualisation.Create(_onVisibilityChanged);
   Result := clone;
   clone.Assign(Self);
 end;
 
-constructor TDCColumnVisualisation.Create;
+constructor TDCColumnVisualisation.Create(const OnVisiblityChanged: TProc);
 begin
-  inherited;
+  inherited Create;
+
   _visible := True;
   _selectable := True;
+
+  _onVisibilityChanged := OnVisiblityChanged;
 end;
 
 function TDCColumnVisualisation.get_Format: CString;
@@ -2283,7 +2306,11 @@ end;
 
 procedure TDCColumnVisualisation.set_Visible(const Value: Boolean);
 begin
-  _visible := Value;
+  if _visible <> Value then
+  begin
+    _visible := Value;
+    _onVisibilityChanged();
+  end;
 end;
 
 end.

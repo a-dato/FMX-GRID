@@ -22,7 +22,7 @@ uses
 type
   TRightLeftScroll = (None, FullLeft, Left, Right, FullRight);
 
-  TStaticDataControl = class(TDCScrollableRowControl, IRowAndCellCompare)
+  TStaticDataControl = class(TDCScrollableRowControl, IRowAndCellCompare, IColumnControl)
   private
     _headerRow: IDCTreeRow;
 
@@ -42,6 +42,7 @@ type
     function  GetHorzScroll(const Key: Word; Shift: TShiftState): TRightLeftScroll;
     procedure OnExpandCollapseHierarchy(Sender: TObject);
     procedure ProcessColumnVisibilityRules;
+    procedure CreateDefaultColumns;
 
   protected
     procedure DoHorzScrollBarChanged; override;
@@ -120,6 +121,8 @@ type
 
     function  GetActiveCell: IDCTreeCell;
     function  GetCellByControl(const Control: TControl): IDCTreeCell;
+
+    procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -626,6 +629,18 @@ procedure TStaticDataControl.ColumnsChanged(Sender: TObject; e: NotifyCollection
 begin
   var waitForRepaintInfo := GetInitializedWaitForRefreshInfo as IDataControlWaitForRepaintInfo;
   waitForRepaintInfo.ColumnsChanged;
+end;
+
+procedure TStaticDataControl.ColumnVisibilityChanged(const Column: IDCTreeColumn);
+begin
+  if _view <> nil then
+    for var row in _view.ActiveViewRows do
+    begin
+      var rowInfo := _view.RowLoadedInfo(Row.ViewListIndex);
+      rowInfo.OnRowOutOfView;
+    end;
+
+  RequestRealignContent;
 end;
 
 constructor TStaticDataControl.Create(AOwner: TComponent);
@@ -1178,7 +1193,61 @@ end;
 
 procedure TStaticDataControl.InitLayout;
 begin
+  if _columns.Count = 0 then
+    CreateDefaultColumns;
+
   _treeLayout := TDCTreeLayout.Create(_content, _columns);
+end;
+
+procedure TStaticDataControl.CreateDefaultColumns; //(const AList: ITreeColumnList);
+var
+  typeData: &Type;
+  propInfo: _PropertyInfo;
+  i : Integer;
+  col : IDCTreeColumn;
+//  dummy: CObject;
+
+begin
+  typeData := GetItemType;
+
+  if not typeData.IsUnknown {and not typeData.Equals(_ColumnPropertiesTypeData)} then
+  begin
+    BeginUpdate;
+    try
+//      _Columns.Clear;
+//      _ColumnPropertiesTypeData := typeData;
+      var props := typeData.GetProperties;
+
+      for i := 0 to High(props) do
+      begin
+        propInfo := props[i];
+        try
+//          // Try accessing this property, it might not be supported!
+//          if _data.Count > 0 then
+//            dummy := propInfo.GetValue(_data[0], []);
+
+          col := TDCTreeColumn.Create;
+          col.TreeControl := Self;
+          col.PropertyName := propInfo.Name;
+          col.Caption := propInfo.Name;
+          _columns.Add(col);
+        except
+          ; // Some properties may not work (are not supported)
+        end;
+      end;
+    finally
+      EndUpdate;
+    end;
+  end;
+
+  if _Columns.Count = 0 then
+  begin
+    col := TDCTreeColumn.Create;
+    col.TreeControl := Self;
+    col.PropertyName := COLUMN_SHOW_DEFAULT_OBJECT_TEXT;
+    col.Caption := 'item';
+    _columns.Add(col);
+  end;
 end;
 
 procedure TStaticDataControl.OnExpandCollapseHierarchy(Sender: TObject);
