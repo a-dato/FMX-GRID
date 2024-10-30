@@ -42,6 +42,8 @@ type
     procedure ModelContextPropertyChanged(const Sender: IObjectModelContext; const Context: CObject; const AProperty: _PropertyInfo);
     procedure ModelContextChanged(const Sender: IObjectModelContext; const Context: CObject);
 
+    procedure GenerateView; virtual;
+
   // published property variables
   protected
     _selectionType: TSelectionType;
@@ -320,6 +322,20 @@ begin
   Result := nil;
 end;
 
+procedure TDCScrollableRowControl.GenerateView;
+begin
+  inc(_scrollUpdateCount);
+  try
+    _vertScrollBar.Value := 0;
+    _horzScrollBar.Value := 0;
+  finally
+    dec(_scrollUpdateCount);
+  end;
+
+  _view := TDataViewList.Create(_dataList, DoCreateNewRow, OnViewChanged);
+  RefreshControl;
+end;
+
 function TDCScrollableRowControl.GetActiveRow: IDCRow;
 begin
   if _view = nil then
@@ -487,9 +503,7 @@ begin
       dec(_scrollUpdateCount);
     end;
 
-    _view := TDataViewList.Create(_dataList, DoCreateNewRow, OnViewChanged);
-
-    RefreshControl;
+    GenerateView;
   end;
 end;
 
@@ -1171,8 +1185,11 @@ begin
   if _alignDirection <> TAlignDirection.Undetermined then
     Exit;
 
-  if _vertScrollBar.Value + _vertScrollBar.ViewportSize + get_rowHeightDefault < _vertScrollBar.Max then
-    _alignDirection := TAlignDirection.TopToBottom else
+  if _vertScrollBar.Value = 0 then
+    _alignDirection := TAlignDirection.TopToBottom
+  else if _vertScrollBar.Value + _vertScrollBar.ViewportSize + get_rowHeightDefault < _vertScrollBar.Max then
+    _alignDirection := TAlignDirection.TopToBottom
+  else
     _alignDirection := TAlignDirection.BottomToTop;
 end;
 
