@@ -15,7 +15,9 @@ uses
   FMX.Controls.Presentation, FMX.ScrollBox, FMX.Memo, System.Actions,
   FMX.ActnList, Delphi.Extensions.VirtualDataset,
   ADato.Data.VirtualDatasetDataModel, ADato.Data.DatasetDataModel,
-  System.Diagnostics, FMX.ListBox, System_, ADato.Controls.FMX.Tree.Intf;
+  System.Diagnostics, FMX.ListBox, System_, ADato.Controls.FMX.Tree.Intf,
+  FMX.DataControl.ScrollableControl, FMX.DataControl.ScrollableRowControl,
+  FMX.DataControl.Static, FMX.DataControl.Editable, FMX.DataControl.Impl;
 
 type
   TOpenRecordSetFrame = class(TFrame)
@@ -42,6 +44,7 @@ type
     Label1: TLabel;
     lblExecutionLog: TLabel;
     lblCellEditor: TLabel;
+    DataGridNew: TDataControl;
     procedure acAbortExecute(Sender: TObject);
     procedure acNextRecordSetExecute(Sender: TObject);
     procedure ActionList1Update(Action: TBasicAction; var Handled: Boolean);
@@ -78,7 +81,7 @@ type
 implementation
 
 uses
-  System.TypInfo;
+  System.TypInfo, ADato.Data.DataModel.intf, System.Collections;
 
 {$R *.fmx}
 
@@ -210,6 +213,7 @@ begin
       begin
         DatasetDataModel1.Open;
         DataGrid.DataModelView := DatasetDataModel1.DataModelView;
+        //DataGridNew.DataList := (DatasetDataModel1 as IDataModel) as IList;
       end;
 
       if fdConnection.Messages <> nil then

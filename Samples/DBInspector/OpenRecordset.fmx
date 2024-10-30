@@ -142,7 +142,7 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
     object DataGrid: TFMXTreeControl
       Align = Client
       Size.Width = 856.000000000000000000
-      Size.Height = 310.000000000000000000
+      Size.Height = 126.000000000000000000
       Size.PlatformDefault = False
       TabOrder = 1
       AcceptsTab = False
@@ -159,7 +159,7 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
       CellChanged = DataGridCellChanged
       EditStart = DataGridEditStart
       Viewport.Width = 854.000000000000000000
-      Viewport.Height = 283.000000000000000000
+      Viewport.Height = 99.000000000000000000
     end
     object DataEditor: TMemo
       Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
@@ -197,6 +197,16 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
       Size.Width = 856.000000000000000000
       Size.Height = 5.000000000000000000
       Size.PlatformDefault = False
+    end
+    object DataGridNew: TDataControl
+      Align = Top
+      HitTest = True
+      Size.Width = 856.000000000000000000
+      Size.Height = 184.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 2
+      Options = [TreeOption_ShowHeaders]
+      RowHeightDefault = 30.000000000000000000
     end
   end
   object fdConnection: TFDConnection

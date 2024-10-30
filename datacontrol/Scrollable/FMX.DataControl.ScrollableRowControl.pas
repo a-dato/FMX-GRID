@@ -221,6 +221,9 @@ procedure TDCScrollableRowControl.DoEnter;
 begin
   inherited;
 
+  if _view = nil then
+    Exit;
+
   var row := _view.GetActiveRowIfExists(_selectionInfo.ViewListIndex);
   if row <> nil then
     VisualizeRowSelection(row);
@@ -229,6 +232,9 @@ end;
 procedure TDCScrollableRowControl.DoExit;
 begin
   inherited;
+
+  if _view = nil then
+    Exit;
 
   var row := _view.GetActiveRowIfExists(_selectionInfo.ViewListIndex);
   if row <> nil then
@@ -303,6 +309,9 @@ end;
 
 function TDCScrollableRowControl.GetRowByMouseY(const Y: Single): IDCRow;
 begin
+  if _view = nil then
+    Exit;
+
   var virtualMouseposition := Y + _vertScrollBar.Value;
   for var row in _view.ActiveViewRows do
     if (row.VirtualYPosition <= virtualMouseposition) and (row.VirtualYPosition + row.Height > virtualMouseposition) then
@@ -313,6 +322,9 @@ end;
 
 function TDCScrollableRowControl.GetActiveRow: IDCRow;
 begin
+  if _view = nil then
+    Exit;
+
   for var row in _view.ActiveViewRows do
     if (row.DataIndex = _selectionInfo.DataIndex)then
       Exit(row);
