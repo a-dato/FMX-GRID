@@ -57,7 +57,8 @@ contains
   ADato.ObjectModel.List.intf in '..\ObjectModel\ADato.ObjectModel.List.intf.pas',
   ADato.ObjectModel.intf in '..\ObjectModel\ADato.ObjectModel.intf.pas',
   ADato.ObjectModel.List.Tracking.intf in '..\ObjectModel\ADato.ObjectModel.List.Tracking.intf.pas',
-  ADato.ObjectModel.TrackInterfaces in '..\ObjectModel\ADato.ObjectModel.TrackInterfaces.pas';
+  ADato.ObjectModel.TrackInterfaces in '..\ObjectModel\ADato.ObjectModel.TrackInterfaces.pas',
+  ADato.Sortable.Impl in '..\General\ADato.Sortable.Impl.pas';
 
 end.
 

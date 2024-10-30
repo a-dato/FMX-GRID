@@ -1,0 +1,57 @@
+package ADato.DataControl.FMX;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$DEFINE TS2}
+{$ENDIF IMPLICITBUILDING}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  fmx,
+  xmlrtl,
+  rtl,
+  ADato.Datamodel;
+
+contains
+  FMX.DataControl.ScrollableControl in '..\Scrollable\FMX.DataControl.ScrollableControl.pas',
+  FMX.DataControl.ScrollableRowControl in '..\Scrollable\FMX.DataControl.ScrollableRowControl.pas',
+  FMX.DataControl.View.Intf in '..\Scrollable\FMX.DataControl.View.Intf.pas',
+  FMX.DataControl.View.Impl in '..\Scrollable\FMX.DataControl.View.Impl.pas',
+  FMX.DataControl.ScrollableRowControl.Intf in '..\Scrollable\FMX.DataControl.ScrollableRowControl.Intf.pas',
+  FMX.DataControl.ScrollableRowControl.Impl in '..\Scrollable\FMX.DataControl.ScrollableRowControl.Impl.pas',
+  FMX.DataControl.ScrollableControl.Intf in '..\Scrollable\FMX.DataControl.ScrollableControl.Intf.pas',
+  FMX.DataControl.Events in '..\Scrollable\FMX.DataControl.Events.pas',
+  FMX.DataControl.ControlClasses in '..\Scrollable\FMX.DataControl.ControlClasses.pas',
+  FMX.DataControl.SortAndFilter in '..\Scrollable\FMX.DataControl.SortAndFilter.pas',
+  FMX.DataControl.Static in '..\Tree\FMX.DataControl.Static.pas',
+  FMX.DataControl.Static.Intf in '..\Tree\FMX.DataControl.Static.Intf.pas',
+  FMX.DataControl.Static.Impl in '..\Tree\FMX.DataControl.Static.Impl.pas',
+  FMX.DataControl.Editable in '..\Tree\FMX.DataControl.Editable.pas',
+  FMX.DataControl.Editable.Impl in '..\Tree\FMX.DataControl.Editable.Impl.pas',
+  FMX.DataControl.Editable.Intf in '..\Tree\FMX.DataControl.Editable.Intf.pas',
+  FMX.ControlCalculations in '..\Tree\FMX.ControlCalculations.pas';
+
+end.

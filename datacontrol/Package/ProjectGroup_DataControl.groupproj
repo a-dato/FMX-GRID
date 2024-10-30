@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{E140199B-1D6A-425F-993D-FC235AF9838F}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="ADato.DataControl.FMX.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="ADato.DataControl.FMX.dsgn.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="ADato_DataControl_FMX">
+        <MSBuild Projects="ADato.DataControl.FMX.dproj"/>
+    </Target>
+    <Target Name="ADato_DataControl_FMX:Clean">
+        <MSBuild Projects="ADato.DataControl.FMX.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_DataControl_FMX:Make">
+        <MSBuild Projects="ADato.DataControl.FMX.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ADato_DataControl_FMX_dsgn">
+        <MSBuild Projects="ADato.DataControl.FMX.dsgn.dproj"/>
+    </Target>
+    <Target Name="ADato_DataControl_FMX_dsgn:Clean">
+        <MSBuild Projects="ADato.DataControl.FMX.dsgn.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ADato_DataControl_FMX_dsgn:Make">
+        <MSBuild Projects="ADato.DataControl.FMX.dsgn.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="ADato_DataControl_FMX;ADato_DataControl_FMX_dsgn"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="ADato_DataControl_FMX:Clean;ADato_DataControl_FMX_dsgn:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="ADato_DataControl_FMX:Make;ADato_DataControl_FMX_dsgn:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
