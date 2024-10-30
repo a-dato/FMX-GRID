@@ -31,6 +31,7 @@ type
 
     _realignLayout: Boolean;
     _frozenRectLine: TRectangle;
+    _defaultColumnsGenerated: Boolean;
 
     procedure ColumnsChanged(Sender: TObject; e: NotifyCollectionChangedEventArgs);
 
@@ -42,10 +43,12 @@ type
     function  GetHorzScroll(const Key: Word; Shift: TShiftState): TRightLeftScroll;
     procedure OnExpandCollapseHierarchy(Sender: TObject);
     procedure ProcessColumnVisibilityRules;
+
     procedure CreateDefaultColumns;
 
   protected
     procedure DoHorzScrollBarChanged; override;
+    procedure GenerateView; override;
 
   // properties
   protected
@@ -344,6 +347,19 @@ begin
   end;
 end;
 
+procedure TStaticDataControl.GenerateView;
+begin
+  if _defaultColumnsGenerated then
+  begin
+    _columns.Clear;
+    _treeLayout := nil;
+
+    _defaultColumnsGenerated := False;
+  end;
+
+  inherited;
+end;
+
 function TStaticDataControl.GetActiveCell: IDCTreeCell;
 begin
   var row := GetActiveRow;
@@ -602,7 +618,7 @@ begin
   var layoutColumnsAreValid := _treeLayout <> nil;
   var repaintInfo := (_waitForRepaintInfo as IDataControlWaitForRepaintInfo);
 
-  if (_treeLayout = nil) or ((repaintInfo <> nil) and (TTreeViewState.ColumnsChanged in repaintInfo.ViewStateFlags)) then
+  if (_treeLayout = nil) or (_columns.Count = 0) or ((repaintInfo <> nil) and (TTreeViewState.ColumnsChanged in repaintInfo.ViewStateFlags)) then
     InitLayout;
 
   if _treeLayout.RecalcRequired then
@@ -1193,7 +1209,7 @@ end;
 
 procedure TStaticDataControl.InitLayout;
 begin
-  if _columns.Count = 0 then
+  if (_view <> nil) and (_columns.Count = 0) then
     CreateDefaultColumns;
 
   _treeLayout := TDCTreeLayout.Create(_content, _columns);
@@ -1208,24 +1224,21 @@ var
 //  dummy: CObject;
 
 begin
+  Assert(_columns.Count = 0);
+  _defaultColumnsGenerated := True;
+
   typeData := GetItemType;
 
   if not typeData.IsUnknown {and not typeData.Equals(_ColumnPropertiesTypeData)} then
   begin
     BeginUpdate;
     try
-//      _Columns.Clear;
-//      _ColumnPropertiesTypeData := typeData;
       var props := typeData.GetProperties;
 
       for i := 0 to High(props) do
       begin
         propInfo := props[i];
         try
-//          // Try accessing this property, it might not be supported!
-//          if _data.Count > 0 then
-//            dummy := propInfo.GetValue(_data[0], []);
-
           col := TDCTreeColumn.Create;
           col.TreeControl := Self;
           col.PropertyName := propInfo.Name;
