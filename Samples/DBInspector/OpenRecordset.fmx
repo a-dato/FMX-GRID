@@ -10,7 +10,7 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
     Size.Width = 856.000000000000000000
     Size.Height = 80.000000000000000000
     Size.PlatformDefault = False
-    TabOrder = 1
+    TabOrder = 0
     Viewport.Width = 852.000000000000000000
     Viewport.Height = 76.000000000000000000
   end
@@ -19,7 +19,7 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
     Size.Width = 856.000000000000000000
     Size.Height = 33.000000000000000000
     Size.PlatformDefault = False
-    TabOrder = 2
+    TabOrder = 1
     object btnExecute: TSpeedButton
       Align = Left
       Hint = 'Execute'
@@ -107,106 +107,105 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
     Size.Height = 5.000000000000000000
     Size.PlatformDefault = False
   end
-  object Logging: TMemo
-    Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-    DataDetectorTypes = []
-    ShowScrollBars = False
-    Align = Bottom
-    Position.Y = 496.000000000000000000
-    Size.Width = 856.000000000000000000
-    Size.Height = 51.000000000000000000
-    Size.PlatformDefault = False
-    TabOrder = 0
-    Viewport.Width = 852.000000000000000000
-    Viewport.Height = 47.000000000000000000
-    object lblExecutionLog: TLabel
-      Align = Left
-      StyledSettings = [Family, Style]
-      Size.Width = 120.000000000000000000
-      Size.Height = 16.000000000000000000
-      Size.PlatformDefault = False
-      TextSettings.Font.Size = 9.000000000000000000
-      TextSettings.FontColor = claGray
-      TextSettings.VertAlign = Trailing
-      TextSettings.Trimming = None
-      Text = 'Execution log'
-      TabOrder = 0
-    end
-  end
   object lyDataPanel: TLayout
     Align = Client
     Size.Width = 856.000000000000000000
-    Size.Height = 378.000000000000000000
+    Size.Height = 379.000000000000000000
     Size.PlatformDefault = False
-    TabOrder = 14
-    object DataGrid: TFMXTreeControl
-      Align = Client
-      Size.Width = 856.000000000000000000
-      Size.Height = 126.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 1
-      AcceptsTab = False
-      AcceptsReturn = False
-      AllowUserToAddRows = True
-      AllowUserToDeleteRows = True
-      AutoFitColumns = False
-      Indent = 20
-      AlwaysShowFocus = False
-      IncrementalSearch = False
-      Options = [TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_ShowHeaders, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_GoRowFocusRectangle, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
-      ScrollPerRow = False
-      FixedRowHeight = 26.000000000000000000
-      CellChanged = DataGridCellChanged
-      EditStart = DataGridEditStart
-      Viewport.Width = 854.000000000000000000
-      Viewport.Height = 99.000000000000000000
-    end
-    object DataEditor: TMemo
-      Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-      DataDetectorTypes = []
-      ShowScrollBars = False
-      OnChangeTracking = DataEditorChangeTracking
-      Align = Bottom
-      Position.Y = 315.000000000000000000
-      Size.Width = 856.000000000000000000
-      Size.Height = 63.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 0
-      OnKeyDown = DataEditorKeyDown
-      Viewport.Width = 852.000000000000000000
-      Viewport.Height = 59.000000000000000000
-      object lblCellEditor: TLabel
-        Align = Left
-        StyledSettings = [Family, Style]
-        Size.Width = 120.000000000000000000
-        Size.Height = 16.000000000000000000
-        Size.PlatformDefault = False
-        TextSettings.Font.Size = 9.000000000000000000
-        TextSettings.FontColor = claGray
-        TextSettings.VertAlign = Trailing
-        TextSettings.Trimming = None
-        Text = 'Cell editor'
-        TabOrder = 0
-      end
-    end
+    TabOrder = 13
     object Splitter2: TSplitter
       Align = Bottom
       Cursor = crVSplit
       MinSize = 20.000000000000000000
-      Position.Y = 310.000000000000000000
+      Position.Y = 374.000000000000000000
       Size.Width = 856.000000000000000000
       Size.Height = 5.000000000000000000
       Size.PlatformDefault = False
     end
-    object DataGridNew: TDataControl
-      Align = Top
+    object DataGrid: TDataControl
+      Align = Client
       HitTest = True
       Size.Width = 856.000000000000000000
-      Size.Height = 184.000000000000000000
+      Size.Height = 324.000000000000000000
       Size.PlatformDefault = False
-      TabOrder = 2
+      TabOrder = 0
+      SelectionType = CellSelection
       Options = [TreeOption_ShowHeaders]
       RowHeightDefault = 30.000000000000000000
+      CellChanged = DataGridCellChanged
+    end
+    object lyCellEditor: TLayout
+      Align = Bottom
+      Position.Y = 324.000000000000000000
+      Size.Width = 856.000000000000000000
+      Size.Height = 50.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      object DataEditor: TMemo
+        Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+        DataDetectorTypes = []
+        ShowScrollBars = False
+        OnChangeTracking = DataEditorChangeTracking
+        Align = Bottom
+        Position.Y = -13.000000000000000000
+        Size.Width = 856.000000000000000000
+        Size.Height = 63.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 1
+        OnKeyDown = DataEditorKeyDown
+        Viewport.Width = 852.000000000000000000
+        Viewport.Height = 59.000000000000000000
+      end
+      object lblCellEditor: TLabel
+        Align = Contents
+        StyledSettings = [Family, Style]
+        Size.Width = 856.000000000000000000
+        Size.Height = 50.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 9.000000000000000000
+        TextSettings.FontColor = claGray
+        TextSettings.HorzAlign = Trailing
+        TextSettings.VertAlign = Trailing
+        TextSettings.Trimming = None
+        Text = 'Cell editor'
+        TabOrder = 0
+        TabStop = False
+      end
+    end
+  end
+  object lyExecutionLog: TLayout
+    Align = Bottom
+    Position.Y = 497.000000000000000000
+    Size.Width = 856.000000000000000000
+    Size.Height = 50.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 19
+    object Logging: TMemo
+      Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+      DataDetectorTypes = []
+      ShowScrollBars = False
+      Align = Bottom
+      Position.Y = -1.000000000000000000
+      Size.Width = 856.000000000000000000
+      Size.Height = 51.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      Viewport.Width = 852.000000000000000000
+      Viewport.Height = 47.000000000000000000
+    end
+    object lblExecutionLog: TLabel
+      Align = Contents
+      StyledSettings = [Family, Style]
+      Size.Width = 856.000000000000000000
+      Size.Height = 50.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.Font.Size = 9.000000000000000000
+      TextSettings.FontColor = claGray
+      TextSettings.HorzAlign = Trailing
+      TextSettings.VertAlign = Trailing
+      TextSettings.Trimming = None
+      Text = 'Execution log'
+      TabOrder = 0
     end
   end
   object fdConnection: TFDConnection

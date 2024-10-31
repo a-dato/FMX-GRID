@@ -980,19 +980,21 @@ begin
   else if CString.Equals(PropName, COLUMN_SHOW_DEFAULT_OBJECT_TEXT) then
     Exit(Cell.Row.DataItem);
 
-  var propInfo: _PropertyInfo;
-  var dataItem: CObject;
   if Cell.Row.DataItem.IsOfType<IDataRowView> then
-    dataItem := Cell.Row.DataItem.AsType<IDataRowView>.Row.Data else
-    dataItem := Cell.Row.DataItem;
-
-  if (_cachedType <> dataItem.GetType) or (_cachedProp.Name <> PropName {sub prop name}) then
   begin
-    _cachedType := dataItem.GetType;
-    _cachedProp := _cachedType.PropertyByName(PropName);
-  end;
+    var drv := Cell.Row.DataItem.AsType<IDataRowView>;
+    Result := drv.DataView.DataModel.GetPropertyValue(PropName, drv.Row);
+  end
+  else begin
+    var dataItem: CObject := Cell.Row.DataItem;
+    if (_cachedType <> dataItem.GetType) or (_cachedProp.Name <> PropName {sub prop name}) then
+    begin
+      _cachedType := dataItem.GetType;
+      _cachedProp := _cachedType.PropertyByName(PropName);
+    end;
 
-  Result := _cachedProp.GetValue(dataItem, [])
+    Result := _cachedProp.GetValue(dataItem, [])
+  end;
 end;
 
 procedure TDCTreeColumn.set_Caption(const Value: CString);

@@ -1227,29 +1227,43 @@ begin
   Assert(_columns.Count = 0);
   _defaultColumnsGenerated := True;
 
-  typeData := GetItemType;
-
-  if not typeData.IsUnknown {and not typeData.Equals(_ColumnPropertiesTypeData)} then
+  if ViewIsDataModel then
   begin
-    BeginUpdate;
-    try
-      var props := typeData.GetProperties;
+    var clmns := (_dataList as IDataModel).Columns;
 
-      for i := 0 to High(props) do
-      begin
-        propInfo := props[i];
-        try
-          col := TDCTreeColumn.Create;
-          col.TreeControl := Self;
-          col.PropertyName := propInfo.Name;
-          col.Caption := propInfo.Name;
-          _columns.Add(col);
-        except
-          ; // Some properties may not work (are not supported)
+    for i := 0 to clmns.Count - 1 do
+    begin
+      col := TDCTreeColumn.Create;
+      col.PropertyName := clmns[i].Name;
+      col.Caption := col.PropertyName;
+      _columns.Add(col);
+    end;
+  end else
+  begin
+    typeData := GetItemType;
+
+    if not typeData.IsUnknown {and not typeData.Equals(_ColumnPropertiesTypeData)} then
+    begin
+      BeginUpdate;
+      try
+        var props := typeData.GetProperties;
+
+        for i := 0 to High(props) do
+        begin
+          propInfo := props[i];
+          try
+            col := TDCTreeColumn.Create;
+            col.TreeControl := Self;
+            col.PropertyName := propInfo.Name;
+            col.Caption := propInfo.Name;
+            _columns.Add(col);
+          except
+            ; // Some properties may not work (are not supported)
+          end;
         end;
+      finally
+        EndUpdate;
       end;
-    finally
-      EndUpdate;
     end;
   end;
 
