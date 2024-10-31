@@ -215,7 +215,8 @@ type
     function  get_FormatProvider: IFormatProvider;
     procedure set_FormatProvider(const Value: IFormatProvider);
 
-    function  get_SortAndFilter: IDCColumnSortAndFilter;
+
+    function  get_SortAndFilter: IDCColumnSortAndFilter;
     procedure set_SortAndFilter(const Value: IDCColumnSortAndFilter);
     function  get_WidthSettings: IDCColumnWidthSettings;
     procedure set_WidthSettings(const Value: IDCColumnWidthSettings);
@@ -437,6 +438,8 @@ type
     procedure set_SubInfoControl(const Value: TControl);
     function  get_ExpandButton: TButton;
     procedure set_ExpandButton(const Value: TButton);
+    function  get_HideCellInView: Boolean;
+    procedure set_HideCellInView(const Value: Boolean);
 
 //    function  get_ColSpan: Byte;
 //    procedure set_ColSpan(const Value: Byte);
@@ -456,6 +459,7 @@ type
     property Control: TControl read get_Control write set_Control;
 
 //    property BackgroundColor: TAlphaColor read get_BackgroundColor write set_BackgroundColor;
+    property HideCellInView: Boolean read get_HideCellInView write set_HideCellInView;
   end;
 
   THeaderCell = class(TDCTreeCell, IHeaderCell)
@@ -1159,6 +1163,7 @@ procedure TTreeLayoutColumn.UpdateCellControlsPositions(const Cell: IDCTreeCell)
 begin
   Assert(not _HideColumnInView);
 
+  Cell.HideCellInView := False;
   Cell.Control.Width := get_Width;
   Cell.Control.Height := Cell.Row.Control.Height;
   Cell.Control.Position.Y := 0;
@@ -1215,10 +1220,13 @@ begin
     Cell.SubInfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
   end;
 
-  Cell.InfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
-  Cell.InfoControl.Height := textCtrlHeight;
-  Cell.InfoControl.Position.Y := CELL_CONTENT_MARGIN;
-  Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
+  if Cell.InfoControl <> nil then
+  begin
+    Cell.InfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
+    Cell.InfoControl.Height := textCtrlHeight;
+    Cell.InfoControl.Position.Y := CELL_CONTENT_MARGIN;
+    Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
+  end;
 end;
 
 function TTreeLayoutColumn.CreateInfoControl(const Cell: IDCTreeCell; const ControlClassType: TInfoControlClass): TControl;
@@ -1326,13 +1334,14 @@ begin
     if Cell.InfoControl = nil then
     begin
       styledControl := TStyledControl.Create(Cell.Control);
-      styledControl.StyleLookup := StyleLookUp;
       styledControl.Align := TAlignLayout.Client;
       styledControl.HitTest := False;
       Cell.InfoControl := styledControl;
       Cell.Control.AddObject(styledControl);
     end else
       styledControl := Cell.InfoControl as TStyledControl;
+
+    styledControl.StyleLookup := StyleLookUp;
   end;
 end;
 
@@ -1443,18 +1452,18 @@ begin
   if (_flatColumns = nil) and (_layoutColumns <> nil) then
   begin
     _flatColumns := CList<IDCTreeLayoutColumn>.Create;
-    var flatColumnIndex := 0;
+    var layoutColumnIndex := 0;
 
-    for var round := 0 to 2 do
+    for var round := 0 to 1 do
       for var layoutColumn in _layoutColumns do
       begin
-        if round = 0 then
-          layoutColumn.Index := -1
-        else if ((round = 1) = layoutColumn.Column.Frozen) and not layoutColumn.HideColumnInView then
+        if ((round = 1) = layoutColumn.Column.Frozen) then
         begin
-          _flatColumns.Add(layoutColumn);
-          layoutColumn.Index := flatColumnIndex;
-          inc(flatColumnIndex);
+          if not layoutColumn.HideColumnInView then
+            _flatColumns.Add(layoutColumn);
+
+          layoutColumn.Index := layoutColumnIndex;
+          inc(layoutColumnIndex);
         end;
       end;
   end;
@@ -1521,7 +1530,7 @@ begin
   for var round := 1 to 3 do
     for var ix := columnsToCalculate.Count - 1 downto 0 do
     begin
-      layoutClmn := _flatColumns[columnsToCalculate[ix]];
+      layoutClmn := _layoutColumns[columnsToCalculate[ix]];
 
       if round = 1 then
       begin
@@ -1722,6 +1731,11 @@ begin
   Result := _expandButton;
 end;
 
+function TDCTreeCell.get_HideCellInView: Boolean;
+begin
+  Result := _control.Visible;
+end;
+
 function TDCTreeCell.get_Index: Integer;
 begin
   Result := _layoutColumn.Index;
@@ -1773,6 +1787,11 @@ end;
 procedure TDCTreeCell.set_ExpandButton(const Value: TButton);
 begin
   _expandButton := Value;
+end;
+
+procedure TDCTreeCell.set_HideCellInView(const Value: Boolean);
+begin
+  _control.Visible := not Value;
 end;
 
 procedure TDCTreeCell.set_InfoControl(const Value: TControl);
@@ -2316,5 +2335,3 @@ begin
 end;
 
 end.
-
-

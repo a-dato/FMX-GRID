@@ -572,24 +572,10 @@ begin
 end;
 
 procedure TDCScrollableControl.RefreshControl;
-
-//  procedure SafeRefresh([weak] SafeObj: IBaseInterface; Index: Integer);
-//  begin
-//    TThread.ForceQueue(nil,
-//      procedure
-//      begin
-//        if (SafeObj = nil) or (Index <> _realignIndex) then
-//          Exit;
-//
-//      end);
-//  end;
-
 begin
   inc(_realignIndex);
   _realignState := TRealignState.Waiting;
   RequestRealignContent;
-
-//  SafeRefresh(_safeObj, _realignIndex);
 end;
 
 procedure TDCScrollableControl.ScrollManualInstant(YChange: Integer);
