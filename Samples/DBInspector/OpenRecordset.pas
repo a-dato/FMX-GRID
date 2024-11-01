@@ -15,14 +15,15 @@ uses
   FMX.Controls.Presentation, FMX.ScrollBox, FMX.Memo, System.Actions,
   FMX.ActnList, Delphi.Extensions.VirtualDataset,
   ADato.Data.VirtualDatasetDataModel, ADato.Data.DatasetDataModel,
-  System.Diagnostics, FMX.ListBox, System_, ADato.Controls.FMX.Tree.Intf;
+  System.Diagnostics, FMX.ListBox, System_, ADato.Controls.FMX.Tree.Intf,
+  FMX.DataControl.ScrollableControl, FMX.DataControl.ScrollableRowControl,
+  FMX.DataControl.Static, FMX.DataControl.Editable, FMX.DataControl.Impl;
 
 type
   TOpenRecordSetFrame = class(TFrame)
     SqlQuery: TMemo;
     Layout1: TLayout;
     splitSqlSourcePanel: TSplitter;
-    DataGrid: TFMXTreeControl;
     DataEditor: TMemo;
     fdConnection: TFDConnection;
     TheQuery: TFDQuery;
@@ -42,14 +43,16 @@ type
     Label1: TLabel;
     lblExecutionLog: TLabel;
     lblCellEditor: TLabel;
+    DataGrid: TDataControl;
+    lyCellEditor: TLayout;
+    lyExecutionLog: TLayout;
     procedure acAbortExecute(Sender: TObject);
     procedure acNextRecordSetExecute(Sender: TObject);
     procedure ActionList1Update(Action: TBasicAction; var Handled: Boolean);
     procedure DataEditorChangeTracking(Sender: TObject);
     procedure DataEditorKeyDown(Sender: TObject; var Key: Word; var KeyChar:
         WideChar; Shift: TShiftState);
-    procedure DataGridCellChanged(Sender: TCustomTreeControl; e:
-        CellChangedEventArgs);
+    procedure DataGridCellChanged(const Sender: TObject; e: DCCellChangedEventArgs);
     procedure DataGridEditStart(const Sender: TObject; e: StartEditEventArgs);
 
   private
@@ -78,7 +81,7 @@ type
 implementation
 
 uses
-  System.TypInfo;
+  System.TypInfo, ADato.Data.DataModel.intf, System.Collections;
 
 {$R *.fmx}
 
@@ -110,28 +113,28 @@ end;
 
 procedure TOpenRecordSetFrame.DataEditorChangeTracking(Sender: TObject);
 begin
-  DataGrid.BeginEdit;
-  DataGrid.EditActiveCell(False);
-  DataGrid.Editor.Value := DataEditor.Lines.Text;
+//  DataGrid.BeginEdit;
+//  DataGrid.EditActiveCell(False);
+//  DataGrid.Editor.Value := DataEditor.Lines.Text;
 end;
 
 procedure TOpenRecordSetFrame.DataEditorKeyDown(Sender: TObject; var Key: Word;
     var KeyChar: WideChar; Shift: TShiftState);
 begin
-  if Key = vkReturn then
-  begin
-    DataGrid.EndEdit(True);
-    Key := 0;
-  end;
-
-  if Key = vkEscape then
-  begin
-    DataGrid.CancelEdit;
-    Key := 0;
-  end;
+//  if Key = vkReturn then
+//  begin
+//    DataGrid.EndEdit(True);
+//    Key := 0;
+//  end;
+//
+//  if Key = vkEscape then
+//  begin
+//    DataGrid.CancelEdit;
+//    Key := 0;
+//  end;
 end;
 
-procedure TOpenRecordSetFrame.DataGridCellChanged(Sender: TCustomTreeControl; e: CellChangedEventArgs);
+procedure TOpenRecordSetFrame.DataGridCellChanged(const Sender: TObject; e: DCCellChangedEventArgs);
 begin
   var s: string := '';
 
@@ -209,7 +212,7 @@ begin
       if TheQuery.Active then
       begin
         DatasetDataModel1.Open;
-        DataGrid.DataModelView := DatasetDataModel1.DataModelView;
+        DataGrid.DataList := (DatasetDataModel1 as IDataModel) as IList;
       end;
 
       if fdConnection.Messages <> nil then
