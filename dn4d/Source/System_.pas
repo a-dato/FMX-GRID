@@ -10525,17 +10525,15 @@ end;
 function CDouble.ToString(const formatString: CString; const provider: IFormatProvider): CString;
 begin
   if CString.IsNullOrEmpty(formatString) and (provider = nil) then
-    Result := FloatToStr(_value)
-  else
-  begin
-    var c: Char := formatString[0];
-    if (c = 'c') or (c = 'C') then
-      Exit(Format('%m', [_value]));
-    if (c = 'd') or (c = 'D') then
-      Exit(Format('%d', [Round(_value)]));
-    if (c = 'p') or (c = 'P') then
-      Exit(Format('%d%%', [Round(_value * 100)]));
-  end;
+    Exit(FloatToStr(_value));
+
+  var c: Char := formatString[0];
+  if (c = 'c') or (c = 'C') then
+    Exit(Format('%m', [_value]));
+  if (c = 'd') or (c = 'D') then
+    Exit(Format('%d', [Round(_value)]));
+  if (c = 'p') or (c = 'P') then
+    Exit(Format('%d%%', [Round(_value * 100)]));
 
   var fs: TFormatSettings := FormatSettings;
 
@@ -10554,7 +10552,7 @@ begin
 //      end;
 //    end;
 
-  Result := FormatFloat(formatString.ToString, _value, fs);
+  Exit(FormatFloat(formatString.ToString, _value, fs));
 end;
 
 { CExtended }
