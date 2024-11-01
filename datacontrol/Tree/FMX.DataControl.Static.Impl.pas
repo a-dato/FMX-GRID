@@ -91,7 +91,7 @@ type
 
   published
     property SubPropertyName: CString read get_SubPropertyName write set_SubPropertyName;
-    property SubInfoControlClass: TInfoControlClass read get_SubInfoControlClass write set_SubInfoControlClass;
+    property SubInfoControlClass: TInfoControlClass read get_SubInfoControlClass write set_SubInfoControlClass default Custom;
 
   end;
 
@@ -167,7 +167,6 @@ type
     _infoControlClass: TInfoControlClass;
 
 
-    _format         : CString;
     _formatProvider : IFormatProvider;
 
     _cachedType: &Type;
@@ -786,7 +785,6 @@ begin
 
   Result.InfoControlClass := _infoControlClass;
 
-  Result.Visualisation.Format := _format;
   Result.formatProvider := _formatProvider;
 end;
 
@@ -962,11 +960,11 @@ begin
     if Result.GetType.IsDateTime and CDateTime(Result).Equals(CDateTime.MinValue) then
       Result := nil
 
-    else if not CString.IsNullOrEmpty(_format) or (_formatProvider <> nil) then
+    else if not CString.IsNullOrEmpty(get_format) or (_formatProvider <> nil) then
     begin
       var formatSpec: CString;
-      if not CString.IsNullOrEmpty(_format) then
-        formatSpec := CString.Concat('{0:', _format, '}') else
+      if not CString.IsNullOrEmpty(get_format) then
+        formatSpec := CString.Concat('{0:', get_format, '}') else
         formatSpec := '{0}';
 
       Result := CString.Format(_FormatProvider, formatSpec, [Result]);
@@ -1232,7 +1230,7 @@ end;
 function TTreeLayoutColumn.CreateInfoControl(const Cell: IDCTreeCell; const ControlClassType: TInfoControlClass): TControl;
 begin
   case ControlClassType of
-    Unexploited:
+    Custom:
       Result := nil;
 
     Text: begin
@@ -1303,7 +1301,7 @@ begin
     Cell.Control.AddObject(ctrl);
     Cell.InfoControl := ctrl;
 
-    if not Cell.IsHeaderCell and (Cell.Column.SubInfoControlClass <> TInfoControlClass.Unexploited) then
+    if not Cell.IsHeaderCell and (Cell.Column.SubInfoControlClass <> TInfoControlClass.Custom) then
     begin
       var subCtrl := CreateInfoControl(Cell, Cell.Column.SubInfoControlClass);
       Cell.Control.AddObject(subCtrl);
@@ -1326,8 +1324,8 @@ begin
   if Cell.IsHeaderCell then
     ctrl := CreateInfoControl(Cell, TInfoControlClass.Text)
   else begin
-    Assert((Cell.Column.InfoControlClass = TInfoControlClass.Unexploited) and (Cell.Column.SubInfoControlClass = TInfoControlClass.Unexploited),
-       'Column (Sub)InfoControlClass must be "Unexploited" to assign StyleLookUp');
+    Assert((Cell.Column.InfoControlClass = TInfoControlClass.Custom) and (Cell.Column.SubInfoControlClass = TInfoControlClass.Custom),
+       'Column (Sub)InfoControlClass must be "Custom" to assign StyleLookUp');
 
     var styledControl: TStyledControl;
     if Cell.InfoControl = nil then
