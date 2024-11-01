@@ -69,12 +69,16 @@ type
     _selectionChanged: Boolean;
     _updateCount: Integer;
 
+    _changedBy: TSelectionChangedBy;
+
     function  get_DataIndex: Integer;
     function  get_DataItem: CObject;
     function  get_ViewListIndex: Integer;
     function  get_IsMultiSelection: Boolean;
     function  get_ForceScrollToSelection: Boolean;
     procedure set_ForceScrollToSelection(const Value: Boolean);
+    function  get_ChangedBy: TSelectionChangedBy;
+    procedure set_ChangedBy(const Value: TSelectionChangedBy);
 
     procedure set_OnSelectionInfoChanged(const Value: TProc);
 
@@ -104,6 +108,7 @@ type
     function  IsSelected(const DataIndex: Integer): Boolean;
     function  GetSelectionInfo(const DataIndex: Integer): IRowSelectionInfo;
     function  SelectedRowCount: Integer;
+    function  SelectedDataIndexes: List<Integer>;
   end;
 
   TWaitForRepaintInfo = class(TInterfacedObject, IWaitForRepaintInfo)
@@ -131,6 +136,8 @@ type
 
   public
     constructor Create(const Owner: IRefreshControl); reintroduce;
+
+    procedure ClearIrrelevantInfo;
 
     property RowStateFlags: TTreeRowStateFlags read get_RowStateFlags;
     property Current: Integer read get_Current write set_Current;
@@ -381,6 +388,11 @@ begin
   Result := _lastSelectedViewListIndex;
 end;
 
+function TRowSelectionInfo.get_ChangedBy: TSelectionChangedBy;
+begin
+
+end;
+
 function TRowSelectionInfo.get_DataIndex: Integer;
 begin
   Result := _lastSelectedDataIndex;
@@ -416,6 +428,11 @@ begin
   Result := _multiSelection.Count;
 end;
 
+procedure TRowSelectionInfo.set_ChangedBy(const Value: TSelectionChangedBy);
+begin
+
+end;
+
 procedure TRowSelectionInfo.set_ForceScrollToSelection(const Value: Boolean);
 begin
   _forceScrollToSelection := Value;
@@ -430,6 +447,8 @@ function TRowSelectionInfo.Clone: IRowSelectionInfo;
 begin
   Result := CreateInstance;
   (Result as IRowSelectionInfo).UpdateSingleSelection(_lastSelectedDataIndex, _lastSelectedViewListIndex, _lastSelectedDataItem);
+
+  Result.LastSelectionChangedBy := _changedBy;
 end;
 
 function TRowSelectionInfo.CreateInstance: IRowSelectionInfo;
@@ -498,6 +517,18 @@ begin
   _multiSelection[info.DataIndex] := info;
 end;
 
+function TRowSelectionInfo.SelectedDataIndexes: List<Integer>;
+begin
+  Result := CList<Integer>.Create;
+
+  if _multiSelection.Count > 0 then
+  begin
+    for var item in _multiSelection.Values do
+      Result.Add(item.DataIndex)
+  end else
+    Result.Add(_lastSelectedDataIndex);
+end;
+
 procedure TRowSelectionInfo.SelectedRowClicked(const DataIndex: Integer);
 begin
   if _lastSelectedDataIndex = DataIndex then
@@ -520,6 +551,18 @@ begin
 end;
 
 { TWaitForRepaintInfo }
+
+procedure TWaitForRepaintInfo.ClearIrrelevantInfo;
+begin
+  _rowStateFlags := _rowStateFlags - [SortChanged, FilterChanged];
+
+  // ONLY KEEP CURRENT
+  // we use current to reselect a item at that position after for example a refresh of the treecontrol
+
+  _dataItem := nil;
+  _sortDescriptions := nil;
+  _filterDescriptions := nil;
+end;
 
 constructor TWaitForRepaintInfo.Create(const Owner: IRefreshControl);
 begin

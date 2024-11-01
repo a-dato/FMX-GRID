@@ -66,6 +66,7 @@ type
     procedure ViewLoadingFinished;
     procedure ViewLoadingRemoveNonUsedRows(const TillSpecifiedViewIndex: Integer = -1; const FromTop: Boolean = True);
     procedure ClearView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
+    procedure ClearViewRecInfo(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
     procedure RecalcSortedRows;
     function  GetViewList: IList;
 
@@ -140,6 +141,9 @@ begin
 
   _activeRows := nil;
   _cachedrows := nil;
+
+  SetLength(_viewRowHeights, 0);
+
   inherited;
 end;
 
@@ -185,13 +189,17 @@ function TDataViewList.GetViewListIndex(const DataItem: CObject): Integer;
 begin
   if _comparer <> nil then
     Result := GetViewList.IndexOf(DataItem)
-  else begin
-    var dr := _dataModelView.DataModel.FindByKey(DataItem);
-    if dr = nil then Exit(-1);
+  else // datamodel
+  begin
+    var drv: IDataRowView;
+    if not DataItem.TryAsType<IDataRowView>(drv) then
+    begin
+      var dr := _dataModelView.DataModel.FindByKey(DataItem);
+      if dr <> nil then
+        drv := _dataModelView.FindRow(dr);
+    end;
 
-    var drv := _dataModelView.FindRow(dr);
     if drv = nil then Exit(-1);
-
     Result := drv.ViewIndex;
   end;
 end;
@@ -437,6 +445,11 @@ begin
         _activeRows.RemoveAt(ix);
   end;
 
+  ClearViewRecInfo(FromViewListIndex, ClearOneRowOnly)
+end;
+
+procedure TDataViewList.ClearViewRecInfo(const FromViewListIndex: Integer; ClearOneRowOnly: Boolean);
+begin
   if ClearOneRowOnly then
     _viewRowHeights[FromViewListIndex] := TRowInfoRecord.Null
   else begin
@@ -450,9 +463,7 @@ end;
 
 procedure TDataViewList.RowLoaded(const Row: IDCRow; const RowHeightChanged: Boolean; const NeedsResize: Boolean);
 begin
-  var rec := TRowInfoRecord.Null;
-  rec.AfterCellsApplies(Row.Control.Height, NeedsResize);
-  _viewRowHeights[Row.ViewListIndex] := rec;
+  _viewRowHeights[Row.ViewListIndex] := _viewRowHeights[Row.ViewListIndex].AfterCellsApplies(Row.Control.Height, NeedsResize);
 end;
 
 function TDataViewList.RowLoadedInfo(const ViewListIndex: Integer): TRowInfoRecord;
@@ -497,7 +508,10 @@ begin
   end;
 
   for var ix2 := 0 to _activeRows.Count - 1 do
-    _viewRowHeights[_activeRows[ix2].ViewListIndex].OnViewLoading;
+  begin
+    var viewListIndex := _activeRows[ix2].ViewListIndex;
+    _viewRowHeights[viewListIndex] := _viewRowHeights[viewListIndex].OnViewLoading;
+  end;
 end;
 
 procedure TDataViewList.ViewLoadingRemoveNonUsedRows(const TillSpecifiedViewIndex: Integer = -1; const FromTop: Boolean = True);
@@ -523,7 +537,7 @@ begin
   var ix := Row.ViewPortIndex;
 
   _activeRows.RemoveAt(Row.ViewPortIndex);
-  _viewRowHeights[Row.ViewListIndex].OnRowOutOfView;
+  _viewRowHeights[Row.ViewListIndex] := _viewRowHeights[Row.ViewListIndex].OnRowOutOfView;
   Row.ClearRowForReassignment;
   _cachedrows.Add(Row);
 
@@ -536,13 +550,11 @@ begin
   var totalAbsoluteHeight := 0.0;
 
   for var value in _viewRowHeights do
-  begin
     if not value.ControlNeedsResize then
     begin
       totalAbsoluteHeight := totalAbsoluteHeight + value.GetCalculatedHeight;
       inc(rowsWithValidHeights);
     end;
-  end;
 
   Result := totalAbsoluteHeight + (DefaultRowHeight * (ViewCount - rowsWithValidHeights));
 end;

@@ -147,6 +147,8 @@ begin
     var checkBox := Sender as TCheckBox;
     var cell := GetCellByControl(checkBox);
 
+    _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.Internal;
+
     var requestedSelection := _selectionInfo.Clone as ITreeSelectionInfo;
     requestedSelection.UpdateLastSelection(cell.Row.DataIndex, cell.Row.ViewListIndex, cell.Row.DataItem);
     requestedSelection.SelectedFlatColumn := FlatColumnByColumn(cell.Column).Index;

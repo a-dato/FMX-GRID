@@ -19,15 +19,14 @@ type
     RowInActiveView: Boolean;
 
   public
-    procedure OnViewLoading;
-    procedure AfterCellsApplies(const RowHeight: Single; const HeightNeedsRecalc: Boolean);
-
     function GetCalculatedHeight: Single;
     function ControlNeedsResize: Boolean;
     function InnerCellsAreApplied: Boolean;
     function RowIsInActiveView: Boolean;
 
-    procedure OnRowOutOfView;
+    function OnViewLoading: TRowInfoRecord;
+    function OnRowOutOfView: TRowInfoRecord;
+    function AfterCellsApplies(const RowHeight: Single; const HeightNeedsRecalc: Boolean): TRowInfoRecord;
 
     class function Null: TRowInfoRecord; static;
   end;
@@ -61,6 +60,7 @@ type
     procedure ViewLoadingFinished;
     procedure ViewLoadingRemoveNonUsedRows(const TillSpecifiedViewFrameIndex: Integer = -1; const FromTop: Boolean = True);
     procedure ClearView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
+    procedure ClearViewRecInfo(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
     procedure RecalcSortedRows;
     function  GetViewList: IList;
 
@@ -78,14 +78,6 @@ implementation
 
 { TRowInfoRecord }
 
-procedure TRowInfoRecord.AfterCellsApplies(const RowHeight: Single; const HeightNeedsRecalc: Boolean);
-begin
-  CalculatedHeight := RowHeight;
-  NeedsResize := HeightNeedsRecalc;
-  CellsApplied := True;
-  RowInActiveView := True;
-end;
-
 function TRowInfoRecord.ControlNeedsResize: Boolean;
 begin
   Result := NeedsResize or (CalculatedHeight <= 0);
@@ -101,6 +93,11 @@ begin
   Result := CellsApplied;
 end;
 
+function TRowInfoRecord.RowIsInActiveView: Boolean;
+begin
+  Result := RowInActiveView;
+end;
+
 class function TRowInfoRecord.Null: TRowInfoRecord;
 begin
 //  Result := TRowInfoRecord.Create;
@@ -110,20 +107,30 @@ begin
   Result.RowInActiveView := False;
 end;
 
-procedure TRowInfoRecord.OnRowOutOfView;
+function TRowInfoRecord.AfterCellsApplies(const RowHeight: Single; const HeightNeedsRecalc: Boolean): TRowInfoRecord;
 begin
-  RowInActiveView := False;
-  CellsApplied := False;
+  Result.CalculatedHeight := RowHeight;
+  Result.NeedsResize := HeightNeedsRecalc;
+  Result.CellsApplied := True;
+  Result.RowInActiveView := True;
 end;
 
-procedure TRowInfoRecord.OnViewLoading;
+function TRowInfoRecord.OnRowOutOfView: TRowInfoRecord;
 begin
-  RowInActiveView := False;
+  Result.CalculatedHeight := Self.CalculatedHeight;
+  Result.NeedsResize := Self.NeedsResize;
+
+  Result.RowInActiveView := False;
+  Result.CellsApplied := False;
 end;
 
-function TRowInfoRecord.RowIsInActiveView: Boolean;
+function TRowInfoRecord.OnViewLoading: TRowInfoRecord;
 begin
-  Result := RowInActiveView;
+  Result.CalculatedHeight := Self.CalculatedHeight;
+  Result.NeedsResize := Self.NeedsResize;
+  Result.CellsApplied := Self.CellsApplied;
+
+  Result.RowInActiveView := False;
 end;
 
 end.

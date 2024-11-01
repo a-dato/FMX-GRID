@@ -124,6 +124,8 @@ type
 
     procedure RefreshControl;
 
+    function  TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
+
     property VertScrollBar: TSmallScrollBar read _vertScrollBar;
 
   published
@@ -656,6 +658,13 @@ procedure TDCScrollableControl.SetBasicVertScrollBarValues;
 begin
   _vertScrollBar.Min := 0;
   _vertScrollBar.ViewportSize := _content.Height;
+end;
+
+function TDCScrollableControl.TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
+begin
+  var char: WideChar := ' ';
+  KeyDown(key, char, Shift);
+  Result := Key = 0;
 end;
 
 procedure TDCScrollableControl.RequestRealignContent;
