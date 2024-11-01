@@ -2097,9 +2097,8 @@ constructor TDCColumnWidthSettings.Create;
 begin
   inherited Create;
 
-  _widthType := TDCColumnWidthType.AlignToContent;
-  _widthMin := 20;
-  _widthMax := 400;
+  _widthType := TDCColumnWidthType.Pixel;
+  _width := 50;
 end;
 
 function TDCColumnWidthSettings.get_Width: Single;
