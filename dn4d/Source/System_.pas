@@ -3731,7 +3731,7 @@ var
     propInfo: IPropInfo;
   begin
     propInfo := TRecordFieldProperty.Create(AType, Field);
-    propArray[propItemCount] := CreatePropertyFunc(AType, &Type.Create(Field.Handle), propInfo);
+    propArray[propItemCount] := CreatePropertyFunc(AType, &Type.Create(Field.FieldType.Handle), propInfo);
     inc(propItemCount);
   end;
 

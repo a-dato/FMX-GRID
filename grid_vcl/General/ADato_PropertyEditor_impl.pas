@@ -371,7 +371,11 @@ procedure TPropertyEditor.LoadProperties;
     begin
       propInfo := properties[i];
 
-      propertyValue := propInfo.GetValue(TargetObject, []);
+      try
+        propertyValue := propInfo.GetValue(TargetObject, []);
+      except
+        propertyValue := nil; // GetValue might raise an exception
+      end;
 
 //      if ((propInfo.GetType = Global.GetTypeOf(SystemTypes.&Object)) and supports(Convert.ToObject(propertyValue), ICollection)) or
 //         ((propInfo.GetType = Global.GetTypeOf(SystemTypes.Interface)) and supports(Interfaces.ToInterface(propertyValue), ICollection))
@@ -630,7 +634,11 @@ begin
     if AColumn.Index = 0 then
       Value := _propItem.PropInfo.Name
     else if _propItem.Target <> nil then
+    try
       Value := _propItem.PropInfo.GetValue(_propItem.Target, []);
+    except
+      Value := nil; // GetValue might raise an exception
+    end;
   end;
 end;
 
