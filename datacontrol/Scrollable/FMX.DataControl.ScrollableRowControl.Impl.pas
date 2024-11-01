@@ -143,7 +143,7 @@ implementation
 
 uses
   FMX.Objects, FMX.Types, FMX.StdCtrls, ADato.Data.DataModel.intf,
-  System.UITypes;
+  System.UITypes, FMX.DataControl.ControlClasses;
 
 { TDCRow }
 
@@ -176,8 +176,8 @@ begin
 
   var rr := _selectionRect as TRectangle;
   if OwnerIsFocused then
-    rr.Fill.Color := TAlphaColors.Slateblue else
-    rr.Fill.Color := TAlphaColors.Lightslategrey;
+    rr.Fill.Color := DEFAULT_ROW_SELECTION_ACTIVE_COLOR else
+    rr.Fill.Color := DEFAULT_ROW_SELECTION_INACTIVE_COLOR;
 end;
 
 procedure TDCRow.ClearRowForReassignment;

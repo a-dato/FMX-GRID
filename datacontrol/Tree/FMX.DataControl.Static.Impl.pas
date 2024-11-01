@@ -1268,15 +1268,14 @@ begin
     if ShowVertGrid then
     begin
       var rect := ScrollableRowControl_DefaultRectangleClass.Create(Cell.Row.Control);
-  //    rect.Fill.Kind := TBrushKind.None;
-      rect.Fill.Color := TAlphaColors.Orange;
+      rect.Fill.Kind := TBrushKind.None;
 
       if _index = 0 then
         rect.Sides := [TSide.Left, TSide.Right] else
         rect.Sides := [TSide.Right];
 
-  //    if Cell.IsHeaderCell then
-  //      rect.Sides := rect.Sides + [TSide.Top, TSide.Bottom];
+      if Cell.IsHeaderCell then
+        rect.Sides := rect.Sides + [TSide.Top, TSide.Bottom];
 
       Cell.Control := rect;
     end else

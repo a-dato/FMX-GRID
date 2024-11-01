@@ -21,6 +21,8 @@ type
     property RequestValueForSorting: Boolean read _RequestValueForSorting write _RequestValueForSorting;
   end;
 
+  DCCellSelectedEventArgs = BasicEventArgs;
+
   DCCellEventArgs = class(BasicEventArgs)
   private
     _customRowHeight: Single;
@@ -173,6 +175,8 @@ type
   CellCanChangeEvent = function(const Sender: TObject; e: DCCellCanChangeEventArgs): Boolean of object;
   CellChangingEvent = procedure(const Sender: TObject; e: DCCellChangingEventArgs) of object;
   CellChangedEvent = procedure(const Sender: TObject; e: DCCellChangedEventArgs) of object;
+
+  CellSelectedEvent = procedure(const Sender: TObject; e: DCCellSelectedEventArgs) of object;
 
   GetColumnComparerEvent  = procedure(const Sender: TObject; e: DCColumnComparerEventArgs) of object;
   TOnCompareRows = function (Sender: TObject; const Left, Right: CObject): integer of object;

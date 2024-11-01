@@ -49,6 +49,13 @@ var  // see Initialization section
   ScrollableRowControl_DefaultRectangleClass: TRectangleClass;
 //  ScrollableRowControl_LineClass: TLineClass;
 
+
+  DEFAULT_GREY_COLOR: TAlphaColor;
+  DEFAULT_WHITE_COLOR: TAlphaColor;
+  DEFAULT_ROW_SELECTION_ACTIVE_COLOR: TAlphaColor;
+  DEFAULT_ROW_SELECTION_INACTIVE_COLOR: TAlphaColor;
+  DEFAULT_ROW_HOVER_COLOR: TAlphaColor;
+
 implementation
 
 uses
@@ -118,6 +125,12 @@ initialization
   ScrollableRowControl_DefaultDateEditClass := TDateTimeEditOnKeyDownOverride;
   ScrollableRowControl_DefaultComboEditClass := TComboEdit;
   ScrollableRowControl_DefaultRectangleClass := TRectangle;
-//  ScrollableRowControl_LineClass := TLine;
+
+  DEFAULT_GREY_COLOR := TAlphaColor($FFF5F6FB);
+  DEFAULT_WHITE_COLOR := TAlphaColors.Null;
+
+  DEFAULT_ROW_SELECTION_ACTIVE_COLOR := TAlphaColor($BB6A5ACD);
+  DEFAULT_ROW_SELECTION_INACTIVE_COLOR := TAlphaColor($BB778899);
+  DEFAULT_ROW_HOVER_COLOR := TAlphaColor($55B0C4DE);
 
 end.
