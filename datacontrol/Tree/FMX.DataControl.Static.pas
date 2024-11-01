@@ -17,7 +17,7 @@ uses
   FMX.DataControl.ScrollableRowControl.Intf, FMX.Objects,
   FMX.DataControl.Events, FMX.DataControl.ControlClasses,
   FMX.DataControl.ScrollableControl, System.UITypes, System.SysUtils,
-  System.Generics.Defaults, FMX.Controls;
+  System.Generics.Defaults, FMX.Controls, System.Types;
 
 type
   TRightLeftScroll = (None, FullLeft, Left, Right, FullRight);
@@ -31,6 +31,8 @@ type
 
     _realignLayout: Boolean;
     _frozenRectLine: TRectangle;
+    _hoverCellRect: TRectangle;
+
     _defaultColumnsGenerated: Boolean;
 
     procedure ColumnsChanged(Sender: TObject; e: NotifyCollectionChangedEventArgs);
@@ -66,6 +68,8 @@ type
     _cellCanChange: CellCanChangeEvent;
     _cellChanging: CellChangingEvent;
     _cellChanged: CellChangedEvent;
+    _cellSelected: CellSelectedEvent;
+
     _sortingGetComparer: GetColumnComparerEvent;
     _onCompareRows: TOnCompareRows;
     _onCompareColumnCells: TOnCompareColumnCells;
@@ -76,6 +80,7 @@ type
     function  DoCellCanChange(const OldCell, NewCell: IDCTreeCell): Boolean; virtual;
     procedure DoCellChanging(const OldCell, NewCell: IDCTreeCell);
     procedure DoCellChanged(const OldCell, NewCell: IDCTreeCell);
+    procedure DoCellSelected(const Cell: IDCTreeCell);
 
     function  DoSortingGetComparer(const SortDescription: IListSortDescriptionWithComparer {; const ReturnSortComparer: Boolean}): IComparer<CObject>;
     function  DoOnCompareRows(const Left, Right: CObject): Integer;
@@ -101,6 +106,8 @@ type
 
     procedure UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single); override;
     procedure OnHeaderMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+
+    procedure UpdateHoverRect(MousePos: TPointF); override;
 
     function  FlatColumnByColumn(const Column: IDCTreeColumn): IDCTreeLayoutColumn;
 
@@ -131,6 +138,9 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
+    procedure SelectAll;
+    procedure ClearSelections;
+
     procedure RefreshColumn(const Column: IDCTreeColumn);
 
   published
@@ -144,6 +154,7 @@ type
     property CellCanChange: CellCanChangeEvent read _cellCanChange write _cellCanChange;
     property CellChanging: CellChangingEvent read _cellChanging write _cellChanging;
     property CellChanged: CellChangedEvent read _cellChanged write _cellChanged;
+    property CellSelected: CellSelectedEvent read _cellSelected write _cellSelected;
     property SortingGetComparer: GetColumnComparerEvent read _sortingGetComparer write _sortingGetComparer;
     property OnCompareRows: TOnCompareRows read _onCompareRows write _onCompareRows;
     property OnCompareColumnCells: TOnCompareColumnCells read _onCompareColumnCells write _onCompareColumnCells;
@@ -156,7 +167,7 @@ uses
   ADato.Data.DataModel.intf, System.Math,
   FMX.ControlCalculations, FMX.Graphics, FMX.StdCtrls,
   FMX.DataControl.ScrollableRowControl.Impl, ADato.Data.DataModel.impl,
-  FMX.DataControl.SortAndFilter, System.Types;
+  FMX.DataControl.SortAndFilter;
 
 { TStaticDataControl }
 
@@ -275,6 +286,25 @@ begin
   end;
 
   SetBasicVertScrollBarValues;
+end;
+
+procedure TStaticDataControl.UpdateHoverRect(MousePos: TPointF);
+begin
+  inherited;
+
+  if (_hoverRect.Visible) and (_selectionType = TSelectionType.CellSelection) then
+  begin
+    var clmn := GetFlatColumnByMouseX(MousePos.X);
+    _hoverCellRect.Visible := clmn <> nil;
+    if not _hoverCellRect.Visible then Exit;
+
+    var hoverMargin := 1;
+    _hoverCellRect.Position.X := clmn.Left + hoverMargin;
+    _hoverCellRect.Position.Y := 0 + hoverMargin;
+    _hoverCellRect.Width := clmn.Width - (2*hoverMargin);
+    _hoverCellRect.Height := _hoverRect.Height - (2*hoverMargin);
+  end else
+    _hoverCellRect.Visible := False;
 end;
 
 procedure TStaticDataControl.UpdatePositionAndWidthCells;
@@ -568,6 +598,20 @@ begin
   end;
 end;
 
+procedure TStaticDataControl.SelectAll;
+begin
+  Assert(TDCTreeOption.MultiSelect in _options);
+
+  var currentSelection := _selectionInfo.Clone;
+
+  if _view <> nil then
+    for var row in _view.ActiveViewRows do
+      _selectionInfo.AddToSelection(row.DataIndex, row.ViewListIndex, row.DataItem);
+
+  // keep current selected item
+  _selectionInfo.AddToSelection(currentSelection.DataIndex, currentSelection.ViewListIndex, currentSelection.DataItem);
+end;
+
 procedure TStaticDataControl.SetBasicHorzScrollBarValues;
 begin
   if _treeLayout = nil then
@@ -608,17 +652,17 @@ begin
   if _selectionType <> TSelectionType.CellSelection then
     Exit;
 
-  var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-  var rowIsSelected := treeSelectionInfo.IsSelected(Row.DataIndex);
-  var treeRow := Row as IDCTreeRow;
-  for var cell in treeRow.Cells.Values do
-    if rowIsSelected then
-    begin
-      if treeSelectionInfo.SelectedFlatColumns.Contains(FlatColumnByColumn(cell.Column).Index) then
-        (cell.InfoControl as TText).Color := TAlphaColors.Orange else
-        (cell.InfoControl as TText).Color := TAlphaColors.Blue;
-    end else
-      (cell.InfoControl as TText).Color := TAlphaColors.Black;
+//  var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
+//  var rowIsSelected := treeSelectionInfo.IsSelected(Row.DataIndex);
+//  var treeRow := Row as IDCTreeRow;
+//  for var cell in treeRow.Cells.Values do
+//    if rowIsSelected then
+//    begin
+//      if treeSelectionInfo.SelectedFlatColumns.Contains(FlatColumnByColumn(cell.Column).Index) then
+//        (cell.InfoControl as TText).Color := TAlphaColors.Orange else
+//        (cell.InfoControl as TText).Color := TAlphaColors.Blue;
+//    end else
+//      (cell.InfoControl as TText).Color := TAlphaColors.Black;
 end;
 
 procedure TStaticDataControl.BeforeRealignContent;
@@ -681,6 +725,16 @@ begin
   _frozenRectLine.Height := _content.Height;
   _frozenRectLine.Visible := False;
   _content.AddObject(_frozenRectLine);
+
+  _hoverCellRect := TRectangle.Create(_hoverRect);
+  _hoverCellRect.Stored := False;
+  _hoverCellRect.Align := TAlignLayout.None;
+  _hoverCellRect.HitTest := False;
+  _hoverCellRect.Visible := False;
+  _hoverCellRect.Stroke.Dash := TStrokeDash.Dot;
+  _hoverCellRect.Stroke.Color := TAlphaColors.Grey;
+  _hoverCellRect.Fill.Kind := TBrushKind.None;
+  _hoverRect.AddObject(_hoverCellRect);
 
   _columns := TDCTreeColumnList.Create(Self);
   (_columns as INotifyCollectionChanged).CollectionChanged.Add(ColumnsChanged);
@@ -837,6 +891,17 @@ begin
   end;
 end;
 
+procedure TStaticDataControl.DoCellSelected(const Cell: IDCTreeCell);
+begin
+  if Assigned(_cellSelected) then
+  begin
+    var args: DCCellSelectedEventArgs;
+    AutoObject.Guard(DCCellSelectedEventArgs.Create(Cell), args);
+
+    _cellSelected(Self, args);
+  end;
+end;
+
 function TStaticDataControl.DoSortingGetComparer(const SortDescription: IListSortDescriptionWithComparer{; const ReturnSortComparer: Boolean}) : IComparer<CObject>;
 var
   args: DCColumnComparerEventArgs;
@@ -932,6 +997,8 @@ begin
   if not changed and not (ssCtrl in Shift) then
   begin
     ScrollSelectedIntoView(RequestedSelectionInfo);
+    DoCellSelected(GetActiveCell);
+
     Exit;
   end;
 
@@ -957,6 +1024,7 @@ begin
   end;
 
   DoCellChanged(oldCell, newCell);
+  DoCellSelected(newCell);
 
   Result := True;
 end;
@@ -1027,10 +1095,8 @@ begin
     _headerRow.IsHeaderRow := True;
     _headerRow.DataIndex := -1;
 
-    var headerRect := ScrollableRowControl_DefaultRectangleClass.Create(Self);
+    var headerRect := TLayout.Create(Self);
     headerRect.Stored := False;
-    headerRect.Fill.Color := TAlphaColors.Lightsteelblue;
-    headerRect.Sides := [TSide.Top, TSide.Bottom];
     headerRect.Align := TAlignLayout.Top;
     headerRect.Height := 30;
     headerRect.OnMouseUp := OnHeaderMouseUp;
@@ -1044,12 +1110,25 @@ begin
     for var flatColumn in _treeLayout.FlatColumns do
     begin
       var cell: IDCTreeCell := THeaderCell.Create(_headerRow, flatColumn);
-      flatColumn.CreateCellBaseControls(True, cell);
+
+      var dummyManualHeight: Single := -1;
+      var dummyLoadDefaultData := DoCellLoading(cell, False, {var} dummyManualHeight);
+
+      if cell.Control = nil then
+      begin
+        flatColumn.CreateCellBaseControls(True, cell);
+        var rect := (cell.Control as TRectangle);
+        rect.Fill.Kind := TBrushKind.Solid;
+        rect.Fill.Color := DEFAULT_GREY_COLOR;
+      end;
+
       cell.Control.Height := headerRect.Height;
 
       flatColumn.UpdateCellControlsByRow(cell);
 
       (cell.InfoControl as ScrollableRowControl_DefaultTextClass).Text := flatColumn.Column.Caption;
+
+      DoCellLoaded(cell, False, {var} dummyManualHeight);
 
       var needsWidthCheckBasedOnColumn := flatColumn.Column.WidthType = TDCColumnWidthType.AlignToContent;
       if needsWidthCheckBasedOnColumn then
@@ -1218,6 +1297,11 @@ begin
   inherited;
 
   (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumns.Clear;
+end;
+
+procedure TStaticDataControl.ClearSelections;
+begin
+  _selectionInfo.UpdateSingleSelection(_selectionInfo.DataIndex, _selectionInfo.ViewListIndex, _selectionInfo.DataItem);
 end;
 
 procedure TStaticDataControl.InitLayout;

@@ -245,7 +245,7 @@ begin
     case Dlg.cbColumnType.ItemIndex of
       0: begin
         _Column := TDCTreeColumn.Create; // Indicator column
-        _Column.InfoControlClass := TInfoControlClass.Unexploited;
+        _Column.InfoControlClass := TInfoControlClass.Custom;
       end;
       1: _Column := TDCTreeColumn.Create; // Indicator column
       2: _Column := TDCTreeCheckboxColumn.Create; // Data bound column

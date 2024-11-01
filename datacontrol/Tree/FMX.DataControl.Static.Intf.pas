@@ -23,7 +23,7 @@ type
   IDCTreeCell = interface;
 
   TDCColumnWidthType = (Pixel, Percentage, AlignToContent);
-  TInfoControlClass = (Unexploited, Text, CheckBox, Button);
+  TInfoControlClass = (Custom, Text, CheckBox, Button);
 
   TOnGetSortCellData = reference to function(const Cell: IDCTreeCell): CObject;
 

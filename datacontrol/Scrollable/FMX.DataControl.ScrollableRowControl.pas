@@ -18,7 +18,7 @@ uses
   FMX.DataControl.Events,
 
   ADato.ObjectModel.List.intf,
-  ADato.ObjectModel.intf;
+  ADato.ObjectModel.intf, System.Types;
 
 type
   TRowControl = class(TRectangle)
@@ -86,6 +86,8 @@ type
     _waitForRepaintInfo: IWaitForRepaintInfo;
     _selectionInfo: IRowSelectionInfo;
 
+    _hoverRect: TRectangle;
+
     procedure DoEnter; override;
     procedure DoExit; override;
 
@@ -97,7 +99,10 @@ type
 
     function  DoCreateNewRow: IDCRow; virtual;
     procedure InitInnerRow(const Row: IDCRow); virtual;
-    procedure InitRow(const Row: IDCRow; const IsAboveRefRow: Boolean);
+    procedure InitRow(const Row: IDCRow; const IsAboveRefRow: Boolean = False);
+
+    procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
+    procedure DoMouseLeave; override;
 
     procedure ClearAllSelections; virtual;
     procedure OnSelectionInfoChanged; virtual;
@@ -113,6 +118,7 @@ type
 
     procedure UpdateYPositionRows;
     procedure UpdateScrollBarValues;
+    procedure UpdateHoverRect(MousePos: TPointF); virtual;
 
     procedure UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single); override;
     function  DefaultMoveDistance: Single; override;
@@ -243,6 +249,20 @@ begin
     VisualizeRowSelection(row);
 end;
 
+procedure TDCScrollableRowControl.MouseMove(Shift: TShiftState; X, Y: Single);
+begin
+  inherited;
+
+  UpdateHoverRect(PointF(X, Y - _content.Position.Y));
+end;
+
+procedure TDCScrollableRowControl.DoMouseLeave;
+begin
+  inherited;
+
+  UpdateHoverRect(PointF(-1, -1));
+end;
+
 procedure TDCScrollableRowControl.DoResized;
 begin
   inherited;
@@ -362,7 +382,7 @@ begin
   begin
     if _view <> nil then
       for var row in _view.ActiveViewRows do
-        VisualizeRowSelection(row);
+        InitRow(row);
   end;
 end;
 
@@ -458,6 +478,15 @@ begin
   _options := [TreeOption_ShowHeaders];
 
   _itemType := &Type.Unknown;
+
+  _hoverRect := TRectangle.Create(_content);
+  _hoverRect.Stored := False;
+  _hoverRect.Align := TAlignLayout.None;
+  _hoverRect.HitTest := False;
+  _hoverRect.Visible := False;
+  _hoverRect.Stroke.Kind := TBrushKind.None;
+  _hoverRect.FIll.Color := DEFAULT_ROW_HOVER_COLOR;
+  _content.AddObject(_hoverRect);
 end;
 
 function TDCScrollableRowControl.CreateDummyRowForChanging(const FromSelectionInfo: IRowSelectionInfo): IDCRow;
@@ -745,7 +774,7 @@ begin
   // nothing to do here
 end;
 
-procedure TDCScrollableRowControl.InitRow(const Row: IDCRow; const IsAboveRefRow: Boolean);
+procedure TDCScrollableRowControl.InitRow(const Row: IDCRow; const IsAboveRefRow: Boolean = False);
 begin
   var oldRowHeight := _view.GetRowHeight(Row.ViewListIndex);
 
@@ -753,7 +782,6 @@ begin
   begin
     var rect := ScrollableRowControl_DefaultRectangleClass.Create(_content);
     rect.ClipChildren := True;
-    rect.Fill.Kind := TBrushKind.None;
     rect.HitTest := False;
     rect.Align := TAlignLayout.None;
 
@@ -776,8 +804,8 @@ begin
     rr.Fill.Kind := TBrushKind.Solid;
 
     if Row.IsOddRow then
-      rr.Fill.Color := TAlphaColors.Lightslategrey else
-      rr.Fill.Color := TAlphaColors.Null;
+      rr.Fill.Color := DEFAULT_GREY_COLOR else
+      rr.Fill.Color := DEFAULT_WHITE_COLOR;
   end else
     rr.Fill.Kind := TBrushKind.None;
 
@@ -824,6 +852,21 @@ begin
 
   var rowHeightNeedsResizeAfterScrolling := rowInfo.ControlNeedsResize and (_scrollingType = TScrollingType.WithScrollBar);
   _view.RowLoaded(Row, rowHeightChanged, rowHeightNeedsResizeAfterScrolling);
+end;
+
+procedure TDCScrollableRowControl.UpdateHoverRect(MousePos: TPointF);
+begin
+  var row := GetRowByMouseY(MousePos.Y);
+
+  _hoverRect.Visible := (row <> nil) or (_selectionType = TSelectionType.HideSelection);
+  if not _hoverRect.Visible then
+    Exit;
+
+  _hoverRect.Position.Y := row.Control.Position.Y;
+  _hoverRect.Position.X := 0;
+  _hoverRect.Height := row.Height;
+  _hoverRect.Width := row.Control.Width;
+  _hoverRect.BringToFront;
 end;
 
 procedure TDCScrollableRowControl.UpdateScrollAndSelectionByKey(var Key: Word; Shift: TShiftState);
@@ -1262,7 +1305,7 @@ constructor TRowControl.Create(AOwner: TComponent);
 begin
   inherited;
   Self.ClipChildren := True;
-  Self.Fill.Color := TAlphaColors.Black;
+  Self.Fill.Color := DEFAULT_WHITE_COLOR;
   Self.Sides := [TSide.Bottom];
   Self.HitTest := False;
 end;
