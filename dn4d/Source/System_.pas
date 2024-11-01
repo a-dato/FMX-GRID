@@ -264,6 +264,7 @@ type
     function  IsDateTime: Boolean;
     function  IsInterfaceType: Boolean;
     function  IsObjectType: Boolean;
+    function  IsRecordType: Boolean;
     function  IsNumber: Boolean;
     function  IsEnum: Boolean;
     function  IsSet: Boolean;
@@ -2240,6 +2241,27 @@ type
     function GetHashCode: Integer; override;
   end;
 
+  TRecordFieldProperty = class(TBaseInterfacedObject, IPropInfo)
+  private
+    _ownerType: &Type;
+    _field: TRttiField;
+
+    function get_PropType: PTypeInfo;
+    function get_Name: CString;
+    function get_CanRead: Boolean;
+    function get_CanWrite: Boolean;
+    function get_GetProc: Pointer;
+    function get_SetProc: Pointer;
+    function get_Index: Integer;
+
+    function  GetAttributes: TArray<TCustomAttribute>;
+    function  GetValue(const obj: CObject; const index: array of CObject): CObject;
+    procedure SetValue(const obj: CObject; const value: CObject; const index: array of CObject; ExecuteTriggers: Boolean = false);
+  public
+    constructor Create(const AOwnerType: &Type; AField: TRttiField);
+    function GetHashCode: Integer; override;
+  end;
+
   IInterfacePropertyAccessor = interface(IPropInfo)
     ['{6DF6D5C5-CB08-41E8-B2B5-F473238C4197}']
     function  get_Getter: TRttiMethod;
@@ -3690,10 +3712,60 @@ begin
   Result := propArray;
 end;
 
+function GetPropertiesFromRecordType(const AType: &Type; CreatePropertyFunc: TCreatePropertyInfo) : PropertyInfoArray;
+var
+  propArray: PropertyInfoArray;
+  propItemCount: Integer;
+
+  function TestPropExists(PInfo: PPropInfo) : Boolean;
+  begin
+    for var i := 0 to propItemCount - 1 do
+      if CString.Equals(propArray[i].Name, string(PInfo.Name)) then
+        Exit(True);
+
+    Exit(False);
+  end;
+
+  procedure SetPropertyInfo(const Field: TRttiField);
+  var
+    propInfo: IPropInfo;
+  begin
+    propInfo := TRecordFieldProperty.Create(AType, Field);
+    propArray[propItemCount] := CreatePropertyFunc(AType, &Type.Create(Field.FieldType.Handle), propInfo);
+    inc(propItemCount);
+  end;
+
+begin
+  Result := nil;
+
+  var fields := &Type.GlobalContext.GetType(AType.GetTypeInfo).GetFields;
+  if Length(fields) > 0 then
+  begin
+    SetLength(propArray, Length(fields));
+    propItemCount := 0;
+    for var i := 0 to High(fields) do
+    begin
+      var fld := fields[i];
+
+//      if (props[i].Visibility <> TMemberVisibility.mvPublished) or TestPropExists(pprop) then
+//        continue;
+
+      SetPropertyInfo(fld);
+    end;
+
+    SetLength(propArray, propItemCount);
+  end;
+
+  Result := propArray;
+end;
+
 function GetPropertiesFromType(const AType: &Type; CreatePropertyFunc: TCreatePropertyInfo) : PropertyInfoArray;
 begin
   if AType.IsInterfaceType then
-    Result := GetPropertiesFromInterfaceType(AType, CreatePropertyFunc) else
+    Result := GetPropertiesFromInterfaceType(AType, CreatePropertyFunc)
+  else if AType.IsRecordType then
+    Result := GetPropertiesFromRecordType(AType, CreatePropertyFunc)
+  else
     Result := GetPropertiesFromNonInterfaceType(AType, CreatePropertyFunc);
 end;
 
@@ -4057,6 +4129,82 @@ begin
   end;
 end;
 
+{ TRecordFieldProperty }
+
+constructor TRecordFieldProperty.Create(const AOwnerType: &Type; AField: TRttiField);
+begin
+  inherited Create;
+  _OwnerType := AOwnerType;
+  _field := AField;
+end;
+
+function TRecordFieldProperty.GetAttributes: TArray<TCustomAttribute>;
+//var
+//  p: TRttiProperty;
+
+begin
+  Result := nil;
+
+//  if (_OwnerType.GetTypeInfo <> nil) and (_PropInfo <> nil) then
+//  begin
+//    p := &Type.GlobalContext.GetType(_OwnerType.GetTypeInfo).GetProperty(GetPropName(_PropInfo));
+//    if p <> nil then
+//      Result := p.GetAttributes;
+//  end;
+end;
+
+function TRecordFieldProperty.GetHashCode: Integer;
+begin
+  Result := Integer(_field.Handle);
+end;
+
+function TRecordFieldProperty.GetValue(const obj: CObject; const index: array of CObject): CObject;
+begin
+  Result := _field.GetValue(obj.FValue.GetReferenceToRawData);
+end;
+
+function TRecordFieldProperty.get_CanRead: Boolean;
+begin
+  Result := _field.IsReadable;
+end;
+
+function TRecordFieldProperty.get_CanWrite: Boolean;
+begin
+  Result := _field.IsWritable;
+end;
+
+function TRecordFieldProperty.get_GetProc: Pointer;
+begin
+  Result := nil;
+end;
+
+function TRecordFieldProperty.get_Index: Integer;
+begin
+  Result := -1;
+end;
+
+function TRecordFieldProperty.get_Name: CString;
+begin
+  Result := _field.Name;
+end;
+
+function TRecordFieldProperty.get_PropType: PTypeInfo;
+begin
+  Result := _field.FieldType.Handle;
+end;
+
+function TRecordFieldProperty.get_SetProc: Pointer;
+begin
+  Result := nil;
+end;
+
+procedure TRecordFieldProperty.SetValue(const obj, value: CObject; const index: array of CObject; ExecuteTriggers: Boolean);
+begin
+  _field.SetValue(obj.FValue.GetReferenceToRawData, Value.Cast(get_PropType, True));
+end;
+
+{ &Type }
+
 function &Type.PropertyByName(const Name: string): _PropertyInfo;
 var
   i: Integer;
@@ -4081,6 +4229,11 @@ end;
 function &Type.IsObjectType: Boolean;
 begin
   Result := _TypeInfo.Kind = tkClass;
+end;
+
+function &Type.IsRecordType: Boolean;
+begin
+  Result := _TypeInfo.Kind = tkRecord;
 end;
 
 function &Type.IsArray: Boolean;
@@ -10372,15 +10525,20 @@ end;
 function CDouble.ToString(const formatString: CString; const provider: IFormatProvider): CString;
 begin
   if CString.IsNullOrEmpty(formatString) and (provider = nil) then
-    Result := FloatToStr(_value)
-  else if CChar.Equals(formatString[0], 'c') or CChar.Equals(formatString[0], 'C') then
-    Result := Format('%m', [_value])
-  else
-  begin
-    var fs: TFormatSettings := FormatSettings;
+    Exit(FloatToStr(_value));
 
-    if CObject.ReferenceEquals(provider, CCultureInfo.InvariantCulture) then
-      fs := TFormatSettings.Invariant;
+  var c: Char := formatString[0];
+  if (c = 'c') or (c = 'C') then
+    Exit(Format('%m', [_value]));
+  if (c = 'd') or (c = 'D') then
+    Exit(Format('%d', [Round(_value)]));
+  if (c = 'p') or (c = 'P') then
+    Exit(Format('%d%%', [Round(_value * 100)]));
+
+  var fs: TFormatSettings := FormatSettings;
+
+  if CObject.ReferenceEquals(provider, CCultureInfo.InvariantCulture) then
+    fs := TFormatSettings.Invariant;
 
     // C# Implementation => Not working as provider.GetFormat returns nil for NumberFormatInfo
 //    var [unsafe]nf: NumberFormatInfo := nil;
@@ -10394,8 +10552,7 @@ begin
 //      end;
 //    end;
 
-    Result := FormatFloat(formatString.ToString, _value, fs);
-  end;
+  Exit(FormatFloat(formatString.ToString, _value, fs));
 end;
 
 { CExtended }
