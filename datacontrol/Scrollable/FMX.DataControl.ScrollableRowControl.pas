@@ -157,6 +157,13 @@ type
 
     function  VisibleRows: List<IDCRow>;
 
+    procedure SelectAll; virtual;
+    procedure ClearSelections; virtual;
+
+    function  SelectedRowIfInView: IDCRow;
+    function  SelectionCount: Integer;
+    function  SelectedDataItems: List<CObject>;
+
     property DataList: IList read get_DataList write set_DataList;
     property Model: IObjectListModel read get_Model write set_Model;
     property Current: Integer read get_Current write set_Current;
@@ -386,6 +393,11 @@ begin
   end;
 end;
 
+function TDCScrollableRowControl.SelectionCount: Integer;
+begin
+  Result := _selectionInfo.SelectedRowCount;
+end;
+
 function TDCScrollableRowControl.get_Current: Integer;
 begin
   Result := _selectionInfo.ViewListIndex;
@@ -458,6 +470,19 @@ procedure TDCScrollableRowControl.ClearAllSelections;
 begin
   if _selectionInfo <> nil then
     _selectionInfo.ClearAllSelections;
+end;
+
+procedure TDCScrollableRowControl.ClearSelections;
+begin
+  _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.External;
+  _selectionInfo.BeginUpdate;
+  try
+    var cln := _selectionInfo.Clone;
+    _selectionInfo.ClearAllSelections;
+    _selectionInfo.UpdateSingleSelection(cln.DataIndex, cln.ViewListIndex, cln.DataItem);
+  finally
+    _selectionInfo.EndUpdate;
+  end;
 end;
 
 function TDCScrollableRowControl.CreateSelectioninfoInstance: IRowSelectionInfo;
@@ -656,6 +681,8 @@ begin
 
     if newViewListIndex = -1 then
       Exit;
+
+    _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.External;
 
     _alignDirection := TryDetermineDirectionBeforeRealigning;
 
@@ -1204,17 +1231,66 @@ begin
   end;
 end;
 
+procedure TDCScrollableRowControl.SelectAll;
+begin
+  Assert(TDCTreeOption.MultiSelect in _options);
+
+  var currentSelection := _selectionInfo.Clone;
+
+  _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.External;
+  _selectionInfo.BeginUpdate;
+  try
+    var cln := _selectionInfo.Clone;
+    _selectionInfo.ClearAllSelections;
+
+    if _view <> nil then
+      for var row in _view.ActiveViewRows do
+        _selectionInfo.AddToSelection(row.DataIndex, row.ViewListIndex, row.DataItem);
+
+    // keep current selected item
+    _selectionInfo.AddToSelection(cln.DataIndex, cln.ViewListIndex, cln.DataItem);
+  finally
+    _selectionInfo.EndUpdate;
+  end;
+end;
+
+function TDCScrollableRowControl.SelectedDataItems: List<CObject>;
+begin
+  Result := CList<CObject>.Create;
+
+  var dataIndexes := _selectionInfo.SelectedDataIndexes;
+  for var index in dataIndexes do
+    Result.Add(_view.OriginalData[index]);
+end;
+
+function TDCScrollableRowControl.SelectedRowIfInView: IDCRow;
+begin
+  // can be that the selectedrow is out of view..
+  // this function will return in that case, even if that row is still selected
+  Result := _view.GetActiveRowIfExists(_selectionInfo.ViewListIndex);
+end;
+
 procedure TDCScrollableRowControl.SetSingleSelectionIfNotExists;
 begin
   if _view.ViewCount = 0 then
     Exit;
 
-  if not _selectionInfo.HasSelection then
+  var viewListIndex := 0;
+  if _selectionInfo.HasSelection then
   begin
-    var requestedSelection := _selectionInfo.Clone;
-    requestedSelection.UpdateLastSelection(_view.GetDataIndex(0), 0, _view.GetViewList[0]);
-    TrySelectItem(requestedSelection, [])
+    viewListIndex := _view.GetViewListIndex(_selectionInfo.DataItem);
+    if viewListIndex = _selectionInfo.ViewListIndex then
+      Exit; // current selection is still valid
+
+    if viewListIndex = -1 then
+      viewListIndex := 0;
   end;
+
+  _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.Internal;
+
+  var requestedSelection := _selectionInfo.Clone;
+  requestedSelection.UpdateLastSelection(_view.GetDataIndex(viewListIndex), viewListIndex, _view.GetViewList[viewListIndex]);
+  TrySelectItem(requestedSelection, [])
 end;
 
 procedure TDCScrollableRowControl.CalculateDirectionOrder;

@@ -1454,7 +1454,7 @@ begin
     for var round := 0 to 1 do
       for var layoutColumn in _layoutColumns do
       begin
-        if ((round = 1) = layoutColumn.Column.Frozen) then
+        if ((round = 0) = layoutColumn.Column.Frozen) then
         begin
           if not layoutColumn.HideColumnInView then
             _flatColumns.Add(layoutColumn);
@@ -1681,7 +1681,7 @@ end;
 
 procedure TDCTreeLayout.UpdateColumnWidth(const FlatColumnIndex: Integer; const Width: Single);
 begin
-  var flatClmn := get_FlatColumns[FlatColumnIndex];
+  var flatClmn := _layoutColumns[FlatColumnIndex];
 
   if not SameValue(flatClmn.Width, Width) then
   begin

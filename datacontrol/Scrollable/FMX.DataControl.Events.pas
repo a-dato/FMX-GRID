@@ -4,9 +4,13 @@ interface
 
 uses
   System_,
+  System.Classes,
+  System.ComponentModel,
+  System.Generics.Defaults,
+  System.Collections,
 
-  FMX.DataControl.Static.Intf, System.Classes, System.ComponentModel,
-  System.Generics.Defaults, System.Collections, FMX.Controls,
+  FMX.Controls,
+  FMX.DataControl.Static.Intf,
   FMX.DataControl.ScrollableRowControl.Intf;
 
 type
@@ -21,7 +25,12 @@ type
     property RequestValueForSorting: Boolean read _RequestValueForSorting write _RequestValueForSorting;
   end;
 
-  DCCellSelectedEventArgs = BasicEventArgs;
+  DCCellSelectedEventArgs = class(BasicEventArgs)
+  public
+    SelectionChangedBy: TSelectionChangedBy;
+
+    constructor Create(const ACell: IDCTreeCell; SelChangedBy: TSelectionChangedBy); reintroduce;
+  end;
 
   DCCellEventArgs = class(BasicEventArgs)
   private
@@ -313,6 +322,14 @@ function DCCellLoadEventArgs.AssignCellStyleLookUp(const StyleLookUp: CString): 
 begin
   _cell.LayoutColumn.CreateCellStyleControl(StyleLookUp, _cell);
   Result := _cell.InfoControl as TStyledControl;
+end;
+
+{ DCCellSelectedEventArgs }
+
+constructor DCCellSelectedEventArgs.Create(const ACell: IDCTreeCell; SelChangedBy: TSelectionChangedBy);
+begin
+  inherited Create(ACell);
+  SelectionChangedBy := SelChangedBy;
 end;
 
 end.

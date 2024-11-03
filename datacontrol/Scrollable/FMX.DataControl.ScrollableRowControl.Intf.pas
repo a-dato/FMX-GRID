@@ -12,6 +12,7 @@ type
   TTreeRowState = (SortChanged, FilterChanged, RowChanged);
   TTreeRowStateFlags = set of TTreeRowState;
   TAlignDirection = (Undetermined, TopToBottom, BottomToTop);
+  TSelectionChangedBy = (Internal, External, UserEvent);
 
 //(DataChanged {data list changed}, SortChanged)
 //  ColumnsChanged, {DataBindingChanged {data source changed}}, ViewChanged, Refresh, OptionsChanged, CurrentRowChangedFromDataModel, CellChanged);
@@ -66,6 +67,8 @@ type
     function  get_IsMultiSelection: Boolean;
     function  get_ForceScrollToSelection: Boolean;
     procedure set_ForceScrollToSelection(const Value: Boolean);
+    function  get_ChangedBy: TSelectionChangedBy;
+    procedure set_ChangedBy(const Value: TSelectionChangedBy);
 
     procedure set_OnSelectionInfoChanged(const Value: TProc);
 
@@ -74,7 +77,9 @@ type
     procedure ClearMultiSelections;
     function  IsSelected(const DataIndex: Integer): Boolean;
     function  GetSelectionInfo(const DataIndex: Integer): IRowSelectionInfo;
+
     function  SelectedRowCount: Integer;
+    function  SelectedDataIndexes: List<Integer>;
 
     procedure BeginUpdate;
     procedure EndUpdate(IgnoreChangeEvent: Boolean = False);
@@ -93,6 +98,7 @@ type
     property ViewListIndex: Integer read get_ViewListIndex;
     property IsMultiSelection: Boolean read get_IsMultiSelection;
     property ForceScrollToSelection: Boolean read get_ForceScrollToSelection write set_ForceScrollToSelection;
+    property LastSelectionChangedBy: TSelectionChangedBy read get_ChangedBy write set_ChangedBy;
 
     property OnSelectionInfoChanged: TProc write set_OnSelectionInfoChanged;
   end;
@@ -110,6 +116,8 @@ type
     procedure set_SortDescriptions(const Value: List<IListSortDescription>);
     function  get_FilterDescriptions: List<IListFilterDescription>;
     procedure set_FilterDescriptions(const Value: List<IListFilterDescription>);
+
+    procedure ClearIrrelevantInfo;
 
     property RowStateFlags: TTreeRowStateFlags read get_RowStateFlags write set_RowStateFlags;
     property Current: Integer read get_Current write set_Current;

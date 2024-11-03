@@ -80,7 +80,7 @@ type
     function  DoCellCanChange(const OldCell, NewCell: IDCTreeCell): Boolean; virtual;
     procedure DoCellChanging(const OldCell, NewCell: IDCTreeCell);
     procedure DoCellChanged(const OldCell, NewCell: IDCTreeCell);
-    procedure DoCellSelected(const Cell: IDCTreeCell);
+    procedure DoCellSelected(const Cell: IDCTreeCell; SelectionChangedBy: TSelectionChangedBy);
 
     function  DoSortingGetComparer(const SortDescription: IListSortDescriptionWithComparer {; const ReturnSortComparer: Boolean}): IComparer<CObject>;
     function  DoOnCompareRows(const Left, Right: CObject): Integer;
@@ -137,9 +137,6 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-
-    procedure SelectAll;
-    procedure ClearSelections;
 
     procedure RefreshColumn(const Column: IDCTreeColumn);
 
@@ -519,6 +516,8 @@ begin
 
   flatColumnIndex := flatColumn.Index;
 
+  _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
+
   var requestedSelection := _selectionInfo.Clone as ITreeSelectionInfo;
   requestedSelection.UpdateLastSelection(clickedRow.DataIndex, clickedRow.ViewListIndex, clickedRow.DataItem);
   requestedSelection.SelectedFlatColumn := flatColumnIndex;
@@ -596,20 +595,8 @@ begin
         _horzScrollBar.Value := _horzScrollBar.Value + ((currentFlatColumn.Left + currentFlatColumn.Width) - (_horzScrollBar.Value + _horzScrollBar.ViewportSize));
     end;
   end;
-end;
 
-procedure TStaticDataControl.SelectAll;
-begin
-  Assert(TDCTreeOption.MultiSelect in _options);
-
-  var currentSelection := _selectionInfo.Clone;
-
-  if _view <> nil then
-    for var row in _view.ActiveViewRows do
-      _selectionInfo.AddToSelection(row.DataIndex, row.ViewListIndex, row.DataItem);
-
-  // keep current selected item
-  _selectionInfo.AddToSelection(currentSelection.DataIndex, currentSelection.ViewListIndex, currentSelection.DataItem);
+  DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionChangedBy)
 end;
 
 procedure TStaticDataControl.SetBasicHorzScrollBarValues;
@@ -703,11 +690,7 @@ end;
 procedure TStaticDataControl.ColumnVisibilityChanged(const Column: IDCTreeColumn);
 begin
   if _view <> nil then
-    for var row in _view.ActiveViewRows do
-    begin
-      var rowInfo := _view.RowLoadedInfo(Row.ViewListIndex);
-      rowInfo.OnRowOutOfView;
-    end;
+    _view.ClearViewRecInfo;
 
   RequestRealignContent;
 end;
@@ -891,12 +874,12 @@ begin
   end;
 end;
 
-procedure TStaticDataControl.DoCellSelected(const Cell: IDCTreeCell);
+procedure TStaticDataControl.DoCellSelected(const Cell: IDCTreeCell; SelectionChangedBy: TSelectionChangedBy);
 begin
   if Assigned(_cellSelected) then
   begin
     var args: DCCellSelectedEventArgs;
-    AutoObject.Guard(DCCellSelectedEventArgs.Create(Cell), args);
+    AutoObject.Guard(DCCellSelectedEventArgs.Create(Cell, SelectionChangedBy), args);
 
     _cellSelected(Self, args);
   end;
@@ -965,8 +948,7 @@ begin
   _frozenRectLine.Height := _content.Height;
 
   if _autoFitColumns and (_view <> nil) then
-    for var row in _view.ActiveViewRows do
-      _view.RowLoadedInfo(Row.ViewListIndex).OnRowOutOfView;
+    _view.ClearViewRecInfo;
 end;
 
 function TStaticDataControl.CreateDummyRowForChanging(const FromSelectionInfo: IRowSelectionInfo): IDCRow;
@@ -997,8 +979,6 @@ begin
   if not changed and not (ssCtrl in Shift) then
   begin
     ScrollSelectedIntoView(RequestedSelectionInfo);
-    DoCellSelected(GetActiveCell);
-
     Exit;
   end;
 
@@ -1024,7 +1004,6 @@ begin
   end;
 
   DoCellChanged(oldCell, newCell);
-  DoCellSelected(newCell);
 
   Result := True;
 end;
@@ -1037,6 +1016,8 @@ begin
 
   if (treeSelectionInfo.SelectedFlatColumn <> flatColumn.Index) then
   begin
+    _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
+
     var requestedSelection := _selectionInfo.Clone as ITreeSelectionInfo;
     requestedSelection.UpdateLastSelection(_view.GetDataIndex(rowViewListIndex), rowViewListIndex, _view.GetViewList[rowViewListIndex]);
     requestedSelection.SelectedFlatColumn := flatColumn.Index;
@@ -1297,11 +1278,6 @@ begin
   inherited;
 
   (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumns.Clear;
-end;
-
-procedure TStaticDataControl.ClearSelections;
-begin
-  _selectionInfo.UpdateSingleSelection(_selectionInfo.DataIndex, _selectionInfo.ViewListIndex, _selectionInfo.DataItem);
 end;
 
 procedure TStaticDataControl.InitLayout;
