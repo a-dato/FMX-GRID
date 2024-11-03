@@ -371,6 +371,10 @@ procedure TPropertyEditor.LoadProperties;
     begin
       propInfo := properties[i];
 
+      {$IFDEF DEBUG}
+      var propName: string := propInfo.Name;
+      {$ENDIF}
+
       try
         propertyValue := propInfo.GetValue(TargetObject, []);
       except
@@ -408,14 +412,18 @@ procedure TPropertyEditor.LoadProperties;
       else
       begin
         t := propInfo.GetType;
-        if t.IsInterfaceType then
+
+        if t.IsOrdinalType then // Like CString/CObject etc...
+          SubProperties := nil
+
+        else if t.IsInterfaceType then
         begin
           if propertyValue = nil then
             continue;
 
           SubProperties := propertyValue.GetType.GetProperties;
         end else
-          SubProperties := propInfo.GetType.GetProperties;
+          SubProperties := t.GetProperties;
 
         if Length(SubProperties) > 0 then
           //

@@ -54,7 +54,7 @@ uses
   value
 
   Special functions supported. IF, EMPTY, LEN, AND, OR, CONCATENATE, CONCAT, REPL,
-  LEFT, RIGHT, SUBSTR, COMPARE, ISNA, ROUND, NOT, EVALUATE, INDEXOF
+  LEFT, RIGHT, SUBSTRING, COMPARE, ISNA, ROUND, NOT, EVALUATE, INDEXOF
   Special functions use either a single parameter of type other than
   their return type, or work with multiple parameters).
 
@@ -1095,7 +1095,29 @@ begin
       FExpression := ParamList[1].ToString;
       Result := CMath.Round(CDouble(Self.ResultValue));
     end
-    else if FuncName = 'ISVarNA' then
+    else if (FuncName = 'SUBSTRING') then
+    begin
+      if ParamList.Count <> 3 then
+        RaiseError(ADatoResources.WrongParamCount);
+
+      SaveContext(SavedContext);
+
+      FExpression := ParamList[0].ToString;
+      var text := ResultValue.GetValue<string>('');
+      if text = '' then Exit('');
+
+      FExpression := ParamList[1].ToString;
+      var start := ResultValue.GetValue<Integer>(-1);
+      if start = -1 then RaiseError(ADatoResources.SyntaxError);
+
+      FExpression := ParamList[2].ToString;
+      var stop := ResultValue.GetValue<Integer>(-1);
+      if stop = -1 then RaiseError(ADatoResources.SyntaxError);
+
+      Result := text.Substring(start, stop);
+    end
+
+    else if FuncName = 'ISVARNA' then
     begin
       if ParamList.Count <> 1 then
         RaiseError(ADatoResources.WrongParamCount);
@@ -1593,6 +1615,12 @@ begin
   begin
 		{$IFDEF DELPHI}
     Result := FContextType.PropertyByName(IdentName);
+
+    // Custom property?
+    var cp: ICustomProperties;
+    if (Result = nil) and Interfaces.Supports<ICustomProperties>(Context, cp) then
+      Result := cp.GetPropertyByName(IdentName);
+
     FContextProperties[IdentName] := Result {can be nil};
 
     if (FTracker <> nil) and (Result <> nil) then
@@ -3979,7 +4007,7 @@ begin
   _internalFunctions := StringToSortedList('TRUNC-INT-FRAC-SIN-COS-TAN-ATAN-LN-EXP-SIGN-SGN-XSGN');
   _specialFunctions := StringToSortedList(
     'IF-EMPTY-LEN-AND-OR-CONTAINS-INDEXOF-CONCATENATE-CONCAT-REPL-LEFT-RIGHT-' +
-    'SUBSTR-TOSTR-COMPARE-COMPARESTR-COMPARETEXT-ROUND-ISVARNA-' +
+    'SUBSTRING-TOSTR-COMPARE-COMPARESTR-COMPARETEXT-ROUND-ISVARNA-' +
     'ISFORMULANA-NOT-' +
     'EVALUATE-SUM-MAX-MIN-AVG-COUNT-ALL-CHILDS-NOW-DATEADD');
 

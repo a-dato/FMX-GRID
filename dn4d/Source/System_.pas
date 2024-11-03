@@ -265,11 +265,13 @@ type
     function  IsInterfaceType: Boolean;
     function  IsObjectType: Boolean;
     function  IsRecordType: Boolean;
+    function  IsOrdinalType: Boolean;
     function  IsNumber: Boolean;
     function  IsEnum: Boolean;
     function  IsSet: Boolean;
     function  IsString: Boolean;
     function  IsUnknown: Boolean;
+
     class function Unknown: &Type; static;
     class function Null: &Type; static;
 
@@ -4234,6 +4236,19 @@ end;
 function &Type.IsRecordType: Boolean;
 begin
   Result := _TypeInfo.Kind = tkRecord;
+end;
+
+function &Type.IsOrdinalType: Boolean;
+begin
+  Result := (_TypeInfo.Kind = tkRecord) and
+            (
+              (_TypeInfo = TypeInfo(CObject)) or
+              (_TypeInfo = TypeInfo(CString)) or
+              (_TypeInfo = TypeInfo(CDateTime)) or
+              (_TypeInfo = TypeInfo(CDouble)) or
+              // (_TypeInfo = TypeInfo(&Type)) or
+               Assembly.IsRegisteredEnum(Self)
+            );
 end;
 
 function &Type.IsArray: Boolean;
