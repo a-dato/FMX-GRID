@@ -18,7 +18,6 @@ type
 
     _control: TControl;
 
-    _onExpandCOllapseClick: TDoRowExpandCollapse;
     _isHeaderRow: Boolean;
 
     _selectionRect: TControl;
@@ -38,11 +37,9 @@ type
     function  get_IsHeaderRow: Boolean;
     procedure set_IsHeaderRow(const Value: Boolean);
 
-    procedure OnExpandCollapseClick(Sender: TObject);
     procedure UpdateControlVisibility;
   public
     constructor Create; reintroduce; overload;
-    constructor Create(OnExpandCOllapseClick: TDoRowExpandCollapse); reintroduce; overload;
     destructor Destroy; override;
 
     procedure UpdateSelectionVisibility(IsSelected, OwnerIsFocused: Boolean);
@@ -70,6 +67,7 @@ type
     _updateCount: Integer;
 
     _changedBy: TSelectionChangedBy;
+    _allowNoneSelected: Boolean;
 
     function  get_DataIndex: Integer;
     function  get_DataItem: CObject;
@@ -79,6 +77,7 @@ type
     procedure set_ForceScrollToSelection(const Value: Boolean);
     function  get_ChangedBy: TSelectionChangedBy;
     procedure set_ChangedBy(const Value: TSelectionChangedBy);
+    procedure set_AllowNoneSelected(const Value: Boolean);
 
     procedure set_OnSelectionInfoChanged(const Value: TProc);
 
@@ -201,12 +200,6 @@ begin
   _virtualYPosition := -1;
 end;
 
-constructor TDCRow.Create(OnExpandCOllapseClick: TDoRowExpandCollapse);
-begin
-  Create;
-  _onExpandCOllapseClick := OnExpandCOllapseClick;
-end;
-
 destructor TDCRow.Destroy;
 begin
   _selectionRect.Free;
@@ -285,12 +278,6 @@ begin
   Result := _virtualYPosition = -1;
 end;
 
-procedure TDCRow.OnExpandCollapseClick(Sender: TObject);
-begin
-  if Assigned(_onExpandCOllapseClick) then
-    _onExpandCOllapseClick(_ViewListIndex);
-end;
-
 procedure TDCRow.set_Control(const Value: TControl);
 begin
   var wasSelected := _selectionRect <> nil;
@@ -365,14 +352,23 @@ end;
 procedure TRowSelectionInfo.ClearAllSelections;
 begin
   ClearMultiSelections;
-  _lastSelectedDataIndex := -1;
-  _lastSelectedViewListIndex := -1;
-  _lastSelectedDataItem := nil;
+
+  if _lastSelectedDataIndex <> -1 then
+  begin
+    _lastSelectedDataIndex := -1;
+    _lastSelectedViewListIndex := -1;
+    _lastSelectedDataItem := nil;
+    _selectionChanged := True;
+  end;
 end;
 
 procedure TRowSelectionInfo.ClearMultiSelections;
 begin
-  _multiSelection.Clear;
+  if _multiSelection.Count > 0 then
+  begin
+    _multiSelection.Clear;
+    _selectionChanged := True;
+  end;
 end;
 
 function TRowSelectionInfo.GetSelectionInfo(const DataIndex: Integer): IRowSelectionInfo;
@@ -390,7 +386,7 @@ end;
 
 function TRowSelectionInfo.get_ChangedBy: TSelectionChangedBy;
 begin
-
+  Result := _changedBy;
 end;
 
 function TRowSelectionInfo.get_DataIndex: Integer;
@@ -428,9 +424,14 @@ begin
   Result := _multiSelection.Count;
 end;
 
+procedure TRowSelectionInfo.set_AllowNoneSelected(const Value: Boolean);
+begin
+  _allowNoneSelected := Value;
+end;
+
 procedure TRowSelectionInfo.set_ChangedBy(const Value: TSelectionChangedBy);
 begin
-
+  _changedBy := Value;
 end;
 
 procedure TRowSelectionInfo.set_ForceScrollToSelection(const Value: Boolean);
@@ -449,6 +450,7 @@ begin
   (Result as IRowSelectionInfo).UpdateSingleSelection(_lastSelectedDataIndex, _lastSelectedViewListIndex, _lastSelectedDataItem);
 
   Result.LastSelectionChangedBy := _changedBy;
+  Result.AllowNoneSelected := _allowNoneSelected;
 end;
 
 function TRowSelectionInfo.CreateInstance: IRowSelectionInfo;
@@ -459,7 +461,16 @@ end;
 procedure TRowSelectionInfo.Deselect(const DataIndex: Integer);
 begin
   if (_multiSelection.Count <= 1) or not _multiSelection.ContainsKey(DataIndex) then
+  begin
+    if _allowNoneSelected then
+    begin
+      if _multiSelection.ContainsKey(DataIndex) then
+        _multiSelection.Remove(DataIndex);
+      UpdateLastSelection(-1, -1, nil);
+    end;
+
     Exit;
+  end;
 
   // UpdateLastSelection triggers DoSelectionInfoChanged
   // therefor work with Update locks
@@ -502,19 +513,24 @@ end;
 
 procedure TRowSelectionInfo.AddToSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
 begin
-  // add single selection if needed
-  var prevInfo: IRowSelectionInfo := nil;
-  if (_lastSelectedViewListIndex <> -1) {and not _multiSelection.ContainsKey(_lastSelectedDataIndex)} then
-    prevInfo := Clone;
+  BeginUpdate;
+  try
+    // add single selection if needed
+    var prevInfo: IRowSelectionInfo := nil;
+    if (_lastSelectedViewListIndex <> -1) {and not _multiSelection.ContainsKey(_lastSelectedDataIndex)} then
+      prevInfo := Clone;
 
-  UpdateLastSelection(DataIndex, ViewListIndex, DataItem);
+    UpdateLastSelection(DataIndex, ViewListIndex, DataItem);
 
-  if prevInfo <> nil then
-    _multiSelection[prevInfo.DataIndex] := prevInfo;
+    if prevInfo <> nil then
+      _multiSelection[prevInfo.DataIndex] := prevInfo;
 
-  var info: IRowSelectionInfo := CreateInstance as IRowSelectionInfo;
-  info.UpdateSingleSelection(DataIndex, ViewListIndex, DataItem);
-  _multiSelection[info.DataIndex] := info;
+    var info: IRowSelectionInfo := CreateInstance as IRowSelectionInfo;
+    info.UpdateSingleSelection(DataIndex, ViewListIndex, DataItem);
+    _multiSelection[info.DataIndex] := info;
+  finally
+    EndUpdate;
+  end;
 end;
 
 function TRowSelectionInfo.SelectedDataIndexes: List<Integer>;
@@ -525,7 +541,8 @@ begin
   begin
     for var item in _multiSelection.Values do
       Result.Add(item.DataIndex)
-  end else
+  end
+  else if _lastSelectedDataIndex <> -1 then
     Result.Add(_lastSelectedDataIndex);
 end;
 

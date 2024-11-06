@@ -59,7 +59,7 @@ type
     procedure ViewLoadingStart(const TotalStartYPosition, TotalStopYPosition, DefaultRowHeight: Single);
     procedure ViewLoadingFinished;
     procedure ViewLoadingRemoveNonUsedRows(const TillSpecifiedViewFrameIndex: Integer = -1; const FromTop: Boolean = True);
-    procedure ClearView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
+    procedure ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
     procedure ClearViewRecInfo(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
     procedure RecalcSortedRows;
     function  GetViewList: IList;

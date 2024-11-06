@@ -69,6 +69,7 @@ type
     procedure set_ForceScrollToSelection(const Value: Boolean);
     function  get_ChangedBy: TSelectionChangedBy;
     procedure set_ChangedBy(const Value: TSelectionChangedBy);
+    procedure set_AllowNoneSelected(const Value: Boolean);
 
     procedure set_OnSelectionInfoChanged(const Value: TProc);
 
@@ -100,6 +101,7 @@ type
     property ForceScrollToSelection: Boolean read get_ForceScrollToSelection write set_ForceScrollToSelection;
     property LastSelectionChangedBy: TSelectionChangedBy read get_ChangedBy write set_ChangedBy;
 
+    property AllowNoneSelected: Boolean write set_AllowNoneSelected;
     property OnSelectionInfoChanged: TProc write set_OnSelectionInfoChanged;
   end;
 

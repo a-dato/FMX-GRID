@@ -1,0 +1,349 @@
+object frmFMXPopupMenu: TfrmFMXPopupMenu
+  Left = 480
+  Top = 300
+  BorderStyle = None
+  Caption = 'Form1'
+  ClientHeight = 344
+  ClientWidth = 206
+  Padding.Left = 3.000000000000000000
+  Padding.Top = 3.000000000000000000
+  Padding.Right = 3.000000000000000000
+  Padding.Bottom = 3.000000000000000000
+  Position = Designed
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCloseQuery = FormCloseQuery
+  OnDeactivate = FormDeactivate
+  Left = 480
+  Top = 300
+  DesignerMasterStyle = 0
+  object Rectangle1: TRectangle
+    Align = Contents
+    Fill.Color = xFFFDFDFE
+    HitTest = False
+    Size.Width = 206.000000000000000000
+    Size.Height = 344.000000000000000000
+    Size.PlatformDefault = False
+    Stroke.Color = xFFE3E3E3
+  end
+  object PopupListBox: TListBox
+    Align = Top
+    Position.X = 3.000000000000000000
+    Position.Y = 3.000000000000000000
+    Size.Width = 200.000000000000000000
+    Size.Height = 144.000000000000000000
+    Size.PlatformDefault = False
+    StyleLookup = 'ma_listbox_no_border'
+    TabOrder = 1
+    DisableFocusEffect = True
+    Images = ImageListPopup
+    DefaultItemStyles.ItemStyle = ''
+    DefaultItemStyles.GroupHeaderStyle = ''
+    DefaultItemStyles.GroupFooterStyle = ''
+    Viewport.Width = 196.000000000000000000
+    Viewport.Height = 140.000000000000000000
+    object lbiSortSmallToLarge: TListBoxItem
+      ImageIndex = 0
+      Size.Width = 196.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      Text = 'Sort smallest to largest'
+      OnClick = lbiSortSmallToLargeClick
+    end
+    object lbiSortLargeToSmall: TListBoxItem
+      ImageIndex = 1
+      Position.Y = 22.000000000000000000
+      Size.Width = 196.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      Text = 'Sort largest to smallest'
+      OnClick = lbiSortLargeToSmallClick
+    end
+    object lbiDelimiter2: TListBoxItem
+      Position.Y = 44.000000000000000000
+      Size.Width = 196.000000000000000000
+      Size.Height = 1.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = 'popupitemdelimiter'
+      TabOrder = 7
+    end
+    object lbiAddColumnAfter: TListBoxItem
+      ImageIndex = 6
+      Position.Y = 45.000000000000000000
+      Size.Width = 196.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 6
+      Text = 'Add column after...'
+      OnClick = lbiAddColumnAfterClick
+    end
+    object lbiHideColumn: TListBoxItem
+      ImageIndex = 5
+      Position.Y = 67.000000000000000000
+      Size.Width = 196.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 3
+      Text = 'Hide column'
+      OnClick = lbiHideColumnClick
+    end
+    object lbiDelimiter: TListBoxItem
+      Selectable = False
+      Position.Y = 89.000000000000000000
+      Size.Width = 196.000000000000000000
+      Size.Height = 1.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = 'popupitemdelimiter'
+      TabOrder = 5
+    end
+    object lbiClearFilter: TListBoxItem
+      StyledSettings = [Family, Size, Style, Other]
+      ImageIndex = 2
+      Position.Y = 90.000000000000000000
+      Size.Width = 196.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 2
+      Text = 'Clear filter'
+      OnClick = lbiClearFilterClick
+    end
+    object lbiClearSortAndFilter: TListBoxItem
+      ImageIndex = 3
+      Position.Y = 112.000000000000000000
+      Size.Width = 196.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 4
+      Text = 'Clear sort and filter'
+      OnClick = lbiClearSortAndFilterClick
+    end
+  end
+  object filterlist: TRectangle
+    Align = Client
+    Fill.Color = xFFEBECF0
+    Padding.Right = 2.000000000000000000
+    Size.Width = 200.000000000000000000
+    Size.Height = 194.000000000000000000
+    Size.PlatformDefault = False
+    Stroke.Color = xFFBCBCBC
+    XRadius = 3.000000000000000000
+    YRadius = 3.000000000000000000
+    object Layout1: TLayout
+      Align = Top
+      Margins.Left = 3.000000000000000000
+      Margins.Top = 3.000000000000000000
+      Margins.Right = 3.000000000000000000
+      Position.X = 3.000000000000000000
+      Position.Y = 3.000000000000000000
+      Size.Width = 192.000000000000000000
+      Size.Height = 26.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      object cbSelectAll: TCheckBox
+        Align = Left
+        Hint = 'Select all'
+        Size.Width = 16.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        OnClick = cbSelectAllClick
+      end
+      object edSearch: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Client
+        TabOrder = 1
+        Margins.Left = 3.000000000000000000
+        Margins.Right = 3.000000000000000000
+        Size.Width = 122.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TextPrompt = 'Search...'
+        OnChangeTracking = edSearchChangeTracking
+      end
+      object btnApplyFilters: TButton
+        Align = Right
+        Hint = 'Apply filters'
+        Position.X = 144.000000000000000000
+        Size.Width = 48.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
+        Text = 'Apply'
+        TextSettings.Trimming = None
+        OnClick = btnApplyFiltersClick
+      end
+      object Line1: TLine
+        Align = Bottom
+        LineType = Bottom
+        Margins.Left = 3.000000000000000000
+        Margins.Top = 3.000000000000000000
+        Margins.Right = 3.000000000000000000
+        Position.X = 3.000000000000000000
+        Position.Y = 25.000000000000000000
+        Size.Width = 186.000000000000000000
+        Size.Height = 1.000000000000000000
+        Size.PlatformDefault = False
+        Stroke.Color = xFF8A8A8A
+      end
+    end
+  end
+  object Timer1: TTimer
+    Enabled = False
+    Interval = 250
+    OnTimer = Timer1Timer
+    Left = 139
+    Top = 227
+  end
+  object ImageListPopup: TImageList
+    Source = <
+      item
+        MultiResBitmap.Height = 24
+        MultiResBitmap.Width = 168
+        MultiResBitmap.LoadSize = 0
+        MultiResBitmap = <
+          item
+            Width = 168
+            Height = 24
+            PNG = {
+              89504E470D0A1A0A0000000D49484452000000A80000001808060000006E81B6
+              C10000000473424954080808087C086488000007EC494441546881ED9A7F4C94
+              E71DC03F77BCF70207A2A38881523737658A534C116264AD593675BD7F363517
+              D775344E8CC98235A68CB55B50DF2A6EEB2873B430BB252E4D8C73F33A29BAA1
+              63BF2E59E8A28CF410ED0A32CC90C228D8F2E3B8C3BB7BEFF6C77BD4EB713FDE
+              FBA1DC944FF2E672F73CF7B9E7E07BCFFB7DBECF03F3CC93C068E67A00F3CC0D
+              922469376DDAA40DD76FE7CE9D8FD86C36B7D56A1D990BFF7C803E846CD9B2A5
+              E8DAB56BBBAD56EB233A9DCE1EAAAFD3E94C5DBA74696F6E6EEE85D6D6D6CBF7
+              DBFF2005E8378027801E95FDD3BDD78F81F187C00F80D1684C32994C174551FC
+              A0BCBCFC505A5A9A0720252585E4E4E48FFB8D8F8F333D3D8DC562C9BC72E5CA
+              01A7D3B9F0F0E1C3DB254972DD4FBF00B4FA7DC616B55FD69723478ED4D6D5D5
+              159695955536343474F9349D061647A01A019EF17FF1E0C1836B8E1F3FFEA2D5
+              6A9DD5E6E5EBC01D609DCACFC904DC4009F02715FD13CD0FB028023F00AB57AF
+              D6984C26F47AFD8D13274EDC043C61DE7273F1E2C5DD2323234FE6E4E4849DD0
+              E2ED178832207D9124A9F6E8D1A3854EA793A6A6A6BA7DFBF6F90669B0808A08
+              9BCDB6CE6AB5860AF4DF00DF065E00DE53A1FC115000FC4DE51012CD7F04188B
+              C01F358220D8341ACDF45CF8C326B1E19024A9B6B1B1B170F7EEDD9D00B9B9B9
+              9DDE205D13AB3B42DE02DE010E014961FAAE010A518221E42D2B81FD8FA3DCDE
+              D5FAA3263D3DBD6BD9B26517CF9C39136E368CBB3FA600ADA9A9A96D6C6C2C2C
+              2E2EAE1404E12A407B7B7BD51C06E94B2879F50B21FA088004FC1E753355A2FA
+              5B80E108FD1161341A93F2F3F3B3FAFAFA92070606C68686865289E3BA458D3F
+              500E3A43C85B7F797979597D7D7D61717171654B4B4B574545C5C7B9537B7B7B
+              555151516D5353531D4A4E193207D56AB5236EB73B1EA98007D80B9880DF01DD
+              01FAFC02B0033F7F08FDAAC9CDCDD53737373FE770389E00466459D67677777F
+              53A7D35D282D2DFD95D96C8E69E656EB8F3A071D1A1AB26CDCB8D1D2DCDCDC15
+              A8BDA3A3A36AFBF6ED65E7CE9D3B8DB258088ADB1DB219005996D50E6D12F83E
+              F013E06B7E6D654016F0B45AD903E85783303C3CFCB22CCB69797979CFEED9B3
+              676270705073E9D2A5C7FAFBFBABDBDADA1CC01B09EC9FCDFEFDFBCB083E1BC7
+              CC81030722F5BF06BCEAF37C01F00760639C86F47FE9972449005A172D5A7498
+              20B7EBD4D4D447813733333333FCDB56AC58B10A38EDF5C4C52F8A62B5200887
+              02F9635E242530CF039F031EF53E3F82323BBDED7DAE014ABDFDAAB93B3B2592
+              3F2784FF5EB214C858B972658A200887B45AED09EFF5EAC4C4443F300D88F1F2
+              3B9DCE0DB22C9704F287CA416750950268B541633D2EFE28700256E053C0FBDE
+              4793B72D0538CCDDEF3F01AC4299B55E435D10A8F2EF5FB7E0DAE3D929E33FB3
+              8C2DB07CE08CD4AF0FE2BFA7E8743ACFF4F4B45D1445B756AB757B3C1E374052
+              52D2C492254B181E8E6D6DE6EF9765D90368044198E58F4B1D340C71F1ABC953
+              03E05FB698F43E7E07E59FDEE8D3E732F017E065E03FDEF698FCF29EBC151A8D
+              F61980673F9DCAE8B4E79FD9A76EED8BC0AF0BE2BFA7389DCE5B1E8F47DBDFDF
+              EF74381C3533AFCBB28CCD662B0092CD66B3235E7E51146B5C2E5786C3E1A8F6
+              F73FC8B778089C032D44D97DF925B303EC16CAEAD97F7112B1DFF9746EA6C6E6
+              59C594CCCC9525BBD7FF70DD024B04FE39C16EB70F8BA2D8D9D7D7773C3F3F3F
+              6BEFDEBD3AA3D128E6E5E5ADE8EDEDADD2E974ADB1ACE2FDFDBB76ED7A69C78E
+              1DDF0DE417508234AAE9E95E623018D6E8743A66AA048156F1DE2AC1A9109A40
+              85E565402FE04099DDD77A5FD700AF039D4085CA6106F527D93D5FFCEF1DD7E0
+              97FFFE61EFBFACAEE955E9424AE757B2963CFF19FDFA1F5826D5CC9E73892B3B
+              3BFBD8EDDBB7F7F5F4F4BCDED3D36345F9FB64EA74BAF3A5A5A5BF369BCDF7C5
+              2F00A788439D322929E8E6475475D69C9C9C75E7CF9F2F33180C952D2D2DB34A
+              59454545B5972F5F2E44197F24DC01664E2DDC44A929FAB6A5A024E9D1A2F8ED
+              2E32DD1EFD2BF9697706A6E5496052B0CB4F3ADCEEF118FDF785818101BBD168
+              FC695757D7A21B376E6CD56AB519252525A7DBDADAAC66B339E61D25B57E0115
+              7BE551E67F334495839E3C79F2544D4DCDDAFAFAFA3A83C150E9DB565C5C5C3B
+              383858B86DDBB6CA868686501ADF5B70AAF7F1DFC063283FCA1BDECB974D8045
+              E53083FA27275D5716683D254FE9359BD17B2B32534EBEF59EED2AEA4F2CF992
+              1ABE4B7C31994C32707BF9F2E553A3A3A3EB376FDE6C6F6B6B8BDB76A71A7F42
+              E7A0D5D5D5551515159DEDEDED752E976B2DCC0ACE809B043EE8806C941F6132
+              4A99C78172C2EA20CA69205FB600EB81F32A8718D4BFF0ED8F325C939EDB4C79
+              98B9BA3F7475BF39EAF86C047E5066745FFF7D677C7C7CCDD8D8D817D49C668A
+              B73F60B135919024A94A92A4DA63C78E150244109CA0D4D2BE87B2FABD807262
+              08947D720138015CE56E99C909BCC8276FFB51FBC5CEF19D05A2F61F863441F7
+              CA478E0C94831D91F8DF47D9771781DFFAF81F1A04E2745E53AFD75BD2D3D3BF
+              6AB55AFD9B623E6F2A4952D5CC79D30882139443C05A9400F4E72DE0CF288B24
+              BD779CBD843FBF1891FF5D877BEDBB0E871EA5B414A9FFB910FEA8B87EFDBA07
+              606A6A2A7FC3860D25050505630E870351143F71A07872F26E45EBECD9B39F07
+              181A1A0A3BF678FB1FA413F5F3A864EBD6AD85A3A3A3868E8E8E2FA9E95F5454
+              F4D7ECECEC3F5EBC78F19D44F0CFF3F09085324985BAB2809509EA9F679EB9E5
+              7F58C034B83438282E0000000049454E44AE426082}
+            FileName = 
+              'C:\adato\adato_scheduler_master\FMXGrid\ImageList strip 7x24x24.' +
+              'png'
+          end>
+        Name = 'ImageList strip 7x24x24'
+      end>
+    Destination = <
+      item
+        Layers = <
+          item
+            Name = 'ImageList strip 7x24x24'
+            SourceRect.Right = 24.000000000000000000
+            SourceRect.Bottom = 24.000000000000000000
+          end>
+      end
+      item
+        Layers = <
+          item
+            Name = 'ImageList strip 7x24x24'
+            SourceRect.Left = 24.000000000000000000
+            SourceRect.Right = 48.000000000000000000
+            SourceRect.Bottom = 24.000000000000000000
+          end>
+      end
+      item
+        Layers = <
+          item
+            Name = 'ImageList strip 7x24x24'
+            SourceRect.Left = 48.000000000000000000
+            SourceRect.Right = 72.000000000000000000
+            SourceRect.Bottom = 24.000000000000000000
+          end>
+      end
+      item
+        Layers = <
+          item
+            Name = 'ImageList strip 7x24x24'
+            SourceRect.Left = 72.000000000000000000
+            SourceRect.Right = 96.000000000000000000
+            SourceRect.Bottom = 24.000000000000000000
+          end>
+      end
+      item
+        Layers = <
+          item
+            Name = 'ImageList strip 7x24x24'
+            SourceRect.Left = 96.000000000000000000
+            SourceRect.Right = 120.000000000000000000
+            SourceRect.Bottom = 24.000000000000000000
+          end>
+      end
+      item
+        Layers = <
+          item
+            Name = 'ImageList strip 7x24x24'
+            SourceRect.Left = 120.000000000000000000
+            SourceRect.Right = 144.000000000000000000
+            SourceRect.Bottom = 24.000000000000000000
+          end>
+      end
+      item
+        Layers = <
+          item
+            Name = 'ImageList strip 7x24x24'
+            SourceRect.Left = 144.000000000000000000
+            SourceRect.Right = 168.000000000000000000
+            SourceRect.Bottom = 24.000000000000000000
+          end>
+      end>
+    Left = 48
+    Top = 208
+  end
+end

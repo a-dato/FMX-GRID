@@ -177,6 +177,21 @@ type
     property Cell: IDCTreeCell read  _Cell;
   end;
 
+  ColumnChangedByUserEventArgs = class(EventArgs)
+  protected
+//    _Accept: Boolean;
+//    _hitInfo: ITreeHitInfo;
+    _column: IDCTreeColumn;
+    _newWidth: Single;
+//    _newPosition: Integer;
+
+  public
+    constructor Create(const Column: IDCTreeColumn; NewWidth: Single);
+
+    property Column: IDCTreeColumn read _column;
+    property NewWidth: Single read _newWidth write _newWidth;
+  end;
+
   CellLoadingEvent = procedure(const Sender: TObject; e: DCCellLoadingEventArgs) of object;
   CellLoadedEvent  = procedure(const Sender: TObject; e: DCCellLoadedEventArgs) of object;
   CellFormattingEvent  = procedure (const Sender: TObject; e: DCCellFormattingEventArgs) of object;
@@ -196,6 +211,8 @@ type
   StartEditEvent  = procedure(const Sender: TObject; e: DCStartEditEventArgs) of object;
   EndEditEvent  = procedure(const Sender: TObject; e: DCEndEditEventArgs) of object;
   CellParsingEvent = procedure(const Sender: TObject; e: DCCellParsingEventArgs) of object;
+
+  ColumnChangedByUserEvent = procedure (const Sender: TObject; e: ColumnChangedByUserEventArgs) of object;
 
 implementation
 
@@ -330,6 +347,16 @@ constructor DCCellSelectedEventArgs.Create(const ACell: IDCTreeCell; SelChangedB
 begin
   inherited Create(ACell);
   SelectionChangedBy := SelChangedBy;
+end;
+
+{ ColumnChangedByUserEventArgs }
+
+constructor ColumnChangedByUserEventArgs.Create(const Column: IDCTreeColumn; NewWidth: Single);
+begin
+  inherited Create;
+
+  _column := Column;
+  _newWidth := NewWidth;
 end;
 
 end.

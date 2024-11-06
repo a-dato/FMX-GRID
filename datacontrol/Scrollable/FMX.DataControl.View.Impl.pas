@@ -65,7 +65,7 @@ type
     procedure ViewLoadingStart(const VirtualYPositionStart, VirtualYPositionStop, DefaultRowHeight: Single);
     procedure ViewLoadingFinished;
     procedure ViewLoadingRemoveNonUsedRows(const TillSpecifiedViewIndex: Integer = -1; const FromTop: Boolean = True);
-    procedure ClearView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
+    procedure ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
     procedure ClearViewRecInfo(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
     procedure RecalcSortedRows;
     function  GetViewList: IList;
@@ -131,7 +131,7 @@ begin
     _comparer.Comparer.OnComparingChanged := procedure begin OnViewChanged end;
   end;
 
-  ClearView;
+  ResetView;
 end;
 
 destructor TDataViewList.Destroy;
@@ -431,7 +431,7 @@ begin
     _dataModelView.Refresh;
 end;
 
-procedure TDataViewList.ClearView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
+procedure TDataViewList.ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
 begin
   if FromViewListIndex = -1 then
   begin

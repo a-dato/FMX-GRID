@@ -15,7 +15,7 @@ uses
 
   ADato.Collections.Specialized, System.Collections.Specialized, FMX.StdCtrls,
   FMX.DataControl.ScrollableRowControl.Intf, System.Classes, System.SysUtils,
-  FMX.Layouts;
+  FMX.Layouts, System.UITypes;
 
 type
   TDCColumnSortAndFilter = class(TObservableObject, IDCColumnSortAndFilter)
@@ -121,10 +121,9 @@ type
     _frozen: Boolean;
     _readOnly: Boolean;
     _selectable: Boolean;
+    _allowResize: Boolean;
     _allowHide: Boolean;
     _format: CString;
-
-    _onVisibilityChanged: TProc;
 
     function  get_Visible: Boolean;
     procedure set_Visible(const Value: Boolean);
@@ -134,6 +133,8 @@ type
     procedure set_ReadOnly(const Value: Boolean);
     procedure set_Selectable(Value : Boolean);
     function  get_Selectable: Boolean;
+    function  get_AllowResize: Boolean;
+    procedure set_AllowResize(const Value: Boolean);
     function  get_AllowHide: Boolean;
     procedure set_AllowHide(const Value: Boolean);
     function  get_Format: CString;
@@ -141,7 +142,7 @@ type
 
     function Clone: IDCColumnVisualisation; virtual;
   public
-    constructor Create(const OnVisiblityChanged: TProc); reintroduce;
+    constructor Create; reintroduce;
 
     procedure Assign(const Source: IBaseInterface); reintroduce; overload; virtual;
 
@@ -150,6 +151,7 @@ type
     property Frozen: Boolean read get_Frozen write set_Frozen;
     property ReadOnly: Boolean read get_ReadOnly write set_ReadOnly;
     property Selectable: Boolean read get_Selectable write set_Selectable;
+    property AllowResize: Boolean read get_AllowResize write set_AllowResize;
     property AllowHide: Boolean read get_AllowHide write set_AllowHide;
     property Format: CString read get_Format write set_Format;
 
@@ -193,6 +195,7 @@ type
     function  get_Visible: Boolean;
     function  get_Frozen: Boolean;
     function  get_ReadOnly: Boolean;
+    function  get_AllowResize: Boolean;
     function  get_AllowHide: Boolean;
     function  get_ShowSortMenu: Boolean;
     function  get_ShowFilterMenu: Boolean;
@@ -226,8 +229,6 @@ type
     function  get_Hierarchy: IDCColumnHierarchy;
     procedure set_Hierarchy(const Value: IDCColumnHierarchy);
 
-    procedure OnVisibilityChanged;
-
   public
     constructor Create; override;
 
@@ -244,10 +245,11 @@ type
     property WidthMax: Single read get_WidthMax;
 
     // user actions
+    property AllowResize: Boolean read get_AllowResize;
     property AllowHide: Boolean read get_AllowHide;
     property ShowSortMenu: Boolean read get_ShowSortMenu;
     property ShowFilterMenu: Boolean read get_ShowFilterMenu;
-    property SortType: TSortType read get_SortType;
+    property TSortType: TSortType read get_SortType;
 
     property SubPropertyName: CString read get_SubPropertyName;
     property SubInfoControlClass: TInfoControlClass read get_SubInfoControlClass;
@@ -295,7 +297,7 @@ type
     function  FindColumnByPropertyName(const Name: CString) : IDCTreeColumn;
     function  FindColumnByTag(const Value: CObject) : IDCTreeColumn;
 
-    function  ColumnLayoutToJSON(const SystemLayout: TJSONObject): TJSONObject;
+    function  ColumnLayoutToJSON: TJSONObject;
     procedure RestoreColumnLayoutFromJSON(const Value: TJSONObject);
 
     function  Add(const Value: CObject): Integer; override;
@@ -310,14 +312,19 @@ type
 
   TTreeLayoutColumn = class(TBaseInterfacedObject, IDCTreeLayoutColumn)
   protected
-    _widthChangedByUser: Boolean;
     _column: IDCTreeColumn;
+    _treeControl: IColumnControl;
+
     _index: Integer;
     _left: Single;
     _width: Single;
+
+    _userHidColumn: Boolean;
+    _userWidth: Single;
+
     _HideColumnInView: Boolean;
 
-    [weak] _activeFilter: IListFilterDescription;
+    [weak] _activeFilter: ITreeFilterDescription;
     [weak] _activeSort: IListSortDescription;
 
     function  get_Column: IDCTreeColumn;
@@ -327,10 +334,14 @@ type
     procedure set_Left(Value: Single);
     function  get_Width: Single;
     procedure set_Width(Value: Single);
-    function  get_WidthChangedByUser: Boolean;
 
-    function  get_ActiveFilter: IListFilterDescription;
-    procedure set_ActiveFilter(const Value: IListFilterDescription);
+    function  get_ColumnWidthByUser: Single;
+    procedure set_ColumnWidthByUser(const Value: Single);
+    function  get_ColumnHiddenByUser: Boolean;
+    procedure set_ColumnHiddenByUser(const Value: Boolean);
+
+    function  get_ActiveFilter: ITreeFilterDescription;
+    procedure set_ActiveFilter(const Value: ITreeFilterDescription);
     function  get_ActiveSort: IListSortDescription;
     procedure set_ActiveSort(const Value: IListSortDescription);
     function  get_HideColumnInView: Boolean;
@@ -339,7 +350,7 @@ type
     procedure CreateCellBase(const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
 
   public
-    constructor Create(const AColumn: IDCTreeColumn);
+    constructor Create(const AColumn: IDCTreeColumn; const ColumnControl: IColumnControl);
 
     function  CreateInfoControl(const Cell: IDCTreeCell; const ControlClassType: TInfoControlClass): TControl;
 
@@ -374,14 +385,13 @@ type
 //    function  get_TotalWidth: Single;
 
   public
-    constructor Create(const Content: TControl; const ColumnList: IDCTreeColumnList); reintroduce;
+    constructor Create(const ColumnControl: IColumnControl); reintroduce;
 
     procedure UpdateColumnWidth(const FlatColumnIndex: Integer; const Width: Single);
     procedure RecalcColumnWidthsBasic;
     procedure RecalcColumnWidthsAutoFit;
 
     procedure ForceRecalc;
-
 
     function  HasFrozenColumns: Boolean;
     function  ContentOverFlow: Integer;
@@ -407,15 +417,7 @@ type
 
 
   TDCTreeCell = class(TBaseInterfacedObject, IDCTreeCell)
-//  strict private
-//    const LEFT_GRID_LINE_ID = 637850; // any number
-//    const HEIGHT_BORDER_OFFSET = 1.5;
-//    { workaround: when we create a border with lines, row by row, there is a gap between left vertical lines between
-//      the rows. It looks like vert. lines are not connected. Use this value + ACell.Control.Height + specHeightOffset.
-//      We cannot just increase height of the line to connect it with the next line from the next row -
-//      because next row will cover the line from upper row. That's why need to use both Y and Height + specHeightOffset.
-//      -0.7 this is an optimal number, less - there is still a gap, more - pixel crawls out of a border. }
-  strict private
+  protected
     _control: TControl; // can be custom user control, not only TCellControl
     _infoControl: TControl;
     _subInfoControl: TControl;
@@ -462,14 +464,28 @@ type
   end;
 
   THeaderCell = class(TDCTreeCell, IHeaderCell)
+  private
+//    procedure SplitterMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+//    procedure DoSplitterMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
+//    procedure SplitterMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+
+    procedure OnResizeControlMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+
   protected
     _sortControl: TControl;
     _filterControl: TControl;
+    _resizeControl: TControl;
+
+    _onHeaderCellResizeClicked: TOnHeaderCellResizeClicked;
 
     function  get_SortControl: TControl;
     procedure set_SortControl(const Value: TControl);
     function  get_FilterControl: TControl;
     procedure set_FilterControl(const Value: TControl);
+    function  get_ResizeControl: TControl;
+    procedure set_ResizeControl(const Value: TControl);
+
+    procedure set_OnHeaderCellResizeClicked(const Value: TOnHeaderCellResizeClicked);
 
   public
     function  IsHeaderCell: Boolean; override;
@@ -518,7 +534,6 @@ type
   TDataControlWaitForRepaintInfo = class(TWaitForRepaintInfo, IDataControlWaitForRepaintInfo)
   private
     _viewStateFlags: TTreeViewStateFlags;
-    _changedColumns: Dictionary<IDCTreeColumn, NotifyCollectionChangedAction>;
     _cellSizeUpdates: Dictionary<Integer {FlatColumnIndex}, Single>;
 
     function  get_ViewStateFlags: TTreeViewStateFlags;
@@ -556,13 +571,36 @@ type
 //    function  LastSelectedColumnIndex: Integer;
 //  end;
 
+    THeaderColumnResizeControl = class(TInterfacedObject, IHeaderColumnResizeControl)
+    private
+      [unsafe] _headerCell: IHeaderCell;
+      _content: TControl;
+      _treeControl: IColumnControl;
+
+//      _onResized: TNotifyEvent;
+
+      _columnResizeFullHeaderControl: TControl;
+      _columnResizeControl: TControl;
+
+//    procedure SplitterMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+      procedure DoSplitterMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
+      procedure DoSplitterMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+      procedure DoSplitterMouseLeave(Sender: TObject);
+
+      procedure StopResizing;
+
+    public
+      constructor Create(const Content: TControl; const TreeControl: IColumnControl); reintroduce;
+      procedure StartResizing(const HeaderCell: IHeaderCell);
+    end;
+
 
 implementation
 
 uses
   FMX.DataControl.ControlClasses, FMX.ActnList,
   ADato.Data.DataModel.intf, System.Types, FMX.Types, System.Math, FMX.Objects,
-  FMX.Graphics, FMX.ControlCalculations, System.UITypes;
+  FMX.Graphics, FMX.ControlCalculations, FMX.ImgList;
 
 { TDCTreeColumnList }
 
@@ -650,13 +688,14 @@ begin
   Value.AsType<TDCTreeColumn>.set_treeControl(_treeControl);
 end;
 
-function TDCTreeColumnList.ColumnLayoutToJSON(const SystemLayout: TJSONObject): TJSONObject;
+function TDCTreeColumnList.ColumnLayoutToJSON: TJSONObject;
 var
   arr: TJSONArray;
   co: TJSONObject;
   column: IDCTreeColumn;
   i: Integer;
   jo: TJSONObject;
+
 begin
   jo := TJSONObject.Create;
   arr := TJSONArray.Create;
@@ -686,6 +725,12 @@ begin
     if (column.Tag <> nil) and not CString.IsNullOrEmpty(column.Tag.ToString) then
       co.AddPair('Tag', column.Tag.ToString);
 
+    if (column.InfoControlClass <> TInfoControlClass.Text) then
+      co.AddPair('InfoControlClass', TJSONNumber.Create(Integer(column.InfoControlClass)));
+    co.AddPair('SubPropertyname', CStringToString(column.SubPropertyName));
+    if (column.SubInfoControlClass <> TInfoControlClass.Custom) then
+      co.AddPair('SubinfoControlClass', TJSONNumber.Create(Integer(column.SubInfoControlClass)));
+
     arr.AddElement(co);
   end;
 
@@ -704,25 +749,34 @@ var
   index: Integer;
   jv: TJSONValue;
   n: Integer;
-  propertyname: string;
+  propertyname, subPropertyname: string;
   visible: Boolean;
   w: Integer;
   readonly: Boolean;
+  infoCtrlClass, subinfoCtrlClass: Integer;
 
   procedure AddColumnToProjectControl;
   begin
-    if checkbox then
-      column := TDCTreeCheckboxColumn.Create else
-      column := TDCTreeColumn.Create;
-
+    column := TDCTreeColumn.Create;
     column.TreeControl := _treeControl;
     column.Caption := caption;
     column.PropertyName := StringToCString(propertyname);
+    column.Tag := StringToCString(tag_string);
+
+    column.InfoControlClass := TInfoControlClass(infoCtrlClass);
+
+    column.SubControlSettings.SubPropertyName := subPropertyname;
+    column.SubControlSettings.SubInfoControlClass := TInfoControlClass(subinfoCtrlClass);
+
+    column.WidthSettings.WidthType := TDCColumnWidthType.AlignToContent;
     column.Visualisation.ReadOnly := readonly;
+
     column.SortAndFilter.ShowSortMenu := True;
     column.SortAndFilter.ShowFilterMenu := True;
     column.SortAndFilter.Sort := TSortType.CellData;
-    column.Tag := StringToCString(tag_string);
+
+    column.Visualisation.AllowHide := True;
+    column.Visualisation.AllowResize := True;
 
     Insert(Index, column);
   end;
@@ -735,13 +789,19 @@ begin
       col := jv as TJSONObject;
 
       if not col.TryGetValue<string>('Caption', caption) then continue;
+      if not col.TryGetValue<string>('Tag', tag_string) then tag_string := '';
+
       if not col.TryGetValue<string>('Property', propertyName) then propertyName := '';
+      if not col.TryGetValue<Integer>('InfoControlClass', infoCtrlClass) then infoCtrlClass := Integer(TInfoControlClass.Text);
+
+      if not col.TryGetValue<string>('SubPropertyname', subPropertyname) then subPropertyname := '';
+      if not col.TryGetValue<Integer>('SubinfoControlClass', subinfoCtrlClass) then subinfoCtrlClass := Integer(TInfoControlClass.Custom);
+
       if not col.TryGetValue<Boolean>('Visible', visible) then visible := False;
       if not col.TryGetValue<Boolean>('ReadOnly', readonly) then readonly := True;
-      if not col.TryGetValue<Integer>('Width', w) then w := -1;
       if not col.TryGetValue<Boolean>('Checkbox', checkbox) then checkbox := False;
       if not col.TryGetValue<Integer>('Index', index) then index := -1;
-      if not col.TryGetValue<string>('Tag', tag_string) then tag_string := '';
+
 
       n := FindIndexByCaption(caption);
       if n = -1 then
@@ -797,13 +857,18 @@ begin
   _widthSettings := TDCColumnWidthSettings.Create;
   _sortAndFilter := TDCColumnSortAndFilter.Create;
   _subControlSettings := TDCColumnSubControlSettings.Create;
-  _visualisation := TDCColumnVisualisation.Create(OnVisibilityChanged);
+  _visualisation := TDCColumnVisualisation.Create;
   _hierarchy := TDCColumnHierarchy.Create;
 end;
 
 function TDCTreeColumn.get_AllowHide: Boolean;
 begin
   Result := _visualisation.AllowHide;
+end;
+
+function TDCTreeColumn.get_AllowResize: Boolean;
+begin
+  Result := _visualisation.AllowResize;
 end;
 
 function TDCTreeColumn.get_Caption: CString;
@@ -946,12 +1011,6 @@ begin
   Result := False;
 end;
 
-procedure TDCTreeColumn.OnVisibilityChanged;
-begin
-  if _treeControl <> nil then
-    _treeControl.ColumnVisibilityChanged(Self);
-end;
-
 function TDCTreeColumn.GetDefaultCellData(const Cell: IDCTreeCell; const CellValue: CObject; FormatApplied: Boolean): CObject;
 begin
   Result := CellValue;
@@ -1089,11 +1148,14 @@ end;
 
 { TTreeLayoutColumn }
 
-constructor TTreeLayoutColumn.Create(const AColumn: IDCTreeColumn);
+constructor TTreeLayoutColumn.Create(const AColumn: IDCTreeColumn; const ColumnControl: IColumnControl);
 begin
   inherited Create;
   _column := AColumn;
-  _HideColumnInView := not AColumn.Visible;
+  _treeControl := ColumnControl;
+
+  _hideColumnInView := not AColumn.Visible;
+  _userWidth := -1;
 end;
 
 procedure TTreeLayoutColumn.UpdateCellControlsByRow(const Cell: IDCTreeCell);
@@ -1101,13 +1163,25 @@ begin
   if Cell.IsHeaderCell then
   begin
     var headerCell := Cell as IHeaderCell;
+
+    var imgList: TCustomImageList := nil;
+    var filterIndex: Integer := -1;
+    var sortAscIndex: Integer := -1;
+    var sortDescIndex: Integer := -1;
+
+    if (_activeFilter <> nil) or (_activeSort <> nil) then
+      _treeControl.GetSortAndFilterImages({out} imgList, {out} filterIndex, {out} sortAscIndex, {out} sortDescIndex);
+
     if (_activeFilter <> nil) and (headerCell.FilterControl = nil) then
     begin
-      headerCell.FilterControl := ScrollableRowControl_DefaultButtonClass.Create(Cell.Control);
+      headerCell.FilterControl := TGlyph.Create(Cell.Control);
       headerCell.FilterControl.Align := TAlignLayout.None;
+      headerCell.FilterControl.HitTest := False;
       headerCell.FilterControl.Width := CELL_MIN_INDENT;
       headerCell.FilterControl.Height := CELL_MIN_INDENT;
-      headerCell.FilterControl.HitTest := False;
+      (headerCell.FilterControl as TGlyph).Images := imgList;
+      (headerCell.FilterControl as TGlyph).ImageIndex := filterIndex;
+
       Cell.Control.AddObject(headerCell.FilterControl);
     end
     else if (_activeFilter = nil) and (headerCell.FilterControl <> nil) then
@@ -1116,14 +1190,20 @@ begin
       headerCell.FilterControl := nil;
     end;
 
-    if (_activeSort <> nil) and (headerCell.SortControl = nil) then
+    if (_activeSort <> nil) then
     begin
-      headerCell.SortControl := ScrollableRowControl_DefaultButtonClass.Create(Cell.Control);
-      headerCell.SortControl.Align := TAlignLayout.None;
-      headerCell.SortControl.Width := CELL_MIN_INDENT;
-      headerCell.SortControl.Height := CELL_MIN_INDENT;
-      headerCell.SortControl.HitTest := False;
-      Cell.Control.AddObject(headerCell.SortControl);
+      if (headerCell.SortControl = nil) then
+      begin
+        headerCell.SortControl := TGlyph.Create(Cell.Control);
+        headerCell.SortControl.Align := TAlignLayout.None;
+        headerCell.SortControl.HitTest := False;
+        headerCell.SortControl.Width := CELL_MIN_INDENT;
+        headerCell.SortControl.Height := CELL_MIN_INDENT;
+        (headerCell.SortControl as TGlyph).Images := imgList;
+        Cell.Control.AddObject(headerCell.SortControl);
+      end;
+
+      (headerCell.SortControl as TGlyph).ImageIndex := IfThen(_activeSort.SortDirection = ListSortDirection.Ascending, sortAscIndex, sortDescIndex);
     end
     else if (_activeSort = nil) and (headerCell.SortControl <> nil) then
     begin
@@ -1171,23 +1251,23 @@ begin
   if Cell.IsHeaderCell then
   begin
     var headerCell := Cell as IHeaderCell;
-    var startYPos := Cell.Control.Width - CELL_MIN_INDENT;
+    var startYPos := Cell.Control.Width - CELL_MIN_INDENT - (2*CELL_CONTENT_MARGIN);
 
     if headerCell.FilterControl <> nil then
     begin
-      headerCell.FilterControl.Position.Y := 10;
+      headerCell.FilterControl.Position.Y := (headerCell.Control.Height - CELL_MIN_INDENT)/2;
       headerCell.FilterControl.Position.X := startYPos;
-      headerCell.FilterControl.Width := 10;
-      headerCell.FilterControl.Height := 10;
+      headerCell.FilterControl.Width := CELL_MIN_INDENT;
+      headerCell.FilterControl.Height := CELL_MIN_INDENT;
 
-      startYPos := startYPos - CELL_MIN_INDENT;
+      startYPos := startYPos - CELL_MIN_INDENT - (2*CELL_CONTENT_MARGIN);
     end;
     if headerCell.SortControl <> nil then
     begin
-      headerCell.SortControl.Position.Y := 10;
+      headerCell.SortControl.Position.Y := (headerCell.Control.Height - CELL_MIN_INDENT)/2;
       headerCell.SortControl.Position.X := startYPos;
-      headerCell.SortControl.Width := 10;
-      headerCell.SortControl.Height := 10;
+      headerCell.SortControl.Width := CELL_MIN_INDENT;
+      headerCell.SortControl.Height := CELL_MIN_INDENT;
     end;
   end
   else begin
@@ -1229,9 +1309,10 @@ end;
 
 function TTreeLayoutColumn.CreateInfoControl(const Cell: IDCTreeCell; const ControlClassType: TInfoControlClass): TControl;
 begin
+  Result := nil;
   case ControlClassType of
     Custom:
-      Result := nil;
+      Exit;
 
     Text: begin
       var txt := ScrollableRowControl_DefaultTextClass.Create(Cell.Control);
@@ -1247,6 +1328,7 @@ begin
     CheckBox: begin
       var check := ScrollableRowControl_DefaultCheckboxClass.Create(Cell.Control);
       check.Align := TAlignLayout.None;
+      check.HitTest := False;
       Result := check;
     end;
 
@@ -1275,7 +1357,23 @@ begin
         rect.Sides := [TSide.Right];
 
       if Cell.IsHeaderCell then
+      begin
+        var headerCell := Cell as IHeaderCell;
         rect.Sides := rect.Sides + [TSide.Top, TSide.Bottom];
+
+        if Cell.Column.AllowResize then
+        begin
+          var splitterLy := TLayout.Create(rect);
+          splitterLy.Align := TAlignLayout.Right;
+          splitterLy.Cursor := crSizeWE;
+          splitterLy.HitTest := True;
+          splitterLy.Width := 1;
+          splitterLy.TouchTargetExpansion := TBounds.Create(RectF(3, 0, 3, 0));
+
+          rect.AddObject(splitterLy);
+          headerCell.ResizeControl := splitterLy;
+        end;
+      end;
 
       Cell.Control := rect;
     end else
@@ -1306,12 +1404,6 @@ begin
       var subCtrl := CreateInfoControl(Cell, Cell.Column.SubInfoControlClass);
       Cell.Control.AddObject(subCtrl);
       Cell.SubInfoControl := subCtrl;
-
-//      // reposition controls for two texts below each other
-//      if Cell.Column.InfoControlClass = TInfoControlClass.Text then
-//        (ctrl as TText).VertTextAlign := TTextAlign.Trailing;
-//      if Cell.Column.SubInfoControlClass = TInfoControlClass.Text then
-//        (subCtrl as TText).VertTextAlign := TTextAlign.Leading;
     end;
   end;
 end;
@@ -1320,29 +1412,30 @@ procedure TTreeLayoutColumn.CreateCellStyleControl(const StyleLookUp: CString; c
 begin
   CreateCellBase(False, Cell);
 
-  var ctrl: TControl;
+  // this method is called from CellLoading (or when wrongly used also in "CellLoaded")
+  // those methods also are called for HeaderCells
+  // To avoid adding the HeaderCell check in every CellLoading/CellLoaded we do this check here
   if Cell.IsHeaderCell then
-    ctrl := CreateInfoControl(Cell, TInfoControlClass.Text)
-  else begin
-    Assert((Cell.Column.InfoControlClass = TInfoControlClass.Custom) and (Cell.Column.SubInfoControlClass = TInfoControlClass.Custom),
-       'Column (Sub)InfoControlClass must be "Custom" to assign StyleLookUp');
+    Exit;
 
-    var styledControl: TStyledControl;
-    if Cell.InfoControl = nil then
-    begin
-      styledControl := TStyledControl.Create(Cell.Control);
-      styledControl.Align := TAlignLayout.Client;
-      styledControl.HitTest := False;
-      Cell.InfoControl := styledControl;
-      Cell.Control.AddObject(styledControl);
-    end else
-      styledControl := Cell.InfoControl as TStyledControl;
+  Assert((Cell.Column.InfoControlClass = TInfoControlClass.Custom) and (Cell.Column.SubInfoControlClass = TInfoControlClass.Custom),
+     'Column (Sub)InfoControlClass must be "Custom" to assign StyleLookUp');
 
-    styledControl.StyleLookup := StyleLookUp;
-  end;
+  var styledControl: TStyledControl;
+  if Cell.InfoControl = nil then
+  begin
+    styledControl := TStyledControl.Create(Cell.Control);
+    styledControl.Align := TAlignLayout.Client;
+    styledControl.HitTest := False;
+    Cell.InfoControl := styledControl;
+    Cell.Control.AddObject(styledControl);
+  end else
+    styledControl := Cell.InfoControl as TStyledControl;
+
+  styledControl.StyleLookup := StyleLookUp;
 end;
 
-function TTreeLayoutColumn.get_ActiveFilter: IListFilterDescription;
+function TTreeLayoutColumn.get_ActiveFilter: ITreeFilterDescription;
 begin
   Result := _activeFilter;
 end;
@@ -1355,6 +1448,16 @@ end;
 function TTreeLayoutColumn.get_Column: IDCTreeColumn;
 begin
   Result := _column;
+end;
+
+function TTreeLayoutColumn.get_ColumnHiddenByUser: Boolean;
+begin
+  Result := _userHidColumn;
+end;
+
+function TTreeLayoutColumn.get_ColumnWidthByUser: Single;
+begin
+  Result := _userWidth;
 end;
 
 function TTreeLayoutColumn.get_HideColumnInView: Boolean;
@@ -1374,15 +1477,12 @@ end;
 
 function TTreeLayoutColumn.get_Width: Single;
 begin
-  Result := _width;
+  if not SameValue(_userWidth, -1) then
+    Result := _userWidth else
+    Result := _width;
 end;
 
-function TTreeLayoutColumn.get_WidthChangedByUser: Boolean;
-begin
-  Result := _widthChangedByUser;
-end;
-
-procedure TTreeLayoutColumn.set_ActiveFilter(const Value: IListFilterDescription);
+procedure TTreeLayoutColumn.set_ActiveFilter(const Value: ITreeFilterDescription);
 begin
   _activeFilter := Value;
 end;
@@ -1390,6 +1490,23 @@ end;
 procedure TTreeLayoutColumn.set_ActiveSort(const Value: IListSortDescription);
 begin
   _activeSort := Value;
+end;
+
+procedure TTreeLayoutColumn.set_ColumnHiddenByUser(const Value: Boolean);
+begin
+  if _userHidColumn <> Value then
+  begin
+    _userHidColumn := Value;
+    _column.Visualisation.Visible := False;
+    _treeControl.ColumnVisibilityChanged(_column);
+  end;
+end;
+
+procedure TTreeLayoutColumn.set_ColumnWidthByUser(const Value: Single);
+begin
+  if not SameValue(_userWidth, _width) then
+    _userWidth := Value else
+    _userWidth := -1;
 end;
 
 procedure TTreeLayoutColumn.set_HideColumnInView(const Value: Boolean);
@@ -1414,15 +1531,15 @@ end;
 
 { TDCTreeLayout }
 
-constructor TDCTreeLayout.Create(const Content: TControl; const ColumnList: IDCTreeColumnList);
+constructor TDCTreeLayout.Create(const ColumnControl: IColumnControl);
 begin
   inherited Create;
 
-  _content := Content;
+  _content := ColumnControl.Content;
   _layoutColumns := CList<IDCTreeLayoutColumn>.Create;
-  for var clmn in ColumnList do
+  for var clmn in ColumnControl.ColumnList do
   begin
-    var lyColumn: IDCTreeLayoutColumn := TTreeLayoutColumn.Create(clmn);
+    var lyColumn: IDCTreeLayoutColumn := TTreeLayoutColumn.Create(clmn, ColumnControl);
     _layoutColumns.Add(lyColumn);
   end;
 
@@ -1507,13 +1624,12 @@ begin
 
   // make sure we get all layout columns, even in case of AutoFitColumns (because they can become visible again)
   for var lyColumn in _layoutColumns do
-    lyColumn.HideColumnInView := not lyColumn.Column.Visible;
+    lyColumn.HideColumnInView := not lyColumn.Column.Visible or lyColumn.ColumnHiddenByUser;
 
   // reset _flatColumns and update indexes
   _flatColumns := nil;
   get_FlatColumns;
 
-  var percMinWidthInPixels := 0.0;
   var totalPercCount: Single := 0;
   var fullPercentageNumber := 100.0;
 
@@ -1535,7 +1651,7 @@ begin
           layoutClmn.Width := layoutClmn.Column.Width;
 
         // pixel columns and columns resized by users
-        if (layoutClmn.Column.WidthType = TDCColumnWidthType.Pixel) or layoutClmn.WidthChangedByUser then
+        if (layoutClmn.Column.WidthType = TDCColumnWidthType.Pixel) or (layoutClmn.ColumnWidthByUser <> -1) then
         begin
           widthLeft := widthLeft - layoutClmn.Width;
           columnsToCalculate.RemoveAt(ix);
@@ -1704,7 +1820,6 @@ end;
 
 destructor TDCTreeCell.Destroy;
 begin
-
   inherited;
 end;
 
@@ -1730,7 +1845,7 @@ end;
 
 function TDCTreeCell.get_HideCellInView: Boolean;
 begin
-  Result := _control.Visible;
+  Result := not _control.Visible;
 end;
 
 function TDCTreeCell.get_Index: Integer;
@@ -1932,6 +2047,11 @@ begin
   Result := _filterControl;
 end;
 
+function THeaderCell.get_ResizeControl: TControl;
+begin
+  Result := _resizeControl;
+end;
+
 function THeaderCell.get_SortControl: TControl;
 begin
   Result := _sortControl;
@@ -1942,9 +2062,63 @@ begin
   Result := True;
 end;
 
+procedure THeaderCell.OnResizeControlMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+begin
+  if Assigned(_onHeaderCellResizeClicked) then
+    _onHeaderCellResizeClicked(Self);
+end;
+
+//procedure THeaderCell.SplitterMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+//begin
+//  _resizeControl.Align := TAlignLayout.None;
+////  _resizeControl.Posi
+//end;
+//
+//procedure THeaderCell.SplitterMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+//begin
+//  if Button in [TMouseButton.mbLeft, TMouseButton.mbRight] then
+//  begin
+//    var w: Single := _resizeControl.Size.Width;
+//    _layoutColumn.UpdateUserWidth(w);
+//    (_resizeControl as TRectangle).Fill.Color := TAlphaColors.Green;
+//  end;
+//end;
+//
+//procedure THeaderCell.DoSplitterMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
+//var
+//  NewSize: Single;
+//begin
+//  if _resizeControl.Pressed then
+//  begin
+//    NewSize := _resizeControl.ParentControl.AbsoluteToLocal(_resizeControl.LocalToAbsolute(PointF(X, Y))).X;
+//    if NewSize < 0 then
+//      NewSize := 0;
+//
+////    if Resizing(NewSize) then
+//    _resizeControl.Size.Width := NewSize + 5;
+//    (_resizeControl as TRectangle).Fill.Color := TAlphaColors.Red;
+//  end;
+//end;
+
 procedure THeaderCell.set_FilterControl(const Value: TControl);
 begin
   _filterControl := Value;
+end;
+
+procedure THeaderCell.set_OnHeaderCellResizeClicked(const Value: TOnHeaderCellResizeClicked);
+begin
+  _onHeaderCellResizeClicked := Value;
+end;
+
+procedure THeaderCell.set_ResizeControl(const Value: TControl);
+begin
+  if _resizeControl <> nil then
+    _resizeControl.Free;
+
+  _resizeControl := Value;
+
+  if _resizeControl <> nil then
+    _resizeControl.OnMouseDown := OnResizeControlMouseDown;
 end;
 
 procedure THeaderCell.set_SortControl(const Value: TControl);
@@ -2245,25 +2419,24 @@ begin
     _readOnly := _src.ReadOnly;
     _selectable := _src.Selectable;
     _allowHide := _src.AllowHide;
+    _allowResize := _src.AllowResize;
     _format := _src.Format;
   end;
 end;
 
 function TDCColumnVisualisation.Clone: IDCColumnVisualisation;
 begin
-  var clone := TDCColumnVisualisation.Create(_onVisibilityChanged);
+  var clone := TDCColumnVisualisation.Create;
   Result := clone;
   clone.Assign(Self);
 end;
 
-constructor TDCColumnVisualisation.Create(const OnVisiblityChanged: TProc);
+constructor TDCColumnVisualisation.Create;
 begin
   inherited Create;
 
   _visible := True;
   _selectable := True;
-
-  _onVisibilityChanged := OnVisiblityChanged;
 end;
 
 function TDCColumnVisualisation.get_Format: CString;
@@ -2296,6 +2469,11 @@ begin
   Result := _allowHide;
 end;
 
+function TDCColumnVisualisation.get_AllowResize: Boolean;
+begin
+  Result := _allowResize;
+end;
+
 procedure TDCColumnVisualisation.set_Format(const Value: CString);
 begin
   _format := Value;
@@ -2321,13 +2499,87 @@ begin
   _allowHide := Value;
 end;
 
+procedure TDCColumnVisualisation.set_AllowResize(const Value: Boolean);
+begin
+  _allowResize := Value;
+end;
+
 procedure TDCColumnVisualisation.set_Visible(const Value: Boolean);
 begin
-  if _visible <> Value then
+  _visible := Value;
+end;
+
+{ THeaderColumnResizeControl }
+
+constructor THeaderColumnResizeControl.Create(const Content: TControl; const TreeControl: IColumnControl);
+begin
+  inherited Create;
+  _content := Content;
+  _treeControl := TreeControl;
+end;
+
+procedure THeaderColumnResizeControl.StartResizing(const HeaderCell: IHeaderCell);
+begin
+  _headerCell := HeaderCell;
+
+  Assert(_columnResizeControl = nil);
+
+  var ly := TLayout.Create(_content);
+  ly.HitTest := True;
+  ly.Align := TAlignLayout.None;
+  ly.BoundsRect := _headerCell.Row.Control.BoundsRect;
+  ly.OnMouseMove := DoSplitterMouseMove;
+  ly.OnMouseUp := DoSplitterMouseUp;
+  ly.OnMouseLeave := DoSplitterMouseLeave;
+  ly.Cursor := crSizeWE;
+
+  _content.AddObject(ly);
+  _columnResizeFullHeaderControl := ly;
+
+  var cellRect := TRectangle.Create(_columnResizeFullHeaderControl);
+  cellRect.Fill.Color := TAlphaColor($AABBCCDD);
+  cellRect.Stroke.Dash := TStrokeDash.Dot;
+  cellRect.Align := TAlignLayout.None;
+  cellRect.HitTest := False; // Let the mouse move be handled by _columnResizeFullHeaderControl
+  cellRect.BoundsRect := _headerCell.Control.BoundsRect;
+
+  _columnResizeFullHeaderControl.AddObject(cellRect);
+
+  _columnResizeControl := cellRect;
+end;
+
+procedure THeaderColumnResizeControl.StopResizing;
+begin
+  FreeAndNil(_columnResizeFullHeaderControl);
+  _columnResizeControl := nil;
+end;
+
+procedure THeaderColumnResizeControl.DoSplitterMouseLeave(Sender: TObject);
+begin
+  TThread.ForceQueue(nil, procedure
   begin
-    _visible := Value;
-    _onVisibilityChanged();
-  end;
+    StopResizing;
+  end);
+end;
+
+procedure THeaderColumnResizeControl.DoSplitterMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
+begin
+  var NewSize := X - _columnResizeControl.Position.X;
+  if NewSize < _headerCell.Column.WidthMin then
+    NewSize := _headerCell.Column.WidthMin
+  else if (_headerCell.Column.WidthMax > _headerCell.Column.WidthMin) and (NewSize > _headerCell.Column.WidthMax) then
+    NewSize := _headerCell.Column.WidthMax;
+
+  _columnResizeControl.Size.Width := NewSize;
+  _columnResizeFullHeaderControl.Repaint;
+end;
+
+procedure THeaderColumnResizeControl.DoSplitterMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+begin
+  _headerCell.LayoutColumn.ColumnWidthByUser := _columnResizeControl.Size.Width;
+  _treeControl.ColumnWidthChanged(_headerCell.LayoutColumn.Column);
+  StopResizing;
 end;
 
 end.
+
