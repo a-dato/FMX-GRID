@@ -27,106 +27,12 @@ object frmFMXPopupMenu: TfrmFMXPopupMenu
     Size.PlatformDefault = False
     Stroke.Color = xFFE3E3E3
   end
-  object PopupListBox: TListBox
-    Align = Top
-    Position.X = 3.000000000000000000
-    Position.Y = 3.000000000000000000
-    Size.Width = 200.000000000000000000
-    Size.Height = 144.000000000000000000
-    Size.PlatformDefault = False
-    StyleLookup = 'ma_listbox_no_border'
-    TabOrder = 1
-    DisableFocusEffect = True
-    Images = ImageListPopup
-    DefaultItemStyles.ItemStyle = ''
-    DefaultItemStyles.GroupHeaderStyle = ''
-    DefaultItemStyles.GroupFooterStyle = ''
-    Viewport.Width = 196.000000000000000000
-    Viewport.Height = 140.000000000000000000
-    object lbiSortSmallToLarge: TListBoxItem
-      ImageIndex = 0
-      Size.Width = 196.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 0
-      Text = 'Sort smallest to largest'
-      OnClick = lbiSortSmallToLargeClick
-    end
-    object lbiSortLargeToSmall: TListBoxItem
-      ImageIndex = 1
-      Position.Y = 22.000000000000000000
-      Size.Width = 196.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 1
-      Text = 'Sort largest to smallest'
-      OnClick = lbiSortLargeToSmallClick
-    end
-    object lbiDelimiter2: TListBoxItem
-      Position.Y = 44.000000000000000000
-      Size.Width = 196.000000000000000000
-      Size.Height = 1.000000000000000000
-      Size.PlatformDefault = False
-      StyleLookup = 'popupitemdelimiter'
-      TabOrder = 7
-    end
-    object lbiAddColumnAfter: TListBoxItem
-      ImageIndex = 6
-      Position.Y = 45.000000000000000000
-      Size.Width = 196.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 6
-      Text = 'Add column after...'
-      OnClick = lbiAddColumnAfterClick
-    end
-    object lbiHideColumn: TListBoxItem
-      ImageIndex = 5
-      Position.Y = 67.000000000000000000
-      Size.Width = 196.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 3
-      Text = 'Hide column'
-      OnClick = lbiHideColumnClick
-    end
-    object lbiDelimiter: TListBoxItem
-      Selectable = False
-      Position.Y = 89.000000000000000000
-      Size.Width = 196.000000000000000000
-      Size.Height = 1.000000000000000000
-      Size.PlatformDefault = False
-      StyleLookup = 'popupitemdelimiter'
-      TabOrder = 5
-    end
-    object lbiClearFilter: TListBoxItem
-      StyledSettings = [Family, Size, Style, Other]
-      ImageIndex = 2
-      Position.Y = 90.000000000000000000
-      Size.Width = 196.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 2
-      Text = 'Clear filter'
-      OnClick = lbiClearFilterClick
-    end
-    object lbiClearSortAndFilter: TListBoxItem
-      ImageIndex = 3
-      Position.Y = 112.000000000000000000
-      Size.Width = 196.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 4
-      Text = 'Clear sort and filter'
-      OnClick = lbiClearSortAndFilterClick
-    end
-  end
   object filterlist: TRectangle
     Align = Client
     Fill.Color = xFFEBECF0
     Padding.Right = 2.000000000000000000
     Size.Width = 200.000000000000000000
-    Size.Height = 194.000000000000000000
+    Size.Height = 193.000000000000000000
     Size.PlatformDefault = False
     Stroke.Color = xFFBCBCBC
     XRadius = 3.000000000000000000
@@ -196,6 +102,108 @@ object frmFMXPopupMenu: TfrmFMXPopupMenu
     OnTimer = Timer1Timer
     Left = 139
     Top = 227
+  end
+  object lyListBoxBackGround: TLayout
+    Align = Top
+    ClipChildren = True
+    Position.X = 3.000000000000000000
+    Position.Y = 3.000000000000000000
+    Size.Width = 200.000000000000000000
+    Size.Height = 145.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 4
+    object PopupListBox: TListBox
+      Align = Top
+      Size.Width = 200.000000000000000000
+      Size.Height = 144.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = 'ma_listbox_no_border'
+      TabOrder = 1
+      DisableFocusEffect = True
+      Images = ImageListPopup
+      DefaultItemStyles.ItemStyle = ''
+      DefaultItemStyles.GroupHeaderStyle = ''
+      DefaultItemStyles.GroupFooterStyle = ''
+      Viewport.Width = 196.000000000000000000
+      Viewport.Height = 140.000000000000000000
+      object lbiSortSmallToLarge: TListBoxItem
+        ImageIndex = 0
+        Size.Width = 196.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        Text = 'Sort smallest to largest'
+        OnClick = lbiSortSmallToLargeClick
+      end
+      object lbiSortLargeToSmall: TListBoxItem
+        ImageIndex = 1
+        Position.Y = 22.000000000000000000
+        Size.Width = 196.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 1
+        Text = 'Sort largest to smallest'
+        OnClick = lbiSortLargeToSmallClick
+      end
+      object lbiDelimiter2: TListBoxItem
+        Position.Y = 44.000000000000000000
+        Size.Width = 196.000000000000000000
+        Size.Height = 1.000000000000000000
+        Size.PlatformDefault = False
+        StyleLookup = 'popupitemdelimiter'
+        TabOrder = 7
+      end
+      object lbiAddColumnAfter: TListBoxItem
+        ImageIndex = 6
+        Position.Y = 45.000000000000000000
+        Size.Width = 196.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 6
+        Text = 'Add column after...'
+        OnClick = lbiAddColumnAfterClick
+      end
+      object lbiHideColumn: TListBoxItem
+        ImageIndex = 5
+        Position.Y = 67.000000000000000000
+        Size.Width = 196.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 3
+        Text = 'Hide column'
+        OnClick = lbiHideColumnClick
+      end
+      object lbiDelimiter: TListBoxItem
+        Selectable = False
+        Position.Y = 89.000000000000000000
+        Size.Width = 196.000000000000000000
+        Size.Height = 1.000000000000000000
+        Size.PlatformDefault = False
+        StyleLookup = 'popupitemdelimiter'
+        TabOrder = 5
+      end
+      object lbiClearFilter: TListBoxItem
+        StyledSettings = [Family, Size, Style, Other]
+        ImageIndex = 2
+        Position.Y = 90.000000000000000000
+        Size.Width = 196.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
+        Text = 'Clear filter'
+        OnClick = lbiClearFilterClick
+      end
+      object lbiClearSortAndFilter: TListBoxItem
+        ImageIndex = 3
+        Position.Y = 112.000000000000000000
+        Size.Width = 196.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 4
+        Text = 'Clear sort and filter'
+        OnClick = lbiClearSortAndFilterClick
+      end
+    end
   end
   object ImageListPopup: TImageList
     Source = <

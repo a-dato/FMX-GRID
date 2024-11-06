@@ -574,7 +574,6 @@ type
     THeaderColumnResizeControl = class(TInterfacedObject, IHeaderColumnResizeControl)
     private
       [unsafe] _headerCell: IHeaderCell;
-      _content: TControl;
       _treeControl: IColumnControl;
 
 //      _onResized: TNotifyEvent;
@@ -590,7 +589,7 @@ type
       procedure StopResizing;
 
     public
-      constructor Create(const Content: TControl; const TreeControl: IColumnControl); reintroduce;
+      constructor Create(const TreeControl: IColumnControl); reintroduce;
       procedure StartResizing(const HeaderCell: IHeaderCell);
     end;
 
@@ -1724,7 +1723,9 @@ begin
     var minColumnWidth: Single;
     case layoutClmn.Column.WidthType of
       Percentage:
-        minColumnWidth := layoutClmn.Column.WidthMin;
+        if SameValue(layoutClmn.ColumnWidthByUser, -1) then
+          minColumnWidth := layoutClmn.Column.WidthMin else
+          minColumnWidth := layoutClmn.Width;
       else
         minColumnWidth := layoutClmn.Width;
     end;
@@ -1749,6 +1750,9 @@ begin
   var autoFitWidthType := TDCColumnWidthType.Pixel;
   for layoutClmn in get_FlatColumns do
   begin
+    if not SameValue(layoutClmn.ColumnWidthByUser, -1) then
+      Continue;
+
     case layoutClmn.Column.WidthType of
       Percentage:
           autoFitWidthType := TDCColumnWidthType.Percentage;
@@ -1760,11 +1764,11 @@ begin
 
   var totalAutoFitColumnCount := 0;
   for layoutClmn in get_FlatColumns do
-    if layoutClmn.Column.WidthType = autoFitWidthType then
+    if (layoutClmn.Column.WidthType = autoFitWidthType) and SameValue(layoutClmn.ColumnWidthByUser, -1) then
       inc(totalAutoFitColumnCount);
 
   for var flatClmn in _flatColumns do
-    if flatClmn.Column.WidthType = autoFitWidthType then
+    if (flatClmn.Column.WidthType = autoFitWidthType) and SameValue(layoutClmn.ColumnWidthByUser, -1) then
     begin
       var extraWidthPerColumn := widthLeft / totalAutoFitColumnCount;
 
@@ -2511,10 +2515,9 @@ end;
 
 { THeaderColumnResizeControl }
 
-constructor THeaderColumnResizeControl.Create(const Content: TControl; const TreeControl: IColumnControl);
+constructor THeaderColumnResizeControl.Create(const TreeControl: IColumnControl);
 begin
   inherited Create;
-  _content := Content;
   _treeControl := TreeControl;
 end;
 
@@ -2524,7 +2527,7 @@ begin
 
   Assert(_columnResizeControl = nil);
 
-  var ly := TLayout.Create(_content);
+  var ly := TLayout.Create(_treeControl.Content);
   ly.HitTest := True;
   ly.Align := TAlignLayout.None;
   ly.BoundsRect := _headerCell.Row.Control.BoundsRect;
@@ -2533,7 +2536,7 @@ begin
   ly.OnMouseLeave := DoSplitterMouseLeave;
   ly.Cursor := crSizeWE;
 
-  _content.AddObject(ly);
+  _treeControl.Content.AddObject(ly);
   _columnResizeFullHeaderControl := ly;
 
   var cellRect := TRectangle.Create(_columnResizeFullHeaderControl);
@@ -2542,6 +2545,15 @@ begin
   cellRect.Align := TAlignLayout.None;
   cellRect.HitTest := False; // Let the mouse move be handled by _columnResizeFullHeaderControl
   cellRect.BoundsRect := _headerCell.Control.BoundsRect;
+
+  var c: TControl := _headerCell.Control;
+
+  cellRect.Position.X := 0;
+  while c <> _headerCell.Row.Control do
+  begin
+    cellRect.Position.X := cellRect.Position.X + c.Position.X;
+    c := c.ParentControl;
+  end;
 
   _columnResizeFullHeaderControl.AddObject(cellRect);
 

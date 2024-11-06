@@ -62,6 +62,7 @@ type
     btnApplyFilters: TButton;
     Timer1: TTimer;
     Line1: TLine;
+    lyListBoxBackGround: TLayout;
     procedure btnApplyFiltersClick(Sender: TObject);
     procedure cbSelectAllClick(Sender: TObject);
     procedure DataControl1CellSelected(const Sender: TObject; e:
@@ -204,8 +205,8 @@ procedure TfrmFMXPopupMenu.ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilte
     if filterlist.Visible then
       filterListHeight := 202;
 
-    PopupListBox.Height := lbHeight;
-    Height := Ceil(PopupListBox.Height + filterListHeight + {Padding.Bottom + Padding.Top + 1 +} 20);
+    lyListBoxBackGround.Height := lbHeight;
+    Height := Ceil(lbHeight + filterListHeight + {Padding.Bottom + Padding.Top + 1 +} 20);
   end;
 
 begin

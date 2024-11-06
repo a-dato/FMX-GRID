@@ -321,8 +321,12 @@ begin
   var frozenColumnWidth := _treeLayout.FrozenColumnWidth;
   var hasFrozenColumns := frozenColumnWidth > 0;
 
-  var lastFlatColumn := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1];
-  var rowWidth := CMath.Min(_content.Width, lastFlatColumn.Left + lastFlatColumn.Width);
+  var rowWidth := 0.0;
+  if _treeLayout.FlatColumns.Count > 0 then
+  begin
+    var lastFlatColumn := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1];
+    rowWidth := CMath.Min(_content.Width, lastFlatColumn.Left + lastFlatColumn.Width);
+  end;
 
   for var row in HeaderAndTreeRows do
   begin
@@ -679,11 +683,7 @@ begin
 
   Result := CDictionary<CObject, CString>.Create;
   for var filterableObj in dict.Values do
-  try
     Result.Add(filterableObj, filterableObj.ToString);
-  except
-    Result.Add(filterableObj, filterableObj.ToString);
-  end;
 end;
 
 procedure TStaticDataControl.ShowHeaderPopupMenu(const LayoutColumn: IDCTreeLayoutColumn);
@@ -711,7 +711,7 @@ begin
 
   popupMenu.ShowPopupMenu(ScreenPos, showFilter,
       {ShowItemSort} LayoutColumn.Column.ShowSortMenu,
-      {ShowItemAddColumAfter} False, //TreeOption.AllowColumnUpdates in _Options,
+      {ShowItemAddColumAfter} TDCTreeOption.AllowColumnUpdates in _Options,
       {ShowItemHideColumn} LayoutColumn.Column.AllowHide );
 
   if showFilter then
@@ -952,11 +952,6 @@ begin
 
   (GetInitializedWaitForRefreshInfo as IDataControlWaitForRepaintInfo).ColumnsChanged;
   DoColumnsChanged(Column);
-
-//  if _view <> nil then
-//    _view.ClearViewRecInfo;
-//
-//  RequestRealignContent;
 end;
 
 procedure TStaticDataControl.ColumnWidthChanged(const Column: IDCTreeColumn);
@@ -1001,7 +996,7 @@ begin
   _hoverCellRect.Fill.Kind := TBrushKind.None;
   _hoverRect.AddObject(_hoverCellRect);
 
-  _headerColumnResizeControl := THeaderColumnResizeControl.Create(Self, Self);
+  _headerColumnResizeControl := THeaderColumnResizeControl.Create(Self);
 
   _columns := TDCTreeColumnList.Create(Self);
   (_columns as INotifyCollectionChanged).CollectionChanged.Add(ColumnsChanged);
