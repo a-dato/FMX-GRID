@@ -65,8 +65,6 @@ type
     lyListBoxBackGround: TLayout;
     procedure btnApplyFiltersClick(Sender: TObject);
     procedure cbSelectAllClick(Sender: TObject);
-    procedure DataControl1CellSelected(const Sender: TObject; e:
-        DCCellSelectedEventArgs);
     procedure edSearchChangeTracking(Sender: TObject);
     procedure FormDeactivate(Sender: TObject);
     procedure lbiSortSmallToLargeClick(Sender: TObject);
@@ -99,6 +97,9 @@ type
     function  get_SelectedItems: List<CObject>;
     function  get_LayoutColumn: IDCTreeLayoutColumn;
     procedure set_LayoutColumn(const Value: IDCTreeLayoutColumn);
+
+    procedure TreeCellSelected(const Sender: TObject; e: DCCellSelectedEventArgs);
+    procedure TreeCellFormatting(const Sender: TObject; e: DCCellFormattingEventArgs);
 
   public
     procedure ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters, ShowItemSortOptions, ShowItemAddColumAfter, ShowItemHideColumn: Boolean);
@@ -158,7 +159,8 @@ type
 implementation
 
 uses
-  FMX.DataControl.SortAndFilter, FMX.DataControl.Static.Impl,
+  FMX.DataControl.SortAndFilter,
+  FMX.DataControl.Static.Impl,
   FMX.DataControl.ScrollableRowControl.Intf;
 
 {$R *.fmx}
@@ -260,7 +262,8 @@ begin
   _dataControl.Options := [TDCTreeOption.MultiSelect];
   _dataControl.RowHeightFixed := 20;
   _dataControl.AllowNoneSelected := True;
-  _dataControl.CellSelected := DataControl1CellSelected;
+  _dataControl.CellSelected := TreeCellSelected;
+  _dataControl.CellFormatting := TreeCellFormatting;
   filterlist.AddObject(_dataControl);
 
   var column1: IDCTreeCheckboxColumn := TDCTreeCheckboxColumn.Create;
@@ -272,7 +275,7 @@ begin
   var column2: IDCTreeColumn := TDCTreeColumn.Create;
   column2.PropertyName := '[object]';
   column2.Visualisation.ReadOnly := True;
-  column1.WidthSettings.WidthType := TDCColumnWidthType.Percentage;
+  column2.WidthSettings.WidthType := TDCColumnWidthType.Percentage;
   column2.WidthSettings.Width := 100;
   _dataControl.Columns.Add(column2);
 end;
@@ -354,17 +357,19 @@ begin
   end);
 end;
 
-procedure TfrmFMXPopupMenu.DataControl1CellSelected(const Sender: TObject; e: DCCellSelectedEventArgs);
+procedure TfrmFMXPopupMenu.TreeCellSelected(const Sender: TObject; e: DCCellSelectedEventArgs);
 begin
   btnApplyFilters.Enabled := True;
 end;
 
 procedure TfrmFMXPopupMenu.edSearchChangeTracking(Sender: TObject);
 begin
-  var filterByText: IListFilterDescription := TTreeFilterDescription.Create(False, _dataControl.Layout.FlatColumns[1] , _dataControl.OnGetCellDataForSorting);
-  (filterByText as TTreeFilterDescription).FilterText := edSearch.Text.ToLower;
+//  var filterByText: IListFilterDescription := TTreeFilterDescription.Create(_dataControl.Layout.FlatColumns[1] , _dataControl.OnGetCellDataForSorting);
+//  (filterByText as TTreeFilterDescription).FilterText := edSearch.Text.ToLower;
+//
+//  _dataControl.AddFilterDescription(filterByText, True);
 
-  _dataControl.AddFilterDescription(filterByText, True);
+  _dataControl.UpdateColumnFilter(_dataControl.Columns[1], edSearch.Text.ToLower, nil);
 end;
 
 procedure TfrmFMXPopupMenu.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -412,6 +417,18 @@ procedure TfrmFMXPopupMenu.Timer1Timer(Sender: TObject);
 begin
   if (_dataControl <> nil) and (_dataControl.View <> nil) and (_dataControl.SelectedItems <> nil) then
     cbSelectAll.IsChecked := _dataControl.View.ViewCount = _dataControl.SelectedItems.Count;
+end;
+
+procedure TfrmFMXPopupMenu.TreeCellFormatting(const Sender: TObject; e: DCCellFormattingEventArgs);
+begin
+  if e.Cell.IsHeaderCell then
+    Exit;
+
+  if (e.Value = nil) or (e.Value.GetType.IsDateTime and CDateTime(e.Value).Equals(CDateTime.MinValue)) then
+  begin
+    e.Value := 'no value';
+    e.FormattingApplied := True;
+  end;
 end;
 
 end.

@@ -44,7 +44,10 @@ type
   end;
 
   DCCellLoadEventArgs = class(DCCellEventArgs)
+  private
+    _showVertGrid: Boolean;
   public
+    constructor Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean); reintroduce;
     function AssignCellStyleLookUp(const StyleLookUp: CString): TStyledControl;
   end;
 
@@ -55,7 +58,7 @@ type
       Tree calls CellFormatting event where user is able to set a custom text.
       LoadDefaulData = False: CellFormatting will not be triggered. }
 
-    constructor Create(const ACell: IDCTreeCell); reintroduce;
+    constructor Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean); reintroduce;
   end;
 
   DCCellLoadedEventArgs = DCCellLoadEventArgs;
@@ -261,7 +264,7 @@ end;
 
 { DCCellLoadingEventArgs }
 
-constructor DCCellLoadingEventArgs.Create(const ACell: IDCTreeCell);
+constructor DCCellLoadingEventArgs.Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean);
 begin
   inherited;
   LoadDefaultData := True;
@@ -337,8 +340,14 @@ end;
 
 function DCCellLoadEventArgs.AssignCellStyleLookUp(const StyleLookUp: CString): TStyledControl;
 begin
-  _cell.LayoutColumn.CreateCellStyleControl(StyleLookUp, _cell);
+  _cell.LayoutColumn.CreateCellStyleControl(StyleLookUp, _showVertGrid, _cell);
   Result := _cell.InfoControl as TStyledControl;
+end;
+
+constructor DCCellLoadEventArgs.Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean);
+begin
+  inherited Create(ACell);
+  _showVertGrid := ShowVertGrid;
 end;
 
 { DCCellSelectedEventArgs }

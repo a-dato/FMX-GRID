@@ -130,6 +130,7 @@ type
 
   TDCTreeOptionFlag = (
     TreeOption_ShowHeaders,
+    TreeOption_ShowHeaderGrid,
     TreeOption_ShowVertGrid,
     TreeOption_ShowHorzGrid,
 
@@ -163,6 +164,7 @@ type
   TDCTreeOption = record
   const
     ShowHeaders: TDCTreeOptionFlag = TreeOption_ShowHeaders;
+    ShowHeaderGrid: TDCTreeOptionFlag = TreeOption_ShowHeaderGrid;
     ShowVertGrid: TDCTreeOptionFlag = TreeOption_ShowVertGrid;
     ShowHorzGrid: TDCTreeOptionFlag = TreeOption_ShowHorzGrid;
     HideVScrollBar: TDCTreeOptionFlag = TreeOption_HideVScrollBar;

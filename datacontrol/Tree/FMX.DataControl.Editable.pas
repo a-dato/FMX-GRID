@@ -498,7 +498,7 @@ end;
 procedure TEditableDataControl.DoStartCellEdit(const Cell: IDCTreeCell);
 begin
   var formatApplied: Boolean;
-  var cellValue := Cell.Column.GetCellValue(cell, cell.Column.PropertyName);
+  var cellValue := Cell.Column.ProvideCellData(cell, cell.Column.PropertyName);
   DoCellFormatting(cell, True, {var} cellValue, {out} formatApplied);
 
   var startEditArgs: DCStartEditEventArgs;

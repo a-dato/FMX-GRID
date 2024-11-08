@@ -55,6 +55,7 @@ var
         for i := 0 to _sourceTree.Columns.Count - 1 do
         begin
           _clone := _sourceTree.Columns[i].Clone;
+          _clone.TreeControl := Self;
           _columns.Add(_clone);
         end;
 //      end;

@@ -100,7 +100,7 @@ type
     procedure DoResized; override;
 
     function  DoCreateNewRow: IDCRow; virtual;
-    procedure InitInnerRow(const Row: IDCRow); virtual;
+    procedure InnerInitRow(const Row: IDCRow); virtual;
     procedure InitRow(const Row: IDCRow; const IsAboveRefRow: Boolean = False);
 
     procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
@@ -505,7 +505,7 @@ begin
   _selectionInfo.OnSelectionInfoChanged := OnSelectionInfoChanged;
   _rowHeightDefault := 30;
 
-  _options := [TreeOption_ShowHeaders];
+  _options := [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid];
 
   _itemType := &Type.Unknown;
 
@@ -643,6 +643,9 @@ var
 
   function TryDetermineDirectionBeforeRealigning: TAlignDirection;
   begin
+    if get_Current = -1 then
+      Exit(TAlignDirection.TopToBottom);
+
     if sortChanged or filterChanged then
       Exit(TAlignDirection.Undetermined);
 
@@ -802,7 +805,7 @@ begin
   end;
 end;
 
-procedure TDCScrollableRowControl.InitInnerRow(const Row: IDCRow);
+procedure TDCScrollableRowControl.InnerInitRow(const Row: IDCRow);
 begin
   // nothing to do here
 end;
@@ -817,6 +820,7 @@ begin
     rect.ClipChildren := True;
     rect.HitTest := False;
     rect.Align := TAlignLayout.None;
+    rect.Fill.Color := TAlphaColors.Null;
 
     Row.Control := rect;
 
@@ -852,7 +856,7 @@ begin
     Row.Control.Height := get_rowHeightDefault;
 
   if Row.IsScrollingIntoView or not rowInfo.InnerCellsAreApplied or (rowInfo.ControlNeedsResize and (_scrollingType <> TScrollingType.WithScrollBar)) then
-    InitInnerRow(row);
+    InnerInitRow(row);
 
   var rowHeightChanged := not SameValue(oldRowHeight, Row.Control.Height);
   if rowHeightChanged and (_scrollingType = TScrollingType.WithScrollBar) then
@@ -1339,7 +1343,7 @@ begin
   if _selectionInfo.HasSelection then
   begin
     viewListIndex := _view.GetViewListIndex(_selectionInfo.DataItem);
-    if viewListIndex = _selectionInfo.ViewListIndex then
+    if (viewListIndex <> -1) and (viewListIndex = _selectionInfo.ViewListIndex) then
       Exit; // current selection is still valid
 
     if viewListIndex = -1 then
@@ -1413,7 +1417,7 @@ end;
 procedure TDCScrollableRowControl.AddFilterDescription(const Filter: IListFilterDescription; const ClearOtherFlters: Boolean);
 begin
   var filters: List<IListFilterDescription>;
-  if ClearOtherFlters or (_view = nil) then
+  if ClearOtherFlters or (_view = nil) or (_view.GetFilterDescriptions = nil) then
     filters := CList<IListFilterDescription>.Create else
     filters := _view.GetFilterDescriptions;
 
@@ -1429,11 +1433,11 @@ end;
 procedure TDCScrollableRowControl.AddSortDescription(const Sort: IListSortDescription; const ClearOtherSort: Boolean);
 begin
   var sorts: List<IListSortDescription>;
-  if ClearOtherSort or (_view = nil) then
+  if ClearOtherSort or (_view = nil) or (_view.GetSortDescriptions = nil) then
     sorts := CList<IListSortDescription>.Create else
     sorts := _view.GetSortDescriptions;
 
-  sorts.Add(Sort);
+  sorts.Insert(0, Sort);  // make it the most important sort
 
   GetInitializedWaitForRefreshInfo.SortDescriptions := sorts;
 
