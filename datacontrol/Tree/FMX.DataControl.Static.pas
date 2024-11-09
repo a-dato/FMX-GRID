@@ -17,7 +17,7 @@ uses
   FMX.DataControl.ScrollableRowControl.Intf, FMX.Objects,
   FMX.DataControl.Events, FMX.DataControl.ControlClasses,
   FMX.DataControl.ScrollableControl, System.UITypes, System.SysUtils,
-  System.Generics.Defaults, FMX.Controls, System.Types;
+  System.Generics.Defaults, FMX.Controls, System.Types, FMX.Forms, FMX.ImgList;
 
 type
   TRightLeftScroll = (None, FullLeft, Left, Right, FullRight);
@@ -27,15 +27,20 @@ type
     _headerRow: IDCTreeRow;
 
     _treeLayout: IDCTreeLayout;
-    _horzMousePositionOnMouseDown: Single;
 
-    _realignLayout: Boolean;
     _frozenRectLine: TRectangle;
     _hoverCellRect: TRectangle;
 
     _defaultColumnsGenerated: Boolean;
 
+    _headerColumnResizeControl: IHeaderColumnResizeControl;
+    _frmHeaderPopupMenu: TForm;
+
+    function  get_Layout: IDCTreeLayout;
+    function  get_SelectedColumn: IDCTreeLayoutColumn;
+
     procedure ColumnsChanged(Sender: TObject; e: NotifyCollectionChangedEventArgs);
+    procedure OnHeaderCellResizeClicked(const HeaderCell: IHeaderCell);
 
     procedure InitHeader;
     procedure InitLayout;
@@ -47,6 +52,11 @@ type
     procedure ProcessColumnVisibilityRules;
 
     procedure CreateDefaultColumns;
+    procedure ShowHeaderPopupMenu(const LayoutColumn: IDCTreeLayoutColumn);
+    procedure HeaderPopupMenu_Closed(Sender: TObject; var Action: TCloseAction);
+    function  GetColumnValues(const LayoutColumn: IDCTreeLayoutColumn): Dictionary<CObject, CString>;
+
+    procedure GetSortAndFilterImages(out ImageList: TCustomImageList; out FilterIndex, SortAscIndex, SortDescIndex: Integer);
 
   protected
     procedure DoHorzScrollBarChanged; override;
@@ -74,6 +84,10 @@ type
     _onCompareRows: TOnCompareRows;
     _onCompareColumnCells: TOnCompareColumnCells;
 
+    _onColumnsChanged: ColumnChangedByUserEvent;
+
+    _popupMenuClosed: TNotifyEvent;
+
     procedure DoCellLoaded(const Cell: IDCTreeCell; RequestForSort: Boolean; var ManualRowHeight: Single);
     function  DoCellLoading(const Cell: IDCTreeCell; RequestForSort: Boolean; var ManualRowHeight: Single): Boolean;
     procedure DoCellFormatting(const Cell: IDCTreeCell; RequestForSort: Boolean; var Value: CObject; out FormatApplied: Boolean);
@@ -86,18 +100,27 @@ type
     function  DoOnCompareRows(const Left, Right: CObject): Integer;
     function  DoOnCompareColumnCells(const Column: IDCTreeColumn; const Left, Right: CObject): Integer;
 
+    procedure DoColumnsChanged(const Column: IDCTreeColumn);
+
+  private
+    _selectionCheckBoxUpdateCount: Integer;
+//    procedure OnSelectionCheckBoxChange(Sender: TObject);
+    procedure UpdateSelectionCheckboxes(const Row: IDCRow);
+    function  SelectionCheckBoxColumn: IDCTreeLayoutColumn;
+
   protected
     procedure DoResized; override;
 
     function  DoCreateNewRow: IDCRow; override;
     procedure BeforeRealignContent; override;
     procedure AfterRealignContent; override;
-    procedure InitInnerRow(const Row: IDCRow); override;
+    procedure InnerInitRow(const Row: IDCRow); override;
 
     function  CreateSelectioninfoInstance: IRowSelectionInfo; override;
     procedure ClearAllSelections; override;
     procedure OnSelectionInfoChanged; override;
     procedure SetSingleSelectionIfNotExists; override;
+    procedure VisualizeRowSelection(const Row: IDCRow); override;
 
     function  GetInitializedWaitForRefreshInfo: IWaitForRepaintInfo; override;
 
@@ -125,20 +148,30 @@ type
 
     procedure HandleTreeOptionsChange(const OldFlags, NewFlags: TDCTreeOptions); override;
 
-    procedure VisualizeRowSelection(const Row: IDCRow); override;
-    function  OnGetCellDataForSorting(const Cell: IDCTreeCell): CObject;
     function  CreateDummyRowForChanging(const FromSelectionInfo: IRowSelectionInfo): IDCRow; override;
 
     function  GetActiveCell: IDCTreeCell;
     function  GetCellByControl(const Control: TControl): IDCTreeCell;
 
+    // IColumnControl
     procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
+    procedure ColumnWidthChanged(const Column: IDCTreeColumn);
+    function  Content: TControl;
+    function  ColumnList: IDCTreeColumnList;
 
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
+    function  OnGetCellDataForSorting(const Cell: IDCTreeCell): CObject;
     procedure RefreshColumn(const Column: IDCTreeColumn);
+
+    procedure UpdateColumnSort(const Column: IDCTreeColumn; SortDirection: ListSortDirection; ClearOtherSort: Boolean);
+    procedure UpdateColumnFilter(const Column: IDCTreeColumn; const FilterText: CString; const FilterValues: List<CObject>);
+
+    property  Layout: IDCTreeLayout read get_Layout;
+    property  HeaderRow: IDCTreeRow read _headerRow;
+    property  SelectedColumn: IDCTreeLayoutColumn read get_SelectedColumn;
 
   published
     property Columns: IDCTreeColumnList read _columns write _columns;  // stored DoStoreColumns;
@@ -155,6 +188,9 @@ type
     property SortingGetComparer: GetColumnComparerEvent read _sortingGetComparer write _sortingGetComparer;
     property OnCompareRows: TOnCompareRows read _onCompareRows write _onCompareRows;
     property OnCompareColumnCells: TOnCompareColumnCells read _onCompareColumnCells write _onCompareColumnCells;
+    property OnColumnsChanged: ColumnChangedByUserEvent read _onColumnsChanged write _onColumnsChanged;
+
+    property PopupMenuClosed: TNotifyEvent read _popupMenuClosed write _popupMenuClosed;
   end;
 
 implementation
@@ -164,59 +200,35 @@ uses
   ADato.Data.DataModel.intf, System.Math,
   FMX.ControlCalculations, FMX.Graphics, FMX.StdCtrls,
   FMX.DataControl.ScrollableRowControl.Impl, ADato.Data.DataModel.impl,
-  FMX.DataControl.SortAndFilter;
+  FMX.DataControl.SortAndFilter,
+  FMX.DataControl.Static.PopupMenu;
 
 { TStaticDataControl }
 
 procedure TStaticDataControl.ProcessColumnVisibilityRules;
 begin
-  if not _autoFitColumns then
+  if not _autoFitColumns and not _treeLayout.RecalcRequired {in case column is hidden by user} then
     Exit;
 
-  _treeLayout.RecalcColumnWidthsAutoFit;
+  if _autoFitColumns then
+    _treeLayout.RecalcColumnWidthsAutoFit;
 
   InitHeader;
 
   var selInfo := (_selectionInfo as ITreeSelectionInfo);
-  if selInfo.SelectedFlatColumn > (_treeLayout.FlatColumns.Count - 1) then
-    selInfo.SelectedFlatColumn := _treeLayout.FlatColumns.Count - 1;
+  var lastFlatColumn := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1];
+  if selInfo.SelectedFlatColumn > lastFlatColumn.Index then
+    selInfo.SelectedFlatColumn := lastFlatColumn.Index;
 
   if _view <> nil then
     for var row in _view.ActiveViewRows do
     begin
       var treeRow := row as IDCTreeRow;
 
-      // step 1: hide all old cells
       var cell: IDCTreeCell;
       for var layoutColumn in _treeLayout.LayoutColumns do
         if treeRow.Cells.TryGetValue(layoutColumn.Index, cell) and cell.LayoutColumn.HideColumnInView then
           cell.HideCellInView := True;
-
-//      for var oldColumnIndex := 0 to _treeLayout.LayoutColumns.Count - 1 do
-//        if treeRow.Cells.TryGetValue(oldColumnIndex, cell) and cell.LayoutColumn.HideColumnInView then
-//        begin
-//          cell.Control := nil; // this will trigger a free
-//          treeRow.Cells.Remove(oldColumnIndex);
-//        end;
-
-      // step x update cells with new column index
-//      var oldCells := treeRow.Cells;
-//      treeRow.ResetCells;
-//      for cell in oldCells.Values do
-//        treeRow.Cells.Add(cell.Index, cell);
-//
-//      // step 2: load new cells into the view
-//      if treeRow.Cells.Count < _treeLayout.FlatColumns.Count then
-//        for var lyColumn in _treeLayout.FlatColumns do
-//          if not treeRow.Cells.ContainsKey(lyColumn.Index) then
-//          begin
-//            _reloadForSpecificColumn := lyColumn;
-//            try
-//              InitInnerRow(row);
-//            finally
-//              _reloadForSpecificColumn := nil;
-//            end;
-//          end;
     end;
 end;
 
@@ -229,7 +241,7 @@ begin
   _reloadForSpecificColumn := clmn;
   try
     for var row in _view.ActiveViewRows do
-      InitInnerRow(row);
+      InnerInitRow(row);
   finally
     _reloadForSpecificColumn := nil;
   end;
@@ -241,7 +253,6 @@ procedure TStaticDataControl.AfterRealignContent;
 begin
   inherited;
 
-  var headerShowing: Boolean := True;
   var fullRowList: List<IDCTreeRow> := HeaderAndTreeRows;
 
   for var flatClmn in _treeLayout.FlatColumns do
@@ -258,9 +269,6 @@ begin
 
       _treeLayout.UpdateColumnWidth(flatClmn.Index, maxCellWidth);
     end;
-
-  // will only be done when _recalcRequired = True (changes are made in ALignToContent columns)
-  _treeLayout.RecalcColumnWidthsBasic;
 
   ProcessColumnVisibilityRules;
   UpdatePositionAndWidthCells;
@@ -314,9 +322,17 @@ begin
   var frozenColumnWidth := _treeLayout.FrozenColumnWidth;
   var hasFrozenColumns := frozenColumnWidth > 0;
 
+  var rowWidth := 0.0;
+  if _treeLayout.FlatColumns.Count > 0 then
+  begin
+    var lastFlatColumn := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1];
+    rowWidth := CMath.Min(_content.Width, lastFlatColumn.Left + lastFlatColumn.Width);
+  end;
+
   for var row in HeaderAndTreeRows do
   begin
     var treeRow := row as IDCTreeRow;
+    treeRow.Control.Width := rowWidth;
 
     if hasFrozenColumns then
     begin
@@ -353,7 +369,7 @@ begin
 
     treeRow.NonFrozenColumnRowControl.Position.X := frozenColumnWidth;
     treeRow.NonFrozenColumnRowControl.Height := Row.Control.Height;
-    treeRow.NonFrozenColumnRowControl.Width := _content.Width - frozenColumnWidth;
+    treeRow.NonFrozenColumnRowControl.Width := rowWidth - frozenColumnWidth;
 
     for var flatClmn in _treeLayout.FlatColumns do
     begin
@@ -361,10 +377,7 @@ begin
       if not treeRow.Cells.TryGetValue(flatClmn.Index, cell) then
         Continue;
 
-//      var flatClmn := _treeLayout.FlatColumns[flatClmnIndex];
       flatClmn.UpdateCellControlsPositions(cell);
-
-//      cell.Control.Width := flatClmn.Width - (2*CELL_CONTENT_MARGIN);
 
       var leftPos := flatClmn.Left;
       if hasFrozenColumns and cell.Column.Frozen then
@@ -413,7 +426,7 @@ begin
   var controlPoint := Control.LocalToScreen(PointF(0,0));
   var pointInDataControl := Self.ScreenToLocal(controlPoint);
 
-  var clickedRow := GetRowByMouseY(pointInDataControl.Y);
+  var clickedRow := GetRowByMouseY(pointInDataControl.Y - _content.Position.Y);
   if clickedRow = nil then Exit;
 
   var flatColumn := GetFlatColumnByMouseX(pointInDataControl.X);
@@ -427,25 +440,26 @@ begin
   var horzScroll := GetHorzScroll(Key, Shift);
   if horzScroll = TRightLeftScroll.None then
   begin
-    Result := _treeLayout.FlatColumns[(_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn];
+    Result := _treeLayout.LayoutColumns[(_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn];
     Exit;
   end;
 
   var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
+  var lastFlatColumnIndex := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1].Index;
 
   var clmnIndex := -1;
   if horzScroll = TRightLeftScroll.FullLeft then
     clmnIndex := 0
   else if horzScroll = TRightLeftScroll.FullRight then
-    clmnIndex := _treeLayout.FlatColumns.Count - 1
+    clmnIndex := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1].Index
   else if horzScroll = TRightLeftScroll.Left then
     clmnIndex := treeSelectionInfo.SelectedFlatColumn - 1
   else if horzScroll = TRightLeftScroll.Right then
     clmnIndex := treeSelectionInfo.SelectedFlatColumn + 1;
 
-  var newSelectedFlatColumn := CMath.Max(0, CMath.Min(_treeLayout.FlatColumns.Count - 1, clmnIndex));
+  var newSelectedFlatColumn := CMath.Max(0, CMath.Min(lastFlatColumnIndex, clmnIndex));
 
-  var flatColumn := _treeLayout.FlatColumns[newSelectedFlatColumn];
+  var flatColumn := _treeLayout.LayoutColumns[newSelectedFlatColumn];
   var canSelect := (flatColumn.Width > 0) and flatColumn.Column.Selectable;
   while not canSelect do
   begin
@@ -453,10 +467,10 @@ begin
       inc(newSelectedFlatColumn) else
       dec(newSelectedFlatColumn);
 
-    if (newSelectedFlatColumn < 0) or (newSelectedFlatColumn > _treeLayout.FlatColumns.Count - 1) then
-      Exit(_treeLayout.FlatColumns[(_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn]); // nothing to do
+    if (newSelectedFlatColumn < 0) or (newSelectedFlatColumn > lastFlatColumnIndex) then
+      Exit(_treeLayout.LayoutColumns[(_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn]); // nothing to do
 
-    flatColumn := _treeLayout.FlatColumns[newSelectedFlatColumn];
+    flatColumn := _treeLayout.LayoutColumns[newSelectedFlatColumn];
     canSelect := (flatColumn.Width > 0) and flatColumn.Column.Selectable;
   end;
 
@@ -505,24 +519,55 @@ begin
 end;
 
 procedure TStaticDataControl.UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single);
-var
-  flatColumnIndex: Integer;
 begin
   var clickedRow := GetRowByMouseY(Y);
   if clickedRow = nil then Exit;
 
   var flatColumn := GetFlatColumnByMouseX(X);
-  if flatColumn = nil then Exit;
+  if flatColumn = nil then
+  begin
+    var flatIx := (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn;
+    if _treeLayout.LayoutColumns.Count > flatIx - 1 then
+      flatColumn := _treeLayout.LayoutColumns[flatIx] else
+      flatColumn := _treeLayout.FlatColumns[0];
+  end else
 
-  flatColumnIndex := flatColumn.Index;
+  if flatColumn.Column.IsCheckBoxColumn then
+  begin
+    var treeRow := clickedRow as IDCTreeRow;
+    var treeCell := treeRow.Cells[flatColumn.Index];
+    var checkBox := treeCell.InfoControl as TCheckBox;
+
+    if checkBox.IsChecked then
+    begin
+      _selectionInfo.Deselect(treeRow.DataIndex);
+      Exit;
+    end
+    else if (TreeOption_MultiSelect in _options) then
+    begin
+      _selectionInfo.AddToSelection(treeRow.DataIndex, treeRow.ViewListIndex, treeRow.DataItem);
+      Exit;
+    end;
+  end;
 
   _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
 
   var requestedSelection := _selectionInfo.Clone as ITreeSelectionInfo;
   requestedSelection.UpdateLastSelection(clickedRow.DataIndex, clickedRow.ViewListIndex, clickedRow.DataItem);
-  requestedSelection.SelectedFlatColumn := flatColumnIndex;
+  requestedSelection.SelectedFlatColumn := flatColumn.Index;
 
   TrySelectItem(requestedSelection, Shift);
+end;
+
+procedure TStaticDataControl.VisualizeRowSelection(const Row: IDCRow);
+begin
+  inherited;
+  UpdateSelectionCheckboxes(Row);
+end;
+
+procedure TStaticDataControl.OnHeaderCellResizeClicked( const HeaderCell: IHeaderCell);
+begin
+  _headerColumnResizeControl.StartResizing(HeaderCell);
 end;
 
 procedure TStaticDataControl.OnHeaderMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
@@ -531,52 +576,277 @@ begin
     Exit;
 
   var flatColumn := GetFlatColumnByMouseX(X);
-  if (flatColumn = nil) or (flatColumn.Column.SortType = TSortType.None) then
+  if (flatColumn = nil) then
     Exit;
 
   if Button = TMouseButton.mbRight then
   begin
-    //todo
+    if flatColumn.Column.ShowSortMenu or flatColumn.Column.ShowFilterMenu or flatColumn.Column.AllowHide then
+      ShowHeaderPopupMenu(flatColumn);
+
     Exit;
   end;
 
-  var selectedCell: IHeaderCell := nil;
-  for var cell in _headerRow.Cells.Values do
-    if FlatColumnByColumn(cell.Column).Index = flatColumn.Index then
-    begin
-      selectedCell := cell as IHeaderCell;
-      break;
-    end;
-
-  if selectedCell = nil then
+  if flatColumn.Column.SortType = TSortType.None then
     Exit;
 
-  if flatColumn.ActiveSort = nil then
+  var sortDirection := ListSortDirection.Descending;
+  if (flatColumn.ActiveSort <> nil) and (flatColumn.ActiveSort.SortDirection = ListSortDirection.Descending) then
+    sortDirection := ListSortDirection.Ascending;
+
+  UpdateColumnSort(flatColumn.Column, sortDirection, not (ssCtrl in Shift));
+end;
+
+procedure TStaticDataControl.UpdateColumnSort(const Column: IDCTreeColumn; SortDirection: ListSortDirection; ClearOtherSort: Boolean);
+begin
+  var flatColumn := Self.FlatColumnByColumn(Column);
+  if flatColumn = nil then
+    Exit;
+
+  // keep this var in the methods scope
+  // for "ActiveSort" is a weak referenced variable
+  var sortDesc: IListSortDescription;
+  if FlatColumn.ActiveSort = nil then
   begin
-    var sortDesc: IListSortDescription;
-    if flatColumn.Column.SortType in [TSortType.ColumnCellComparer, TSortType.RowComparer] then
+    if FlatColumn.Column.SortType in [TSortType.ColumnCellComparer, TSortType.RowComparer] then
     begin
-      var cmpDescriptor: IListSortDescriptionWithComparer := TTreeSortDescriptionWithComparer.Create(interfaces.Supports<IDataModel>(_view.OriginalData), flatColumn, OnGetCellDataForSorting);
+      var cmpDescriptor: IListSortDescriptionWithComparer := TTreeSortDescriptionWithComparer.Create(FlatColumn, OnGetCellDataForSorting);
 
       var comparer := DoSortingGetComparer(cmpDescriptor);
       if comparer = nil then
-        comparer := TComparerForEvents.Create(Self, flatColumn.Column);
+        comparer := TComparerForEvents.Create(Self, FlatColumn.Column);
 
       cmpDescriptor.Comparer := comparer;
 
       sortDesc := cmpDescriptor;
     end else
-      sortDesc := TTreeSortDescription.Create(interfaces.Supports<IDataModel>(_view.OriginalData), flatColumn, OnGetCellDataForSorting);
+      sortDesc := TTreeSortDescription.Create(FlatColumn, OnGetCellDataForSorting);
 
-    flatColumn.ActiveSort := sortDesc;
-    AddSortDescription(sortDesc, True);
-  end else
-  begin
-    flatColumn.ActiveSort.ToggleDirection;
-    AddSortDescription(flatColumn.ActiveSort, True);
+    FlatColumn.ActiveSort := sortDesc;
   end;
 
-  flatColumn.UpdateCellControlsByRow(selectedCell);
+  if FlatColumn.ActiveSort.SortDirection <> SortDirection then
+    FlatColumn.ActiveSort.ToggleDirection;
+
+  AddSortDescription(FlatColumn.ActiveSort, ClearOtherSort);
+
+  // update all header cells, because other sorts can be turned of (their image should be hidden)
+  if _headerRow <> nil then
+    for var headerCell in _headerRow.Cells.Values do
+      headerCell.LayoutColumn.UpdateCellControlsByRow(headerCell);
+end;
+
+procedure TStaticDataControl.UpdateColumnFilter(const Column: IDCTreeColumn; const FilterText: CString; const FilterValues: List<CObject>);
+begin
+  var flatColumn := Self.FlatColumnByColumn(Column);
+  if flatColumn = nil then
+    Exit;
+
+  if CString.IsNullOrEmpty(FilterText) and ((FilterValues = nil) or (FilterValues.Count = 0)) then
+  begin
+    if flatColumn.ActiveFilter <> nil then
+    begin
+      var activeFilters: List<IListFilterDescription> := CList<IListFilterDescription>.Create;
+      for var filterDescription in _view.GetFilterDescriptions do
+        if filterDescription <> flatColumn.ActiveFilter then
+          activeFilters.Add(filterDescription);
+
+      flatColumn.ActiveFilter := nil;
+      GetInitializedWaitForRefreshInfo.FilterDescriptions := activeFilters;
+    end;
+  end
+  else begin
+    // keep this var in the methods scope
+    // for "ActiveFilter" is a weak referenced variable
+    var filter: ITreeFilterDescription;
+    if flatColumn.ActiveFilter = nil then
+    begin
+      filter := TTreeFilterDescription.Create(flatColumn, OnGetCellDataForSorting);
+      FlatColumn.ActiveFilter := filter;
+    end;
+
+    FlatColumn.ActiveFilter.FilterText := FilterText;
+
+    if (FilterValues <> nil) and (FilterValues.Count > 0) then
+      FlatColumn.ActiveFilter.FilterValues := FilterValues else
+      FlatColumn.ActiveFilter.FilterValues := nil;
+
+    AddFilterDescription(FlatColumn.ActiveFilter, False);
+  end;
+
+  if _headerRow <> nil then
+  begin
+    var headerCell := _headerRow.Cells[FlatColumn.index];
+    FlatColumn.UpdateCellControlsByRow(HeaderCell);
+  end;
+end;
+
+function TStaticDataControl.GetColumnValues(const LayoutColumn: IDCTreeLayoutColumn): Dictionary<CObject, CString>;
+begin
+  var dict: Dictionary<Integer, CObject> := CDictionary<Integer, CObject>.Create;
+
+  var filterDescription: IListFilterDescription := TTreeFilterDescription.Create(LayoutColumn, OnGetCellDataForSorting);
+
+  for var item in _view.OriginalData do
+  begin
+    var obj := filterDescription.GetFilterableValue(item);
+    if obj = nil then
+      Continue;
+
+    var hash := obj.GetHashCode;
+    if not dict.ContainsKey(hash) then
+      dict.Add(hash, obj);
+  end;
+
+  Result := CDictionary<CObject, CString>.Create;
+  for var filterableObj in dict.Values do
+    Result.Add(filterableObj, filterableObj.ToString);
+end;
+
+procedure TStaticDataControl.ShowHeaderPopupMenu(const LayoutColumn: IDCTreeLayoutColumn);
+var
+  showFilter: Boolean;
+  dataValues: Dictionary<CObject, CString>;
+begin
+  (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn := LayoutColumn.Index;
+
+  // Popup form will be created once, then reused for any column
+  if _frmHeaderPopupMenu = nil then
+    _frmHeaderPopupMenu := TfrmFMXPopupMenu.Create(Self);
+
+  _frmHeaderPopupMenu.OnClose := HeaderPopupMenu_Closed;
+  var popupMenu := _frmHeaderPopupMenu as TfrmFMXPopupMenu;
+  popupMenu.LayoutColumn := LayoutColumn;
+
+  var leftPos: Single;
+  if LayoutColumn.Left + _frmHeaderPopupMenu.Width > (Self.Width - 10) then
+    leftPos := (Self.Width - 10) - _frmHeaderPopupMenu.Width else
+    leftPos := LayoutColumn.Left;
+
+  var localPos := PointF(leftPos, _headerRow.Height);
+  var screenPos := Self.LocalToScreen(localPos);
+
+  showFilter := LayoutColumn.Column.ShowFilterMenu and (_view <> nil) and (_view.ViewCount > 0);
+
+  popupMenu.ShowPopupMenu(ScreenPos, showFilter,
+      {ShowItemSort} LayoutColumn.Column.ShowSortMenu,
+      {ShowItemAddColumAfter} TDCTreeOption.AllowColumnUpdates in _Options,
+      {ShowItemHideColumn} LayoutColumn.Column.AllowHide );
+
+  if showFilter then
+  begin
+    dataValues := GetColumnValues(LayoutColumn);
+
+    // Dummy descriptor
+    var descriptor: IListSortDescriptionWithComparer := TTreeSortDescriptionWithComparer.Create(LayoutColumn, OnGetCellDataForSorting);
+    var comparer := DoSortingGetComparer(descriptor);
+    var filter := LayoutColumn.ActiveFilter;
+
+    if filter <> nil then
+      // Show filter values which already exist for this column
+      popupMenu.LoadFilterItems(dataValues, comparer, filter.FilterValues, // Current selected items in filter Tree
+                                filter.ShowEmptyValues,
+                                LayoutColumn.Column.SortType = TSortType.DisplayText)
+    else
+      popupMenu.LoadFilterItems(dataValues, comparer, nil, False, False);
+
+    popupMenu.AllowClearColumnFilter := (filter <> nil);
+  end;
+end;
+
+procedure TStaticDataControl.HeaderPopupMenu_Closed(Sender: TObject; var Action: TCloseAction);
+begin
+  var popupForm := _frmHeaderPopupMenu as TfrmFMXPopupMenu;
+  var flatColumn := _treeLayout.LayoutColumns[popupForm.LayoutColumn.Index];
+
+  if Assigned(_popupMenuClosed) then
+    _popupMenuClosed(popupForm);
+
+  case popupForm.PopupResult of
+    TfrmFMXPopupMenu.TPopupResult.ptCancel: Exit;
+
+    TfrmFMXPopupMenu.TPopupResult.ptSortAscending:
+    begin
+      UpdateColumnSort(flatColumn.Column, ListSortDirection.Ascending, True);
+    end;
+
+    TfrmFMXPopupMenu.TPopupResult.ptSortDescending:
+    begin
+      UpdateColumnSort(flatColumn.Column, ListSortDirection.Descending, True);
+    end;
+
+    TfrmFMXPopupMenu.TPopupResult.ptFilter:
+    begin
+      var filterValues := popupForm.SelectedItems;
+      UpdateColumnFilter(flatColumn.Column, nil, filterValues);
+    end;
+
+    TfrmFMXPopupMenu.TPopupResult.ptHideColumn:
+    begin
+      // check if is last flat
+      var treeSelectionInfo := (_selectionInfo as ITreeSelectionInfo);
+      if treeSelectionInfo.SelectedFlatColumn = _treeLayout.FlatColumns.Count - 1 then
+      begin
+        // if last column, then do nothing
+        if treeSelectionInfo.SelectedFlatColumn = 0 then
+          Exit;
+
+        treeSelectionInfo.SelectedFlatColumn := treeSelectionInfo.SelectedFlatColumn - 1;
+      end;
+
+      flatColumn.Column.CustomHidden := True;
+      if flatColumn.Column.IsCustomColumn then
+        _columns.Remove(flatColumn.Column);
+
+      _treeLayout.ForceRecalc;
+      AfterRealignContent;
+    end;
+
+    TfrmFMXPopupMenu.TPopupResult.ptClearFilter:
+    begin
+      UpdateColumnFilter(flatColumn.Column, nil, nil);
+    end;
+
+    TfrmFMXPopupMenu.TPopupResult.ptClearSortAndFilter:
+    begin
+      GetInitializedWaitForRefreshInfo.SortDescriptions := nil;
+      GetInitializedWaitForRefreshInfo.FilterDescriptions := nil;
+
+      for var cell in _headerRow.Cells.Values do
+        cell.LayoutColumn.UpdateCellControlsByRow(cell);
+    end;
+  end;
+end;
+
+//procedure TStaticDataControl.OnSelectionCheckBoxChange(Sender: TObject);
+//begin
+//  if _selectionCheckBoxUpdateCount > 0 then
+//    Exit;
+//
+//  var checkBox := Sender as TCheckBox;
+//  var cell := GetCellByControl(checkBox);
+//
+//  if (TreeOption_MultiSelect in _options) then
+//    _selectionInfo.AddToSelection(cell.Row.DataIndex, cell.Row.ViewListIndex, cell.Row.DataItem) else
+//    _selectionInfo.UpdateSingleSelection(cell.Row.DataIndex, cell.Row.ViewListIndex, cell.Row.DataItem);
+//end;
+
+procedure TStaticDataControl.UpdateSelectionCheckboxes(const Row: IDCRow);
+begin
+  // select / deselect based on _selectionInfo
+  var selectionCheckBoxColumn := SelectionCheckBoxColumn;
+  if selectionCheckBoxColumn = nil then
+    Exit;
+
+  inc(_selectionCheckBoxUpdateCount);
+  try
+    var checkBoxCell := (Row as IDCTreeRow).Cells[selectionCheckBoxColumn.Index];
+    var checkBox := checkBoxCell.InfoControl as TCheckBox;
+
+    checkBox.IsChecked := _selectionInfo.IsSelected(Row.DataIndex);
+  finally
+    dec(_selectionCheckBoxUpdateCount);
+  end;
 end;
 
 procedure TStaticDataControl.OnSelectionInfoChanged;
@@ -586,7 +856,7 @@ begin
   if _horzScrollBar.Visible then
   begin
     var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-    var currentFlatColumn := _treeLayout.FlatColumns[treeSelectionInfo.SelectedFlatColumn];
+    var currentFlatColumn := _treeLayout.LayoutColumns[treeSelectionInfo.SelectedFlatColumn];
     if not currentFlatColumn.Column.Frozen {those are always visible} then
     begin
       if currentFlatColumn.Left < _horzScrollBar.Value then
@@ -596,7 +866,18 @@ begin
     end;
   end;
 
-  DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionChangedBy)
+  DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionChangedBy);
+end;
+
+function TStaticDataControl.SelectionCheckBoxColumn: IDCTreeLayoutColumn;
+begin
+  Result := nil;
+  if _treeLayout = nil then
+    Exit;
+
+  for var lyClmn in _treeLayout.FlatColumns do
+    if lyClmn.Column.IsCheckBoxColumn then
+      Exit(lyClmn);
 end;
 
 procedure TStaticDataControl.SetBasicHorzScrollBarValues;
@@ -606,9 +887,15 @@ begin
   else begin
     var frozenColumnWidth := _treeLayout.FrozenColumnWidth;
 
+    // when AlignToContent column is a frozen column, and this type of width can change, the HScrollBar Min value must be set back
+    var setHorzBackToMinValue := SameValue(_horzScrollBar.Min, _horzScrollBar.Value);
+
     _horzScrollBar.Min := frozenColumnWidth;
     _horzScrollBar.Max := _content.Width + _treeLayout.ContentOverFlow;
     _horzScrollBar.ViewportSize := _content.Width - frozenColumnWidth;
+
+    if setHorzBackToMinValue then
+      _horzScrollBar.Value := _horzScrollBar.Min;
   end;
 end;
 
@@ -632,33 +919,16 @@ begin
   end;
 end;
 
-procedure TStaticDataControl.VisualizeRowSelection(const Row: IDCRow);
-begin
-  inherited;
-
-  if _selectionType <> TSelectionType.CellSelection then
-    Exit;
-
-//  var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-//  var rowIsSelected := treeSelectionInfo.IsSelected(Row.DataIndex);
-//  var treeRow := Row as IDCTreeRow;
-//  for var cell in treeRow.Cells.Values do
-//    if rowIsSelected then
-//    begin
-//      if treeSelectionInfo.SelectedFlatColumns.Contains(FlatColumnByColumn(cell.Column).Index) then
-//        (cell.InfoControl as TText).Color := TAlphaColors.Orange else
-//        (cell.InfoControl as TText).Color := TAlphaColors.Blue;
-//    end else
-//      (cell.InfoControl as TText).Color := TAlphaColors.Black;
-end;
-
 procedure TStaticDataControl.BeforeRealignContent;
 begin
   // sorting / set data item / set current etc..
-  var layoutColumnsAreValid := _treeLayout <> nil;
   var repaintInfo := (_waitForRepaintInfo as IDataControlWaitForRepaintInfo);
+  var columnsChanged := ((repaintInfo <> nil) and (TTreeViewState.ColumnsChanged in repaintInfo.ViewStateFlags));
 
-  if (_treeLayout = nil) or (_columns.Count = 0) or ((repaintInfo <> nil) and (TTreeViewState.ColumnsChanged in repaintInfo.ViewStateFlags)) then
+  if columnsChanged and (_view <> nil) then
+    _view.ResetView; // clear all controls
+
+  if (_treeLayout = nil) or (_columns.Count = 0) or columnsChanged then
     InitLayout;
 
   if _treeLayout.RecalcRequired then
@@ -683,16 +953,46 @@ end;
 
 procedure TStaticDataControl.ColumnsChanged(Sender: TObject; e: NotifyCollectionChangedEventArgs);
 begin
-  var waitForRepaintInfo := GetInitializedWaitForRefreshInfo as IDataControlWaitForRepaintInfo;
-  waitForRepaintInfo.ColumnsChanged;
+  if _treeLayout = nil then
+    Exit;
+
+  (GetInitializedWaitForRefreshInfo as IDataControlWaitForRepaintInfo).ColumnsChanged;
+
+  var column: IDCTreeColumn := nil;
+  if (e.NewItems <> nil) then
+    column := e.NewItems[0].AsType<IDCTreeColumn>
+  else if (e.OldItems <> nil) then
+    column := e.OldItems[0].AsType<IDCTreeColumn>;
+
+  if column <> nil then
+    DoColumnsChanged(column);
 end;
 
 procedure TStaticDataControl.ColumnVisibilityChanged(const Column: IDCTreeColumn);
 begin
-  if _view <> nil then
-    _view.ClearViewRecInfo;
+  if _treeLayout = nil then
+    Exit;
 
-  RequestRealignContent;
+  (GetInitializedWaitForRefreshInfo as IDataControlWaitForRepaintInfo).ColumnsChanged;
+  DoColumnsChanged(Column);
+end;
+
+procedure TStaticDataControl.ColumnWidthChanged(const Column: IDCTreeColumn);
+begin
+  DoColumnsChanged(Column);
+
+  _treeLayout.ForceRecalc;
+  AfterRealignContent;
+end;
+
+function TStaticDataControl.Content: TControl;
+begin
+  Result := Self;
+end;
+
+function TStaticDataControl.ColumnList: IDCTreeColumnList;
+begin
+  Result := _columns;
 end;
 
 constructor TStaticDataControl.Create(AOwner: TComponent);
@@ -719,6 +1019,8 @@ begin
   _hoverCellRect.Fill.Kind := TBrushKind.None;
   _hoverRect.AddObject(_hoverCellRect);
 
+  _headerColumnResizeControl := THeaderColumnResizeControl.Create(Self);
+
   _columns := TDCTreeColumnList.Create(Self);
   (_columns as INotifyCollectionChanged).CollectionChanged.Add(ColumnsChanged);
 end;
@@ -737,6 +1039,20 @@ begin
   Result := _waitForRepaintInfo;
 end;
 
+function TStaticDataControl.get_Layout: IDCTreeLayout;
+begin
+  Result := _treeLayout;
+end;
+
+function TStaticDataControl.get_SelectedColumn: IDCTreeLayoutColumn;
+begin
+  Result := nil;
+  if _treeLayout = nil then Exit;
+
+  var flatColumnIndex := (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn;
+  Result := _treeLayout.LayoutColumns[flatColumnIndex];
+end;
+
 procedure TStaticDataControl.HandleTreeOptionsChange(const OldFlags, NewFlags: TDCTreeOptions);
 begin
   inherited;
@@ -748,10 +1064,19 @@ begin
   end;
 
   var headerChange := ((TDCTreeOption.ShowHeaders in OldFlags) <> (TDCTreeOption.ShowHeaders in NewFlags));
+  var headerGridChange := ((TDCTreeOption.ShowHeaderGrid in OldFlags) <> (TDCTreeOption.ShowHeaderGrid in NewFlags));
   var vertGridChange := ((TDCTreeOption.ShowVertGrid in OldFlags) <> (TDCTreeOption.ShowVertGrid in NewFlags));
   var horzGridChange := ((TDCTreeOption.ShowHorzGrid in OldFlags) <> (TDCTreeOption.ShowHorzGrid in NewFlags));
 
-  if headerChange or vertGridChange or horzGridChange then
+  if (headerChange <> headerGridChange) and not (TDCTreeOption.ShowHeaders in NewFlags) then
+  begin
+    if headerChange then
+      _options := _options - [TDCTreeOption.ShowHeaderGrid]
+    else if headerGridChange then
+      _options := _options + [TDCTreeOption.ShowHeaders];
+  end;
+
+  if headerChange or headerGridChange or vertGridChange or horzGridChange then
   begin
     if _treeLayout <> nil then
       _treeLayout.ForceRecalc;
@@ -846,7 +1171,7 @@ begin
   if Assigned(_CellLoaded) then
   begin
     var args: DCCellLoadedEventArgs;
-    AutoObject.Guard(DCCellLoadedEventArgs.Create(Cell), args);
+    AutoObject.Guard(DCCellLoadedEventArgs.Create(Cell, TDCTreeOption.ShowVertGrid in  _options), args);
     args.RequestValueForSorting := RequestForSort;
 
     _CellLoaded(Self, args);
@@ -863,7 +1188,7 @@ begin
   if Assigned(_CellLoading) then
   begin
     var args: DCCellLoadingEventArgs;
-    AutoObject.Guard(DCCellLoadingEventArgs.Create(Cell), args);
+    AutoObject.Guard(DCCellLoadingEventArgs.Create(Cell, TDCTreeOption.ShowVertGrid in  _options), args);
     args.RequestValueForSorting := RequestForSort;
 
     _CellLoading(Self, args);
@@ -882,6 +1207,23 @@ begin
     AutoObject.Guard(DCCellSelectedEventArgs.Create(Cell, SelectionChangedBy), args);
 
     _cellSelected(Self, args);
+  end;
+end;
+
+procedure TStaticDataControl.DoColumnsChanged(const Column: IDCTreeColumn);
+var
+  args: ColumnChangedByUserEventArgs;
+
+begin
+  if Assigned(_onColumnsChanged) then
+  begin
+    var flatColumn := FlatColumnByColumn(Column);
+    var newWidth: Single := -1;
+    if (flatColumn <> nil) then
+      newWidth := Column.CustomWidth; // = -1 when nothing chanegd
+
+    AutoObject.Guard(ColumnChangedByUserEventArgs.Create(Column, newWidth), args);
+    _onColumnsChanged(Self, args);
   end;
 end;
 
@@ -925,9 +1267,7 @@ end;
 
 function TStaticDataControl.DoCreateNewRow: IDCRow;
 begin
-  if ViewIsDataModel then
-    Result := TDCTreeRow.Create(OnCollapseOrExpandRowClick) else
-    Result := TDCTreeRow.Create;
+  Result := TDCTreeRow.Create;
 end;
 
 procedure TStaticDataControl.DoHorzScrollBarChanged;
@@ -958,7 +1298,7 @@ begin
 
   if flatColumnIx <> -1 then
   begin
-    var cell: IDCTreeCell := TDCTreeCell.Create(treeRow, _treeLayout.FlatColumns[flatColumnIx]);
+    var cell: IDCTreeCell := TDCTreeCell.Create(treeRow, _treeLayout.LayoutColumns[flatColumnIx]);
     treeRow.Cells.Add(flatColumnIx, cell);
   end;
 
@@ -979,6 +1319,7 @@ begin
   if not changed and not (ssCtrl in Shift) then
   begin
     ScrollSelectedIntoView(RequestedSelectionInfo);
+    DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionChangedBy);
     Exit;
   end;
 
@@ -1079,8 +1420,10 @@ begin
     var headerRect := TLayout.Create(Self);
     headerRect.Stored := False;
     headerRect.Align := TAlignLayout.Top;
-    headerRect.Height := 30;
+    headerRect.Height := 24;
+    headerRect.HitTest := True;
     headerRect.OnMouseUp := OnHeaderMouseUp;
+    headerRect.Margins.Bottom := 1;
     Self.AddObject(headerRect);
 
     _headerRow.Control := headerRect;
@@ -1090,32 +1433,37 @@ begin
 
     for var flatColumn in _treeLayout.FlatColumns do
     begin
-      var cell: IDCTreeCell := THeaderCell.Create(_headerRow, flatColumn);
+      var headerCell: IHeaderCell := THeaderCell.Create(_headerRow, flatColumn);
+      headerCell.OnHeaderCellResizeClicked := OnHeaderCellResizeClicked;
 
       var dummyManualHeight: Single := -1;
-      var dummyLoadDefaultData := DoCellLoading(cell, False, {var} dummyManualHeight);
+      DoCellLoading(headerCell, False, {var} dummyManualHeight);
 
-      if cell.Control = nil then
+      if headerCell.Control = nil then
       begin
-        flatColumn.CreateCellBaseControls(True, cell);
-        var rect := (cell.Control as TRectangle);
-        rect.Fill.Kind := TBrushKind.Solid;
-        rect.Fill.Color := DEFAULT_GREY_COLOR;
+        if (TreeOption_ShowHeaderGrid in _options) then
+        begin
+          flatColumn.CreateCellBaseControls(True, headerCell);
+          var rect := (headerCell.Control as TRectangle);
+          rect.Fill.Kind := TBrushKind.Solid;
+          rect.Fill.Color := DEFAULT_GREY_COLOR;
+        end else
+          flatColumn.CreateCellBaseControls(False, headerCell);
       end;
 
-      cell.Control.Height := headerRect.Height;
+      headerCell.Control.Height := headerRect.Height;
 
-      flatColumn.UpdateCellControlsByRow(cell);
+      flatColumn.UpdateCellControlsByRow(headerCell);
 
-      (cell.InfoControl as ScrollableRowControl_DefaultTextClass).Text := flatColumn.Column.Caption;
+      (headerCell.InfoControl as ScrollableRowControl_DefaultTextClass).Text := CStringToString(flatColumn.Column.Caption);
 
-      DoCellLoaded(cell, False, {var} dummyManualHeight);
+      DoCellLoaded(headerCell, False, {var} dummyManualHeight);
 
       var needsWidthCheckBasedOnColumn := flatColumn.Column.WidthType = TDCColumnWidthType.AlignToContent;
       if needsWidthCheckBasedOnColumn then
-        _headerRow.ContentCellSizes[flatColumn.Index] := CalculateCellWidth(flatColumn, cell);
+        _headerRow.ContentCellSizes[flatColumn.Index] := CalculateCellWidth(flatColumn, headerCell);
 
-      _headerRow.Cells.Add(flatColumn.Index, cell);
+      _headerRow.Cells.Add(flatColumn.Index, headerCell);
     end;
   end;
 
@@ -1126,6 +1474,14 @@ end;
 
 procedure TStaticDataControl.LoadDefaultDataIntoControl(const Cell: IDCTreeCell; const FlatColumn: IDCTreeLayoutColumn; const IsSubProp: Boolean);
 begin
+  if Cell.Column.IsCheckBoxColumn then
+  begin
+//    var checkBox := Cell.InfoControl as TCheckBox;
+//    checkBox.Tag := Cell.Row.ViewListIndex;
+//    checkBox.OnChange := OnSelectionCheckBoxChange;
+    Exit;
+  end;
+
   var ctrl: TControl;
   var propName: CString;
 
@@ -1144,7 +1500,7 @@ begin
     Exit;
 
   var formatApplied: Boolean;
-  var cellValue := FlatColumn.Column.GetCellValue(cell, propName);
+  var cellValue := FlatColumn.Column.ProvideCellData(cell, propName);
   DoCellFormatting(cell, False, {var} cellValue, {out} formatApplied);
 
   var formattedValue := FlatColumn.Column.GetDefaultCellData(cell, cellValue, formatApplied);
@@ -1154,10 +1510,9 @@ begin
   end;
 end;
 
-procedure TStaticDataControl.InitInnerRow(const Row: IDCRow);
+procedure TStaticDataControl.InnerInitRow(const Row: IDCRow);
 begin
   var cell: IDCTreeCell;
-  var rowWidth: Single := 0;
   var treeRow := Row as IDCTreeRow;
   var manualHeight: Single := -1;
 
@@ -1173,8 +1528,6 @@ begin
 
   for var flatColumn in l do
   begin
-    var frozen := flatColumn.Column.Frozen;
-
     if not treeRow.Cells.TryGetValue(flatColumn.Index, cell) then
     begin
       cell := TDCTreeCell.Create(Row, flatColumn);
@@ -1213,32 +1566,34 @@ end;
 
 function TStaticDataControl.CalculateCellWidth(const LayoutColumn: IDCTreeLayoutColumn; const Cell: IDCTreeCell): Single;
 begin
-  if LayoutColumn.Column is TDCTreeCheckboxColumn then
+  if (LayoutColumn.Column.InfoControlClass <> TInfoControlClass.Text) and (LayoutColumn.Column.SubInfoControlClass <> TInfoControlClass.Text) then
   begin
     Result := 30;
     Exit;
   end;
 
-  var ctrl := Cell.InfoControl as TText;
-  var mainWidth := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*CELL_CONTENT_MARGIN);
+  if (LayoutColumn.Column.InfoControlClass = TInfoControlClass.Text) then
+  begin
+    var ctrl := Cell.InfoControl as TText;
+    Result := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*CELL_CONTENT_MARGIN);
+  end;
 
   if not Cell.IsHeaderCell and (Cell.Column.SubInfoControlClass = TInfoControlClass.Text) then
   begin
     var subCtrl := Cell.SubInfoControl as TText;
     var subWidth := TextControlWidth(subCtrl, subCtrl.TextSettings, subCtrl.Text) + (2*CELL_CONTENT_MARGIN);
 
-    Result := CMath.Max(mainWidth, subWidth);
-  end else
-    Result := mainWidth;
+    Result := CMath.Max(Result, subWidth);
+  end;
 
   if Cell.IsHeaderCell then
   begin
     var headerCell := Cell as IHeaderCell;
     if (headerCell.SortControl <> nil) then
-      Result := Result + headerCell.SortControl.Width + CELL_CONTENT_MARGIN;
+      Result := Result + headerCell.SortControl.Width + (2*CELL_CONTENT_MARGIN);
 
     if (headerCell.FilterControl <> nil) then
-      Result := Result + headerCell.FilterControl.Width + CELL_CONTENT_MARGIN;
+      Result := Result + headerCell.FilterControl.Width + (2*CELL_CONTENT_MARGIN);
   end
   else begin
     if Cell.ExpandButton <> nil then
@@ -1280,12 +1635,24 @@ begin
   (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumns.Clear;
 end;
 
+procedure TStaticDataControl.GetSortAndFilterImages(out ImageList: TCustomImageList; out FilterIndex, SortAscIndex, SortDescIndex: Integer);
+begin
+  if _frmHeaderPopupMenu = nil then
+    _frmHeaderPopupMenu := TfrmFMXPopupMenu.Create(Self);
+
+  var popUpFrm := (_frmHeaderPopupMenu as TfrmFMXPopupMenu);
+  ImageList := popUpFrm.ImageListPopup;
+  FilterIndex := 4;
+  SortAscIndex := 0;
+  SortDescIndex := 1;
+end;
+
 procedure TStaticDataControl.InitLayout;
 begin
   if (_view <> nil) and (_columns.Count = 0) then
     CreateDefaultColumns;
 
-  _treeLayout := TDCTreeLayout.Create(_content, _columns);
+  _treeLayout := TDCTreeLayout.Create(Self);
 end;
 
 procedure TStaticDataControl.CreateDefaultColumns; //(const AList: ITreeColumnList);
@@ -1360,7 +1727,7 @@ end;
 function TStaticDataControl.OnGetCellDataForSorting(const Cell: IDCTreeCell): CObject;
 begin
   if Cell.Column.SortType = TSortType.PropertyValue then
-    Exit(Cell.Column.GetCellValue(cell, cell.Column.PropertyName))
+    Exit(Cell.Column.ProvideCellData(cell, cell.Column.PropertyName))
   else if Cell.Column.SortType = TSortType.RowComparer then
     Exit(Cell.Row.DataItem);
 
@@ -1370,7 +1737,7 @@ begin
   if loadDefaultData then
   begin
     var formatApplied: Boolean;
-    cellValue := Cell.Column.GetCellValue(cell, cell.Column.PropertyName);
+    cellValue := Cell.Column.ProvideCellData(cell, cell.Column.PropertyName);
     DoCellFormatting(cell, True, {var} cellValue, {out} formatApplied);
     Result := Cell.Column.GetDefaultCellData(cell, cellValue, formatApplied);
   end else

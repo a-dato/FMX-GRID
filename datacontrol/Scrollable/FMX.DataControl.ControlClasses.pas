@@ -14,6 +14,7 @@ uses
   System.Classes,
   System.UITypes,
   FMX.ActnList,
+  FMX.ImgList,
   FMX.Types,
   System_;
 
@@ -22,6 +23,7 @@ type
 //  TControlClass = class of TControl;
   TCheckBoxClass = class of TCheckBox;
   TButtonClass = class of TButton;
+  TGlyphClass = class of TGlyph;
   TEditClass = class of TEdit;
   TMemoClass = class of TMemo;
   TDateEditClass = class of TDateEdit;
@@ -42,6 +44,7 @@ var  // see Initialization section
   ScrollableRowControl_DefaultTextClass: TTextClass;
   ScrollableRowControl_DefaultCheckboxClass: TCheckBoxClass;
   ScrollableRowControl_DefaultButtonClass: TButtonClass;
+  ScrollableRowControl_DefaultGlyphClass: TGlyphClass;
   ScrollableRowControl_DefaultEditClass: TEditClass;
   ScrollableRowControl_DefaultMemoClass: TMemoClass;
   ScrollableRowControl_DefaultDateEditClass: TDateEditClass;
@@ -120,6 +123,7 @@ initialization
   ScrollableRowControl_DefaultTextClass := TText;
   ScrollableRowControl_DefaultCheckboxClass := TCheckBox;
   ScrollableRowControl_DefaultButtonClass := TButton;
+  ScrollableRowControl_DefaultGlyphClass := TGlyph;
   ScrollableRowControl_DefaultEditClass := TEdit;
   ScrollableRowControl_DefaultMemoClass := TMemo;
   ScrollableRowControl_DefaultDateEditClass := TDateTimeEditOnKeyDownOverride;
@@ -129,8 +133,8 @@ initialization
   DEFAULT_GREY_COLOR := TAlphaColor($FFF5F6FB);
   DEFAULT_WHITE_COLOR := TAlphaColors.Null;
 
-  DEFAULT_ROW_SELECTION_ACTIVE_COLOR := TAlphaColor($BB6A5ACD);
-  DEFAULT_ROW_SELECTION_INACTIVE_COLOR := TAlphaColor($BB778899);
-  DEFAULT_ROW_HOVER_COLOR := TAlphaColor($55B0C4DE);
+  DEFAULT_ROW_SELECTION_ACTIVE_COLOR := TAlphaColor($886A5ACD);
+  DEFAULT_ROW_SELECTION_INACTIVE_COLOR := TAlphaColor($88778899);
+  DEFAULT_ROW_HOVER_COLOR := TAlphaColor($335B8BCD);
 
 end.

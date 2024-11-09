@@ -147,14 +147,14 @@ end;
 
 function TRemoteQueryControllerSupport.DotNetQueryInterface<T>: T;
 begin
+  Result := Default(T);
+
   {$IFDEF LYNXWEB}
   for item in _QueryControllers do
   begin
     if Interfaces.Supports<T>(item, out Result) then
       Exit(Result);
   end;
-
-  Result := nil;
   {$ENDIF}
 end;
 

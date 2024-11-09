@@ -385,7 +385,7 @@ begin
     if _scrollStopWatch_mouse_lastMove.ElapsedMilliseconds > 200 then
     begin
       _scrollStopWatch_mouse_lastMove.Reset;
-      _scrollStopWatch_mouse.Reset;
+//      _scrollStopWatch_mouse.Reset;
     end;
 
     if _scrollStopWatch_mouse.IsRunning then
@@ -400,13 +400,16 @@ begin
         doMouseClick := False;
       end;
 
-      _scrollStopWatch_mouse.Reset;
+//      _scrollStopWatch_mouse.Reset;
     end;
   end;
 
   // determin the mouseUp as a click event
   if doMouseClick and (pixelsPerSecond > -2) and (pixelsPerSecond < 2) then
     UserClicked(Button, Shift, X, Y - _content.Position.Y);
+
+  if _scrollStopWatch_mouse.IsRunning then
+    _scrollStopWatch_mouse.Reset;
 end;
 
 procedure TDCScrollableControl.MouseRollingBoostTimer(Sender: TObject);

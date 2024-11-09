@@ -132,8 +132,6 @@
         <DCCReference Include="FMXDataControlColumnsDsgnPage.pas"/>
         <DCCReference Include="FMXDataControlDsgn.pas"/>
         <DCCReference Include="ADato.FMX.DataControl.Register.pas"/>
-        <DCCReference Include="..\Tree\FMX.DataControl.Intf.pas"/>
-        <DCCReference Include="..\Tree\FMX.DataControl.Impl.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

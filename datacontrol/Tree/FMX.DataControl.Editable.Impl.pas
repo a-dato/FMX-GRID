@@ -167,7 +167,7 @@ implementation
 uses
   FMX.Edit, FMX.DataControl.ControlClasses, FMX.DateTimeCtrls, FMX.ComboEdit,
   System.Math, FMX.Memo, FMX.DataControl.ScrollableRowControl.Intf,
-  FMX.StdCtrls;
+  FMX.StdCtrls, FMX.Graphics;
 
 { TTreeEditingInfo }
 

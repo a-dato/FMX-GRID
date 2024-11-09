@@ -15,7 +15,7 @@ uses
 
   FMX.Controls,
   FMX.DataControl.ScrollableRowControl.Intf,
-  FMX.StdCtrls;
+  FMX.StdCtrls, FMX.Graphics, FMX.ImgList;
 
 type
   TSortType = (None, Displaytext, CellData, PropertyValue, ColumnCellComparer, RowComparer);
@@ -23,7 +23,7 @@ type
   IDCTreeCell = interface;
 
   TDCColumnWidthType = (Pixel, Percentage, AlignToContent);
-  TInfoControlClass = (Custom, Text, CheckBox, Button);
+  TInfoControlClass = (Custom, Text, CheckBox, Button, Glyph);
 
   TOnGetSortCellData = reference to function(const Cell: IDCTreeCell): CObject;
 
@@ -98,6 +98,8 @@ type
     procedure set_ReadOnly(const Value: Boolean);
     function  get_Selectable: Boolean;
     procedure set_Selectable(Value : Boolean);
+    function  get_AllowResize: Boolean;
+    procedure set_AllowResize(const Value: Boolean);
     function  get_AllowHide: Boolean;
     procedure set_AllowHide(const Value: Boolean);
     function  get_Format: CString;
@@ -109,16 +111,13 @@ type
     property Frozen: Boolean read get_Frozen write set_Frozen;
     property ReadOnly: Boolean read get_ReadOnly write set_ReadOnly;
     property Selectable: Boolean read get_Selectable write set_Selectable;
+    property AllowResize: Boolean read get_AllowResize write set_AllowResize;
     property AllowHide: Boolean read get_AllowHide write set_AllowHide;
     property Format: CString read get_Format write set_Format;
   end;
 
   IDCTreeColumn = interface;
-
-  IColumnControl = interface
-    ['{AC852A77-01E3-4419-8F8F-D6162F758A74}']
-    procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
-  end;
+  IColumnControl = interface;
 
   IDCTreeColumn = interface(IBaseInterface)
     ['{A4E5EB04-6EFA-4637-B9BE-BC1175B37FDC}']
@@ -151,6 +150,7 @@ type
     function  get_Hierarchy: IDCColumnHierarchy;
     procedure set_Hierarchy(const Value: IDCColumnHierarchy);
 
+    function  get_AllowResize: Boolean;
     function  get_AllowHide: Boolean;
     function  get_ShowSortMenu: Boolean;
     function  get_ShowFilterMenu: Boolean;
@@ -169,13 +169,20 @@ type
     function  get_WidthMax: Single;
     function  get_WidthType: TDCColumnWidthType;
 
+    function  get_CustomWidth: Single;
+    procedure set_CustomWidth(const Value: Single);
+    function  get_CustomHidden: Boolean;
+    procedure set_CustomHidden(const Value: Boolean);
+    function  get_IsCustomColumn: Boolean;
+    procedure set_IsCustomColumn(const Value: Boolean);
+
     function  get_FormatProvider: IFormatProvider;
     procedure set_FormatProvider(const Value: IFormatProvider);
 
     function  Clone: IDCTreeColumn;
     function  IsCheckBoxColumn: Boolean;
 
-    function  GetCellValue(const Cell: IDCTreeCell; const PropName: CString): CObject;
+    function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString): CObject;
     function  GetDefaultCellData(const Cell: IDCTreeCell; const CellValue: CObject; FormatApplied: Boolean): CObject;
 
     property TreeControl: IColumnControl read get_TreeControl write set_TreeControl;
@@ -188,6 +195,7 @@ type
     property WidthMax: Single read get_WidthMax;
 
     // user actions
+    property AllowResize: Boolean read get_AllowResize;
     property AllowHide: Boolean read get_AllowHide;
     property ShowSortMenu: Boolean read get_ShowSortMenu;
     property ShowFilterMenu: Boolean read get_ShowFilterMenu;
@@ -204,8 +212,6 @@ type
     property Indent: Single read get_Indent;
     property Format: CString read get_Format;
 
-
-
     property Caption: CString read get_Caption write set_Caption;
     property PropertyName: CString read get_PropertyName write set_PropertyName;
     property Tag: CObject read get_Tag write set_Tag;
@@ -216,6 +222,10 @@ type
     property SubControlSettings: IDCColumnSubControlSettings read get_SubControlSettings write set_SubControlSettings;
     property Visualisation: IDCColumnVisualisation read get_Visualisation write set_Visualisation;
     property Hierarchy: IDCColumnHierarchy read get_Hierarchy write set_Hierarchy;
+
+    property CustomWidth: Single read get_CustomWidth write set_CustomWidth;
+    property CustomHidden: Boolean read get_CustomHidden write set_CustomHidden;
+    property IsCustomColumn: Boolean read get_IsCustomColumn write set_IsCustomColumn;
   end;
 
   IDCTreeCheckboxColumn = interface(IDCTreeColumn)
@@ -254,13 +264,34 @@ type
     function  FindColumnByCaption(const Caption: CString) : IDCTreeColumn;
     function  FindColumnByPropertyName(const Name: CString) : IDCTreeColumn;
     function  FindColumnByTag(const Value: CObject) : IDCTreeColumn;
-    function  ColumnLayoutToJSON(const SystemLayout: TJSONObject): TJSONObject;
+    function  ColumnLayoutToJSON: TJSONObject;
     procedure RestoreColumnLayoutFromJSON(const Value: TJSONObject);
 
     property Item[Index: Integer]: IDCTreeColumn read get_Item write set_Item; default;
     property TreeControl: IColumnControl read get_TreeControl;
   end;
 
+  IColumnControl = interface
+    ['{AC852A77-01E3-4419-8F8F-D6162F758A74}']
+    procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
+    procedure ColumnWidthChanged(const Column: IDCTreeColumn);
+
+    function  Content: TControl;
+    function  ColumnList: IDCTreeColumnList;
+
+    procedure GetSortAndFilterImages(out ImageList: TCustomImageList; out FilterIndex, SortAscIndex, SortDescIndex: Integer);
+  end;
+
+  ITreeFilterDescription = interface(IListFilterDescription)
+    ['{D676B9AB-6BAE-45F1-A27E-D046E6C004AA}']
+    function  get_filterText: CString;
+    procedure set_filterText(const Value: CString);
+    function  get_filterValues: List<CObject>;
+    procedure set_filterValues(const Value: List<CObject>);
+
+    property FilterText: CString read get_filterText write set_filterText;
+    property FilterValues: List<CObject> read get_filterValues write set_filterValues;
+  end;
 
   IDCTreeLayoutColumn = interface(IBaseInterface)
   { IDCTreeLayoutColumn describes the presentation of the control.
@@ -273,17 +304,18 @@ type
     procedure set_Left(Value: Single);
     function  get_Width: Single;
     procedure set_Width(Value: Single);
-    function  get_WidthChangedByUser: Boolean;
+
     function  get_HideColumnInView: Boolean;
     procedure set_HideColumnInView(const Value: Boolean);
 
-    function  get_ActiveFilter: IListFilterDescription;
-    procedure set_ActiveFilter(const Value: IListFilterDescription);
+    function  get_ActiveFilter: ITreeFilterDescription;
+    procedure set_ActiveFilter(const Value: ITreeFilterDescription);
     function  get_ActiveSort: IListSortDescription;
     procedure set_ActiveSort(const Value: IListSortDescription);
 
+    function  CreateInfoControl(const Cell: IDCTreeCell; const ControlClassType: TInfoControlClass): TControl;
     procedure CreateCellBaseControls(const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
-    procedure CreateCellStyleControl(const StyleLookUp: CString; const Cell: IDCTreeCell);
+    procedure CreateCellStyleControl(const StyleLookUp: CString; const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
 
     procedure UpdateCellControlsByRow(const Cell: IDCTreeCell);
     procedure UpdateCellControlsPositions(const Cell: IDCTreeCell);
@@ -292,10 +324,9 @@ type
     property Index: Integer read get_Index write set_Index;
     property Left: Single read get_Left write set_Left;
     property Width: Single read get_Width write set_Width;
-    property WidthChangedByUser: Boolean read get_WidthChangedByUser;
     property HideColumnInView: Boolean read get_HideColumnInView write set_HideColumnInView;  // calculated in AfterRealignContent
 
-    property ActiveFilter: IListFilterDescription read get_ActiveFilter write set_ActiveFilter;
+    property ActiveFilter: ITreeFilterDescription read get_ActiveFilter write set_ActiveFilter;
     property ActiveSort: IListSortDescription read get_ActiveSort write set_ActiveSort;
   end;
 
@@ -344,43 +375,41 @@ type
 
   IDCTreeCell = interface(IBaseInterface)
     ['{F0A049EA-A0A8-409C-95E7-B663C1FBBC78}']
-//    function  get_BackgroundColor: TAlphaColor;
-//    procedure set_BackgroundColor(const Color: TAlphaColor);
     function  get_Column: IDCTreeColumn;
     function  get_LayoutColumn: IDCTreeLayoutColumn;
     function  get_Control: TControl;
-    procedure set_Control(const Control: TControl);
-    function  get_InfoControl: TControl;
-    procedure set_InfoControl(const Value: TControl);
-    function  get_SubInfoControl: TControl;
-    procedure set_SubInfoControl(const Value: TControl);
+    procedure set_Control(const Value: TControl);
     function  get_ExpandButton: TButton;
     procedure set_ExpandButton(const Value: TButton);
     function  get_HideCellInView: Boolean;
     procedure set_HideCellInView(const Value: Boolean);
+
+    function  get_InfoControl: TControl;
+    procedure set_InfoControl(const Value: TControl);
+    function  get_CustomInnerControlBounds: TRectF;
+    procedure set_CustomInnerControlBounds(const Value: TRectF);
+    function  get_SubInfoControl: TControl;
+    procedure set_SubInfoControl(const Value: TControl);
+    function  get_CustomSubInnerControlBounds: TRectF;
+    procedure set_CustomSubInnerControlBounds(const Value: TRectF);
+
 //    function  get_ColSpan: Byte;
 //    procedure set_ColSpan(const Value: Byte);
     function  get_Data: CObject;
     procedure set_Data(const Value: CObject);
-    function  get_Index: Integer;
     function  get_Row: IDCRow;
+    function  get_Index: Integer;
 
     function  IsHeaderCell: Boolean;
 
-//    function  GetDataAsString(const Format: CString): CString;
-//    procedure SetDataFromString(const Format: CString; const Value: CString);
-//    function  ParseText(const Format: CString; const Value: CString) : CObject;
-//
-//    function  GetFormattedData( const Content: ICellContent;
-//                                const Data: CObject;
-//                                const RequestValueForSorting: Boolean;
-//                                out FormatApplied: Boolean) : CObject;
     property Column: IDCTreeColumn read get_Column;
     property LayoutColumn: IDCTreeLayoutColumn read get_LayoutColumn;
 
     property Control: TControl read get_Control write set_Control;
     property InfoControl: TControl read get_InfoControl write set_InfoControl;
+    property CustomInnerControlBounds: TRectF read get_CustomInnerControlBounds write set_CustomInnerControlBounds;
     property SubInfoControl: TControl read get_SubInfoControl write set_SubInfoControl;
+    property CustomSubInnerControlBounds: TRectF read get_CustomSubInnerControlBounds write set_CustomSubInnerControlBounds;
     property ExpandButton: TButton read get_ExpandButton write set_ExpandButton;
     property HideCellInView: Boolean read get_HideCellInView write set_HideCellInView;
 
@@ -394,15 +423,29 @@ type
       own 'background' control or it should be transparent. To disable background color - set TAlphaColorRec.Null. }
   end;
 
+  IHeaderCell = interface;
+
+  TOnHeaderCellResizeClicked = procedure(const HeaderCell: IHeaderCell) of object;
+
   IHeaderCell = interface(IDCTreeCell)
     ['{3E886481-60ED-4794-8BD1-00847C6158BF}']
     function  get_SortControl: TControl;
     procedure set_SortControl(const Value: TControl);
     function  get_FilterControl: TControl;
     procedure set_FilterControl(const Value: TControl);
+    function  get_ResizeControl: TControl;
+    procedure set_ResizeControl(const Value: TControl);
+    procedure set_OnHeaderCellResizeClicked(const Value: TOnHeaderCellResizeClicked);
 
     property SortControl: TControl read get_SortControl write set_SortControl;
     property FilterControl: TControl read get_FilterControl write set_FilterControl;
+    property ResizeControl: TControl read get_ResizeControl write set_ResizeControl;
+    property OnHeaderCellResizeClicked: TOnHeaderCellResizeClicked write set_OnHeaderCellResizeClicked;
+  end;
+
+  IHeaderColumnResizeControl = interface
+    ['{64928A7F-9A0F-42C8-B9DF-455B59DC97CD}']
+    procedure StartResizing(const HeaderCell: IHeaderCell);
   end;
 
   IDCTreeRow = interface(IDCRow)

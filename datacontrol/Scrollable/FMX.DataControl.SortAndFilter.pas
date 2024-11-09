@@ -16,17 +16,13 @@ type
   TTreeSortDescription = class(CListSortDescription)
   private
     _flatColumn: IDCTreeLayoutColumn;
-    _isDataModelSort: Boolean;
 
     _dummyRow: IDCTreeRow;
     _dummyCell: IDCTreeCell;
     _onGetSortCellData: TOnGetSortCellData;
 
-    _cachedType: &Type;
-    _cachedProp: _PropertyInfo;
-
   public
-    constructor Create(const IsDataModel: Boolean; const Column: IDCTreeLayoutColumn; OnGetSortCellData: TOnGetSortCellData); reintroduce;
+    constructor Create(const Column: IDCTreeLayoutColumn; OnGetSortCellData: TOnGetSortCellData); reintroduce;
 
     procedure SortBegin; override;
     procedure SortCompleted; override;
@@ -40,23 +36,19 @@ type
 
     function  get_Comparer: IComparer<CObject>;
     procedure set_Comparer(const Value: IComparer<CObject>);
-  protected
-    function  Compare(const Left, Right: CObject): Integer; override;
   public
+    function  Compare(const Left, Right: CObject): Integer; override;
+
     property Comparer: IComparer<CObject> read get_Comparer write set_Comparer;
   end;
 
-  TTreeFilterDescription = class(CListFilterDescription)
+  TTreeFilterDescription = class(CListFilterDescription, ITreeFilterDescription)
   private
     _flatColumn: IDCTreeLayoutColumn;
-    _isDataModelSort: Boolean;
 
     _dummyRow: IDCTreeRow;
     _dummyCell: IDCTreeCell;
     _onGetSortCellData: TOnGetSortCellData;
-
-    _cachedType: &Type;
-    _cachedProp: _PropertyInfo;
 
     _FilterText: CString;
     _FilterValues: List<CObject>;
@@ -69,7 +61,7 @@ type
     procedure set_filterValues(const Value: List<CObject>);
 
   public
-    constructor Create(const IsDataModel: Boolean; const Column: IDCTreeLayoutColumn; OnGetSortCellData: TOnGetSortCellData); reintroduce;
+    constructor Create(const Column: IDCTreeLayoutColumn; OnGetSortCellData: TOnGetSortCellData); reintroduce;
     destructor Destroy; override;
 
     function IsMatch(const Value: CObject): Boolean; override;
@@ -99,15 +91,13 @@ uses
 
 { CTreeSortDescriptionWithProperty }
 
-constructor TTreeSortDescription.Create(const IsDataModel: Boolean; const Column: IDCTreeLayoutColumn; OnGetSortCellData: TOnGetSortCellData);
+constructor TTreeSortDescription.Create(const Column: IDCTreeLayoutColumn; OnGetSortCellData: TOnGetSortCellData);
 begin
-  inherited Create(ListSortDirection.Descending);
+  inherited Create(ListSortDirection.Ascending);
 
   _flatColumn := Column;
   _loadSortableValueInternal := True;
   _onGetSortCellData := OnGetSortCellData;
-
-  _isDataModelSort := IsDataModel;
 end;
 
 function TTreeSortDescription.GetSortableValue(const AObject: CObject): CObject;
@@ -122,10 +112,13 @@ begin
   _dummyRow := TDCTreeRow.Create;
   _dummyCell := TDCTreeCell.Create(_dummyRow, _flatColumn);
 
-  // user can direct assign values to InfoControl in cellloading / cellloaded
-  // we need to call cellloading / cellloaded, therefor we create this infocontrol
-  _dummyCell.InfoControl := ScrollableRowControl_DefaultTextClass.Create(nil);
-  _dummyCell.InfoControl.Visible := False;
+  if _flatColumn.Column.InfoControlClass <> TInfoControlClass.Custom then
+  begin
+    // user can direct assign values to InfoControl in cellloading / cellloaded
+    // we need to call cellloading / cellloaded, therefor we create this infocontrol
+    _dummyCell.InfoControl := _flatColumn.CreateInfoControl(_dummyCell, _flatColumn.Column.InfoControlClass);
+    _dummyCell.InfoControl.Visible := False;
+  end;
 
   _dummyRow.Cells[_flatColumn.Index] := _dummyCell;
 end;
@@ -134,21 +127,20 @@ procedure TTreeSortDescription.SortCompleted;
 begin
   inherited;
 
-  _dummyCell.InfoControl.Free;
+  if _dummyCell <> nil then
+    _dummyCell.InfoControl.Free;
   _dummyCell := nil;
   _dummyRow := nil;
 end;
 
 { TTreeFilterDescription }
 
-constructor TTreeFilterDescription.Create(const IsDataModel: Boolean; const Column: IDCTreeLayoutColumn; OnGetSortCellData: TOnGetSortCellData);
+constructor TTreeFilterDescription.Create(const Column: IDCTreeLayoutColumn; OnGetSortCellData: TOnGetSortCellData);
 begin
   inherited Create;
 
   _flatColumn := Column;
   _onGetSortCellData := OnGetSortCellData;
-  _isDataModelSort := IsDataModel;
-
 
   _dummyRow := TDCTreeRow.Create;
   _dummyCell := TDCTreeCell.Create(_dummyRow, _flatColumn);
@@ -204,11 +196,9 @@ function TTreeFilterDescription.IsMatch(const Value: CObject): Boolean;
   end;
 
 begin
-  Result := False;
-
   // Cell holds an list of items (Multi select property?)
   var datalist: IList;
-  if Value.IsInterface and Interfaces.Supports<IList>(Value, datalist) then
+  if (Value <> nil) and Value.IsInterface and Interfaces.Supports<IList>(Value, datalist) then
   begin
     for var searchObj in datalist do
       if MatchText(searchObj.ToString) and ((_FilterValues = nil) or (_FilterValues.BinarySearch(searchObj) >= 0)) then
@@ -216,7 +206,7 @@ begin
 
     Result := False;
   end else
-    Result := MatchText(Value.ToString) and ((_FilterValues = nil) or (_FilterValues.BinarySearch(Value) >= 0));
+    Result := MatchText(Value.ToString(True)) and ((_FilterValues = nil) or (_FilterValues.BinarySearch(Value) >= 0));
 end;
 
 procedure TTreeFilterDescription.set_filterText(const Value: CString);
@@ -233,7 +223,7 @@ function TTreeFilterDescription.ToSortDescription: IListSortDescription;
 begin
   if _sort = nil then
   begin
-    _sort := TTreeSortDescriptionWithComparer.Create(_isDataModelSort, _flatColumn, _onGetSortCellData);
+    _sort := TTreeSortDescriptionWithComparer.Create(_flatColumn, _onGetSortCellData);
     _sort.SortBegin;
   end;
 

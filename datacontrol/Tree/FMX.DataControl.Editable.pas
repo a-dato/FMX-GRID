@@ -43,7 +43,7 @@ type
   protected
     _checkBoxUpdateCount: Integer;
     procedure LoadDefaultDataIntoControl(const Cell: IDCTreeCell; const FlatColumn: IDCTreeLayoutColumn; const IsSubProp: Boolean); override;
-    procedure OnCheckBoxChange(Sender: TObject);
+    procedure OnPropertyCheckBoxChange(Sender: TObject);
 
   private
     procedure SetCellData(const Cell: IDCTreeCell; const Data: CObject);
@@ -74,7 +74,6 @@ type
     function  IsEdit: Boolean;
     function  IsNew: Boolean;
     function  IsEditOrNew: Boolean;
-    function  IsEditing: Boolean;
 
     procedure EndEditFromExternal(const Item: CObject);
 
@@ -91,7 +90,7 @@ implementation
 uses
   FMX.DataControl.Editable.Impl, ADato.Data.DataModel.intf, System.Character,
   System.ComponentModel, FMX.DataControl.ScrollableRowControl.Intf,
-  FMX.DataControl.ControlClasses, FMX.StdCtrls;
+  FMX.DataControl.ControlClasses, FMX.StdCtrls, System.TypInfo;
 
 { TEditableDataControl }
 
@@ -125,7 +124,7 @@ begin
     (not IsSubProp and (Cell.Column.InfoControlClass = TInfoControlClass.CheckBox)) or
     (IsSubProp and (Cell.Column.SubInfoControlClass = TInfoControlClass.CheckBox));
 
-  if not isCheckBox then
+  if not isCheckBox or Cell.Column.IsCheckBoxColumn then
     Exit;
 
   var checkBox: TCheckBox;
@@ -134,10 +133,10 @@ begin
     checkBox := Cell.SubInfoControl as TCheckBox;
 
   checkBox.Tag := Cell.Row.ViewListIndex;
-  checkBox.OnChange := OnCheckBoxChange;
+  checkBox.OnChange := OnPropertyCheckBoxChange;
 end;
 
-procedure TEditableDataControl.OnCheckBoxChange(Sender: TObject);
+procedure TEditableDataControl.OnPropertyCheckBoxChange(Sender: TObject);
 begin
   if _checkBoxUpdateCount > 0 then
     Exit;
@@ -379,10 +378,6 @@ begin
   Result := _editingInfo.RowIsEditing and not _editingInfo.IsNew;
 end;
 
-function TEditableDataControl.IsEditing: Boolean;
-begin
-end;
-
 function TEditableDataControl.IsEditOrNew: Boolean;
 begin
   Result := _editingInfo.RowIsEditing;
@@ -503,7 +498,7 @@ end;
 procedure TEditableDataControl.DoStartCellEdit(const Cell: IDCTreeCell);
 begin
   var formatApplied: Boolean;
-  var cellValue := Cell.Column.GetCellValue(cell, cell.Column.PropertyName);
+  var cellValue := Cell.Column.ProvideCellData(cell, cell.Column.PropertyName);
   DoCellFormatting(cell, True, {var} cellValue, {out} formatApplied);
 
   var startEditArgs: DCStartEditEventArgs;
@@ -569,7 +564,7 @@ var
   s: string;
   msg: string;
   propInfo: _PropertyInfo;
-  propName: CString;
+//  propName: CString;
 //  t: &Type;
 
 begin

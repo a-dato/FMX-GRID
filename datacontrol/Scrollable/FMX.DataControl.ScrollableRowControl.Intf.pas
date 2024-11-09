@@ -69,6 +69,7 @@ type
     procedure set_ForceScrollToSelection(const Value: Boolean);
     function  get_ChangedBy: TSelectionChangedBy;
     procedure set_ChangedBy(const Value: TSelectionChangedBy);
+    procedure set_AllowNoneSelected(const Value: Boolean);
 
     procedure set_OnSelectionInfoChanged(const Value: TProc);
 
@@ -100,6 +101,7 @@ type
     property ForceScrollToSelection: Boolean read get_ForceScrollToSelection write set_ForceScrollToSelection;
     property LastSelectionChangedBy: TSelectionChangedBy read get_ChangedBy write set_ChangedBy;
 
+    property AllowNoneSelected: Boolean write set_AllowNoneSelected;
     property OnSelectionInfoChanged: TProc write set_OnSelectionInfoChanged;
   end;
 
@@ -128,6 +130,7 @@ type
 
   TDCTreeOptionFlag = (
     TreeOption_ShowHeaders,
+    TreeOption_ShowHeaderGrid,
     TreeOption_ShowVertGrid,
     TreeOption_ShowHorzGrid,
 
@@ -136,7 +139,8 @@ type
 
     TreeOption_AlternatingRowBackground,
     TreeOption_ReadOnly,
-    TreeOption_MultiSelect
+    TreeOption_MultiSelect,
+    TreeOption_AllowColumnUpdates
 //    TreeOption_AutoCommit,
 //    TreeOption_DisplayPartialRows
 //    TreeOption_AssumeObjectTypesDiffer,
@@ -160,6 +164,7 @@ type
   TDCTreeOption = record
   const
     ShowHeaders: TDCTreeOptionFlag = TreeOption_ShowHeaders;
+    ShowHeaderGrid: TDCTreeOptionFlag = TreeOption_ShowHeaderGrid;
     ShowVertGrid: TDCTreeOptionFlag = TreeOption_ShowVertGrid;
     ShowHorzGrid: TDCTreeOptionFlag = TreeOption_ShowHorzGrid;
     HideVScrollBar: TDCTreeOptionFlag = TreeOption_HideVScrollBar;
@@ -167,6 +172,7 @@ type
     AlternatingRowBackground: TDCTreeOptionFlag = TreeOption_AlternatingRowBackground;
     ReadOnly: TDCTreeOptionFlag = TreeOption_ReadOnly;
     MultiSelect: TDCTreeOptionFlag = TreeOption_MultiSelect;
+    AllowColumnUpdates: TDCTreeOptionFlag = TreeOption_AllowColumnUpdates;
 //    AutoCommit: TDCTreeOptionFlag = TreeOption_AutoCommit;
 //    AllowCellSelection: TDCTreeOptionFlag = TreeOption_AllowCellSelection;
 //    DisplayPartialRows: TDCTreeOptionFlag = TreeOption_DisplayPartialRows;

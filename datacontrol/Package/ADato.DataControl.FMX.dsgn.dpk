@@ -38,8 +38,6 @@ contains
   FMX.DataControl.ColumnsProperty in 'FMX.DataControl.ColumnsProperty.pas',
   FMXDataControlColumnsDsgnPage in 'FMXDataControlColumnsDsgnPage.pas',
   FMXDataControlDsgn in 'FMXDataControlDsgn.pas',
-  ADato.FMX.DataControl.Register in 'ADato.FMX.DataControl.Register.pas',
-  FMX.DataControl.Intf in '..\Tree\FMX.DataControl.Intf.pas',
-  FMX.DataControl.Impl in '..\Tree\FMX.DataControl.Impl.pas';
+  ADato.FMX.DataControl.Register in 'ADato.FMX.DataControl.Register.pas';
 
 end.

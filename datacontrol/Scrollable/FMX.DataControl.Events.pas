@@ -44,7 +44,10 @@ type
   end;
 
   DCCellLoadEventArgs = class(DCCellEventArgs)
+  private
+    _showVertGrid: Boolean;
   public
+    constructor Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean); reintroduce;
     function AssignCellStyleLookUp(const StyleLookUp: CString): TStyledControl;
   end;
 
@@ -55,7 +58,7 @@ type
       Tree calls CellFormatting event where user is able to set a custom text.
       LoadDefaulData = False: CellFormatting will not be triggered. }
 
-    constructor Create(const ACell: IDCTreeCell); reintroduce;
+    constructor Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean); reintroduce;
   end;
 
   DCCellLoadedEventArgs = DCCellLoadEventArgs;
@@ -177,6 +180,21 @@ type
     property Cell: IDCTreeCell read  _Cell;
   end;
 
+  ColumnChangedByUserEventArgs = class(EventArgs)
+  protected
+//    _Accept: Boolean;
+//    _hitInfo: ITreeHitInfo;
+    _column: IDCTreeColumn;
+    _newWidth: Single;
+//    _newPosition: Integer;
+
+  public
+    constructor Create(const Column: IDCTreeColumn; NewWidth: Single);
+
+    property Column: IDCTreeColumn read _column;
+    property NewWidth: Single read _newWidth write _newWidth;
+  end;
+
   CellLoadingEvent = procedure(const Sender: TObject; e: DCCellLoadingEventArgs) of object;
   CellLoadedEvent  = procedure(const Sender: TObject; e: DCCellLoadedEventArgs) of object;
   CellFormattingEvent  = procedure (const Sender: TObject; e: DCCellFormattingEventArgs) of object;
@@ -196,6 +214,8 @@ type
   StartEditEvent  = procedure(const Sender: TObject; e: DCStartEditEventArgs) of object;
   EndEditEvent  = procedure(const Sender: TObject; e: DCEndEditEventArgs) of object;
   CellParsingEvent = procedure(const Sender: TObject; e: DCCellParsingEventArgs) of object;
+
+  ColumnChangedByUserEvent = procedure (const Sender: TObject; e: ColumnChangedByUserEventArgs) of object;
 
 implementation
 
@@ -244,7 +264,7 @@ end;
 
 { DCCellLoadingEventArgs }
 
-constructor DCCellLoadingEventArgs.Create(const ACell: IDCTreeCell);
+constructor DCCellLoadingEventArgs.Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean);
 begin
   inherited;
   LoadDefaultData := True;
@@ -320,8 +340,14 @@ end;
 
 function DCCellLoadEventArgs.AssignCellStyleLookUp(const StyleLookUp: CString): TStyledControl;
 begin
-  _cell.LayoutColumn.CreateCellStyleControl(StyleLookUp, _cell);
+  _cell.LayoutColumn.CreateCellStyleControl(StyleLookUp, _showVertGrid, _cell);
   Result := _cell.InfoControl as TStyledControl;
+end;
+
+constructor DCCellLoadEventArgs.Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean);
+begin
+  inherited Create(ACell);
+  _showVertGrid := ShowVertGrid;
 end;
 
 { DCCellSelectedEventArgs }
@@ -330,6 +356,16 @@ constructor DCCellSelectedEventArgs.Create(const ACell: IDCTreeCell; SelChangedB
 begin
   inherited Create(ACell);
   SelectionChangedBy := SelChangedBy;
+end;
+
+{ ColumnChangedByUserEventArgs }
+
+constructor ColumnChangedByUserEventArgs.Create(const Column: IDCTreeColumn; NewWidth: Single);
+begin
+  inherited Create;
+
+  _column := Column;
+  _newWidth := NewWidth;
 end;
 
 end.
