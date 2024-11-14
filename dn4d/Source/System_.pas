@@ -9298,8 +9298,7 @@ begin
           if FValue.TryAsType<IAutoObject>(a) then
             value_t := a.&Object else
             value_t := FValue.AsObject;
-
-          Result := value_t.TryCast(ATypeInfo, Value);
+           Result := value_t.TryCast(ATypeInfo, Value);
         end;
       end;
 
