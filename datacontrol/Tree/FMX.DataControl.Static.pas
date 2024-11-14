@@ -716,10 +716,10 @@ begin
 
   // Popup form will be created once, then reused for any column
   if _frmHeaderPopupMenu = nil then
-    _frmHeaderPopupMenu := TfrmFMXPopupMenu.Create(Self);
+    _frmHeaderPopupMenu := TfrmFMXPopupMenuDataControl.Create(Self);
 
   _frmHeaderPopupMenu.OnClose := HeaderPopupMenu_Closed;
-  var popupMenu := _frmHeaderPopupMenu as TfrmFMXPopupMenu;
+  var popupMenu := _frmHeaderPopupMenu as TfrmFMXPopupMenuDataControl;
   popupMenu.LayoutColumn := LayoutColumn;
 
   var leftPos: Single;
@@ -760,32 +760,32 @@ end;
 
 procedure TStaticDataControl.HeaderPopupMenu_Closed(Sender: TObject; var Action: TCloseAction);
 begin
-  var popupForm := _frmHeaderPopupMenu as TfrmFMXPopupMenu;
+  var popupForm := _frmHeaderPopupMenu as TfrmFMXPopupMenuDataControl;
   var flatColumn := _treeLayout.LayoutColumns[popupForm.LayoutColumn.Index];
 
   if Assigned(_popupMenuClosed) then
     _popupMenuClosed(popupForm);
 
   case popupForm.PopupResult of
-    TfrmFMXPopupMenu.TPopupResult.ptCancel: Exit;
+    TfrmFMXPopupMenuDataControl.TPopupResult.ptCancel: Exit;
 
-    TfrmFMXPopupMenu.TPopupResult.ptSortAscending:
+    TfrmFMXPopupMenuDataControl.TPopupResult.ptSortAscending:
     begin
       UpdateColumnSort(flatColumn.Column, ListSortDirection.Ascending, True);
     end;
 
-    TfrmFMXPopupMenu.TPopupResult.ptSortDescending:
+    TfrmFMXPopupMenuDataControl.TPopupResult.ptSortDescending:
     begin
       UpdateColumnSort(flatColumn.Column, ListSortDirection.Descending, True);
     end;
 
-    TfrmFMXPopupMenu.TPopupResult.ptFilter:
+    TfrmFMXPopupMenuDataControl.TPopupResult.ptFilter:
     begin
       var filterValues := popupForm.SelectedItems;
       UpdateColumnFilter(flatColumn.Column, nil, filterValues);
     end;
 
-    TfrmFMXPopupMenu.TPopupResult.ptHideColumn:
+    TfrmFMXPopupMenuDataControl.TPopupResult.ptHideColumn:
     begin
       // check if is last flat
       var treeSelectionInfo := (_selectionInfo as ITreeSelectionInfo);
@@ -806,12 +806,12 @@ begin
       AfterRealignContent;
     end;
 
-    TfrmFMXPopupMenu.TPopupResult.ptClearFilter:
+    TfrmFMXPopupMenuDataControl.TPopupResult.ptClearFilter:
     begin
       UpdateColumnFilter(flatColumn.Column, nil, nil);
     end;
 
-    TfrmFMXPopupMenu.TPopupResult.ptClearSortAndFilter:
+    TfrmFMXPopupMenuDataControl.TPopupResult.ptClearSortAndFilter:
     begin
       GetInitializedWaitForRefreshInfo.SortDescriptions := nil;
       GetInitializedWaitForRefreshInfo.FilterDescriptions := nil;
@@ -1647,9 +1647,9 @@ end;
 procedure TStaticDataControl.GetSortAndFilterImages(out ImageList: TCustomImageList; out FilterIndex, SortAscIndex, SortDescIndex: Integer);
 begin
   if _frmHeaderPopupMenu = nil then
-    _frmHeaderPopupMenu := TfrmFMXPopupMenu.Create(Self);
+    _frmHeaderPopupMenu := TfrmFMXPopupMenuDataControl.Create(Self);
 
-  var popUpFrm := (_frmHeaderPopupMenu as TfrmFMXPopupMenu);
+  var popUpFrm := (_frmHeaderPopupMenu as TfrmFMXPopupMenuDataControl);
   ImageList := popUpFrm.ImageListPopup;
   FilterIndex := 4;
   SortAscIndex := 0;

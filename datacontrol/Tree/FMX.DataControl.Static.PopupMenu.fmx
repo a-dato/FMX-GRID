@@ -1,4 +1,4 @@
-object frmFMXPopupMenu: TfrmFMXPopupMenu
+object frmFMXPopupMenuDataControl: TfrmFMXPopupMenuDataControl
   Left = 480
   Top = 300
   BorderStyle = None
@@ -100,8 +100,8 @@ object frmFMXPopupMenu: TfrmFMXPopupMenu
     Enabled = False
     Interval = 250
     OnTimer = Timer1Timer
-    Left = 139
-    Top = 227
+    Left = 91
+    Top = 259
   end
   object lyListBoxBackGround: TLayout
     Align = Top

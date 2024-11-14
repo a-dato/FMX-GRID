@@ -44,7 +44,7 @@ uses
 type
 //  IFilterItem = interface;
 
-  TfrmFMXPopupMenu = class(TForm)
+  TfrmFMXPopupMenuDataControl = class(TForm)
     PopupListBox: TListBox;
     lbiSortSmallToLarge: TListBoxItem;
     lbiSortLargeToSmall: TListBoxItem;
@@ -102,6 +102,8 @@ type
     procedure TreeCellFormatting(const Sender: TObject; e: DCCellFormattingEventArgs);
 
   public
+    destructor Destroy; override;
+
     procedure ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters, ShowItemSortOptions, ShowItemAddColumAfter, ShowItemHideColumn: Boolean);
 
 
@@ -165,17 +167,17 @@ uses
 
 {$R *.fmx}
 
-procedure TfrmFMXPopupMenu.FormDeactivate(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.FormDeactivate(Sender: TObject);
 begin
   Close;
 end;
 
-procedure TfrmFMXPopupMenu.FormClose(Sender: TObject; var Action: TCloseAction);
+procedure TfrmFMXPopupMenuDataControl.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   // Instead of this FormClose will be called TCustomTreeControl.HeaderPopupMenu_Closed!
 end;
 
-procedure TfrmFMXPopupMenu.EnableItem(Index: integer; Value: boolean);
+procedure TfrmFMXPopupMenuDataControl.EnableItem(Index: integer; Value: boolean);
 begin
   with PopupListBox.ListItems[Index] do
   begin
@@ -184,7 +186,7 @@ begin
   end;
 end;
 
-procedure TfrmFMXPopupMenu.ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters, ShowItemSortOptions, ShowItemAddColumAfter, ShowItemHideColumn: Boolean);
+procedure TfrmFMXPopupMenuDataControl.ShowPopupMenu(const ScreenPos: TPointF; ShowItemFilters, ShowItemSortOptions, ShowItemAddColumAfter, ShowItemHideColumn: Boolean);
 { • ShowItemFilters - Tree and filters search box, Clear Filter
   • ShowItemSortOptions - Sort items(2), Clear All (Filter + Sort) }
 
@@ -240,7 +242,7 @@ begin
   Show;
 end;
 
-procedure TfrmFMXPopupMenu.CreateItemFiltersControls;
+procedure TfrmFMXPopupMenuDataControl.CreateItemFiltersControls;
 begin
   if _dataControl <> nil then
     Exit;
@@ -280,7 +282,13 @@ begin
   _dataControl.Columns.Add(column2);
 end;
 
-procedure TfrmFMXPopupMenu.LoadFilterItems(const Data: Dictionary<CObject, CString>; Comparer: IComparer<CObject>; Selected: List<CObject>; SelectEmptyValue, CompareText: Boolean);
+destructor TfrmFMXPopupMenuDataControl.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TfrmFMXPopupMenuDataControl.LoadFilterItems(const Data: Dictionary<CObject, CString>; Comparer: IComparer<CObject>; Selected: List<CObject>; SelectEmptyValue, CompareText: Boolean);
 //var
 //  checked: Boolean;
 //  item: IFilterItem;
@@ -313,24 +321,24 @@ begin
     edSearchChangeTracking(nil);
 end;
 
-function TfrmFMXPopupMenu.get_LayoutColumn: IDCTreeLayoutColumn;
+function TfrmFMXPopupMenuDataControl.get_LayoutColumn: IDCTreeLayoutColumn;
 begin
   Result := _LayoutColumn;
 end;
 
-function TfrmFMXPopupMenu.get_SelectedItems: List<CObject>;
+function TfrmFMXPopupMenuDataControl.get_SelectedItems: List<CObject>;
 begin
   Result := _dataControl.SelectedItems;
   if (Result.Count = 0) or (Result.Count = _data.Count) then
     Result := nil;
 end;
 
-procedure TfrmFMXPopupMenu.SetAllowClearColumnFilter(Value: Boolean);
+procedure TfrmFMXPopupMenuDataControl.SetAllowClearColumnFilter(Value: Boolean);
 begin
   EnableItem(lbiClearFilter.Index, Value);
 end;
 
-procedure TfrmFMXPopupMenu.set_LayoutColumn(const Value: IDCTreeLayoutColumn);
+procedure TfrmFMXPopupMenuDataControl.set_LayoutColumn(const Value: IDCTreeLayoutColumn);
 begin
   _LayoutColumn := Value;
 end;
@@ -341,13 +349,13 @@ end;
 //  filterList.DataList := _Items as IList;
 //end;
 
-procedure TfrmFMXPopupMenu.btnApplyFiltersClick(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.btnApplyFiltersClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptFilter;
   Close;
 end;
 
-procedure TfrmFMXPopupMenu.cbSelectAllClick(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.cbSelectAllClick(Sender: TObject);
 begin
   TThread.ForceQueue(nil, procedure
   begin
@@ -357,12 +365,12 @@ begin
   end);
 end;
 
-procedure TfrmFMXPopupMenu.TreeCellSelected(const Sender: TObject; e: DCCellSelectedEventArgs);
+procedure TfrmFMXPopupMenuDataControl.TreeCellSelected(const Sender: TObject; e: DCCellSelectedEventArgs);
 begin
   btnApplyFilters.Enabled := True;
 end;
 
-procedure TfrmFMXPopupMenu.edSearchChangeTracking(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.edSearchChangeTracking(Sender: TObject);
 begin
 //  var filterByText: IListFilterDescription := TTreeFilterDescription.Create(_dataControl.Layout.FlatColumns[1] , _dataControl.OnGetCellDataForSorting);
 //  (filterByText as TTreeFilterDescription).FilterText := edSearch.Text.ToLower;
@@ -372,54 +380,54 @@ begin
   _dataControl.UpdateColumnFilter(_dataControl.Columns[1], edSearch.Text.ToLower, nil);
 end;
 
-procedure TfrmFMXPopupMenu.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+procedure TfrmFMXPopupMenuDataControl.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   Timer1.Enabled := False;
 end;
 
-procedure TfrmFMXPopupMenu.lbiSortSmallToLargeClick(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.lbiSortSmallToLargeClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptSortAscending;
   Close;
 end;
 
-procedure TfrmFMXPopupMenu.lbiSortLargeToSmallClick(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.lbiSortLargeToSmallClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptSortDescending;
   Close;
 end;
 
-procedure TfrmFMXPopupMenu.lbiAddColumnAfterClick(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.lbiAddColumnAfterClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptAddColumnAfter;
   Close;
 end;
 
-procedure TfrmFMXPopupMenu.lbiHideColumnClick(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.lbiHideColumnClick(Sender: TObject);
 begin
  _PopupResult := TPopupResult.ptHideColumn;
   Close;
 end;
 
-procedure TfrmFMXPopupMenu.lbiClearSortAndFilterClick(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.lbiClearSortAndFilterClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptClearSortAndFilter;
   Close;
 end;
 
-procedure TfrmFMXPopupMenu.lbiClearFilterClick(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.lbiClearFilterClick(Sender: TObject);
 begin
   _PopupResult := TPopupResult.ptClearFilter;
   Close;
 end;
 
-procedure TfrmFMXPopupMenu.Timer1Timer(Sender: TObject);
+procedure TfrmFMXPopupMenuDataControl.Timer1Timer(Sender: TObject);
 begin
   if (_dataControl <> nil) and (_dataControl.View <> nil) and (_dataControl.SelectedItems <> nil) then
     cbSelectAll.IsChecked := _dataControl.View.ViewCount = _dataControl.SelectedItems.Count;
 end;
 
-procedure TfrmFMXPopupMenu.TreeCellFormatting(const Sender: TObject; e: DCCellFormattingEventArgs);
+procedure TfrmFMXPopupMenuDataControl.TreeCellFormatting(const Sender: TObject; e: DCCellFormattingEventArgs);
 begin
   if e.Cell.IsHeaderCell then
     Exit;
