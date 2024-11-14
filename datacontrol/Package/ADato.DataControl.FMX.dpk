@@ -52,6 +52,9 @@ contains
   FMX.DataControl.Editable in '..\Tree\FMX.DataControl.Editable.pas',
   FMX.DataControl.Editable.Impl in '..\Tree\FMX.DataControl.Editable.Impl.pas',
   FMX.DataControl.Editable.Intf in '..\Tree\FMX.DataControl.Editable.Intf.pas',
-  FMX.ControlCalculations in '..\Tree\FMX.ControlCalculations.pas';
+  FMX.ControlCalculations in '..\Tree\FMX.ControlCalculations.pas',
+  FMX.DataControl.Static.PopupMenu in '..\Tree\FMX.DataControl.Static.PopupMenu.pas',
+  FMX.DataControl.Intf in '..\Tree\FMX.DataControl.Intf.pas',
+  FMX.DataControl.Impl in '..\Tree\FMX.DataControl.Impl.pas';
 
 end.

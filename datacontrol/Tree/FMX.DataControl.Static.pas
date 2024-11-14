@@ -205,7 +205,8 @@ uses
   FMX.ControlCalculations, FMX.Graphics, FMX.StdCtrls,
   FMX.DataControl.ScrollableRowControl.Impl, ADato.Data.DataModel.impl,
   FMX.DataControl.SortAndFilter,
-  FMX.DataControl.Static.PopupMenu, FMX.ActnList;
+  FMX.DataControl.Static.PopupMenu,
+  FMX.ActnList;
 
 { TStaticDataControl }
 
