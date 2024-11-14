@@ -9451,7 +9451,7 @@ begin
   else if fmxColumn._AutoSizeToContent then
   begin
     if (text <> '') and (textSettings <> nil) then
-      Result.Width := TextControlWidth(Cell.InfoControl as TControl, textSettings, text) + EXTRA_CELL_AUTO_WIDTH;
+      Result.Width := TextControlWidth(Cell.InfoControl as TControl, textSettings, text) + EXTRA_CELL_AUTO_WIDTH + 6 {margin};
 
     if (fmxColumn._MaxWidth = COLUMN_MAX_WIDTH_NOT_USED) then
     begin

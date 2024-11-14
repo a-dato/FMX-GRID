@@ -52,6 +52,7 @@ type
     function  get_Value: CObject; virtual; abstract;
     procedure set_Value(const Value: CObject); virtual; abstract;
     function  get_OriginalValue: CObject;
+    function  get_Editor: TStyledControl;
 
     function  ParseValue(var AValue: CObject): Boolean;
 
@@ -279,6 +280,11 @@ end;
 function TDCCellEditor.get_ContainsFocus: Boolean;
 begin
   Result := False;
+end;
+
+function TDCCellEditor.get_Editor: TStyledControl;
+begin
+  Result := _editor;
 end;
 
 function TDCCellEditor.get_Modified: Boolean;

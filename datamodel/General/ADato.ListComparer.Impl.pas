@@ -69,6 +69,7 @@ type
 
   public
     constructor Create(const SortDescriptions: List<IListSortDescription>; const FilterDescriptions: List<IListFilterDescription>; ListHoldsOrdinalType: TlistHoldsOrdinalType);
+    destructor Destroy; override;
 
     procedure ResetSortedRows(ExecuteSortFilterChange: Boolean);
     function  SortCompleted: Boolean;
@@ -168,6 +169,12 @@ begin
   _filterDescriptions := FilterDescriptions;
   _sortDescriptions := SortDescriptions;
   _listHoldsOrdinalType := ListHoldsOrdinalType;
+end;
+
+destructor TListComparer.Destroy;
+begin
+
+  inherited;
 end;
 
 function TListComparer.get_FilterDescriptions: List<IListFilterDescription>;

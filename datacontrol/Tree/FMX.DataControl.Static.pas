@@ -79,6 +79,7 @@ type
     _cellChanging: CellChangingEvent;
     _cellChanged: CellChangedEvent;
     _cellSelected: CellSelectedEvent;
+//    _cellUserActionEvent: CellUserActionEvent;
 
     _sortingGetComparer: GetColumnComparerEvent;
     _onCompareRows: TOnCompareRows;
@@ -169,6 +170,8 @@ type
     procedure UpdateColumnSort(const Column: IDCTreeColumn; SortDirection: ListSortDirection; ClearOtherSort: Boolean);
     procedure UpdateColumnFilter(const Column: IDCTreeColumn; const FilterText: CString; const FilterValues: List<CObject>);
 
+    function  MultiSelectAllowed: Boolean;
+
     property  Layout: IDCTreeLayout read get_Layout;
     property  HeaderRow: IDCTreeRow read _headerRow;
     property  SelectedColumn: IDCTreeLayoutColumn read get_SelectedColumn;
@@ -185,6 +188,7 @@ type
     property CellChanging: CellChangingEvent read _cellChanging write _cellChanging;
     property CellChanged: CellChangedEvent read _cellChanged write _cellChanged;
     property CellSelected: CellSelectedEvent read _cellSelected write _cellSelected;
+//    property CellUserAction: CellUserActionEvent read _cellUserActionEvent write _cellUserActionEvent;
     property SortingGetComparer: GetColumnComparerEvent read _sortingGetComparer write _sortingGetComparer;
     property OnCompareRows: TOnCompareRows read _onCompareRows write _onCompareRows;
     property OnCompareColumnCells: TOnCompareColumnCells read _onCompareColumnCells write _onCompareColumnCells;
@@ -201,7 +205,7 @@ uses
   FMX.ControlCalculations, FMX.Graphics, FMX.StdCtrls,
   FMX.DataControl.ScrollableRowControl.Impl, ADato.Data.DataModel.impl,
   FMX.DataControl.SortAndFilter,
-  FMX.DataControl.Static.PopupMenu;
+  FMX.DataControl.Static.PopupMenu, FMX.ActnList;
 
 { TStaticDataControl }
 
@@ -536,7 +540,7 @@ begin
   begin
     var treeRow := clickedRow as IDCTreeRow;
     var treeCell := treeRow.Cells[flatColumn.Index];
-    var checkBox := treeCell.InfoControl as TCheckBox;
+    var checkBox := treeCell.InfoControl as IIsChecked;
 
     if checkBox.IsChecked then
     begin
@@ -823,7 +827,7 @@ end;
 //  if _selectionCheckBoxUpdateCount > 0 then
 //    Exit;
 //
-//  var checkBox := Sender as TCheckBox;
+//  var checkBox := Sender as IIsChecked;
 //  var cell := GetCellByControl(checkBox);
 //
 //  if (TreeOption_MultiSelect in _options) then
@@ -841,7 +845,7 @@ begin
   inc(_selectionCheckBoxUpdateCount);
   try
     var checkBoxCell := (Row as IDCTreeRow).Cells[selectionCheckBoxColumn.Index];
-    var checkBox := checkBoxCell.InfoControl as TCheckBox;
+    var checkBox := checkBoxCell.InfoControl as IIsChecked;
 
     checkBox.IsChecked := _selectionInfo.IsSelected(Row.DataIndex);
   finally
@@ -1476,7 +1480,7 @@ procedure TStaticDataControl.LoadDefaultDataIntoControl(const Cell: IDCTreeCell;
 begin
   if Cell.Column.IsCheckBoxColumn then
   begin
-//    var checkBox := Cell.InfoControl as TCheckBox;
+//    var checkBox := Cell.InfoControl as IIsChecked;
 //    checkBox.Tag := Cell.Row.ViewListIndex;
 //    checkBox.OnChange := OnSelectionCheckBoxChange;
     Exit;
@@ -1506,8 +1510,13 @@ begin
   var formattedValue := FlatColumn.Column.GetDefaultCellData(cell, cellValue, formatApplied);
   case cell.Column.InfoControlClass of
     TInfoControlClass.Text: (ctrl as ScrollableRowControl_DefaultTextClass).Text := CStringToString(formattedValue.ToString(True));
-    TInfoControlClass.CheckBox: (ctrl as ScrollableRowControl_DefaultCheckboxClass).IsChecked := formattedValue.AsType<Boolean>;
+    TInfoControlClass.CheckBox: (ctrl as IIsChecked).IsChecked := formattedValue.AsType<Boolean>;
   end;
+end;
+
+function TStaticDataControl.MultiSelectAllowed: Boolean;
+begin
+  Result := TDCTreeOption.MultiSelect in  _options;
 end;
 
 procedure TStaticDataControl.InnerInitRow(const Row: IDCRow);
@@ -1566,22 +1575,22 @@ end;
 
 function TStaticDataControl.CalculateCellWidth(const LayoutColumn: IDCTreeLayoutColumn; const Cell: IDCTreeCell): Single;
 begin
-  if (LayoutColumn.Column.InfoControlClass <> TInfoControlClass.Text) and (LayoutColumn.Column.SubInfoControlClass <> TInfoControlClass.Text) then
+  if not Cell.IsHeaderCell and (LayoutColumn.Column.InfoControlClass <> TInfoControlClass.Text) and (LayoutColumn.Column.SubInfoControlClass <> TInfoControlClass.Text) then
   begin
     Result := 30;
     Exit;
   end;
 
-  if (LayoutColumn.Column.InfoControlClass = TInfoControlClass.Text) then
+  if Cell.IsHeaderCell or (LayoutColumn.Column.InfoControlClass = TInfoControlClass.Text) then
   begin
     var ctrl := Cell.InfoControl as TText;
-    Result := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*CELL_CONTENT_MARGIN);
+    Result := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*CELL_CONTENT_MARGIN) + 6;
   end;
 
   if not Cell.IsHeaderCell and (Cell.Column.SubInfoControlClass = TInfoControlClass.Text) then
   begin
     var subCtrl := Cell.SubInfoControl as TText;
-    var subWidth := TextControlWidth(subCtrl, subCtrl.TextSettings, subCtrl.Text) + (2*CELL_CONTENT_MARGIN);
+    var subWidth := TextControlWidth(subCtrl, subCtrl.TextSettings, subCtrl.Text) + (2*CELL_CONTENT_MARGIN) + 6;
 
     Result := CMath.Max(Result, subWidth);
   end;

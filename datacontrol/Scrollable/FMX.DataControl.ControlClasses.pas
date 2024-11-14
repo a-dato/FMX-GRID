@@ -22,6 +22,7 @@ type
   TTextClass = class of TText;
 //  TControlClass = class of TControl;
   TCheckBoxClass = class of TCheckBox;
+  TRadioButtonClass = class of TRadioButton;
   TButtonClass = class of TButton;
   TGlyphClass = class of TGlyph;
   TEditClass = class of TEdit;
@@ -43,6 +44,7 @@ type
 var  // see Initialization section
   ScrollableRowControl_DefaultTextClass: TTextClass;
   ScrollableRowControl_DefaultCheckboxClass: TCheckBoxClass;
+  ScrollableRowControl_DefaultRadioButtonClass: TRadioButtonClass;
   ScrollableRowControl_DefaultButtonClass: TButtonClass;
   ScrollableRowControl_DefaultGlyphClass: TGlyphClass;
   ScrollableRowControl_DefaultEditClass: TEditClass;
@@ -122,6 +124,7 @@ end;
 initialization
   ScrollableRowControl_DefaultTextClass := TText;
   ScrollableRowControl_DefaultCheckboxClass := TCheckBox;
+  ScrollableRowControl_DefaultRadioButtonClass := TRadioButton;
   ScrollableRowControl_DefaultButtonClass := TButton;
   ScrollableRowControl_DefaultGlyphClass := TGlyph;
   ScrollableRowControl_DefaultEditClass := TEdit;

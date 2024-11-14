@@ -174,6 +174,9 @@ end;
 
 function TDataViewList.GetDataIndex(const ViewListIndex: Integer): Integer;
 begin
+  if ViewListIndex = -1 then
+    Exit(-1);
+
   if _comparer <> nil then
   begin
     if _comparer.Comparer.SortedRows <> nil then

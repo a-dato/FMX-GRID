@@ -34,7 +34,6 @@ type
 
     procedure StartEditCell(const Cell: IDCTreeCell);
     function  EndEditCell: Boolean;
-    procedure CancelEdit(CellOnly: Boolean = False); // canceling is difficult to only do the cell
 
     procedure ShowEditor(const Cell: IDCTreeCell; const EditValue: CObject; const APicklist: IList; IsMultilineEditor : Boolean);
     procedure HideEditor;
@@ -77,6 +76,9 @@ type
 
     procedure EndEditFromExternal(const Item: CObject);
 
+    procedure CancelEdit(CellOnly: Boolean = False); // canceling is difficult to only do the cell
+    function  EditActiveCell(SetFocus: Boolean): Boolean;
+
   published
     property StartRowEdit: RowEditEvent read _startRowEdit write _startRowEdit;
     property EndRowEdit: RowEditEvent read _endRowEdit write _endRowEdit;
@@ -90,7 +92,7 @@ implementation
 uses
   FMX.DataControl.Editable.Impl, ADato.Data.DataModel.intf, System.Character,
   System.ComponentModel, FMX.DataControl.ScrollableRowControl.Intf,
-  FMX.DataControl.ControlClasses, FMX.StdCtrls, System.TypInfo;
+  FMX.DataControl.ControlClasses, FMX.StdCtrls, System.TypInfo, FMX.Controls;
 
 { TEditableDataControl }
 
@@ -127,13 +129,16 @@ begin
   if not isCheckBox or Cell.Column.IsCheckBoxColumn then
     Exit;
 
-  var checkBox: TCheckBox;
+  var ctrl: TControl;
   if not IsSubProp then
-    checkBox := Cell.InfoControl as TCheckBox else
-    checkBox := Cell.SubInfoControl as TCheckBox;
+    ctrl := Cell.InfoControl else
+    ctrl := Cell.SubInfoControl;
 
-  checkBox.Tag := Cell.Row.ViewListIndex;
-  checkBox.OnChange := OnPropertyCheckBoxChange;
+  ctrl.Tag := Cell.Row.ViewListIndex;
+
+  if ctrl is TCheckBox then
+    (ctrl as TCheckBox).OnChange := OnPropertyCheckBoxChange else
+    (ctrl as TRadioButton).OnChange := OnPropertyCheckBoxChange;
 end;
 
 procedure TEditableDataControl.OnPropertyCheckBoxChange(Sender: TObject);
@@ -277,6 +282,15 @@ begin
   _editingInfo.RowEditingFinished;
 
   DoDataItemChanged(GetActiveRow.DataItem);
+end;
+
+function TEditableDataControl.EditActiveCell(SetFocus: Boolean): Boolean;
+begin
+  StartEditCell(GetActiveCell);
+
+  Result := _cellEditor <> nil;
+  if Result and SetFocus then
+    _cellEditor.Editor.SetFocus;
 end;
 
 function TEditableDataControl.EndEditCell: Boolean;

@@ -423,8 +423,8 @@ type
     _infoControl: TControl;
     _subInfoControl: TControl;
     _expandButton: TButton;
-    _customInnerControlBounds: TRectF;
-    _customSubInnerControlBounds: TRectF;
+    _customInfoControlBounds: TRectF;
+    _customSubInfoControlBounds: TRectF;
 
     [unsafe] _row     : IDCRow;
 
@@ -443,12 +443,12 @@ type
 
     function  get_InfoControl: TControl;
     procedure set_InfoControl(const Value: TControl);
-    function  get_CustomInnerControlBounds: TRectF;
-    procedure set_CustomInnerControlBounds(const Value: TRectF);
+    function  get_CustomInfoControlBounds: TRectF;
+    procedure set_CustomInfoControlBounds(const Value: TRectF);
     function  get_SubInfoControl: TControl;
     procedure set_SubInfoControl(const Value: TControl);
-    function  get_CustomSubInnerControlBounds: TRectF;
-    procedure set_CustomSubInnerControlBounds(const Value: TRectF);
+    function  get_CustomSubInfoControlBounds: TRectF;
+    procedure set_CustomSubInfoControlBounds(const Value: TRectF);
 
 //    function  get_ColSpan: Byte;
 //    procedure set_ColSpan(const Value: Byte);
@@ -1360,26 +1360,26 @@ begin
   begin
     textCtrlHeight := textCtrlHeight / 2;
 
-    if Cell.CustomSubInnerControlBounds.IsEmpty then
+    if Cell.CustomSubInfoControlBounds.IsEmpty then
     begin
       Cell.SubInfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
       Cell.SubInfoControl.Height := textCtrlHeight;
       Cell.SubInfoControl.Position.Y := CELL_CONTENT_MARGIN + textCtrlHeight;
       Cell.SubInfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
     end else
-      Cell.SubInfoControl.BoundsRect := Cell.CustomSubInnerControlBounds;
+      Cell.SubInfoControl.BoundsRect := Cell.CustomSubInfoControlBounds;
   end;
 
   if Cell.InfoControl <> nil then
   begin
-    if Cell.CustomInnerControlBounds.IsEmpty then
+    if Cell.CustomInfoControlBounds.IsEmpty then
     begin
       Cell.InfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
       Cell.InfoControl.Height := textCtrlHeight;
       Cell.InfoControl.Position.Y := CELL_CONTENT_MARGIN;
       Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
     end else
-      Cell.InfoControl.BoundsRect := Cell.CustomInnerControlBounds;
+      Cell.InfoControl.BoundsRect := Cell.CustomInfoControlBounds;
   end;
 end;
 
@@ -1402,10 +1402,14 @@ begin
     end;
 
     CheckBox: begin
-      var check := ScrollableRowControl_DefaultCheckboxClass.Create(Cell.Control);
-      check.Align := TAlignLayout.None;
-      check.HitTest := False;
-      Result := check;
+      var check: IIsChecked;
+      if _treeControl.MultiSelectAllowed then
+        check := ScrollableRowControl_DefaultCheckboxClass.Create(Cell.Control) else
+        check := ScrollableRowControl_DefaultRadioButtonClass.Create(Cell.Control);
+
+      Result := check as TControl;
+      Result.Align := TAlignLayout.None;
+      Result.HitTest := False;
     end;
 
     Button: begin
@@ -1432,15 +1436,14 @@ begin
     if Cell.IsHeaderCell then
     begin
       var rect := ScrollableRowControl_DefaultRectangleClass.Create(Cell.Row.Control);
-      rect.Fill.Color := TAlphaColors.Null;
+      rect.Fill.Kind := TBrushKind.None;
 
       var headerCell := Cell as IHeaderCell;
       if ShowVertGrid then
       begin
-        rect.Sides := [TSide.Top, TSide.Bottom];
         if _index = 0 then
-          rect.Sides := [TSide.Left, TSide.Right] else
-          rect.Sides := [TSide.Right];
+          rect.Sides := [TSide.Top, TSide.Bottom, TSide.Left, TSide.Right] else
+          rect.Sides := [TSide.Top, TSide.Bottom, TSide.Right];
       end else
         rect.Sides := [TSide.Bottom];
 
@@ -1462,7 +1465,7 @@ begin
     else if ShowVertGrid then
     begin
       var rect := ScrollableRowControl_DefaultRectangleClass.Create(Cell.Row.Control);
-      rect.Fill.Color := TAlphaColors.Null;
+      rect.Fill.Kind := TBrushKind.None;
 
       if _index = 0 then
         rect.Sides := [TSide.Left, TSide.Right] else
@@ -1921,14 +1924,14 @@ begin
   Result := _control;
 end;
 
-function TDCTreeCell.get_CustomInnerControlBounds: TRectF;
+function TDCTreeCell.get_CustomInfoControlBounds: TRectF;
 begin
-  Result := _customInnerControlBounds;
+  Result := _customInfoControlBounds;
 end;
 
-function TDCTreeCell.get_CustomSubInnerControlBounds: TRectF;
+function TDCTreeCell.get_CustomSubInfoControlBounds: TRectF;
 begin
-  Result := _customSubInnerControlBounds;
+  Result := _customSubInfoControlBounds;
 end;
 
 function TDCTreeCell.get_Data: CObject;
@@ -1989,14 +1992,14 @@ begin
   _control := Value;
 end;
 
-procedure TDCTreeCell.set_CustomInnerControlBounds(const Value: TRectF);
+procedure TDCTreeCell.set_CustomInfoControlBounds(const Value: TRectF);
 begin
-  _customInnerControlBounds := Value;
+  _customInfoControlBounds := Value;
 end;
 
-procedure TDCTreeCell.set_CustomSubInnerControlBounds(const Value: TRectF);
+procedure TDCTreeCell.set_CustomSubInfoControlBounds(const Value: TRectF);
 begin
-  _customSubInnerControlBounds := Value;
+  _customSubInfoControlBounds := Value;
 end;
 
 procedure TDCTreeCell.set_Data(const Value: CObject);
@@ -2390,23 +2393,31 @@ end;
 
 function TDCColumnWidthSettings.get_Width: Single;
 begin
-  Result := _width;
+  if _widthType = TDCColumnWidthType.AlignToContent then
+    Result := 0 else
+    Result := _width;
 end;
 
 function TDCColumnWidthSettings.get_WidthMax: Single;
 begin
-  if _widthType <> TDCColumnWidthType.Pixel then
-    Result := _widthMax else
-    Result := _width;
+  if _widthType = TDCColumnWidthType.Pixel then
+    Result := _width
+  else if SameValue(_widthMin, _widthMax) then
+    Result := 0
+  else
+    Result := _widthMax;
 
   Result := CMath.Max(Result, 0);
 end;
 
 function TDCColumnWidthSettings.get_WidthMin: Single;
 begin
-  if _widthType <> TDCColumnWidthType.Pixel then
-    Result := _widthMin else
-    Result := _width;
+  if _widthType = TDCColumnWidthType.Pixel then
+    Result := _width
+  else if SameValue(_widthMin, _widthMax) then
+    Result := 0
+  else
+    Result := _widthMin;
 
   Result := CMath.Max(Result, 0);
 end;
@@ -2550,6 +2561,7 @@ begin
 
   _visible := True;
   _selectable := True;
+  _readOnly := True;
 end;
 
 function TDCColumnVisualisation.get_Format: CString;
