@@ -40,8 +40,6 @@ type
     procedure DataModelViewChanged(Sender: TObject; e: EventArgs);
     procedure OnViewChanged;
 
-    procedure RemoveRowFromActiveView(const Row: IDCRow);
-
     function  GetNewActiveRow: IDCRow;
     procedure AddNewRowToActiveRows(const Row: IDCRow; const Index: Integer = -1);
     procedure UpdateViewIndexFromIndex(const Index: Integer);
@@ -52,6 +50,8 @@ type
 
     function  RowLoadedInfo(const ViewListIndex: Integer): TRowInfoRecord;
     procedure RowLoaded(const Row: IDCRow; const RowHeightChanged: Boolean; const NeedsResize: Boolean);
+
+    procedure RemoveRowFromActiveView(const Row: IDCRow);
 
     function  InsertNewRowABove: IDCRow;
     function  InsertNewRowBeneeth: IDCRow;

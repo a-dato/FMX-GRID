@@ -607,18 +607,27 @@ end;
 
 procedure TObjectListModelItemChangedDelegate.AddingNew(const Value: CObject; var Index: Integer; Position: InsertPosition);
 begin
-//  if _UpdateCount = 0 then
-//  begin
-//    _Owner.RefreshControl([TreeState.AlignViewToCurrent]);
-//  end;
+  _Owner.View.RecalcSortedRows;
+
+  var viewListIndex := _Owner.View.GetViewList.IndexOf(Value);
+  if viewListIndex = -1 then
+  begin
+    _Owner.View.OriginalData.Insert(Index, Value);
+    viewListIndex := Index;
+  end;
+
+  _Owner.View.ResetView(viewListIndex, False);
 end;
 
 procedure TObjectListModelItemChangedDelegate.Removed(const Value: CObject; const Index: Integer);
 begin
-//  if _UpdateCount = 0 then
-//  begin
-//    _Owner.RefreshControl([TreeState.DataChanged, TreeState.AlignViewToCurrent]);
-//  end;
+  var viewListIndex := _Owner.View.GetViewListIndex(Value);
+  if viewListIndex = -1 then Exit;
+
+  var row := _Owner.View.GetActiveRowIfExists(viewListIndex);
+  if row = nil then Exit;
+
+  _Owner.View.RemoveRowFromActiveView(row);
 end;
 
 procedure TObjectListModelItemChangedDelegate.BeginEdit(const Item: CObject);

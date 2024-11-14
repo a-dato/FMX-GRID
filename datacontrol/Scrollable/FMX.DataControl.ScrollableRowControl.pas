@@ -159,7 +159,6 @@ type
 
     function  VisibleRows: List<IDCRow>;
 
-
     // start public selection
     procedure SelectAll; virtual;
     procedure ClearSelections; virtual;
