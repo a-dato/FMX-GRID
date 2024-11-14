@@ -18,7 +18,7 @@ uses
   FMX.DataControl.Events,
 
   ADato.ObjectModel.List.intf,
-  ADato.ObjectModel.intf, System.Types;
+  ADato.ObjectModel.intf, System.Types, ADato.Data.DataModel.intf;
 
 type
   TRowControl = class(TRectangle)
@@ -159,14 +159,31 @@ type
 
     function  VisibleRows: List<IDCRow>;
 
+    // start public selection
     procedure SelectAll; virtual;
     procedure ClearSelections; virtual;
 
+    procedure SelectItem(const DataItem: CObject; ClearOtherSelections: Boolean = False);
+    procedure DeselectItem(const DataItem: CObject);
+    procedure ToggleDataItemSelection; overload;
+    procedure ToggleDataItemSelection(const Item: CObject); overload;
+
+    function  IsSelected(const DataItem: CObject): Boolean;
     function  SelectedRowIfInView: IDCRow;
     function  SelectionCount: Integer;
     function  SelectedItems: List<CObject>;
 
     procedure AssignSelection(const SelectedItems: IList);
+    // end public selection
+
+    // start public expand/collapse
+    procedure ExpandCurrentRow;
+    procedure CollapseCurrentRow;
+    function  CurrentRowIsExpanded: Boolean;
+    // end public expand/collapse
+
+    function SortActive: Boolean;
+    function FiltersActive: Boolean;
 
     property DataList: IList read get_DataList write set_DataList;
     property Model: IObjectListModel read get_Model write set_Model;
@@ -195,7 +212,7 @@ uses
   FMX.Types,
   FMX.DataControl.ScrollableRowControl.Impl,
 
-  ADato.Data.DataModel.intf, FMX.DataControl.View.Impl,
+  FMX.DataControl.View.Impl,
   FMX.DataControl.ScrollableControl.Intf, FMX.Graphics,
   FMX.DataControl.ControlClasses;
 
@@ -341,8 +358,8 @@ end;
 
 function TDCScrollableRowControl.GetRowByMouseY(const Y: Single): IDCRow;
 begin
-  if _view = nil then
-    Exit;
+  if (_view = nil) or (Y < 0) then
+    Exit(nil);
 
   var virtualMouseposition := Y + _vertScrollBar.Value;
   for var row in _view.ActiveViewRows do
@@ -363,6 +380,10 @@ begin
   end;
 
   _view := TDataViewList.Create(_dataList, DoCreateNewRow, OnViewChanged);
+
+  if ViewIsDataModel then
+    set_current((_dataList as IDataModel).DefaultCurrencyManager.Current);
+
   RefreshControl;
 end;
 
@@ -399,6 +420,51 @@ end;
 function TDCScrollableRowControl.SelectionCount: Integer;
 begin
   Result := _selectionInfo.SelectedRowCount;
+end;
+
+procedure TDCScrollableRowControl.SelectItem(const DataItem: CObject; ClearOtherSelections: Boolean = False);
+begin
+  if _view = nil then Exit;
+
+  var ix := _view.GetViewListIndex(DataItem);
+  var dataIndex := _view.GetDataIndex(ix);
+  if (dataIndex = -1) or _selectionInfo.IsSelected(dataIndex) then
+    Exit;
+
+  if ClearOtherSelections then
+    ClearSelections;
+
+  _selectionInfo.AddToSelection(dataIndex, ix, DataItem);
+end;
+
+procedure TDCScrollableRowControl.DeselectItem(const DataItem: CObject);
+begin
+  if _view = nil then Exit;
+
+  var ix := _view.GetViewListIndex(DataItem);
+  var dataIndex := _view.GetDataIndex(ix);
+  if dataIndex = -1 then Exit;
+
+  if _selectionInfo.IsSelected(dataIndex) then
+    _selectionInfo.Deselect(dataIndex);
+end;
+
+procedure TDCScrollableRowControl.ToggleDataItemSelection;
+begin
+  ToggleDataItemSelection(get_DataItem);
+end;
+
+procedure TDCScrollableRowControl.ToggleDataItemSelection(const Item: CObject);
+begin
+  if _view = nil then Exit;
+
+  var ix := _view.GetViewListIndex(Item);
+  var dataIndex := _view.GetDataIndex(ix);
+  if dataIndex = -1 then Exit;
+
+  if not _selectionInfo.IsSelected(dataIndex) then
+    _selectionInfo.AddToSelection(dataIndex, ix, Item) else
+    _selectionInfo.Deselect(dataIndex);
 end;
 
 function TDCScrollableRowControl.get_Current: Integer;
@@ -495,6 +561,64 @@ begin
   Result := TRowSelectionInfo.Create;
 end;
 
+function TDCScrollableRowControl.CurrentRowIsExpanded: Boolean;
+begin
+  Result := False;
+  if not ViewIsDataModel then
+    Exit;
+
+  var drv: IDataRowView;
+  if not get_DataItem.TryAsType<IDataRowView>(drv) then
+    Exit;
+
+  Result := drv.DataView.IsExpanded[drv.Row];
+end;
+
+procedure TDCScrollableRowControl.CollapseCurrentRow;
+begin
+  if not ViewIsDataModel then
+    Exit;
+
+  var drv: IDataRowView;
+  if not get_DataItem.TryAsType<IDataRowView>(drv) then
+    Exit;
+
+  drv.DataView.IsExpanded[drv.Row] := False;
+  _view.ResetView(drv.ViewIndex+1); // only clear row info below this row, because all rows above stay the same!
+  RefreshControl;
+end;
+
+procedure TDCScrollableRowControl.ExpandCurrentRow;
+begin
+  if not ViewIsDataModel then
+    Exit;
+
+  var drv: IDataRowView;
+  if not get_DataItem.TryAsType<IDataRowView>(drv) then
+    Exit;
+
+  drv.DataView.IsExpanded[drv.Row] := True;
+  _view.ResetView(drv.ViewIndex+1); // only clear row info below this row, because all rows above stay the same!
+
+  var diDummy: CObject;
+  var virtualYPos: SIngle;
+  _view.GetFastPerformanceRowInfo(drv.ViewIndex, {out} diDummy, {out} virtualYPos);
+
+  ScrollManualAnimated(-Trunc(virtualYPos - _vertScrollBar.Value));
+
+  RefreshControl;
+end;
+
+function TDCScrollableRowControl.SortActive: Boolean;
+begin
+  Result := (_view <> nil) and (_view.GetSortDescriptions <> nil) and (_view.GetSortDescriptions.Count > 0)
+end;
+
+function TDCScrollableRowControl.FiltersActive: Boolean;
+begin
+  Result := (_view <> nil) and (_view.GetFilterDescriptions <> nil) and (_view.GetFilterDescriptions.Count > 0)
+end;
+
 constructor TDCScrollableRowControl.Create(AOwner: TComponent);
 begin
   inherited;
@@ -515,7 +639,7 @@ begin
   _hoverRect.HitTest := False;
   _hoverRect.Visible := False;
   _hoverRect.Stroke.Kind := TBrushKind.None;
-  _hoverRect.FIll.Color := DEFAULT_ROW_HOVER_COLOR;
+  _hoverRect.Fill.Color := DEFAULT_ROW_HOVER_COLOR;
   _content.AddObject(_hoverRect);
 end;
 
@@ -895,7 +1019,7 @@ procedure TDCScrollableRowControl.UpdateHoverRect(MousePos: TPointF);
 begin
   var row := GetRowByMouseY(MousePos.Y);
 
-  _hoverRect.Visible := (row <> nil) or (_selectionType = TSelectionType.HideSelection);
+  _hoverRect.Visible := (row <> nil) and (_selectionType <> TSelectionType.HideSelection);
   if not _hoverRect.Visible then
     Exit;
 
@@ -1175,6 +1299,15 @@ begin
   end
   else
     _selectionInfo.UpdateSingleSelection(Row.DataIndex, Row.ViewListIndex, Row.DataItem);
+end;
+
+function TDCScrollableRowControl.IsSelected(const DataItem: CObject): Boolean;
+begin
+  Result := False;
+  if _view = nil then Exit;
+
+  var ix := _view.GetViewListIndex(DataItem);
+  Result := _selectionInfo.IsSelected(_view.GetDataIndex(ix));
 end;
 
 procedure TDCScrollableRowControl.RealignContent;

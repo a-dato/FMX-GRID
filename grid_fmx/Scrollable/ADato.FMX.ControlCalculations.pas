@@ -32,7 +32,7 @@ begin
   try
     Layout.BeginUpdate;
     try
-      Layout.TopLeft := PointF(6, 6);
+      Layout.TopLeft := PointF(0, 0);
       Layout.MaxSize := PointF(9999, IfThen(TextHeight <> -1, TextHeight, TextControl.Height));
       Layout.WordWrap := False; // we want the full text width
       Layout.HorizontalAlign := TTextAlign.Leading;
@@ -45,7 +45,7 @@ begin
       Layout.EndUpdate;
     end;
 
-    Result := Layout.TextRect.Right + 6;
+    Result := Layout.TextRect.Right;
   finally
     Layout.Free;
   end;

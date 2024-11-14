@@ -30,6 +30,7 @@ type
     SelectionChangedBy: TSelectionChangedBy;
 
     constructor Create(const ACell: IDCTreeCell; SelChangedBy: TSelectionChangedBy); reintroduce;
+    property Cell: IDCTreeCell read _cell;
   end;
 
   DCCellEventArgs = class(BasicEventArgs)
@@ -88,6 +89,17 @@ type
 
     constructor Create(const ACell: IDCTreeCell; const AValue: CObject); reintroduce;
   end;
+
+//  TCellUserEventType = (Mouse, Key);
+//
+//  DCCellItemUserActionEventArgs = class(DCCellEventArgs)
+//  public
+//    CellChanged: Boolean;
+//    AllowCellEdit: Boolean;
+//    UserEventType: TCellUserEventType;
+//
+//    constructor Create(const ACell: IDCTreeCell; const ACellChanged: Boolean; const AUserEventType: TCellUserEventType);
+//  end;
 
   DCColumnComparerEventArgs = {$IFDEF DOTNET}public{$ENDIF} class(EventArgs)
   protected
@@ -204,6 +216,7 @@ type
   CellChangedEvent = procedure(const Sender: TObject; e: DCCellChangedEventArgs) of object;
 
   CellSelectedEvent = procedure(const Sender: TObject; e: DCCellSelectedEventArgs) of object;
+//  CellUserActionEvent = procedure(const Sender: TObject; e: DCCellItemUserActionEventArgs) of object;
 
   GetColumnComparerEvent  = procedure(const Sender: TObject; e: DCColumnComparerEventArgs) of object;
   TOnCompareRows = function (Sender: TObject; const Left, Right: CObject): integer of object;
@@ -367,6 +380,16 @@ begin
   _column := Column;
   _newWidth := NewWidth;
 end;
+
+//{ DCCellItemUserActionEventArgs }
+//
+//constructor DCCellItemUserActionEventArgs.Create(const ACell: IDCTreeCell; const ACellChanged: Boolean; const AUserEventType: TCellUserEventType);
+//begin
+//  inherited Create(ACell);
+//
+//  CellChanged := ACellChanged;
+//  UserEventType := AUserEventType;
+//end;
 
 end.
 

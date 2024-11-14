@@ -464,6 +464,8 @@ type
     function  get_SyncRoot: TObject; override;
 
   public
+    destructor Destroy; override;
+
     procedure CopyTo(var destination: CObject.ObjectArray; arrayIndex: Integer); overload; override;
 
     // IEnumerable<T>
@@ -2074,6 +2076,11 @@ end;
 procedure CList<T>.CopyTo(var destination: array of T; arrayIndex: Integer);
 begin
   CArray.Copy<T>(self._items, 0, destination, arrayIndex, Count);
+end;
+
+destructor CList<T>.Destroy;
+begin
+  inherited;
 end;
 
 procedure CList<T>.CopyTo(var destination: CObject.ObjectArray; arrayIndex: Integer);

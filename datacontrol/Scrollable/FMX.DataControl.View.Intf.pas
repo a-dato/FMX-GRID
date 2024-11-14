@@ -42,6 +42,8 @@ type
     function  InsertNewRowBeneeth: IDCRow;
     function  ProvideReferenceRowByPosition(DataYPosition: Single): IDCRow;
 
+    procedure RemoveRowFromActiveView(const Row: IDCRow);
+
     function  GetRowHeight(const ViewListIndex: Integer): Single;
     function  CachedRowHeight(const RowViewListIndex: Integer): Single;
     function  GetActiveRowIfExists(const ViewListIndex: Integer): IDCRow;

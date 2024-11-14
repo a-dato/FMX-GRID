@@ -1021,7 +1021,9 @@ begin
   if _IsMasterScrollingControl and (_View.Count > 0) then
   begin
      var [unsafe] actualTopRow: IRow := _View[0];
-    _RowHeightsGlobal.SaveTopRow(actualTopRow.Index, actualTopRow.Top, ViewportPosition.Y);
+
+     if _RowHeightsGlobal <> nil then
+      _RowHeightsGlobal.SaveTopRow(actualTopRow.Index, actualTopRow.Top, ViewportPosition.Y);
   end;
 
   // only at first start or after full reset

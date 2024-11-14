@@ -279,6 +279,8 @@ type
     function  Content: TControl;
     function  ColumnList: IDCTreeColumnList;
 
+    function  MultiSelectAllowed: Boolean;
+
     procedure GetSortAndFilterImages(out ImageList: TCustomImageList; out FilterIndex, SortAscIndex, SortDescIndex: Integer);
   end;
 
@@ -386,12 +388,12 @@ type
 
     function  get_InfoControl: TControl;
     procedure set_InfoControl(const Value: TControl);
-    function  get_CustomInnerControlBounds: TRectF;
-    procedure set_CustomInnerControlBounds(const Value: TRectF);
+    function  get_CustomInfoControlBounds: TRectF;
+    procedure set_CustomInfoControlBounds(const Value: TRectF);
     function  get_SubInfoControl: TControl;
     procedure set_SubInfoControl(const Value: TControl);
-    function  get_CustomSubInnerControlBounds: TRectF;
-    procedure set_CustomSubInnerControlBounds(const Value: TRectF);
+    function  get_CustomSubInfoControlBounds: TRectF;
+    procedure set_CustomSubInfoControlBounds(const Value: TRectF);
 
 //    function  get_ColSpan: Byte;
 //    procedure set_ColSpan(const Value: Byte);
@@ -407,9 +409,9 @@ type
 
     property Control: TControl read get_Control write set_Control;
     property InfoControl: TControl read get_InfoControl write set_InfoControl;
-    property CustomInnerControlBounds: TRectF read get_CustomInnerControlBounds write set_CustomInnerControlBounds;
+    property CustomInfoControlBounds: TRectF read get_CustomInfoControlBounds write set_CustomInfoControlBounds;
     property SubInfoControl: TControl read get_SubInfoControl write set_SubInfoControl;
-    property CustomSubInnerControlBounds: TRectF read get_CustomSubInnerControlBounds write set_CustomSubInnerControlBounds;
+    property CustomSubInfoControlBounds: TRectF read get_CustomSubInfoControlBounds write set_CustomSubInfoControlBounds;
     property ExpandButton: TButton read get_ExpandButton write set_ExpandButton;
     property HideCellInView: Boolean read get_HideCellInView write set_HideCellInView;
 

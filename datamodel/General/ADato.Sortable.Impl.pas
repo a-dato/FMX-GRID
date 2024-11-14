@@ -64,7 +64,8 @@ type
     // just myself
     function Transpose(const Index: Integer): Integer;
   public
-    constructor Create(const AOwner: IList<T>; const ReusableComparer: IListComparer);
+    constructor Create(const AOwner: IList<T>; const ReusableComparer: IListComparer); reintroduce;
+    destructor Destroy; override;
 
     class function CreateReusableComparer: IListComparer; static;
     procedure ApplySort(const Sorts: List<IListSortDescription>; const Filters: List<IListFilterDescription>);
@@ -136,6 +137,11 @@ begin
     begin
       Result := _data as IList;
     end;
+end;
+
+destructor CComparableList<T>.Destroy;
+begin
+  inherited;
 end;
 
 function CComparableList<T>.GetEnumerator: IEnumerator<T>;

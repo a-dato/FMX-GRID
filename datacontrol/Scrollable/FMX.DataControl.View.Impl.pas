@@ -40,8 +40,6 @@ type
     procedure DataModelViewChanged(Sender: TObject; e: EventArgs);
     procedure OnViewChanged;
 
-    procedure RemoveRowFromActiveView(const Row: IDCRow);
-
     function  GetNewActiveRow: IDCRow;
     procedure AddNewRowToActiveRows(const Row: IDCRow; const Index: Integer = -1);
     procedure UpdateViewIndexFromIndex(const Index: Integer);
@@ -52,6 +50,8 @@ type
 
     function  RowLoadedInfo(const ViewListIndex: Integer): TRowInfoRecord;
     procedure RowLoaded(const Row: IDCRow; const RowHeightChanged: Boolean; const NeedsResize: Boolean);
+
+    procedure RemoveRowFromActiveView(const Row: IDCRow);
 
     function  InsertNewRowABove: IDCRow;
     function  InsertNewRowBeneeth: IDCRow;
@@ -174,6 +174,9 @@ end;
 
 function TDataViewList.GetDataIndex(const ViewListIndex: Integer): Integer;
 begin
+  if ViewListIndex = -1 then
+    Exit(-1);
+
   if _comparer <> nil then
   begin
     if _comparer.Comparer.SortedRows <> nil then
