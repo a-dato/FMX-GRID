@@ -30,10 +30,13 @@ type
   // data
   protected
     _dataList: IList;
+    _dataModelView: IDataModelView;
     _model: IObjectListModel;
 
     function  get_DataList: IList;
     procedure set_DataList(const Value: IList);
+    function  get_DataModelView: IDataModelView;
+    procedure set_DataModelView(const Value: IDataModelView);
     function  get_Model: IObjectListModel;
     procedure set_Model(const Value: IObjectListModel); virtual;
 
@@ -43,6 +46,7 @@ type
     procedure ModelContextChanged(const Sender: IObjectModelContext; const Context: CObject);
 
     procedure GenerateView; virtual;
+    function  GetDataModelView: IDataModelView;
 
   // published property variables
   protected
@@ -191,6 +195,8 @@ type
 
     property DataList: IList read get_DataList write set_DataList;
     property Model: IObjectListModel read get_Model write set_Model;
+    property DataModelView: IDataModelView read get_DataModelView write set_DataModelView;
+
     property Current: Integer read get_Current write set_Current;
     property DataItem: CObject read get_DataItem write set_DataItem;
 
@@ -408,6 +414,16 @@ begin
   Result := nil;
 end;
 
+function TDCScrollableRowControl.GetDataModelView: IDataModelView;
+var
+  dm: IDataModel;
+begin
+  if _dataModelView <> nil then
+    Result := _dataModelView
+  else if interfaces.Supports<IDataModel>(_dataList, dm) then
+    Result := dm.DefaultView;
+end;
+
 procedure TDCScrollableRowControl.GenerateView;
 begin
   inc(_scrollUpdateCount);
@@ -418,10 +434,12 @@ begin
     dec(_scrollUpdateCount);
   end;
 
-  _view := TDataViewList.Create(_dataList, DoCreateNewRow, OnViewChanged);
+  if _dataModelView <> nil then
+    _view := TDataViewList.Create(_dataModelView, DoCreateNewRow, OnViewChanged) else
+    _view := TDataViewList.Create(_dataList, DoCreateNewRow, OnViewChanged);
 
   if ViewIsDataModel then
-    set_current((_dataList as IDataModel).DefaultCurrencyManager.Current);
+    set_current(GetDataModelView.CurrencyManager.Current);
 
   RefreshControl;
 end;
@@ -695,6 +713,11 @@ begin
   Result := _dataList;
 end;
 
+function TDCScrollableRowControl.get_DataModelView: IDataModelView;
+begin
+  Result := _dataModelView;
+end;
+
 function TDCScrollableRowControl.get_Model: IObjectListModel;
 begin
   Result := _model;
@@ -722,7 +745,6 @@ begin
   _view := nil;
 
   _dataList := Value;
-
   if _dataList <> nil then
   begin
     ClearSelectionInfo;
@@ -736,7 +758,25 @@ begin
     end;
 
     GenerateView;
+  end else
+    _dataModelView := nil;
+end;
+
+procedure TDCScrollableRowControl.set_DataModelView(const Value: IDataModelView);
+begin
+  _dataModelView := Value;
+
+  if _dataModelView = nil then
+  begin
+    set_DataList(nil);
+    Exit;
   end;
+
+  var data: IList;
+  if not interfaces.Supports<IList>(_dataModelView.DataModel, data) then
+    data := _dataModelView.DataModel.Rows as IList;
+
+  set_DataList(data);
 end;
 
 procedure TDCScrollableRowControl.set_Model(const Value: IObjectListModel);
@@ -1209,6 +1249,11 @@ begin
 
   for var row in _view.ActiveViewRows do
     VisualizeRowSelection(row);
+
+  if (_model <> nil) then
+    _model.ObjectContext := ValidDataItem(Self.DataItem)
+  else if GetDataModelView <> nil then
+    GetDataModelView.CurrencyManager.Current := Self.DataItem.AsType<IDataRowView>.ViewIndex;
 end;
 
 function TDCScrollableRowControl.ValidDataItem(const Item: CObject): CObject;
@@ -1221,7 +1266,7 @@ end;
 
 function TDCScrollableRowControl.ViewIsDataModel: Boolean;
 begin
-  Result := interfaces.Supports<IDataModel>(_dataList);
+  Result := (_dataModelView <> nil) or interfaces.Supports<IDataModel>(_dataList);
 end;
 
 procedure TDCScrollableRowControl.VisualizeRowSelection(const Row: IDCRow);

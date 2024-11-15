@@ -45,7 +45,9 @@ type
     procedure UpdateViewIndexFromIndex(const Index: Integer);
 
   public
-    constructor Create(const DataList: IList; DoCreateNewRow: TDoCreateNewRow; OnViewChanged: TProc); reintroduce;
+    constructor Create(const DataList: IList; DoCreateNewRow: TDoCreateNewRow; OnViewChanged: TProc); reintroduce; overload;
+    constructor Create(const DataModelView: IDataModelView; DoCreateNewRow: TDoCreateNewRow; OnViewChanged: TProc); reintroduce; overload;
+
     destructor Destroy; override;
 
     function  RowLoadedInfo(const ViewListIndex: Integer): TRowInfoRecord;
@@ -131,6 +133,19 @@ begin
 
     _comparer.Comparer.OnComparingChanged := procedure begin OnViewChanged end;
   end;
+
+  ResetView;
+end;
+
+constructor TDataViewList.Create(const DataModelView: IDataModelView; DoCreateNewRow: TDoCreateNewRow; OnViewChanged: TProc);
+begin
+  inherited Create;
+
+  _doCreateNewRow := DoCreateNewRow;
+  _onViewChanged := OnViewChanged;
+
+  _dataModelView := DataModelView;
+  _dataModelView.ViewChanged.Add(DataModelViewChanged);
 
   ResetView;
 end;
@@ -232,7 +247,15 @@ begin
   if _comparer <> nil then
     Result := _comparer.Data
   else if _dataModelView <> nil then
-    Result := _dataModelView.DataModel as IList
+  begin
+    if interfaces.Supports<IList>(_dataModelView.DataModel) then
+      Result := _dataModelView.DataModel as IList
+    else begin
+      Result := CList<CObject>.Create(_dataModelView.DataModel.Rows.Count);
+      for var row in _dataModelView.DataModel.Rows do
+        Result.Add(row.Data);
+    end;
+  end
   else
     Result := nil;
 end;

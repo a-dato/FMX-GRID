@@ -1088,13 +1088,15 @@ begin
     Exit(nil);
   end;
 
+  var drv: IDataRowView;
+  var dr: IDataRow;
+
   if CString.Equals(PropName, COLUMN_SHOW_DEFAULT_OBJECT_TEXT) then
     Cell.Data := Cell.Row.DataItem
-  else if Cell.Row.DataItem.IsOfType<IDataRowView> then
-  begin
-    var drv := Cell.Row.DataItem.AsType<IDataRowView>;
-    Cell.Data := drv.DataView.DataModel.GetPropertyValue(PropName, drv.Row);
-  end
+  else if Cell.Row.DataItem.TryAsType<IDataRowView>(drv) then
+    Cell.Data := drv.DataView.DataModel.GetPropertyValue(PropName, drv.Row)
+  else if Cell.Row.DataItem.TryAsType<IDataRow>(dr) then
+    Cell.Data := dr.Table.GetPropertyValue(PropName, dr)
   else begin
     var dataItem: CObject := Cell.Row.DataItem;
     if (_cachedType <> dataItem.GetType) or (_cachedProp.Name <> PropName {sub prop name}) then

@@ -991,7 +991,7 @@ end;
 
 function TStaticDataControl.Content: TControl;
 begin
-  Result := Self;
+  Result := _content;
 end;
 
 function TStaticDataControl.ColumnList: IDCTreeColumnList;
@@ -1132,9 +1132,6 @@ end;
 
 procedure TStaticDataControl.DoCellChanged(const OldCell, NewCell: IDCTreeCell);
 begin
-  if (_model <> nil) then
-    _model.ObjectContext := ValidDataItem(NewCell.Row.DataItem);
-
   if Assigned(_cellChanged) then
   begin
     var args: DCCellChangedEventArgs;
