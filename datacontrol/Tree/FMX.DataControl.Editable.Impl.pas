@@ -621,13 +621,12 @@ end;
 
 procedure TObjectListModelItemChangedDelegate.Removed(const Value: CObject; const Index: Integer);
 begin
-  var viewListIndex := _Owner.View.GetViewListIndex(Value);
-  if viewListIndex = -1 then Exit;
-
-  var row := _Owner.View.GetActiveRowIfExists(viewListIndex);
-  if row = nil then Exit;
-
-  _Owner.View.RemoveRowFromActiveView(row);
+  for var row in _Owner.View.ActiveViewRows do
+    if CObject.Equals(row.DataItem, Value) then
+    begin
+      _Owner.View.ResetView(row.ViewListIndex, False);
+      Exit;
+    end;
 end;
 
 procedure TObjectListModelItemChangedDelegate.BeginEdit(const Item: CObject);
