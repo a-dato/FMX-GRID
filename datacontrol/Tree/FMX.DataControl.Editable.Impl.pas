@@ -607,15 +607,16 @@ end;
 
 procedure TObjectListModelItemChangedDelegate.AddingNew(const Value: CObject; var Index: Integer; Position: InsertPosition);
 begin
-  _Owner.View.RecalcSortedRows;
-
-  var viewListIndex := _Owner.View.GetViewList.IndexOf(Value);
-  if viewListIndex = -1 then
+  var dataIndex := _Owner.View.GetDataIndex(Value);
+  if dataIndex = -1 then
   begin
     _Owner.View.OriginalData.Insert(Index, Value);
-    viewListIndex := Index;
+    dataIndex := Index;
   end;
 
+  var viewListIndex := _Owner.View.GetViewListIndex(Value);
+
+  _Owner.View.RecalcSortedRows;
   _Owner.View.ResetView(viewListIndex, False);
 end;
 

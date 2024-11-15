@@ -814,7 +814,13 @@ begin
 //  if _updateCount > 0 then
 //    Exit;
 
-  if not CObject.Equals(get_DataItem, Context) then
+  var dItem := get_DataItem;
+
+  var drv: IDataRowView;
+  if dItem.TryAsType<IDataRowView>(drv) then
+    dItem := drv.Row.Data;
+
+  if not CObject.Equals(dItem, Context) then
     set_DataItem(Context);
 end;
 
@@ -826,10 +832,15 @@ end;
 procedure TDCScrollableRowControl.ModelListContextChanged(const Sender: IObjectListModel; const Context: IList);
 begin
   set_DataList(_model.Context);
+
+  if not _model.ListHoldsObjectType and (Context <> nil) then
+    _model.ObjectModelContext.OnContextChanged.Add(ModelContextChanged);
 end;
 
 procedure TDCScrollableRowControl.ModelListContextChanging(const Sender: IObjectListModel; const Context: IList);
 begin
+  if not _model.ListHoldsObjectType and (Sender.Context <> nil) then
+    _model.ObjectModelContext.OnContextChanged.Remove(ModelContextChanged);
 end;
 
 procedure TDCScrollableRowControl.BeforeRealignContent;
