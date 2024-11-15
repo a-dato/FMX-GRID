@@ -70,7 +70,8 @@ type
     procedure RecalcSortedRows;
     function  GetViewList: IList;
 
-    function  GetDataIndex(const ViewListIndex: Integer): Integer;
+    function  GetDataIndex(const ViewListIndex: Integer): Integer; overload;
+    function  GetDataIndex(const DataItem: CObject): Integer; overload;
     function  GetDataItem(const ViewListIndex: Integer): CObject;
     function  GetViewListIndex(const DataItem: CObject): Integer;
 
@@ -165,6 +166,25 @@ begin
       Exit(row);
 
   Result := nil;
+end;
+
+function TDataViewList.GetDataIndex(const DataItem: CObject): Integer;
+begin
+  if _comparer <> nil then
+    Result := OriginalData.IndexOf(DataItem)
+  else // datamodel
+  begin
+    var drv: IDataRowView;
+    if DataItem.TryAsType<IDataRowView>(drv) then
+      Exit(drv.Row.get_Index);
+
+    var dr: IDataRow;
+    if DataItem.TryAsType<IDataRow>(dr) then
+      Exit(dr.get_Index);
+
+    dr := _dataModelView.DataModel.FindByKey(DataItem);
+    Result := dr.get_Index;
+  end;
 end;
 
 function TDataViewList.GetDataItem(const ViewListIndex: Integer): CObject;

@@ -61,6 +61,8 @@ type
     procedure set_SelectionType(const Value: TSelectionType);
     procedure set_Options(const Value: TDCTreeOptions);
     procedure set_AllowNoneSelected(const Value: Boolean);
+    function  get_NotSelectableItems: IList;
+    procedure set_NotSelectableItems(const Value: IList);
 
     function  get_rowHeightDefault: Single;
 
@@ -106,7 +108,7 @@ type
     procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
     procedure DoMouseLeave; override;
 
-    procedure ClearAllSelections; virtual;
+    procedure ClearSelectionInfo; virtual;
     procedure OnSelectionInfoChanged; virtual;
     function  CreateSelectioninfoInstance: IRowSelectionInfo; virtual;
     procedure SetSingleSelectionIfNotExists; virtual;
@@ -137,6 +139,8 @@ type
     procedure UpdateScrollAndSelectionByKey(var Key: Word; Shift: TShiftState); virtual;
 
     procedure OnCollapseOrExpandRowClick(const ViewListIndex: Integer);
+
+    function  GetSelectableViewIndex(const FromViewListIndex: Integer; const Increase: Boolean; const FirstRound: Boolean = True): Integer;
 
     function  GetRowByMouseY(const Y: Single): IDCRow;
     function  GetRowViewListIndexByKey(const Key: Word; Shift: TShiftState): Integer;
@@ -191,6 +195,7 @@ type
     property DataItem: CObject read get_DataItem write set_DataItem;
 
     property View: IDataViewList read _view;
+    property NotSelectableItems: IList read get_NotSelectableItems write set_NotSelectableItems;
 
   published
     property SelectionType: TSelectionType read get_SelectionType write set_SelectionType default RowSelection;
@@ -344,16 +349,50 @@ end;
 function TDCScrollableRowControl.GetRowViewListIndexByKey(const Key: Word; Shift: TShiftState): Integer;
 begin
   if ((ssCtrl in Shift) and (Key = vkUp)) or (Key = vkHome) then
-    Exit(0)
+    Exit(GetSelectableViewIndex(0, True))
   else if ((ssCtrl in Shift) and (Key = vkDown)) or (Key = vkEnd) then
-    Exit(_view.ViewCount - 1)
+    Exit(GetSelectableViewIndex(_view.ViewCount - 1, False))
   else if (Key = vkUp) then
-    Exit(CMath.Max(_selectionInfo.ViewListIndex-1, 0))
+    Exit(GetSelectableViewIndex(CMath.Max(_selectionInfo.ViewListIndex-1, 0), False))
   else if (Key = vkDown) then
-    Exit(CMath.Min(_selectionInfo.ViewListIndex+1, _view.ViewCount - 1));
+    Exit(GetSelectableViewIndex(CMath.Min(_selectionInfo.ViewListIndex+1, _view.ViewCount - 1), True));
 
   // no change
   Result := _selectionInfo.ViewListIndex;
+end;
+
+function TDCScrollableRowControl.GetSelectableViewIndex(const FromViewListIndex: Integer; const Increase: Boolean; const FirstRound: Boolean = True): Integer;
+begin
+  Result := FromViewListIndex;
+
+  var di := _view.GetDataIndex(Result);
+  while not _selectionInfo.CanSelect(di) do
+  begin
+    if Increase then
+    begin
+      inc(Result);
+      if Result > _view.ViewCount - 1 then
+      begin
+        if FirstRound then
+          Exit(GetSelectableViewIndex(FromViewListIndex, not Increase, False));
+
+        Exit(-1);
+      end;
+    end
+    else
+    begin
+      dec(Result);
+      if Result = -1 then
+      begin
+        if FirstRound then
+          Exit(GetSelectableViewIndex(FromViewListIndex, not Increase, True));
+
+        Exit(-1);
+      end;
+    end;
+
+    di := _view.GetDataIndex(Result);
+  end;
 end;
 
 function TDCScrollableRowControl.GetRowByMouseY(const Y: Single): IDCRow;
@@ -535,10 +574,10 @@ begin
   _vertScrollBar.Visible := (_view <> nil) and (not (TDCTreeOption.HideVScrollBar in _options)) and (_vertScrollBar.ViewPortSize + IfThen(_horzScrollBar.Visible, _horzScrollBar.Height, 0) < _vertScrollBar.Max);
 end;
 
-procedure TDCScrollableRowControl.ClearAllSelections;
+procedure TDCScrollableRowControl.ClearSelectionInfo;
 begin
   if _selectionInfo <> nil then
-    _selectionInfo.ClearAllSelections;
+    _selectionInfo.Clear;
 end;
 
 procedure TDCScrollableRowControl.ClearSelections;
@@ -661,6 +700,16 @@ begin
   Result := _model;
 end;
 
+function TDCScrollableRowControl.get_NotSelectableItems: IList;
+begin
+  if Length(_selectionInfo.NotSelectableDataIndexes) = 0 then
+    Exit(nil);
+
+  var l: List<CObject> := CList<CObject>.Create(Length(_selectionInfo.NotSelectableDataIndexes));
+  for var dataIndex in _selectionInfo.NotSelectableDataIndexes do
+    l.Add(_view.OriginalData[dataIndex]);
+end;
+
 function TDCScrollableRowControl.get_rowHeightDefault: Single;
 begin
   if _rowHeightFixed > 0 then
@@ -676,7 +725,7 @@ begin
 
   if _dataList <> nil then
   begin
-    ClearAllSelections;
+    ClearSelectionInfo;
 
     inc(_scrollUpdateCount);
     try
@@ -723,6 +772,30 @@ begin
     if _model.Context <> nil then
       ModelListContextChanged(_model, _model.Context);
   end;
+end;
+
+procedure TDCScrollableRowControl.set_NotSelectableItems(const Value: IList);
+begin
+  if (Value = nil) or (Value.Count = 0) then
+  begin
+    _selectionInfo.NotSelectableDataIndexes := [];
+    Exit;
+  end;
+
+  var arr: TDataIndexArray;
+  SetLength(arr, 0);
+
+  for var item in Value do
+  begin
+    var ix := _view.GetDataIndex(item);
+    if ix <> -1 then
+    begin
+      SetLength(arr, Length(arr) + 1);
+      arr[High(arr)] := ix;
+    end;
+  end;
+
+  _selectionInfo.NotSelectableDataIndexes := arr;
 end;
 
 procedure TDCScrollableRowControl.set_Options(const Value: TDCTreeOptions);
@@ -1019,7 +1092,7 @@ procedure TDCScrollableRowControl.UpdateHoverRect(MousePos: TPointF);
 begin
   var row := GetRowByMouseY(MousePos.Y);
 
-  _hoverRect.Visible := (row <> nil) and (_selectionType <> TSelectionType.HideSelection);
+  _hoverRect.Visible := (row <> nil) and (_selectionType <> TSelectionType.HideSelection) and _selectionInfo.CanSelect(row.DataIndex);
   if not _hoverRect.Visible then
     Exit;
 
@@ -1049,6 +1122,8 @@ begin
       if _view.ActiveViewRows[1].ViewListIndex > 3 then
         viewListindex := _view.ActiveViewRows[1].ViewListIndex else
         viewListindex := 0;
+
+      viewListindex := GetSelectableViewIndex(viewListindex, True);
     end
     else
     begin
@@ -1058,6 +1133,8 @@ begin
       if _view.ActiveViewRows[ix].ViewListIndex <= _view.ViewCount - 4 then
         viewListindex := _view.ActiveViewRows[ix].ViewListIndex else
         viewListindex := _view.ViewCount - 1;
+
+      viewListindex := GetSelectableViewIndex(viewListindex, False);
     end;
 
     set_Current(viewListindex);
@@ -1255,9 +1332,6 @@ end;
 
 procedure TDCScrollableRowControl.UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single);
 begin
-  if _selectionInfo = nil then
-    Exit;
-
   var clickedRow := GetRowByMouseY(Y);
   if clickedRow = nil then Exit;
 
@@ -1295,7 +1369,6 @@ begin
     end;
 
     _selectionInfo.AddToSelection(Row.DataIndex, Row.ViewListIndex, Row.DataItem);
-
   end
   else
     _selectionInfo.UpdateSingleSelection(Row.DataIndex, Row.ViewListIndex, Row.DataItem);
@@ -1481,6 +1554,14 @@ begin
 
     if viewListIndex = -1 then
       viewListIndex := 0;
+  end;
+
+  viewListIndex := GetSelectableViewIndex(viewListIndex, True);
+  if viewListIndex = -1 then
+  begin
+    viewListIndex := GetSelectableViewIndex(0, True);
+    if viewListIndex = -1 then
+      Exit;
   end;
 
   _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.Internal;

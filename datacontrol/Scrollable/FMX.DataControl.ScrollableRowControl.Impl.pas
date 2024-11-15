@@ -68,6 +68,7 @@ type
 
     _changedBy: TSelectionChangedBy;
     _allowNoneSelected: Boolean;
+    _notSelectableDataIndexes: TDataIndexArray;
 
     function  get_DataIndex: Integer;
     function  get_DataItem: CObject;
@@ -78,6 +79,8 @@ type
     function  get_ChangedBy: TSelectionChangedBy;
     procedure set_ChangedBy(const Value: TSelectionChangedBy);
     procedure set_AllowNoneSelected(const Value: Boolean);
+    function  get_NotSelectableDataIndexes: TDataIndexArray;
+    procedure set_NotSelectableDataIndexes(const Value: TDataIndexArray);
 
     procedure set_OnSelectionInfoChanged(const Value: TProc);
 
@@ -101,13 +104,17 @@ type
     procedure BeginUpdate;
     procedure EndUpdate(IgnoreChangeEvent: Boolean = False);
 
-    function  HasSelection: Boolean;
+    procedure Clear; virtual;
     procedure ClearAllSelections;
     procedure ClearMultiSelections; virtual;
+
+    function  CanSelect(const DataIndex: Integer): Boolean;
+    function  HasSelection: Boolean;
     function  IsSelected(const DataIndex: Integer): Boolean;
     function  GetSelectionInfo(const DataIndex: Integer): IRowSelectionInfo;
     function  SelectedRowCount: Integer;
     function  SelectedDataIndexes: List<Integer>;
+
   end;
 
   TWaitForRepaintInfo = class(TInterfacedObject, IWaitForRepaintInfo)
@@ -149,7 +156,7 @@ implementation
 
 uses
   FMX.Objects, FMX.Types, FMX.StdCtrls, ADato.Data.DataModel.intf,
-  System.UITypes, FMX.DataControl.ControlClasses;
+  System.UITypes, FMX.DataControl.ControlClasses, System.Generics.Collections;
 
 { TDCRow }
 
@@ -349,6 +356,17 @@ begin
     DoSelectionInfoChanged;
 end;
 
+function TRowSelectionInfo.CanSelect(const DataIndex: Integer): Boolean;
+begin
+  Result := not TArray.Contains<Integer>(_notSelectableDataIndexes, DataIndex);
+end;
+
+procedure TRowSelectionInfo.Clear;
+begin
+  ClearAllSelections;
+  SetLength(_notSelectableDataIndexes, 0);
+end;
+
 procedure TRowSelectionInfo.ClearAllSelections;
 begin
   ClearMultiSelections;
@@ -409,6 +427,11 @@ begin
   Result := _multiSelection.Count > 0;
 end;
 
+function TRowSelectionInfo.get_NotSelectableDataIndexes: TDataIndexArray;
+begin
+  Result := _notSelectableDataIndexes;
+end;
+
 function TRowSelectionInfo.HasSelection: Boolean;
 begin
   Result := (_lastSelectedDataItem <> nil) or get_IsMultiSelection;
@@ -439,6 +462,11 @@ begin
   _forceScrollToSelection := Value;
 end;
 
+procedure TRowSelectionInfo.set_NotSelectableDataIndexes(const Value: TDataIndexArray);
+begin
+  _notSelectableDataIndexes := Value;
+end;
+
 procedure TRowSelectionInfo.set_OnSelectionInfoChanged(const Value: TProc);
 begin
   _OnSelectionInfoChanged := Value;
@@ -451,6 +479,7 @@ begin
 
   Result.LastSelectionChangedBy := _changedBy;
   Result.AllowNoneSelected := _allowNoneSelected;
+  Result.NotSelectableDataIndexes := _notSelectableDataIndexes;
 end;
 
 function TRowSelectionInfo.CreateInstance: IRowSelectionInfo;
@@ -507,12 +536,18 @@ end;
 
 procedure TRowSelectionInfo.UpdateSingleSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
 begin
+  if not CanSelect(DataIndex) then
+    Exit;
+
   _multiSelection.Clear;
   UpdateLastSelection(DataIndex, ViewListIndex, DataItem);
 end;
 
 procedure TRowSelectionInfo.AddToSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
 begin
+  if not CanSelect(DataIndex) then
+    Exit;
+
   BeginUpdate;
   try
     // add single selection if needed
@@ -548,7 +583,7 @@ end;
 
 procedure TRowSelectionInfo.SelectedRowClicked(const DataIndex: Integer);
 begin
-  if _lastSelectedDataIndex = DataIndex then
+  if not CanSelect(DataIndex) or (_lastSelectedDataIndex = DataIndex) then
     Exit;
 
   var selectionInfo: IRowSelectionInfo;

@@ -59,6 +59,7 @@ type
   TDoCreateNewRow = reference to function: IDCRow;
   TSelectionCanChange = reference to function: Boolean;
 
+  TDataIndexArray = array of Integer;
   IRowSelectionInfo = interface
     ['{FC3AA96A-7C9A-4965-8329-3AC17AE28728}']
     function  get_DataIndex: Integer;
@@ -70,12 +71,17 @@ type
     function  get_ChangedBy: TSelectionChangedBy;
     procedure set_ChangedBy(const Value: TSelectionChangedBy);
     procedure set_AllowNoneSelected(const Value: Boolean);
+    function  get_NotSelectableDataIndexes: TDataIndexArray;
+    procedure set_NotSelectableDataIndexes(const Value: TDataIndexArray);
 
     procedure set_OnSelectionInfoChanged(const Value: TProc);
 
-    function  HasSelection: Boolean;
+    procedure Clear;
     procedure ClearAllSelections;
     procedure ClearMultiSelections;
+
+    function  CanSelect(const DataIndex: Integer): Boolean;
+    function  HasSelection: Boolean;
     function  IsSelected(const DataIndex: Integer): Boolean;
     function  GetSelectionInfo(const DataIndex: Integer): IRowSelectionInfo;
 
@@ -103,6 +109,7 @@ type
 
     property AllowNoneSelected: Boolean write set_AllowNoneSelected;
     property OnSelectionInfoChanged: TProc write set_OnSelectionInfoChanged;
+    property NotSelectableDataIndexes: TDataIndexArray read get_NotSelectableDataIndexes write set_NotSelectableDataIndexes;
   end;
 
   IWaitForRepaintInfo = interface

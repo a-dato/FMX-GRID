@@ -118,7 +118,6 @@ type
     procedure InnerInitRow(const Row: IDCRow); override;
 
     function  CreateSelectioninfoInstance: IRowSelectionInfo; override;
-    procedure ClearAllSelections; override;
     procedure OnSelectionInfoChanged; override;
     procedure SetSingleSelectionIfNotExists; override;
     procedure VisualizeRowSelection(const Row: IDCRow); override;
@@ -1481,9 +1480,7 @@ procedure TStaticDataControl.LoadDefaultDataIntoControl(const Cell: IDCTreeCell;
 begin
   if Cell.Column.IsCheckBoxColumn then
   begin
-//    var checkBox := Cell.InfoControl as IIsChecked;
-//    checkBox.Tag := Cell.Row.ViewListIndex;
-//    checkBox.OnChange := OnSelectionCheckBoxChange;
+    Cell.InfoControl.Visible := _selectionInfo.CanSelect(Cell.Row.DataIndex);
     Exit;
   end;
 
@@ -1636,13 +1633,6 @@ begin
     end;
 
   Result := Result + 2*CELL_CONTENT_MARGIN;
-end;
-
-procedure TStaticDataControl.ClearAllSelections;
-begin
-  inherited;
-
-  (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumns.Clear;
 end;
 
 procedure TStaticDataControl.GetSortAndFilterImages(out ImageList: TCustomImageList; out FilterIndex, SortAscIndex, SortDescIndex: Integer);

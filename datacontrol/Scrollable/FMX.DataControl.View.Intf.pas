@@ -48,7 +48,8 @@ type
     function  CachedRowHeight(const RowViewListIndex: Integer): Single;
     function  GetActiveRowIfExists(const ViewListIndex: Integer): IDCRow;
 
-    function  GetDataIndex(const ViewListIndex: Integer): Integer;
+    function  GetDataIndex(const ViewListIndex: Integer): Integer; overload;
+    function  GetDataIndex(const DataItem: CObject): Integer; overload;
     function  GetViewListIndex(const DataItem: CObject): Integer;
     procedure GetFastPerformanceRowInfo(const ViewListIndex: Integer; out DataItem: CObject; out VirtualYPosition: Single);
     procedure GetSlowPerformanceRowInfo(const ViewListIndex: Integer; out DataItem: CObject; out VirtualYPosition: Single);

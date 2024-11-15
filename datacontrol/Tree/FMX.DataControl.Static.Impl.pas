@@ -532,6 +532,7 @@ type
   public
     constructor Create; reintroduce;
 
+    procedure Clear; override;
     procedure ClearMultiSelections; override;
   end;
 
@@ -2079,78 +2080,6 @@ begin
   _nonFrozenColumnRowControl := Value;
 end;
 
-//{ TCellSelectionInfo }
-//
-//procedure TCellSelectionInfo.AddCellSelection(const ColumnIndex: Integer);
-//begin
-//  if _columnIndexes = nil then
-//    _columnIndexes := CList<Integer>.Create;
-//
-//  _columnIndexes.Add(ColumnIndex);
-//  _lastSelectedCellColumnIndex := ColumnIndex;
-//end;
-//
-//function TCellSelectionInfo.CellIsSelected(const ColumnIndex: Integer): Boolean;
-//begin
-//  Result := (_columnIndexes <> nil) and _columnIndexes.Contains(ColumnIndex);
-//end;
-//
-//procedure TCellSelectionInfo.ClearAllSelections;
-//begin
-//  inherited;
-//  _columnIndexes := nil;
-//end;
-//
-//function TCellSelectionInfo.Clone: ISelectionInfo;
-//begin
-//  Result := inherited;
-//
-//  var cellSelectionInfo := (Result as ICellSelectionInfo);
-//  if _columnIndexes <> nil then
-//    for var index in _columnIndexes do
-//      cellSelectionInfo.AddCellSelection(index);
-//end;
-//
-//function TCellSelectionInfo.CopyColumnIndexes: List<Integer>;
-//begin
-//  if _columnIndexes <> nil then
-//    Result := CList<Integer>.Create(_columnIndexes) else
-//    Result := nil;
-//end;
-//
-//function TCellSelectionInfo.CreateInstance: ISelectionInfo;
-//begin
-//  Result := TCellSelectionInfo.Create;
-//end;
-//
-//function TCellSelectionInfo.LastSelectedColumnIndex: Integer;
-//begin
-//  Result := _lastSelectedCellColumnIndex;
-//end;
-//
-//procedure TCellSelectionInfo.RemoveCellSelection(const ColumnIndex: Integer);
-//begin
-//  _columnIndexes.Remove(ColumnIndex);
-//end;
-//
-//function TCellSelectionInfo.SelectedCellCount: Integer;
-//begin
-//  if _columnIndexes <> nil then
-//    Result := _columnIndexes.Count else
-//    Result := 0;
-//end;
-//
-//procedure TCellSelectionInfo.UpdateLastSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject; const VirtualYPosition: Single);
-//begin
-//  inherited;
-//
-//  var selInfo: ISelectionInfo;
-//  if _multiSelection.TryGetValue(DataIndex, selInfo) then
-//    _columnIndexes := (selInfo as ICellSelectionInfo).CopyColumnIndexes
-//  else if _columnIndexes <> nil then
-//    _columnIndexes.Clear;
-//end;
-
 { THeaderCell }
 
 function THeaderCell.get_FilterControl: TControl;
@@ -2238,6 +2167,13 @@ begin
 end;
 
 { TTreeSelectionInfo }
+
+procedure TTreeSelectionInfo.Clear;
+begin
+  inherited;
+  _selectedFlatColumns.Clear;
+  _lastSelectedFlatColumn := 0;
+end;
 
 procedure TTreeSelectionInfo.ClearMultiSelections;
 begin
