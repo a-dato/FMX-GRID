@@ -113,7 +113,7 @@ begin
     if Key = 0 then
       Exit;
 
-    if not (Key in [vkUp, vkDown, vkLeft, vkRight, vkPrior, vkEnd, vkHome, vkEnd, vkShift, vkControl, vkTab]) then
+    if not (Key in [vkUp, vkDown, vkLeft, vkRight, vkPrior, vkEnd, vkHome, vkEnd, vkShift, vkControl, vkTab, vkReturn]) then
       StartEditCell(GetActiveCell)
   end;
 end;

@@ -2599,8 +2599,7 @@ begin
   _headerCell := HeaderCell;
 
   Assert(_columnResizeControl = nil);
-
-  var ly := TLayout.Create(_treeControl.Content);
+  var ly := TLayout.Create(_treeControl.Control);
   ly.HitTest := True;
   ly.Align := TAlignLayout.None;
   ly.BoundsRect := _headerCell.Row.Control.BoundsRect;
@@ -2609,7 +2608,7 @@ begin
   ly.OnMouseLeave := DoSplitterMouseLeave;
   ly.Cursor := crSizeWE;
 
-  _treeControl.Content.AddObject(ly);
+  _treeControl.Control.AddObject(ly);
   _columnResizeFullHeaderControl := ly;
 
   var cellRect := TRectangle.Create(_columnResizeFullHeaderControl);

@@ -1257,7 +1257,7 @@ begin
 
   if (_model <> nil) then
     _model.ObjectContext := ValidDataItem(Self.DataItem)
-  else if GetDataModelView <> nil then
+  else if (GetDataModelView <> nil) and (Self.DataItem <> nil) then
     GetDataModelView.CurrencyManager.Current := Self.DataItem.AsType<IDataRowView>.ViewIndex;
 end;
 

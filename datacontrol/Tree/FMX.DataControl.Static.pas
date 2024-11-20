@@ -156,6 +156,7 @@ type
     // IColumnsControl
     procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
     procedure ColumnWidthChanged(const Column: IDCTreeColumn);
+    function  Control: TControl;
     function  Content: TControl;
     function  ColumnList: IDCTreeColumnList;
 
@@ -993,6 +994,11 @@ end;
 function TStaticDataControl.Content: TControl;
 begin
   Result := _content;
+end;
+
+function TStaticDataControl.Control: TControl;
+begin
+  Result := Self;
 end;
 
 function TStaticDataControl.ColumnList: IDCTreeColumnList;
