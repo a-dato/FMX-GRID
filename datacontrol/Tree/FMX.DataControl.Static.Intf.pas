@@ -276,6 +276,7 @@ type
     procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
     procedure ColumnWidthChanged(const Column: IDCTreeColumn);
 
+    function  Control: TControl;
     function  Content: TControl;
     function  ColumnList: IDCTreeColumnList;
 
