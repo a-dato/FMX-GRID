@@ -37,12 +37,19 @@ type
     procedure RowEditingFinished;
   end;
 
+  {$IFDEF DEBUG}
+  TFreeNotification = class(TInterfacedObject, IFreeNotification)
+  public
+    procedure FreeNotification(AObject: TObject);
+  end;
+  {$ENDIF}
 
   TDCCellEditor = class(TInterfacedObject, IDCCellEditor)
   protected
     _editorHandler: IDataControlEditorHandler;
 
     _cell: IDCTreeCell;
+    {$IFDEF DEBUG}_freeNotification: IFreeNotification;{$ENDIF}
     _editor: TStyledControl;
     _originalValue: CObject;
 
@@ -243,7 +250,9 @@ destructor TDCCellEditor.Destroy;
 begin
   _editor.OnKeyDown := nil;
   _editor.OnExit := nil;
-  _editor.Free;
+
+  // TODO: _editor is already being destroyed at this point
+  // _editor.Free;
 
   inherited;
 end;
@@ -327,7 +336,16 @@ end;
 
 procedure TDCTextCellEditor.BeginEdit(const EditValue: CObject);
 begin
+  // TODO: We say here that Owner is nil, but since we add _editor to control it means
+  // when parent control is freed _editor's lifetime is dependant on that control.
+  // So trying to free with _editor.Free fails in destroy.
   _editor := ScrollableRowControl_DefaultEditClass.Create(nil);
+
+  {$IFDEF DEBUG}
+  _freeNotification := TFreeNotification.Create;
+  _editor.AddFreeNotify(_freeNotification);
+  {$ENDIF}
+
   _cell.Control.AddObject(_editor);
 
   TEdit(_editor).OnChangeTracking := OnTextCellEditorChangeTracking;
@@ -693,5 +711,14 @@ procedure TDCCheckBoxCellEditor.set_Value(const Value: CObject);
 begin
   (_editor as TCheckBox).IsChecked := (Value <> nil) and Value.AsType<Boolean>;
 end;
+
+{$IFDEF DEBUG}
+{ TFreeRectangleNotification }
+
+procedure TFreeNotification.FreeNotification(AObject: TObject);
+begin
+//
+end;
+{$ENDIF}
 
 end.
