@@ -22,14 +22,14 @@ uses
 type
   TRightLeftScroll = (None, FullLeft, Left, Right, FullRight);
 
-  TStaticDataControl = class(TDCScrollableRowControl, IRowAndCellCompare, IColumnControl)
+  TStaticDataControl = class(TDCScrollableRowControl, IRowAndCellCompare, IColumnsControl)
   private
     _headerRow: IDCTreeRow;
 
     _treeLayout: IDCTreeLayout;
 
     _frozenRectLine: TRectangle;
-    _hoverCellRect: TRectangle;
+//    _hoverCellRect: TRectangle;
 
     _defaultColumnsGenerated: Boolean;
 
@@ -153,7 +153,7 @@ type
     function  GetActiveCell: IDCTreeCell;
     function  GetCellByControl(const Control: TControl): IDCTreeCell;
 
-    // IColumnControl
+    // IColumnsControl
     procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
     procedure ColumnWidthChanged(const Column: IDCTreeColumn);
     function  Content: TControl;
@@ -304,16 +304,17 @@ begin
   if (_hoverRect.Visible) and (_selectionType = TSelectionType.CellSelection) then
   begin
     var clmn := GetFlatColumnByMouseX(MousePos.X);
-    _hoverCellRect.Visible := clmn <> nil;
-    if not _hoverCellRect.Visible then Exit;
 
+    _hoverRect.Visible := (clmn <> nil);
+    if not _hoverRect.Visible then Exit;
+
+    // y positions already set in "inherited"
     var hoverMargin := 1;
-    _hoverCellRect.Position.X := clmn.Left + hoverMargin;
-    _hoverCellRect.Position.Y := 0 + hoverMargin;
-    _hoverCellRect.Width := clmn.Width - (2*hoverMargin);
-    _hoverCellRect.Height := _hoverRect.Height - (2*hoverMargin);
-  end else
-    _hoverCellRect.Visible := False;
+    _hoverRect.Position.X := clmn.Left + hoverMargin;
+    _hoverRect.Width := clmn.Width - (2*hoverMargin);
+  end;
+//   else
+//    _hoverCellRect.Visible := False;
 end;
 
 procedure TStaticDataControl.UpdatePositionAndWidthCells;
@@ -1013,15 +1014,15 @@ begin
   _frozenRectLine.Visible := False;
   _content.AddObject(_frozenRectLine);
 
-  _hoverCellRect := TRectangle.Create(_hoverRect);
-  _hoverCellRect.Stored := False;
-  _hoverCellRect.Align := TAlignLayout.None;
-  _hoverCellRect.HitTest := False;
-  _hoverCellRect.Visible := False;
-  _hoverCellRect.Stroke.Dash := TStrokeDash.Dot;
-  _hoverCellRect.Stroke.Color := TAlphaColors.Grey;
-  _hoverCellRect.Fill.Kind := TBrushKind.None;
-  _hoverRect.AddObject(_hoverCellRect);
+//  _hoverCellRect := TRectangle.Create(_hoverRect);
+//  _hoverCellRect.Stored := False;
+//  _hoverCellRect.Align := TAlignLayout.Client;
+//  _hoverCellRect.HitTest := False;
+//  _hoverCellRect.Visible := False;
+//  _hoverCellRect.Stroke.Dash := TStrokeDash.Dot;
+//  _hoverCellRect.Stroke.Color := TAlphaColors.Grey;
+//  _hoverCellRect.Fill.Kind := TBrushKind.None;
+//  _hoverRect.AddObject(_hoverCellRect);
 
   _headerColumnResizeControl := THeaderColumnResizeControl.Create(Self);
 
@@ -1031,7 +1032,7 @@ end;
 
 function TStaticDataControl.CreateSelectioninfoInstance: IRowSelectionInfo;
 begin
-  Result := TTreeSelectionInfo.Create;
+  Result := TTreeSelectionInfo.Create(Self);
 end;
 
 function TStaticDataControl.GetInitializedWaitForRefreshInfo: IWaitForRepaintInfo;

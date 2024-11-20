@@ -159,7 +159,7 @@ type
 
   TDCTreeColumn = class(TObservableObject, IDCTreeColumn)
   private
-    _treeControl: IColumnControl;
+    _treeControl: IColumnsControl;
 
 //    _index: Integer;
     _caption: CString;
@@ -182,8 +182,8 @@ type
     _customWidth: Single;
     _isCustomColumn: Boolean;
 
-    function  get_TreeControl: IColumnControl;
-    procedure set_TreeControl(const Value: IColumnControl);
+    function  get_TreeControl: IColumnsControl;
+    procedure set_TreeControl(const Value: IColumnsControl);
     function  get_CustomWidth: Single;
     procedure set_CustomWidth(const Value: Single);
     function  get_CustomHidden: Boolean;
@@ -297,9 +297,9 @@ type
 
   TDCTreeColumnList = class(CObservableCollectionEx<IDCTreeColumn>, IDCTreeColumnList)
   protected
-    _treeControl: IColumnControl;
+    _treeControl: IColumnsControl;
 
-    function  get_TreeControl: IColumnControl;
+    function  get_TreeControl: IColumnsControl;
 //    procedure OnCollectionChanged(e: NotifyCollectionChangedEventArgs); override;
     function  FindIndexByCaption(const Caption: CString) : Integer;
     function  FindColumnByCaption(const Caption: CString) : IDCTreeColumn;
@@ -313,16 +313,16 @@ type
     procedure Insert(index: Integer; const value: CObject); overload; override;
 
   public
-    constructor Create(const Owner: IColumnControl); overload; virtual;
-    constructor Create(const Owner: IColumnControl; const col: IEnumerable<IDCTreeColumn>); overload; virtual;
+    constructor Create(const Owner: IColumnsControl); overload; virtual;
+    constructor Create(const Owner: IColumnsControl; const col: IEnumerable<IDCTreeColumn>); overload; virtual;
 
-    property TreeControl: IColumnControl read get_TreeControl;
+    property TreeControl: IColumnsControl read get_TreeControl;
   end;
 
   TTreeLayoutColumn = class(TBaseInterfacedObject, IDCTreeLayoutColumn)
   protected
     _column: IDCTreeColumn;
-    _treeControl: IColumnControl;
+    _treeControl: IColumnsControl;
 
     _index: Integer;
     _left: Single;
@@ -351,7 +351,7 @@ type
     procedure CreateCellBase(const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
 
   public
-    constructor Create(const AColumn: IDCTreeColumn; const ColumnControl: IColumnControl);
+    constructor Create(const AColumn: IDCTreeColumn; const ColumnControl: IColumnsControl);
 
     function  CreateInfoControl(const Cell: IDCTreeCell; const ControlClassType: TInfoControlClass): TControl;
 
@@ -386,7 +386,7 @@ type
 //    function  get_TotalWidth: Single;
 
   public
-    constructor Create(const ColumnControl: IColumnControl); reintroduce;
+    constructor Create(const ColumnControl: IColumnsControl); reintroduce;
 
     procedure UpdateColumnWidth(const FlatColumnIndex: Integer; const Width: Single);
     procedure RecalcColumnWidthsBasic;
@@ -510,9 +510,11 @@ type
     procedure set_FrozenColumnRowControl(const Value: TControl);
     function  get_NonFrozenColumnRowControl: TControl;
     procedure set_NonFrozenColumnRowControl(const Value: TControl);
+
   public
     destructor Destroy; override;
 
+    procedure UpdateSelectionVisibility(const SelectionInfo: IRowSelectionInfo; OwnerIsFocused: Boolean); override;
     procedure ResetCells;
   end;
 
@@ -530,7 +532,7 @@ type
     function  Clone: IRowSelectionInfo; override;
 
   public
-    constructor Create; reintroduce;
+    constructor Create(const RowsControl: IRowsControl); reintroduce;
 
     procedure Clear; override;
     procedure ClearMultiSelections; override;
@@ -580,7 +582,7 @@ type
     THeaderColumnResizeControl = class(TInterfacedObject, IHeaderColumnResizeControl)
     private
       [unsafe] _headerCell: IHeaderCell;
-      _treeControl: IColumnControl;
+      _treeControl: IColumnsControl;
 
 //      _onResized: TNotifyEvent;
 
@@ -595,7 +597,7 @@ type
       procedure StopResizing;
 
     public
-      constructor Create(const TreeControl: IColumnControl); reintroduce;
+      constructor Create(const TreeControl: IColumnsControl); reintroduce;
       procedure StartResizing(const HeaderCell: IHeaderCell);
     end;
 
@@ -609,14 +611,14 @@ uses
 
 { TDCTreeColumnList }
 
-constructor TDCTreeColumnList.Create(const Owner: IColumnControl);
+constructor TDCTreeColumnList.Create(const Owner: IColumnsControl);
 begin
   inherited Create;
   SaveTypeData := True;
   _treeControl := Owner;
 end;
 
-constructor TDCTreeColumnList.Create(const Owner: IColumnControl; const col: IEnumerable<IDCTreeColumn>);
+constructor TDCTreeColumnList.Create(const Owner: IColumnsControl; const col: IEnumerable<IDCTreeColumn>);
 begin
   inherited Create;
   for var c in col do
@@ -676,7 +678,7 @@ begin
   Result := -1;
 end;
 
-function TDCTreeColumnList.get_TreeControl: IColumnControl;
+function TDCTreeColumnList.get_TreeControl: IColumnsControl;
 begin
   Result := _treeControl;
 end;
@@ -1007,7 +1009,7 @@ begin
   Result := _tag;
 end;
 
-function TDCTreeColumn.get_TreeControl: IColumnControl;
+function TDCTreeColumn.get_TreeControl: IColumnsControl;
 begin
   Result := _treeControl;
 end;
@@ -1170,7 +1172,7 @@ begin
   _tag := Value;
 end;
 
-procedure TDCTreeColumn.set_TreeControl(const Value: IColumnControl);
+procedure TDCTreeColumn.set_TreeControl(const Value: IColumnsControl);
 begin
   _treeControl := Value;
 end;
@@ -1220,7 +1222,7 @@ end;
 
 { TTreeLayoutColumn }
 
-constructor TTreeLayoutColumn.Create(const AColumn: IDCTreeColumn; const ColumnControl: IColumnControl);
+constructor TTreeLayoutColumn.Create(const AColumn: IDCTreeColumn; const ColumnControl: IColumnsControl);
 begin
   inherited Create;
   _column := AColumn;
@@ -1620,7 +1622,7 @@ end;
 
 { TDCTreeLayout }
 
-constructor TDCTreeLayout.Create(const ColumnControl: IColumnControl);
+constructor TDCTreeLayout.Create(const ColumnControl: IColumnsControl);
 begin
   inherited Create;
 
@@ -2082,6 +2084,17 @@ begin
   _nonFrozenColumnRowControl := Value;
 end;
 
+procedure TDCTreeRow.UpdateSelectionVisibility(const SelectionInfo: IRowSelectionInfo; OwnerIsFocused: Boolean);
+begin
+  inherited;
+
+  if (_selectionRect = nil {not selected}) or (SelectionInfo.SelectionType <> TSelectionType.CellSelection) then
+    Exit;
+
+  var cell := _cells[(SelectionInfo as ITreeSelectionInfo).SelectedFlatColumn];
+  cell.Control.AddObject(_selectionRect);
+end;
+
 { THeaderCell }
 
 function THeaderCell.get_FilterControl: TControl;
@@ -2190,16 +2203,17 @@ begin
   (Result as ITreeSelectionInfo).SelectedFlatColumn := _lastSelectedFlatColumn;
 end;
 
-constructor TTreeSelectionInfo.Create;
+constructor TTreeSelectionInfo.Create(const RowsControl: IRowsControl);
 begin
   inherited;
+
   _selectedFlatColumns := CList<Integer>.Create;
   _lastSelectedFlatColumn := 0;
 end;
 
 function TTreeSelectionInfo.CreateInstance: IRowSelectionInfo;
 begin
-  Result := TTreeSelectionInfo.Create;
+  Result := TTreeSelectionInfo.Create(nil {clones don't get the treecontrol, for they dopn't need to make changes});
 end;
 
 function TTreeSelectionInfo.get_SelectedFlatColumn: Integer;
@@ -2574,7 +2588,7 @@ end;
 
 { THeaderColumnResizeControl }
 
-constructor THeaderColumnResizeControl.Create(const TreeControl: IColumnControl);
+constructor THeaderColumnResizeControl.Create(const TreeControl: IColumnsControl);
 begin
   inherited Create;
   _treeControl := TreeControl;

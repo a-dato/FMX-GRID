@@ -26,7 +26,7 @@ type
     constructor Create(AOwner: TComponent); reintroduce;
   end;
 
-  TDCScrollableRowControl = class(TDCScrollableControl)
+  TDCScrollableRowControl = class(TDCScrollableControl, IRowsControl)
   // data
   protected
     _dataList: IList;
@@ -64,6 +64,7 @@ type
     function  get_SelectionType: TSelectionType;
     procedure set_SelectionType(const Value: TSelectionType);
     procedure set_Options(const Value: TDCTreeOptions);
+    function  get_AllowNoneSelected: Boolean;
     procedure set_AllowNoneSelected(const Value: Boolean);
     function  get_NotSelectableItems: IList;
     procedure set_NotSelectableItems(const Value: IList);
@@ -524,6 +525,11 @@ begin
     _selectionInfo.Deselect(dataIndex);
 end;
 
+function TDCScrollableRowControl.get_AllowNoneSelected: Boolean;
+begin
+  Result := _allowNoneSelected;
+end;
+
 function TDCScrollableRowControl.get_Current: Integer;
 begin
   Result := _selectionInfo.ViewListIndex;
@@ -615,7 +621,7 @@ end;
 
 function TDCScrollableRowControl.CreateSelectioninfoInstance: IRowSelectionInfo;
 begin
-  Result := TRowSelectionInfo.Create;
+  Result := TRowSelectionInfo.Create(Self);
 end;
 
 function TDCScrollableRowControl.CurrentRowIsExpanded: Boolean;
@@ -683,7 +689,6 @@ begin
   _selectionType := TSelectionType.RowSelection;
 
   _selectionInfo := CreateSelectionInfoInstance;
-  _selectionInfo.OnSelectionInfoChanged := OnSelectionInfoChanged;
   _rowHeightDefault := 30;
 
   _options := [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid];
@@ -1271,8 +1276,8 @@ end;
 
 procedure TDCScrollableRowControl.VisualizeRowSelection(const Row: IDCRow);
 begin
-  var isSelected := (_selectionType <> TSelectionType.HideSelection) and _selectionInfo.IsSelected(Row.DataIndex);
-  Row.UpdateSelectionVisibility(isSelected, Self.IsFocused);
+  if (_selectionType <> TSelectionType.HideSelection) then
+    Row.UpdateSelectionVisibility(_selectionInfo, Self.IsFocused);
 end;
 
 procedure TDCScrollableRowControl.OnViewChanged;
@@ -1653,11 +1658,7 @@ end;
 
 procedure TDCScrollableRowControl.set_AllowNoneSelected(const Value: Boolean);
 begin
-  if _allowNoneSelected <> Value then
-  begin
-    _allowNoneSelected := Value;
-    _selectionInfo.AllowNoneSelected := Value;
-  end;
+  _allowNoneSelected := Value;
 end;
 
 procedure TDCScrollableRowControl.set_Current(const Value: Integer);
