@@ -545,11 +545,13 @@ begin
 
     if checkBox.IsChecked then
     begin
+      _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
       _selectionInfo.Deselect(treeRow.DataIndex);
       Exit;
     end
     else if (TreeOption_MultiSelect in _options) then
     begin
+      _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
       _selectionInfo.AddToSelection(treeRow.DataIndex, treeRow.ViewListIndex, treeRow.DataItem);
       Exit;
     end;
