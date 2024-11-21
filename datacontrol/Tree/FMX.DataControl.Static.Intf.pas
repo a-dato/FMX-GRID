@@ -117,12 +117,12 @@ type
   end;
 
   IDCTreeColumn = interface;
-  IColumnControl = interface;
+  IColumnsControl = interface;
 
   IDCTreeColumn = interface(IBaseInterface)
     ['{A4E5EB04-6EFA-4637-B9BE-BC1175B37FDC}']
-    function  get_TreeControl: IColumnControl;
-    procedure set_TreeControl(const Value: IColumnControl);
+    function  get_TreeControl: IColumnsControl;
+    procedure set_TreeControl(const Value: IColumnsControl);
 //    function  get_Index: Integer;
 //    procedure set_Index(Value: Integer);
     function  get_Caption: CString;
@@ -185,7 +185,7 @@ type
     function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString): CObject;
     function  GetDefaultCellData(const Cell: IDCTreeCell; const CellValue: CObject; FormatApplied: Boolean): CObject;
 
-    property TreeControl: IColumnControl read get_TreeControl write set_TreeControl;
+    property TreeControl: IColumnsControl read get_TreeControl write set_TreeControl;
     property FormatProvider: IFormatProvider read get_FormatProvider write set_FormatProvider;
 
     // width settings
@@ -256,7 +256,7 @@ type
 
   IDCTreeColumnList = interface(IList<IDCTreeColumn>)
     ['{50F039E0-B8DD-4471-B212-15D59DD5C9AE}']
-    function  get_TreeControl: IColumnControl;
+    function  get_TreeControl: IColumnsControl;
     function  get_Item(Index: Integer): IDCTreeColumn;
     procedure set_Item(Index: Integer; const Value: IDCTreeColumn);
 
@@ -268,10 +268,10 @@ type
     procedure RestoreColumnLayoutFromJSON(const Value: TJSONObject);
 
     property Item[Index: Integer]: IDCTreeColumn read get_Item write set_Item; default;
-    property TreeControl: IColumnControl read get_TreeControl;
+    property TreeControl: IColumnsControl read get_TreeControl;
   end;
 
-  IColumnControl = interface
+  IColumnsControl = interface
     ['{AC852A77-01E3-4419-8F8F-D6162F758A74}']
     procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
     procedure ColumnWidthChanged(const Column: IDCTreeColumn);
