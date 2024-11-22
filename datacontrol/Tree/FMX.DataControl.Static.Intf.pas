@@ -182,7 +182,7 @@ type
     function  Clone: IDCTreeColumn;
     function  IsCheckBoxColumn: Boolean;
 
-    function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString): CObject;
+    function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; IsSubProp: Boolean = False): CObject;
     function  GetDefaultCellData(const Cell: IDCTreeCell; const CellValue: CObject; FormatApplied: Boolean): CObject;
 
     property TreeControl: IColumnsControl read get_TreeControl write set_TreeControl;
@@ -374,7 +374,15 @@ type
 //    property TotalWidth: Single read get_TotalWidth;
   end;
 
+  ITreeSelectionInfo = interface(IRowSelectionInfo)
+    ['{09E6C833-FFAD-49E5-BE3C-DE8F87CB3C1F}']
+    function  get_SelectedLayoutColumn: Integer;
+    procedure set_SelectedLayoutColumn(const Value: Integer);
+    function  get_SelectedLayoutColumns: List<Integer>;
 
+    property SelectedLayoutColumns: List<Integer> read get_SelectedLayoutColumns;
+    property SelectedLayoutColumn: Integer read get_SelectedLayoutColumn write set_SelectedLayoutColumn;
+  end;
 
   IDCTreeCell = interface(IBaseInterface)
     ['{F0A049EA-A0A8-409C-95E7-B663C1FBBC78}']
@@ -400,10 +408,13 @@ type
 //    procedure set_ColSpan(const Value: Byte);
     function  get_Data: CObject;
     procedure set_Data(const Value: CObject);
+    function  get_SubData: CObject;
+    procedure set_SubData(const Value: CObject);
     function  get_Row: IDCRow;
     function  get_Index: Integer;
 
     function  IsHeaderCell: Boolean;
+    procedure UpdateSelectionVisibility(const RowIsSelected: Boolean; const SelectionInfo: ITreeSelectionInfo; OwnerIsFocused: Boolean);
 
     property Column: IDCTreeColumn read get_Column;
     property LayoutColumn: IDCTreeLayoutColumn read get_LayoutColumn;
@@ -418,6 +429,7 @@ type
 
 //    property ColSpan: Byte read get_ColSpan write set_ColSpan;
     property Data: CObject read get_Data write set_Data;
+    property SubData: CObject read get_SubData write set_SubData;
 
     property Index: Integer read get_Index;
     property Row: IDCRow read get_Row;
@@ -471,16 +483,6 @@ type
 
   TTreeViewState = (ColumnsChanged, ColumnSizeChanged);
   TTreeViewStateFlags = set of TTreeViewState;
-
-  ITreeSelectionInfo = interface(IRowSelectionInfo)
-    ['{09E6C833-FFAD-49E5-BE3C-DE8F87CB3C1F}']
-    function  get_SelectedFlatColumn: Integer;
-    procedure set_SelectedFlatColumn(const Value: Integer);
-    function  get_SelectedFlatColumns: List<Integer>;
-
-    property SelectedFlatColumns: List<Integer> read get_SelectedFlatColumns;
-    property SelectedFlatColumn: Integer read get_SelectedFlatColumn write set_SelectedFlatColumn;
-  end;
 
   IDataControlWaitForRepaintInfo = interface(IWaitForRepaintInfo)
     ['{96430307-964A-49E5-AFA9-6A9AC179E736}']

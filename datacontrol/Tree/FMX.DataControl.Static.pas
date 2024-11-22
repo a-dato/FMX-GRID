@@ -95,7 +95,7 @@ type
     function  DoCellCanChange(const OldCell, NewCell: IDCTreeCell): Boolean; virtual;
     procedure DoCellChanging(const OldCell, NewCell: IDCTreeCell);
     procedure DoCellChanged(const OldCell, NewCell: IDCTreeCell);
-    procedure DoCellSelected(const Cell: IDCTreeCell; SelectionChangedBy: TSelectionChangedBy);
+    procedure DoCellSelected(const Cell: IDCTreeCell; EventTrigger: TSelectionEventTrigger);
 
     function  DoSortingGetComparer(const SortDescription: IListSortDescriptionWithComparer {; const ReturnSortComparer: Boolean}): IComparer<CObject>;
     function  DoOnCompareRows(const Left, Right: CObject): Integer;
@@ -124,7 +124,7 @@ type
 
     function  GetInitializedWaitForRefreshInfo: IWaitForRepaintInfo; override;
 
-    procedure InternalDoSelectColumn(const FlatColumnIndex: Integer; Shift: TShiftState);
+    procedure InternalDoSelectColumn(const LayoutColumnIndex: Integer; Shift: TShiftState);
     function  TrySelectItem(const RequestedSelectionInfo: IRowSelectionInfo; Shift: TShiftState): Boolean; override;
 
     procedure UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single); override;
@@ -133,6 +133,7 @@ type
     procedure UpdateHoverRect(MousePos: TPointF); override;
 
     function  FlatColumnByColumn(const Column: IDCTreeColumn): IDCTreeLayoutColumn;
+    function  FlatColumnIndexByLayoutIndex(const LayoutIndex: Integer): Integer;
 
     function  CalculateRowHeight(const Row: IDCTreeRow): Single;
     function  CalculateCellWidth(const LayoutColumn: IDCTreeLayoutColumn; const Cell: IDCTreeCell): Single;
@@ -170,6 +171,7 @@ type
     procedure UpdateColumnSort(const Column: IDCTreeColumn; SortDirection: ListSortDirection; ClearOtherSort: Boolean);
     procedure UpdateColumnFilter(const Column: IDCTreeColumn; const FilterText: CString; const FilterValues: List<CObject>);
 
+    procedure SelectAll; override;
     function  MultiSelectAllowed: Boolean;
 
     property  Layout: IDCTreeLayout read get_Layout;
@@ -222,8 +224,8 @@ begin
 
   var selInfo := (_selectionInfo as ITreeSelectionInfo);
   var lastFlatColumn := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1];
-  if selInfo.SelectedFlatColumn > lastFlatColumn.Index then
-    selInfo.SelectedFlatColumn := lastFlatColumn.Index;
+  if selInfo.SelectedLayoutColumn > lastFlatColumn.Index then
+    selInfo.SelectedLayoutColumn := lastFlatColumn.Index;
 
   if _view <> nil then
     for var row in _view.ActiveViewRows do
@@ -421,7 +423,7 @@ begin
   if row = nil then
     Exit(nil);
 
-  var flatColumnindex := (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn;
+  var flatColumnindex := (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn;
   Result := (row as IDCTreeRow).Cells[flatColumnindex];
 end;
 
@@ -442,42 +444,47 @@ begin
 end;
 
 function TStaticDataControl.GetFlatColumnByKey(const Key: Word; Shift: TShiftState): IDCTreeLayoutColumn;
+
+  function CanSelectLayoutColumn(const LyColumn: IDCTreeLayoutColumn): Boolean;
+  begin
+    Result := (LyColumn.Width > 0) and LyColumn.Column.Selectable and _treeLayout.FlatColumns.Contains(LyColumn);
+  end;
+
 begin
   var horzScroll := GetHorzScroll(Key, Shift);
   if horzScroll = TRightLeftScroll.None then
   begin
-    Result := _treeLayout.LayoutColumns[(_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn];
+    Result := _treeLayout.LayoutColumns[(_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn];
     Exit;
   end;
 
   var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-  var lastFlatColumnIndex := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1].Index;
 
-  var clmnIndex := -1;
+  var flatColumn: IDCTreeLayoutColumn;
   if horzScroll = TRightLeftScroll.FullLeft then
-    clmnIndex := 0
+    flatColumn := _treeLayout.FlatColumns[0]
   else if horzScroll = TRightLeftScroll.FullRight then
-    clmnIndex := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1].Index
-  else if horzScroll = TRightLeftScroll.Left then
-    clmnIndex := treeSelectionInfo.SelectedFlatColumn - 1
-  else if horzScroll = TRightLeftScroll.Right then
-    clmnIndex := treeSelectionInfo.SelectedFlatColumn + 1;
+    flatColumn := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1]
+  else
+  begin
+    var crrntFlatColumnIndex := FlatColumnIndexByLayoutIndex((_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn);
+    if horzScroll = TRightLeftScroll.Left then
+      flatColumn := _treeLayout.FlatColumns[CMath.Max(0, crrntFlatColumnIndex - 1)]
+    else if horzScroll = TRightLeftScroll.Right then
+      flatColumn := _treeLayout.FlatColumns[CMath.Min(_treeLayout.FlatColumns.Count - 1, crrntFlatColumnIndex + 1)];
+  end;
 
-  var newSelectedFlatColumn := CMath.Max(0, CMath.Min(lastFlatColumnIndex, clmnIndex));
-
-  var flatColumn := _treeLayout.LayoutColumns[newSelectedFlatColumn];
-  var canSelect := (flatColumn.Width > 0) and flatColumn.Column.Selectable;
-  while not canSelect do
+  var flatIndex := _treeLayout.FlatColumns.IndexOf(flatColumn);
+  while not CanSelectLayoutColumn(flatColumn) do
   begin
     if horzScroll in [TRightLeftScroll.FullLeft, TRightLeftScroll.Right] then
-      inc(newSelectedFlatColumn) else
-      dec(newSelectedFlatColumn);
+      inc(flatIndex) else
+      dec(flatIndex);
 
-    if (newSelectedFlatColumn < 0) or (newSelectedFlatColumn > lastFlatColumnIndex) then
-      Exit(_treeLayout.LayoutColumns[(_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn]); // nothing to do
+    if (flatIndex < 0) or (flatIndex > _treeLayout.FlatColumns.Count - 1) then
+      Exit(_treeLayout.LayoutColumns[(_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn]); // nothing to do
 
-    flatColumn := _treeLayout.LayoutColumns[newSelectedFlatColumn];
-    canSelect := (flatColumn.Width > 0) and flatColumn.Column.Selectable;
+    flatColumn := _treeLayout.FlatColumns[flatIndex];
   end;
 
   Result := flatColumn;
@@ -529,16 +536,17 @@ begin
   var clickedRow := GetRowByMouseY(Y);
   if clickedRow = nil then Exit;
 
+  _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.Click;
+
   var flatColumn := GetFlatColumnByMouseX(X);
   if flatColumn = nil then
   begin
-    var flatIx := (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn;
+    var flatIx := (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn;
     if _treeLayout.LayoutColumns.Count > flatIx - 1 then
       flatColumn := _treeLayout.LayoutColumns[flatIx] else
       flatColumn := _treeLayout.FlatColumns[0];
-  end else
-
-  if flatColumn.Column.IsCheckBoxColumn then
+  end
+  else if flatColumn.Column.IsCheckBoxColumn then
   begin
     var treeRow := clickedRow as IDCTreeRow;
     var treeCell := treeRow.Cells[flatColumn.Index];
@@ -546,23 +554,19 @@ begin
 
     if checkBox.IsChecked then
     begin
-      _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
       _selectionInfo.Deselect(treeRow.DataIndex);
       Exit;
     end
     else if (TreeOption_MultiSelect in _options) then
     begin
-      _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
       _selectionInfo.AddToSelection(treeRow.DataIndex, treeRow.ViewListIndex, treeRow.DataItem);
       Exit;
     end;
   end;
 
-  _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
-
   var requestedSelection := _selectionInfo.Clone as ITreeSelectionInfo;
   requestedSelection.UpdateLastSelection(clickedRow.DataIndex, clickedRow.ViewListIndex, clickedRow.DataItem);
-  requestedSelection.SelectedFlatColumn := flatColumn.Index;
+  requestedSelection.SelectedLayoutColumn := flatColumn.Index;
 
   TrySelectItem(requestedSelection, Shift);
 end;
@@ -684,7 +688,7 @@ begin
 
   if _headerRow <> nil then
   begin
-    var headerCell := _headerRow.Cells[FlatColumn.index];
+    var headerCell := _headerRow.Cells[FlatColumn.Index];
     FlatColumn.UpdateCellControlsByRow(HeaderCell);
   end;
 end;
@@ -716,7 +720,7 @@ var
   showFilter: Boolean;
   dataValues: Dictionary<CObject, CString>;
 begin
-  (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn := LayoutColumn.Index;
+  (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn := LayoutColumn.Index;
 
   // Popup form will be created once, then reused for any column
   if _frmHeaderPopupMenu = nil then
@@ -793,13 +797,13 @@ begin
     begin
       // check if is last flat
       var treeSelectionInfo := (_selectionInfo as ITreeSelectionInfo);
-      if treeSelectionInfo.SelectedFlatColumn = _treeLayout.FlatColumns.Count - 1 then
+      if treeSelectionInfo.SelectedLayoutColumn = _treeLayout.FlatColumns.Count - 1 then
       begin
         // if last column, then do nothing
-        if treeSelectionInfo.SelectedFlatColumn = 0 then
+        if treeSelectionInfo.SelectedLayoutColumn = 0 then
           Exit;
 
-        treeSelectionInfo.SelectedFlatColumn := treeSelectionInfo.SelectedFlatColumn - 1;
+        treeSelectionInfo.SelectedLayoutColumn := treeSelectionInfo.SelectedLayoutColumn - 1;
       end;
 
       flatColumn.Column.CustomHidden := True;
@@ -864,7 +868,7 @@ begin
   if _horzScrollBar.Visible then
   begin
     var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-    var currentFlatColumn := _treeLayout.LayoutColumns[treeSelectionInfo.SelectedFlatColumn];
+    var currentFlatColumn := _treeLayout.LayoutColumns[treeSelectionInfo.SelectedLayoutColumn];
     if not currentFlatColumn.Column.Frozen {those are always visible} then
     begin
       if currentFlatColumn.Left < _horzScrollBar.Value then
@@ -874,7 +878,23 @@ begin
     end;
   end;
 
-  DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionChangedBy);
+  DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionEventTrigger);
+end;
+
+procedure TStaticDataControl.SelectAll;
+begin
+  var selInfo := _selectionInfo as ITreeSelectionInfo;
+  selInfo.BeginUpdate;
+  try
+    inherited;
+
+    if _selectionType = TSelectionType.CellSelection then
+      for var flatClmn in _treeLayout.FlatColumns do
+        if (flatClmn.Width > 0) and flatClmn.Column.Selectable and not selInfo.SelectedLayoutColumns.Contains(flatClmn.Index) then
+          selInfo.SelectedLayoutColumns.Add(flatClmn.Index);
+  finally
+    selInfo.EndUpdate;
+  end;
 end;
 
 function TStaticDataControl.SelectionCheckBoxColumn: IDCTreeLayoutColumn;
@@ -918,8 +938,8 @@ begin
   _selectionInfo.BeginUpdate;
   Try
     var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-    if (treeSelectionInfo.SelectedFlatColumn = -1) then
-      treeSelectionInfo.SelectedFlatColumn := GetFlatColumnByKey(vkRight, []).Index; // get first valid column
+    if (treeSelectionInfo.SelectedLayoutColumn = 0) then
+      treeSelectionInfo.SelectedLayoutColumn := GetFlatColumnByKey(vkHome, []).Index; // get first valid column
 
     inherited;
   finally
@@ -1062,8 +1082,7 @@ begin
   Result := nil;
   if _treeLayout = nil then Exit;
 
-  var flatColumnIndex := (_selectionInfo as ITreeSelectionInfo).SelectedFlatColumn;
-  Result := _treeLayout.LayoutColumns[flatColumnIndex];
+  Result := _treeLayout.LayoutColumns[(_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn];
 end;
 
 procedure TStaticDataControl.HandleTreeOptionsChange(const OldFlags, NewFlags: TDCTreeOptions);
@@ -1209,12 +1228,12 @@ begin
   end;
 end;
 
-procedure TStaticDataControl.DoCellSelected(const Cell: IDCTreeCell; SelectionChangedBy: TSelectionChangedBy);
+procedure TStaticDataControl.DoCellSelected(const Cell: IDCTreeCell; EventTrigger: TSelectionEventTrigger);
 begin
   if Assigned(_cellSelected) then
   begin
     var args: DCCellSelectedEventArgs;
-    AutoObject.Guard(DCCellSelectedEventArgs.Create(Cell, SelectionChangedBy), args);
+    AutoObject.Guard(DCCellSelectedEventArgs.Create(Cell, EventTrigger), args);
 
     _cellSelected(Self, args);
   end;
@@ -1304,7 +1323,7 @@ end;
 function TStaticDataControl.CreateDummyRowForChanging(const FromSelectionInfo: IRowSelectionInfo): IDCRow;
 begin
   var treeRow := inherited as IDCTreeRow;
-  var flatColumnIx := (FromSelectionInfo as ITreeSelectionInfo).SelectedFlatColumn;
+  var flatColumnIx := (FromSelectionInfo as ITreeSelectionInfo).SelectedLayoutColumn;
 
   if flatColumnIx <> -1 then
   begin
@@ -1324,22 +1343,38 @@ begin
   var currentSelection := _selectionInfo as ITreeSelectionInfo;
   var requestedSelection := RequestedSelectionInfo as ITreeSelectionInfo;
 
+  var rowChange := currentSelection.DataIndex <> requestedSelection.DataIndex;
+  var rowAlreadySelected := not rowChange or currentSelection.IsSelected(requestedSelection.DataIndex);
+  var clmnChange := currentSelection.SelectedLayoutColumn <> requestedSelection.SelectedLayoutColumn;
+  var clmnAlreadySelected := not clmnChange or currentSelection.SelectedLayoutColumns.Contains(requestedSelection.SelectedLayoutColumn);
+
   // not changed for example when sorting/filtering activated
-  var changed := (currentSelection.DataIndex <> requestedSelection.DataIndex) or (currentSelection.SelectedFlatColumn <> requestedSelection.SelectedFlatColumn);
-  if not changed and not (ssCtrl in Shift) then
+  if (ssShift in Shift) and rowAlreadySelected and clmnAlreadySelected then
   begin
+    // nothing special to do
     ScrollSelectedIntoView(RequestedSelectionInfo);
-    DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionChangedBy);
+    DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionEventTrigger);
+    Exit;
+  end
+  else if (SelectionType <> TSelectionType.CellSelection) and not rowChange then
+  begin
+    // nothing special to do
+    ScrollSelectedIntoView(RequestedSelectionInfo);
+    DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionEventTrigger);
     Exit;
   end;
+
+  var customShift := Shift;
+//  if (ssCtrl in Shift) and (_selectionInfo.LastSelectionEventTrigger = TSelectionEventTrigger.Key) then
+//    customShift := customShift - [ssCtrl];
 
   // Okay, we now know for sure that we have a changed cell..
   // old row can be scrolled out of view. So always work with dummy rows
   var dummyOldRow := CreateDummyRowForChanging(currentSelection) as IDCTreeRow;
-  var oldCell := dummyOldRow.Cells[currentSelection.SelectedFlatColumn];
+  var oldCell := dummyOldRow.Cells[currentSelection.SelectedLayoutColumn];
 
   var dummyNewRow := CreateDummyRowForChanging(requestedSelection) as IDCTreeRow;
-  var newCell := dummyNewRow.Cells[requestedSelection.SelectedFlatColumn];
+  var newCell := dummyNewRow.Cells[requestedSelection.SelectedLayoutColumn];
 
   if not DoCellCanChange(oldCell, newCell) then
     Exit;
@@ -1348,8 +1383,17 @@ begin
 
   _selectionInfo.BeginUpdate;
   try
-    InternalDoSelectRow(dummyNewRow, Shift);
-    InternalDoSelectColumn(requestedSelection.SelectedFlatColumn, Shift);
+    if SelectionType <> TSelectionType.CellSelection then
+      InternalDoSelectRow(dummyNewRow, Shift)
+    else begin
+      if not rowAlreadySelected then
+        InternalDoSelectRow(dummyNewRow, customShift)
+      else if not (ssShift in Shift) and clmnAlreadySelected and (not clmnChange or (ssCtrl in Shift)) then
+        InternalDoSelectRow(dummyNewRow, customShift);
+
+      if (ssShift in Shift) or (not (ssCtrl in Shift)) or (_selectionInfo.LastSelectionEventTrigger = TSelectionEventTrigger.Key) then
+        InternalDoSelectColumn(requestedSelection.SelectedLayoutColumn, customShift);
+    end;
   finally
     _selectionInfo.EndUpdate;
   end;
@@ -1365,13 +1409,13 @@ begin
   var flatColumn := GetFlatColumnByKey(Key, Shift);
   var rowViewListIndex := GetRowViewListIndexByKey(Key, Shift);
 
-  if (treeSelectionInfo.SelectedFlatColumn <> flatColumn.Index) then
+  if (treeSelectionInfo.SelectedLayoutColumn <> flatColumn.Index) then
   begin
-    _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
+    _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.Key;
 
     var requestedSelection := _selectionInfo.Clone as ITreeSelectionInfo;
     requestedSelection.UpdateLastSelection(_view.GetDataIndex(rowViewListIndex), rowViewListIndex, _view.GetViewList[rowViewListIndex]);
-    requestedSelection.SelectedFlatColumn := flatColumn.Index;
+    requestedSelection.SelectedLayoutColumn := flatColumn.Index;
 
     TrySelectItem(requestedSelection, Shift);
   end
@@ -1379,36 +1423,50 @@ begin
     inherited;
 end;
 
-procedure TStaticDataControl.InternalDoSelectColumn(const FlatColumnIndex: Integer; Shift: TShiftState);
+function TStaticDataControl.FlatColumnIndexByLayoutIndex(const LayoutIndex: Integer): Integer;
+begin
+  if (LayoutIndex = -1) or (LayoutIndex > _treeLayout.LayoutColumns.Count - 1) then
+    Exit(-1);
+
+  var layoutColumn := _treeLayout.LayoutColumns[LayoutIndex];
+  Result := _treeLayout.FlatColumns.IndexOf(layoutColumn);
+end;
+
+procedure TStaticDataControl.InternalDoSelectColumn(const LayoutColumnIndex: Integer; Shift: TShiftState);
 begin
   var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-  var columnAlreadySelected := treeSelectionInfo.SelectedFlatColumns.Contains(FlatColumnIndex);
-  if (ssShift in Shift) and (treeSelectionInfo.SelectedFlatColumn <> -1) then
+  if (ssShift in Shift) then
   begin
-    var index := treeSelectionInfo.SelectedFlatColumn;
-    if FlatColumnIndex <> index then
-    begin
-      while FlatColumnIndex <> index do
-      begin
-        if not treeSelectionInfo.SelectedFlatColumns.Contains(index) then
-          treeSelectionInfo.SelectedFlatColumns.Add(index);
+    var currentLayoutFlatIndex := FlatColumnIndexByLayoutIndex(treeSelectionInfo.SelectedLayoutColumn);
+    var requestedLayoutFlatIndex := FlatColumnIndexByLayoutIndex(LayoutColumnIndex);
 
-        if FlatColumnIndex < index then
+    var index := currentLayoutFlatIndex;
+    if requestedLayoutFlatIndex <> index then
+    begin
+      while requestedLayoutFlatIndex <> index do
+      begin
+        if not treeSelectionInfo.SelectedLayoutColumns.Contains(index) then
+          treeSelectionInfo.SelectedLayoutColumns.Add(index);
+
+        if requestedLayoutFlatIndex < index then
           dec(index) else
           inc(index);
       end;
 
-      if not treeSelectionInfo.SelectedFlatColumns.Contains(FlatColumnIndex) then
-        treeSelectionInfo.SelectedFlatColumns.Add(FlatColumnIndex);
+      if not treeSelectionInfo.SelectedLayoutColumns.Contains(LayoutColumnIndex) then
+        treeSelectionInfo.SelectedLayoutColumns.Add(LayoutColumnIndex);
 
-      treeSelectionInfo.SelectedFlatColumn := FlatColumnIndex;
+      treeSelectionInfo.SelectedLayoutColumn := LayoutColumnIndex;
     end;
   end
-  else if not columnAlreadySelected or (treeSelectionInfo.SelectedFlatColumns.Count > 1) then
+  else if not treeSelectionInfo.SelectedLayoutColumns.Contains(LayoutColumnIndex) or (treeSelectionInfo.SelectedLayoutColumns.Count > 1) then
   begin
-    treeSelectionInfo.SelectedFlatColumns.Clear;
-    treeSelectionInfo.SelectedFlatColumns.Add(FlatColumnIndex);
-    treeSelectionInfo.SelectedFlatColumn := FlatColumnIndex;
+    if (treeSelectionInfo.SelectedLayoutColumns.Contains(LayoutColumnIndex)) and (ssCtrl in Shift) then
+      Exit; // keep current columns selected
+
+    treeSelectionInfo.SelectedLayoutColumns.Clear;
+    treeSelectionInfo.SelectedLayoutColumns.Add(LayoutColumnIndex);
+    treeSelectionInfo.SelectedLayoutColumn := LayoutColumnIndex;
   end;
 end;
 
@@ -1508,7 +1566,7 @@ begin
     Exit;
 
   var formatApplied: Boolean;
-  var cellValue := FlatColumn.Column.ProvideCellData(cell, propName);
+  var cellValue := FlatColumn.Column.ProvideCellData(cell, propName, IsSubProp);
   DoCellFormatting(cell, False, {var} cellValue, {out} formatApplied);
 
   var formattedValue := FlatColumn.Column.GetDefaultCellData(cell, cellValue, formatApplied);
@@ -1673,9 +1731,9 @@ begin
   Assert(_columns.Count = 0);
   _defaultColumnsGenerated := True;
 
-  if ViewIsDataModel then
+  if ViewIsDataModelView then
   begin
-    var clmns := (_dataList as IDataModel).Columns;
+    var clmns := GetDataModelView.DataModel.Columns;
 
     for i := 0 to clmns.Count - 1 do
     begin

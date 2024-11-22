@@ -16,7 +16,7 @@ uses
   FMX.Edit,
 
   ADato.ObjectModel.List.intf,
-  ADato.ObjectModel.TrackInterfaces, System.Collections;
+  ADato.ObjectModel.TrackInterfaces, System.Collections, ADato.InsertPosition;
 
 type
   TEditableDataControl = class(TStaticDataControl, IDataControlEditorHandler)
@@ -27,7 +27,7 @@ type
   protected
     _editingInfo: ITreeEditingInfo;
     _cellEditor: IDCCellEditor;
-    _waitForReleaseEditor: IDCCellEditor;
+//    _waitForReleaseEditor: IDCCellEditor;
 
     procedure KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
     procedure UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single); override;
@@ -35,8 +35,18 @@ type
     procedure StartEditCell(const Cell: IDCTreeCell);
     function  EndEditCell: Boolean;
 
-    procedure ShowEditor(const Cell: IDCTreeCell; const EditValue: CObject; const APicklist: IList; IsMultilineEditor : Boolean);
+    procedure ShowEditor(const Cell: IDCTreeCell; const StartEditArgs: DCStartEditEventArgs);
     procedure HideEditor;
+
+    function  TryAddRow(const Position: InsertPosition): Boolean;
+    function  TryDeleteSelectedRows: Boolean;
+    function  CheckCanChangeRow: Boolean;
+
+  // editor behaviour
+  protected
+    _tempCachedEditingColumnCustomWidth: Single;
+    procedure UpdateMinColumnWidthOnShowEditor(const Cell: IDCTreeCell; const MinColumnWidth: Single);
+    procedure ResetColumnWidthOnHideEditor(const Column: IDCTreeColumn);
 
   // checkbox behaviour
   protected
@@ -55,11 +65,19 @@ type
     _endCellEdit: EndEditEvent;
     _cellParsing: CellParsingEvent;
 
+    _rowAdding: RowAddedEvent;
+    _rowDeleting: RowDeletingEvent;
+    _rowDeleted: TNotifyEvent;
+
     procedure DoStartCellEdit(const Cell: IDCTreeCell);
     function  DoStartRowEdit(const ARow: IDCTreeRow; var DataItem: CObject; IsNew: Boolean) : Boolean;
     function  DoEndCellEdit(var DoEndRowEdit: Boolean): Boolean;
     function  DoEndRowEdit(const ARow: IDCTreeRow): Boolean;
     function  DoCellParsing(const Cell: IDCTreeCell; var AValue: CObject): Boolean;
+
+    function  DoAddingNew(out NewObject: CObject) : Boolean;
+    function  DoUserDeletingRow(const Item: CObject) : Boolean;
+    procedure DoUserDeletedRow;
 
     function  DoCellCanChange(const OldCell, NewCell: IDCTreeCell): Boolean; override;
 
@@ -85,6 +103,10 @@ type
     property StartCellEdit: StartEditEvent read _startCellEdit write _startCellEdit;
     property EndCellEdit: EndEditEvent read _endCellEdit write _endCellEdit;
     property CellParsing: CellParsingEvent read _cellParsing write _cellParsing;
+
+    property RowAdding: RowAddedEvent read _rowAdding write _rowAdding;
+    property RowDeleting: RowDeletingEvent read _rowDeleting write _rowDeleting;
+    property RowDeleted: TNotifyEvent read _rowDeleted write _rowDeleted;
   end;
 
 implementation
@@ -92,7 +114,9 @@ implementation
 uses
   FMX.DataControl.Editable.Impl, ADato.Data.DataModel.intf, System.Character,
   System.ComponentModel, FMX.DataControl.ScrollableRowControl.Intf,
-  FMX.DataControl.ControlClasses, FMX.StdCtrls, System.TypInfo, FMX.Controls;
+  FMX.DataControl.ControlClasses, FMX.StdCtrls, System.TypInfo, FMX.Controls,
+  System.Math, ADato.Collections.Specialized,
+  System.Reflection, System.Collections.Generic;
 
 { TEditableDataControl }
 
@@ -100,12 +124,58 @@ constructor TEditableDataControl.Create(AOwner: TComponent);
 begin
   inherited;
   _editingInfo := TTreeEditingInfo.Create;
+  _tempCachedEditingColumnCustomWidth := -1;
+end;
+
+function TEditableDataControl.CheckCanChangeRow: Boolean;
+begin
+  // old row can be scrolled out of view. So always work with dummy rows
+
+  var dummyOldRow := CreateDummyRowForChanging(_selectionInfo) as IDCTreeRow;
+  if dummyOldRow = nil then Exit(True);
+
+  var oldCell := dummyOldRow.Cells[(_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn];
+  Result := DoCellCanChange(oldCell, nil);
 end;
 
 procedure TEditableDataControl.KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
 begin
+  // check start edit
   if (Key in [vkF2, vkReturn]) and not _editingInfo.CellIsEditing then
-    StartEditCell(GetActiveCell)
+  begin
+    StartEditCell(GetActiveCell);
+    Key := 0;
+  end
+
+  // check end edit
+  else if (Key = vkReturn) and _editingInfo.CellIsEditing then
+  begin
+    EndEditCell;
+    Key := 0;
+  end
+
+  // check cancel edit
+  else if (Key = vkEscape) and _editingInfo.CellIsEditing then
+  begin
+    CancelEdit;
+    Key := 0;
+  end
+
+  // check insert new row
+  else if (Key = vkInsert) and (TDCTreeOption.AllowAddNewRows in _options) then
+  begin
+    if CheckCanChangeRow and TryAddRow(InsertPosition.After) then
+      Key := 0;
+  end
+
+  // check delete edit
+  else if (Key = vkDelete) and (ssCtrl in Shift) and (TDCTreeOption.AllowDeleteRows in _options) then
+  begin
+    if CheckCanChangeRow and TryDeleteSelectedRows then
+      Key := 0;
+  end
+
+  // else inherited
   else
   begin
     inherited;
@@ -151,11 +221,11 @@ begin
     var checkBox := Sender as TCheckBox;
     var cell := GetCellByControl(checkBox);
 
-    _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.Internal;
+    _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.Internal;
 
     var requestedSelection := _selectionInfo.Clone as ITreeSelectionInfo;
     requestedSelection.UpdateLastSelection(cell.Row.DataIndex, cell.Row.ViewListIndex, cell.Row.DataItem);
-    requestedSelection.SelectedFlatColumn := FlatColumnByColumn(cell.Column).Index;
+    requestedSelection.SelectedLayoutColumn := FlatColumnByColumn(cell.Column).Index;
 
     var editStarted := False;
     if TrySelectItem(requestedSelection, []) then
@@ -174,8 +244,13 @@ end;
 
 procedure TEditableDataControl.OnEditorExit;
 begin
-  if not EndEditCell then
-    CancelEdit(True);
+  // windows wants to clear the focus control after this point
+  // therefor we need a little time untill we can EndEdit and free the editor
+  TThread.ForceQueue(nil, procedure
+  begin
+    if not EndEditCell then
+      CancelEdit(True);
+  end);
 end;
 
 procedure TEditableDataControl.OnEditorKeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
@@ -225,6 +300,27 @@ begin
   end;
 end;
 
+procedure TEditableDataControl.UpdateMinColumnWidthOnShowEditor(const Cell: IDCTreeCell; const MinColumnWidth: Single);
+begin
+  if Cell.LayoutColumn.Width < MinColumnWidth then
+  begin
+    _tempCachedEditingColumnCustomWidth := Cell.Column.CustomWidth;
+    Cell.Column.CustomWidth := MinColumnWidth;
+    AfterRealignContent;
+  end else
+    _tempCachedEditingColumnCustomWidth := -1;
+end;
+
+procedure TEditableDataControl.ResetColumnWidthOnHideEditor(const Column: IDCTreeColumn);
+begin
+  if not SameValue(_tempCachedEditingColumnCustomWidth, Column.CustomWidth) then
+  begin
+    Column.CustomWidth := _tempCachedEditingColumnCustomWidth;
+    _tempCachedEditingColumnCustomWidth := -1;
+    AfterRealignContent;
+  end;
+end;
+
 procedure TEditableDataControl.UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single);
 begin
   inherited;
@@ -242,6 +338,8 @@ begin
 
   if not _editingInfo.RowIsEditing then
   begin
+    _selectionInfo.ClearMultiSelections;    
+
     var dataItem := Self.DataItem;
     var isNew := False;
     if not DoStartRowEdit(Cell.Row as IDCTreeRow, {var} dataItem, isNew) then
@@ -249,6 +347,126 @@ begin
   end;
 
   DoStartCellEdit(Cell);
+end;
+
+function TEditableDataControl.TryAddRow(const Position: InsertPosition): Boolean;
+begin
+  Assert(not _editingInfo.RowIsEditing);
+
+  var em: IEditableModel;
+  if (_model <> nil) and interfaces.Supports<IEditableModel>(_model, em) and em.CanAdd then
+  begin
+    em.AddNew(Self.Current, InsertPosition.After);
+    Exit(True);
+  end;
+
+  var newItem: CObject := nil;
+  if not DoAddingNew({out} newItem) then
+    Exit(False);
+
+  if (newItem = nil) then
+  begin
+    var addIntf: IAddingNewSupport;
+    if Interfaces.Supports<IAddingNewSupport>(_dataList, addIntf) then
+      addIntf.AddingNew(nil, NewItem);
+
+    if (NewItem = nil) then
+    begin
+      if ListHoldsOrdinalType then
+        NewItem := ''
+
+      else if (_view.OriginalData.Count > 0) then
+      begin
+        var referenceItem := _view.OriginalData[0];
+        var obj: CObject := Assembly.CreateInstanceFromObject(referenceItem);
+        if obj = nil then
+          raise NullReferenceException.Create(CString.Format('Failed to create instance of object {0}, implement event OnAddingNew', referenceItem.GetType));
+        if not obj.TryCast(TypeOf(referenceItem), {out} NewItem, True) then
+          raise NullReferenceException.Create(CString.Format('Failed to convert {0} to {1}, implement event OnAddingNew', obj.GetType, referenceItem.GetType));
+      end;
+    end;
+  end;
+
+  if ViewIsDataModelView then
+  begin
+    var location: IDataRow := nil;
+    if (Current < GetDataModelView.Rows.Count) and (GetDataModelView.Rows.Count > 0) then
+      location := GetDataModelView.Rows[Current].Row;
+
+    var dataRow := GetDataModelView.DataModel.AddNew(location, Position);
+
+    if dataRow <> nil then
+    begin
+      if NewItem <> nil then
+        dataRow.Data := NewItem;
+
+      var drv := GetDataModelView.FindRow(dataRow);
+      if drv <> nil then
+      begin
+        _editingInfo.StartRowEdit(drv.Row.get_Index, drv, True);
+        Current := drv.ViewIndex;
+      end;
+    end;
+  end
+  else if newItem <> nil then
+  begin
+    var crrnt := Self.Current;
+    if (crrnt = -1) or (Position = InsertPosition.After) then
+      inc(crrnt);
+
+    _view.GetViewList.Insert(crrnt, NewItem);
+    _view.ResetView(crrnt);
+
+    Self.Current := crrnt;
+    _editingInfo.StartRowEdit(_view.OriginalData.Count - 1, NewItem, True);
+  end;
+
+  Result := _editingInfo.IsNew;
+  if Result then
+    RefreshControl;
+end;
+
+function TEditableDataControl.TryDeleteSelectedRows: Boolean;
+begin
+  var em: IEditableModel;
+  if (_model <> nil) and interfaces.Supports<IEditableModel>(_model, em) and em.CanRemove then
+  begin
+    em.Remove;
+    Exit(True);
+  end;
+
+  var dataIndexes: List<Integer> := CList<Integer>.Create(_selectionInfo.SelectedDataIndexes);
+  dataIndexes.Sort(function(const x, y: Integer): Integer begin Result := -CInteger(x).CompareTo(y); end);
+
+  Result := False;
+  var currentIndex := Self.Current;
+  for var ix in dataIndexes do
+  begin
+    var obj := _view.OriginalData[ix];
+
+    if DoUserDeletingRow(obj) then
+    begin
+      if ViewIsDataModelView then
+      begin
+        var location := GetDataModelView.Rows[ix].Row;
+        GetDataModelView.DataModel.Remove(location);
+      end else
+        _view.OriginalData.RemoveAt(ix);
+
+      DoUserDeletedRow;
+
+      Result := True;
+    end;
+  end;
+
+  if Result then
+  begin
+    _view.RecalcSortedRows;
+
+    if _view.ViewCount > 0 then
+      Self.Current := CMath.Max(0, CMath.Min(_view.ViewCount -1, currentIndex - 1)) else
+      Self.Current := -1;
+  end;
 end;
 
 procedure TEditableDataControl.CancelEdit(CellOnly: Boolean = False);
@@ -275,8 +493,8 @@ begin
     end else
       notify.CancelEdit;
   end
-  else if ViewIsDataModel then
-    (_dataList as IDataModel).CancelEdit(GetActiveRow.DataItem.AsType<IDataRowView>.Row);
+  else if ViewIsDataModelView then
+    GetDataModelView.DataModel.CancelEdit(GetActiveRow.DataItem.AsType<IDataRowView>.Row);
 
   _view.EndEdit;
   _editingInfo.RowEditingFinished;
@@ -327,7 +545,7 @@ begin
   DoDataItemChanged(Item);
 end;
 
-procedure TEditableDataControl.ShowEditor(const Cell: IDCTreeCell; const EditValue: CObject; const APicklist: IList; IsMultilineEditor : Boolean);
+procedure TEditableDataControl.ShowEditor(const Cell: IDCTreeCell; const StartEditArgs: DCStartEditEventArgs);
 var
   pickList: IList;
   dataType: &Type;
@@ -335,51 +553,48 @@ var
 begin
   Assert(_cellEditor = nil);
 
-  if APickList <> nil then
-    pickList := APickList else
+  UpdateMinColumnWidthOnShowEditor(Cell, startEditArgs.MinEditorWidth);
+
+  if StartEditArgs.PickList <> nil then
+    pickList := StartEditArgs.PickList else
     pickList := nil;
 
   // checkboxes are special case, for they are already visualized in DataControl.Static
   // all other controls can be shown as plain text while not editing
-  if Cell.Column.InfoControlClass = TInfoControlClass.CheckBox then
-    _cellEditor := TDCCheckBoxCellEditor.Create(Self, Cell)
-  else if pickList <> nil then
+
+  if pickList <> nil then
   begin
+    Assert(Cell.Column.InfoControlClass in [TInfoControlClass.Text, TInfoControlClass.Custom]);
     _cellEditor := TDCCellDropDownEditor.Create(self, Cell);
     (_cellEditor as IPickListSupport).PickList := pickList;
   end
+  else if Cell.Column.InfoControlClass = TInfoControlClass.CheckBox then
+    _cellEditor := TDCCheckBoxCellEditor.Create(Self, Cell)
   else
   begin
     if not CString.IsNullOrEmpty(Cell.Column.PropertyName) then
       dataType := GetItemType.PropertyByName(Cell.Column.PropertyName).GetType else
-//    if CellPropertiesProvider <> nil then
-//      dataType := CellPropertiesProvider.DataType(ACell) else
-      dataType := Global.StringType; // Default
+      dataType := Global.StringType;
 
     if dataType.IsDateTime then
       _cellEditor := TDCCellDateTimeEditor.Create(self, Cell)
 
     else
-      if IsMultilineEditor then
+      if StartEditArgs.MultilineEdit then
         _cellEditor := TDCTextCellMultilineEditor.Create(self, Cell)
       else
         _cellEditor := TDCTextCellEditor.Create(self, Cell);
   end;
 
-  _cellEditor.BeginEdit(EditValue);
+  _cellEditor.BeginEdit(StartEditArgs.Value);
 end;
 
 procedure TEditableDataControl.HideEditor;
 begin
-  _waitForReleaseEditor := _cellEditor;
+  var clmn := _cellEditor.Cell.Column;
   _cellEditor := nil;
 
-  TThread.ForceQueue(nil, procedure
-  begin
-    // if earlier cellEditor is waiting to be freed at the right time..
-    // it is not active anymore, just waiting to be free
-    _waitForReleaseEditor := nil;
-  end);
+  ResetColumnWidthOnHideEditor(clmn);
 
   var activeCell := GetActiveCell;
   if activeCell = nil then Exit; // cell scrolled out of view
@@ -450,13 +665,31 @@ begin
       end else
         notify.BeginEdit(ARow.ViewListIndex);
     end
-    else if ViewIsDataModel then
-      (_dataList as IDataModel).BeginEdit(ARow.DataItem.AsType<IDataRowView>.Row);
+    else if ViewIsDataModelView then
+      GetDataModelView.DataModel.BeginEdit(ARow.DataItem.AsType<IDataRowView>.Row);
 
     _editingInfo.StartRowEdit(ARow.DataIndex, DataItem, IsNew);
 
     _view.StartEdit(_editingInfo.EditItem);
   end;
+end;
+
+procedure TEditableDataControl.DoUserDeletedRow;
+begin
+  if Assigned(_rowDeleted) then
+    _rowDeleted(Self);
+end;
+
+function TEditableDataControl.DoUserDeletingRow(const Item: CObject): Boolean;
+begin
+  if Assigned(_rowDeleting) then
+  begin
+    var rowEditArgs: DCDeletingEventArgs;
+    AutoObject.Guard(DCDeletingEventArgs.Create(Item), rowEditArgs);
+    _rowDeleting(Self, rowEditArgs);
+    Result := not rowEditArgs.Cancel;
+  end else
+    Result := True;
 end;
 
 function TEditableDataControl.DoEndRowEdit(const ARow: IDCTreeRow): Boolean;
@@ -495,8 +728,8 @@ begin
       if Interfaces.Supports<IEditState>(_Model, es) and es.IsEditOrNew then
         Exit(False);
     end
-    else if ViewIsDataModel then
-      (_dataList as IDataModel).EndEdit(GetActiveRow.DataItem.AsType<IDataRowView>.Row);
+    else if ViewIsDataModelView then
+      GetDataModelView.DataModel.EndEdit(GetActiveRow.DataItem.AsType<IDataRowView>.Row);
 
     var ix := _view.GetViewList.IndexOf(_editingInfo.EditItem);
     if ix <> -1 then
@@ -525,7 +758,8 @@ begin
   if startEditArgs.AllowEditing then
   begin
     _editingInfo.StartCellEdit(Cell.Row.DataIndex, FlatColumnByColumn(Cell.Column).Index);
-    ShowEditor(Cell, startEditArgs.Value, startEditArgs.PickList, startEditArgs.MultilineEdit);
+
+    ShowEditor(Cell, startEditArgs);
   end;
 end;
 
@@ -553,6 +787,8 @@ begin
 
     _editingInfo.CellEditingFinished;
     HideEditor;
+
+    DoDataItemChanged(_editingInfo.EditItem);
   end;
 end;
 
@@ -571,6 +807,22 @@ begin
       AValue := e.Value else
       Result := False;
   end;
+end;
+
+function TEditableDataControl.DoAddingNew(out NewObject: CObject) : Boolean;
+begin
+  NewObject := nil;
+
+  if Assigned(_rowAdding) then
+  begin
+    var args: DCAddingNewEventArgs;
+    AutoObject.Guard(DCAddingNewEventArgs.Create, args);
+
+    _rowAdding(Self, args);
+    NewObject := args.NewObject;
+    Result := NewObject <> nil;
+  end else
+    Result := True; // Continue with add new
 end;
 
 procedure TEditableDataControl.SetCellData(const Cell: IDCTreeCell; const Data: CObject);
@@ -600,8 +852,8 @@ begin
       _editingInfo.EditItem := Data
     else if not CString.IsNullOrEmpty(Cell.Column.PropertyName) then
     begin
-      if ViewIsDataModel then
-        (_dataList as IDataModel).SetPropertyValue(Cell.Column.PropertyName, Cell.Row.DataItem.GetValue<IDataRowView>.Row, Data)
+      if ViewIsDataModelView then
+        GetDataModelView.DataModel.SetPropertyValue(Cell.Column.PropertyName, Cell.Row.DataItem.GetValue<IDataRowView>.Row, Data)
       else begin
         var prop := _editingInfo.EditItem.GetType.PropertyByName(Cell.Column.PropertyName);
         prop.SetValue(_editingInfo.EditItem, Data, []);

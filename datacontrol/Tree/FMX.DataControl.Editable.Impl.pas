@@ -37,19 +37,11 @@ type
     procedure RowEditingFinished;
   end;
 
-  {$IFDEF DEBUG}
-  TFreeNotification = class(TInterfacedObject, IFreeNotification)
-  public
-    procedure FreeNotification(AObject: TObject);
-  end;
-  {$ENDIF}
-
   TDCCellEditor = class(TInterfacedObject, IDCCellEditor)
   protected
     _editorHandler: IDataControlEditorHandler;
 
     _cell: IDCTreeCell;
-    {$IFDEF DEBUG}_freeNotification: IFreeNotification;{$ENDIF}
     _editor: TStyledControl;
     _originalValue: CObject;
 
@@ -64,7 +56,7 @@ type
     function  ParseValue(var AValue: CObject): Boolean;
 
     procedure OnEditorExit(Sender: TObject);
-    procedure OnEditorKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+    procedure OnEditorKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState); virtual;
 
   public
     constructor Create(const EditorHandler: IDataControlEditorHandler; const Cell: IDCTreeCell); reintroduce;
@@ -81,6 +73,7 @@ type
     procedure set_Value(const Value: CObject); override;
 
     procedure OnCheckBoxCellEditorChangeTracking(Sender: TObject);
+    procedure OnEditorKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
   public
     procedure BeginEdit(const EditValue: CObject); override;
   end;
@@ -144,6 +137,8 @@ type
     procedure OnDropdownEditorChange(Sender: TObject);
 
     procedure Dropdown;
+
+    procedure OnEditorKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
   public
     procedure BeginEdit(const EditValue: CObject); override;
 
@@ -175,7 +170,7 @@ implementation
 uses
   FMX.Edit, FMX.DataControl.ControlClasses, FMX.DateTimeCtrls, FMX.ComboEdit,
   System.Math, FMX.Memo, FMX.DataControl.ScrollableRowControl.Intf,
-  FMX.StdCtrls, FMX.Graphics;
+  FMX.StdCtrls, FMX.Graphics, System.UITypes, FMX.ActnList;
 
 { TTreeEditingInfo }
 
@@ -252,7 +247,7 @@ begin
   _editor.OnExit := nil;
 
   // TODO: _editor is already being destroyed at this point
-  // _editor.Free;
+  _editor.Free;
 
   inherited;
 end;
@@ -340,12 +335,6 @@ begin
   // when parent control is freed _editor's lifetime is dependant on that control.
   // So trying to free with _editor.Free fails in destroy.
   _editor := ScrollableRowControl_DefaultEditClass.Create(nil);
-
-  {$IFDEF DEBUG}
-  _freeNotification := TFreeNotification.Create;
-  _editor.AddFreeNotify(_freeNotification);
-  {$ENDIF}
-
   _cell.Control.AddObject(_editor);
 
   TEdit(_editor).OnChangeTracking := OnTextCellEditorChangeTracking;
@@ -450,6 +439,9 @@ begin
   ce.OnChange := OnDropdownEditorChange;
 
   inherited;
+
+  ce.ItemIndex := ce.Items.IndexOf(_originalValue.ToString(True));
+
   Dropdown;
 end;
 
@@ -494,6 +486,23 @@ end;
 procedure TDCCellDropDownEditor.OnDropDownEditorOpen(Sender: TObject);
 begin
   _editor.SetFocus;
+end;
+
+procedure TDCCellDropDownEditor.OnEditorKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+begin
+  if Key in [vkUp, vkDown, vkPrior, vkNext, vkHome, vkEnd] then
+  begin
+    var cb := _editor as TComboEdit;
+    case Key of
+      vkUp:     cb.ItemIndex := CMath.Max(0, cb.ItemIndex - 1);
+      vkDown:   cb.ItemIndex := CMath.Min(cb.Items.Count - 1, cb.ItemIndex + 1);
+      vkPrior:  cb.ItemIndex := CMath.Max(0, cb.ItemIndex - 10);
+      vkNext:   cb.ItemIndex := CMath.Min(cb.Items.Count - 1, cb.ItemIndex + 10);
+      vkHome:   cb.ItemIndex := 0;
+      vkEnd:    cb.ItemIndex := cb.Items.Count - 1;
+    end;
+  end else
+    inherited;
 end;
 
 procedure TDCCellDropDownEditor.DropDown;
@@ -551,10 +560,16 @@ procedure TDCCellDropDownEditor.set_PickList(const Value: IList);
 begin
   _PickList := Value;
 
-  var ce := TComboEdit(_editor);
-  ce.Clear;
-  for var v in Value do
-    ce.Items.Add(v.ToString);
+  Assert(_editor = nil); // do we need code below?
+
+  // already editing??
+  if _editor <> nil then
+  begin
+    var ce := TComboEdit(_editor);
+    ce.Clear;
+    for var v in Value do
+      ce.Items.Add(v.ToString);
+  end;
 end;
 
 procedure TDCCellDropDownEditor.set_Value(const Value: CObject);
@@ -707,18 +722,17 @@ begin
     _Value := isChecked;
 end;
 
+procedure TDCCheckBoxCellEditor.OnEditorKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+begin
+  if Key = vkSpace then
+    (_editor as IISChecked).IsChecked := not (_editor as IISChecked).IsChecked
+  else
+    inherited;
+end;
+
 procedure TDCCheckBoxCellEditor.set_Value(const Value: CObject);
 begin
   (_editor as TCheckBox).IsChecked := (Value <> nil) and Value.AsType<Boolean>;
 end;
-
-{$IFDEF DEBUG}
-{ TFreeRectangleNotification }
-
-procedure TFreeNotification.FreeNotification(AObject: TObject);
-begin
-//
-end;
-{$ENDIF}
 
 end.
