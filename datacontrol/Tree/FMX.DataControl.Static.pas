@@ -536,6 +536,8 @@ begin
   var clickedRow := GetRowByMouseY(Y);
   if clickedRow = nil then Exit;
 
+  _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.Click;
+
   var flatColumn := GetFlatColumnByMouseX(X);
   if flatColumn = nil then
   begin
@@ -543,9 +545,8 @@ begin
     if _treeLayout.LayoutColumns.Count > flatIx - 1 then
       flatColumn := _treeLayout.LayoutColumns[flatIx] else
       flatColumn := _treeLayout.FlatColumns[0];
-  end else
-
-  if flatColumn.Column.IsCheckBoxColumn then
+  end
+  else if flatColumn.Column.IsCheckBoxColumn then
   begin
     var treeRow := clickedRow as IDCTreeRow;
     var treeCell := treeRow.Cells[flatColumn.Index];
@@ -553,19 +554,15 @@ begin
 
     if checkBox.IsChecked then
     begin
-      _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
       _selectionInfo.Deselect(treeRow.DataIndex);
       Exit;
     end
     else if (TreeOption_MultiSelect in _options) then
     begin
-      _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.UserEvent;
       _selectionInfo.AddToSelection(treeRow.DataIndex, treeRow.ViewListIndex, treeRow.DataItem);
       Exit;
     end;
   end;
-
-  _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.Click;
 
   var requestedSelection := _selectionInfo.Clone as ITreeSelectionInfo;
   requestedSelection.UpdateLastSelection(clickedRow.DataIndex, clickedRow.ViewListIndex, clickedRow.DataItem);
