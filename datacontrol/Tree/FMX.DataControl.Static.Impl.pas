@@ -858,6 +858,8 @@ begin
           Insert(index, column);
         end;
       end;
+
+      column.CustomWidth := customWidth;
     end;
   end;
 end;
