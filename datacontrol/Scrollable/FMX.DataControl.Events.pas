@@ -27,9 +27,9 @@ type
 
   DCCellSelectedEventArgs = class(BasicEventArgs)
   public
-    SelectionChangedBy: TSelectionChangedBy;
+    EventTrigger: TSelectionEventTrigger;
 
-    constructor Create(const ACell: IDCTreeCell; SelChangedBy: TSelectionChangedBy); reintroduce;
+    constructor Create(const ACell: IDCTreeCell; EventTrigger: TSelectionEventTrigger); reintroduce;
     property Cell: IDCTreeCell read _cell;
   end;
 
@@ -142,6 +142,19 @@ type
     property IsEdit: Boolean read _IsEdit;
   end;
 
+  DCAddingNewEventArgs = class(EventArgs)
+  public
+    NewObject: CObject;
+  end;
+
+  DCDeletingEventArgs = class(EventArgs)
+  public
+    DataItem: CObject;
+    Cancel: Boolean;
+
+    constructor Create(const ADataItem: CObject); reintroduce;
+  end;
+
   DCStartEditEventArgs = class(BasicEventArgs)
   protected
     function get_DataItem: CObject;
@@ -157,6 +170,7 @@ type
     Value         : CObject;
     MultilineEdit : Boolean;  // True - show Multiline editor
     Editor        : TControl; // Custom user editor
+    MinEditorWidth: Single;
 
     constructor Create(const ACell: IDCTreeCell; const EditValue: CObject); reintroduce;
 
@@ -229,6 +243,9 @@ type
   CellParsingEvent = procedure(const Sender: TObject; e: DCCellParsingEventArgs) of object;
 
   ColumnChangedByUserEvent = procedure (const Sender: TObject; e: ColumnChangedByUserEventArgs) of object;
+
+  RowAddedEvent = procedure(const Sender: TObject; e: DCAddingNewEventArgs) of object;
+  RowDeletingEvent = procedure(const Sender: TObject; e: DCDeletingEventArgs) of object;
 
 implementation
 
@@ -314,6 +331,7 @@ constructor DCStartEditEventArgs.Create(const ACell: IDCTreeCell; const EditValu
 begin
   inherited Create(ACell);
   Value := EditValue;
+  MinEditorWidth := 125;
 end;
 
 function DCStartEditEventArgs.get_DataItem: CObject;
@@ -339,6 +357,7 @@ begin
   inherited Create(ACell);
 
   Value := AValue;
+  DataIsValid := True;
 end;
 
 { DCRowEventArgs }
@@ -365,10 +384,10 @@ end;
 
 { DCCellSelectedEventArgs }
 
-constructor DCCellSelectedEventArgs.Create(const ACell: IDCTreeCell; SelChangedBy: TSelectionChangedBy);
+constructor DCCellSelectedEventArgs.Create(const ACell: IDCTreeCell; EventTrigger: TSelectionEventTrigger);
 begin
   inherited Create(ACell);
-  SelectionChangedBy := SelChangedBy;
+  EventTrigger := EventTrigger;
 end;
 
 { ColumnChangedByUserEventArgs }
@@ -390,6 +409,13 @@ end;
 //  CellChanged := ACellChanged;
 //  UserEventType := AUserEventType;
 //end;
+
+{ DCDeleteCancelEventArgs }
+constructor DCDeletingEventArgs.Create(const ADataItem: CObject);
+begin
+  inherited Create;
+  DataItem := ADataItem;
+end;
 
 end.
 
