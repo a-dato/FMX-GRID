@@ -1467,7 +1467,7 @@ begin
     begin
       var rect := ScrollableRowControl_DefaultRectangleClass.Create(Cell.Row.Control);
       rect.Fill.Kind := TBrushKind.None;
-
+//
       var headerCell := Cell as IHeaderCell;
       if ShowVertGrid then
       begin
@@ -1642,6 +1642,8 @@ end;
 
 procedure TTreeLayoutColumn.set_Width(Value: Single);
 begin
+  if Value < 0 then
+  _width := Value else
   _width := Value;
 end;
 
@@ -1890,15 +1892,16 @@ begin
     end;
   end;
 
-  var totalAutoFitColumnCount := 0;
+  var addableColumns: List<IDCTreeLayoutColumn> := CList<IDCTreeLayoutColumn>.Create;
   for layoutClmn in get_FlatColumns do
     if (layoutClmn.Column.WidthType = autoFitWidthType) and SameValue(layoutClmn.Column.CustomWidth, -1) then
-      inc(totalAutoFitColumnCount);
+      addableColumns.Add(layoutClmn);
 
-  for var flatClmn in _flatColumns do
-    if (flatClmn.Column.WidthType = autoFitWidthType) and SameValue(layoutClmn.Column.CustomWidth, -1) then
+  if addableColumns.Count > 0 then
+    for var ix := addableColumns.Count - 1 downto 0 do
     begin
-      var extraWidthPerColumn := widthLeft / totalAutoFitColumnCount;
+      var flatClmn := addableColumns[ix];
+      var extraWidthPerColumn := widthLeft / addableColumns.Count;
 
       // percentageColumns are set back to minimum width
       if autoFitWidthType = TDCColumnWidthType.Percentage then
@@ -1906,7 +1909,7 @@ begin
         flatClmn.Width := flatClmn.Width + extraWidthPerColumn;
 
       widthLeft := widthLeft - extraWidthPerColumn;
-      dec(totalAutoFitColumnCount);
+      addableColumns.RemoveAt(ix);
     end;
 
   var startXPosition: Double := 0;
