@@ -17,7 +17,8 @@ uses
   ADato.Data.VirtualDatasetDataModel, ADato.Data.DatasetDataModel,
   System.Diagnostics, FMX.ListBox, System_, ADato.Controls.FMX.Tree.Intf,
   FMX.DataControl.ScrollableControl, FMX.DataControl.ScrollableRowControl,
-  FMX.DataControl.Static, FMX.DataControl.Editable, FMX.DataControl.Impl;
+  FMX.DataControl.Static, FMX.DataControl.Editable, FMX.DataControl.Impl,
+  FMX.DataControl.Events;
 
 type
   TOpenRecordSetFrame = class(TFrame)
@@ -120,6 +121,7 @@ end;
 
 procedure TOpenRecordSetFrame.DataEditorKeyDown(Sender: TObject; var Key: Word;
     var KeyChar: WideChar; Shift: TShiftState);
+
 begin
 //  if Key = vkReturn then
 //  begin

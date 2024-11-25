@@ -1673,6 +1673,8 @@ begin
       col := TDCTreeColumn.Create;
       col.PropertyName := clmns[i].Name;
       col.Caption := col.PropertyName;
+      col.WidthSettings.WidthType := TDCColumnWidthType.AlignToContent;
+      col.WidthSettings.WidthMax := 400;
       _columns.Add(col);
     end;
   end else

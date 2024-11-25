@@ -1529,10 +1529,10 @@ type
   var
     _value: Double;
 
-{$HINTS OFF}
-  private
-    class function TryParse(const Value: CString; const style: NumberStyles; const info: IBaseInterface {NumberFormatInfo}; out d: Double) : Boolean; overload; static;
-{$HINTS ON}
+//{$HINTS OFF}
+//  private
+//    class function TryParse(const Value: CString; const style: NumberStyles; const info: IFormatProvider; out d: Double) : Boolean; overload; static;
+//{$HINTS ON}
 
   public
     class operator Implicit(AValue: Double): CDouble;
@@ -1552,7 +1552,8 @@ type
     class function IsNaN(d: Double): boolean; static;
     class function Parse(const s: CString): Double; overload; static;
     class function Parse(const s: CString; const style: NumberStyles): Double; overload; static;
-    class function Parse(const s: CString; const style: NumberStyles; const info: IBaseInterface {NumberFormatInfo}): Double; overload; static;
+    class function Parse(const s: CString; const style: NumberStyles; const info: IFormatProvider): Double; overload; static;
+    class function Parse(const s: CString; const info: IFormatProvider): Double; overload; static;
     function ToString: CString; overload;
     function ToString(const formatString: CString; const provider: IFormatProvider): CString; overload;
 
@@ -10395,7 +10396,7 @@ begin
   Result := AValue._value;
 end;
 
-class function CDouble.Compare(l,r: Double): Integer;
+class function CDouble.Compare(l, r: Double): Integer;
 begin
   if l < r then
     Result := -1
@@ -10472,7 +10473,12 @@ begin
   raise NotImplementedException.Create;
 end;
 
-class function CDouble.Parse(const s: CString; const style: NumberStyles; const info: IBaseInterface {NumberFormatInfo}): Double;
+class function CDouble.Parse(const s: CString; const info: IFormatProvider): Double;
+begin
+  Result := CDouble.Parse(s, NumberStyles.Any, info);
+end;
+
+class function CDouble.Parse(const s: CString; const style: NumberStyles; const info: IFormatProvider): Double;
 var
   str: CString;
   numInfo: NumberFormatInfo;
@@ -10480,8 +10486,10 @@ var
 begin
   try
     begin
-      Result := Number.ParseDouble(s, style, info);
-      exit
+      var ci: CultureInfo;
+      if Supports(info, CultureInfo, ci) then
+        Result := Number.ParseDouble(s, style, ci.NumberFormat) else
+        Result := Number.ParseDouble(s, style, nil);
     end
   except
     on exception1: FormatException do
@@ -10508,7 +10516,7 @@ begin
   end
 end;
 
-class function CDouble.TryParse(const Value: CString; const style: NumberStyles; const info: IBaseInterface {NumberFormatInfo}; out d: Double) : Boolean;
+class function CDouble.TryParse(const Value: CString; const style: NumberStyles; const provider: IFormatProvider; out d: Double) : Boolean;
 begin
   Result := TryStrToFloat(Value, d);
 end;
@@ -10521,10 +10529,10 @@ begin
   Result := TryStrToFloat(Value, d);
 end;
 
-class function CDouble.TryParse(const Value: CString; const style: NumberStyles; const provider: IFormatProvider; out d: Double) : Boolean;
-begin
-  Result := TryStrToFloat(Value, d);
-end;
+//class function CDouble.TryParse(const Value: CString; const style: NumberStyles; const provider: IFormatProvider; out d: Double) : Boolean;
+//begin
+//  Result := TryStrToFloat(Value, d);
+//end;
 
 class function CDouble.IsNaN(d: Double): boolean;
 begin
@@ -11094,34 +11102,44 @@ class function Number.ParseDouble(
   const value: CString;
   const options: NumberStyles;
   const numfmt: IBaseInterface {NumberFormatInfo}): Double;
-var
-  num: Double;
-  _number: NumberBuffer;
-  stackBuffer: PByte;
+//var
+//  num: Double;
+//  _number: NumberBuffer;
+//  stackBuffer: PByte;
 
 begin
-{$IFDEF WIN32}
-  stackBuffer := stackalloc(1 * $72);
-{$ELSE}
-  stackBuffer := AllocMem(1 * $72);
-  try
-{$ENDIF}
-  _number := NumberBuffer.Create(stackBuffer);
-  num := 0;
-  Number.StringToNumber(value, options, _number, numfmt, false);
-  if (not Number.NumberBufferToDouble(_number.PackForNative, num)) then
-    raise OverflowException.Create(Environment.GetResourceString('Overflow_Double'));
-  begin
-    Result := num;
-    exit
-  end
-{$IFDEF WIN32}
+  var nfi: NumberFormatInfo;
 
-{$ELSE}
-  finally
-    FreeMem(stackBuffer);
-  end;
-{$ENDIF}
+  if Supports(numfmt, NumberFormatInfo, nfi) then
+  begin
+    var fs := TFormatSettings.Create;
+    fs.DecimalSeparator := nfi.NumberDecimalSeparator[0];
+    Result := StrToFloat(value, fs);
+  end else
+    Result := StrToFloat(value);
+
+//{$IFDEF WIN32}
+//  stackBuffer := stackalloc(1 * $72);
+//{$ELSE}
+//  stackBuffer := AllocMem(1 * $72);
+//  try
+//{$ENDIF}
+//  _number := NumberBuffer.Create(stackBuffer);
+//  num := 0;
+//  Number.StringToNumber(value, options, _number, numfmt, false);
+//  if (not Number.NumberBufferToDouble(_number.PackForNative, num)) then
+//    raise OverflowException.Create(Environment.GetResourceString('Overflow_Double'));
+//  begin
+//    Result := num;
+//    exit
+//  end
+//{$IFDEF WIN32}
+//
+//{$ELSE}
+//  finally
+//    FreeMem(stackBuffer);
+//  end;
+//{$ENDIF}
 end;
 
 class function Number.ParseNumber(
@@ -13542,7 +13560,20 @@ begin
 //  parseInfo := ParsingInfo.Create;
   parseInfo.Init;
 
-  _dtfi := dtfi as DateTimeFormatInfo;
+  var ci: CultureInfo;
+  if not Supports(dtfi, DateTimeFormatInfo, _dtfi) then
+  begin
+    if Supports(dtfi, CultureInfo, ci) then
+      _dtfi := ci.DateTimeFormat;
+  end;
+
+  if _dtfi = nil then
+  begin
+    _result.SetFailure(ParseFailureKind.ArgumentNull, 'DateTimeFormatInfo_null', nil);
+    Result := False;
+    Exit;
+  end;
+
   parseInfo._calendar := _dtfi.Calendar;
   parseInfo.fAllowInnerWhite := ((styles and DateTimeStyles.AllowInnerWhite) <> DateTimeStyles.None);
   parseInfo.fAllowTrailingWhite := ((styles and DateTimeStyles.AllowTrailingWhite) <> DateTimeStyles.None);
