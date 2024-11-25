@@ -26,7 +26,7 @@ type
     constructor Create(AOwner: TComponent); reintroduce;
   end;
 
-  TDCScrollableRowControl = class(TDCScrollableControl)
+  TDCScrollableRowControl = class(TDCScrollableControl, IRowsControl)
   // data
   protected
     _dataList: IList;
@@ -64,6 +64,7 @@ type
     function  get_SelectionType: TSelectionType;
     procedure set_SelectionType(const Value: TSelectionType);
     procedure set_Options(const Value: TDCTreeOptions);
+    function  get_AllowNoneSelected: Boolean;
     procedure set_AllowNoneSelected(const Value: Boolean);
     function  get_NotSelectableItems: IList;
     procedure set_NotSelectableItems(const Value: IList);
@@ -116,6 +117,7 @@ type
     procedure OnSelectionInfoChanged; virtual;
     function  CreateSelectioninfoInstance: IRowSelectionInfo; virtual;
     procedure SetSingleSelectionIfNotExists; virtual;
+    procedure InternalSetCurrent(const Index: Integer; const EventTrigger: TSelectionEventTrigger; Shift: TShiftState; SortOrFilterChanged: Boolean = False);
     function  TrySelectItem(const RequestedSelectionInfo: IRowSelectionInfo; Shift: TShiftState): Boolean; virtual;
     procedure ScrollSelectedIntoView(const RequestedSelectionInfo: IRowSelectionInfo);
     function  CreateDummyRowForChanging(const FromSelectionInfo: IRowSelectionInfo): IDCRow; virtual;
@@ -134,6 +136,7 @@ type
     procedure InternalDoSelectRow(const Row: IDCRow; Shift: TShiftState);
     procedure OnViewChanged;
 
+    function  ListHoldsOrdinalType: Boolean;
     procedure HandleTreeOptionsChange(const OldFlags, NewFlags: TDCTreeOptions); virtual;
 
     function  GetInitializedWaitForRefreshInfo: IWaitForRepaintInfo; virtual;
@@ -161,7 +164,7 @@ type
 
     procedure AddSortDescription(const Sort: IListSortDescription; const ClearOtherSort: Boolean);
     procedure AddFilterDescription(const Filter: IListFilterDescription; const ClearOtherFlters: Boolean);
-    function  ViewIsDataModel: Boolean;
+    function  ViewIsDataModelView: Boolean;
 
     procedure DoDataItemChanged(const DataItem: CObject);
 
@@ -270,8 +273,7 @@ begin
   if _view = nil then
     Exit;
 
-  var row := _view.GetActiveRowIfExists(_selectionInfo.ViewListIndex);
-  if row <> nil then
+  for var row in _view.ActiveViewRows do
     VisualizeRowSelection(row);
 end;
 
@@ -282,8 +284,7 @@ begin
   if _view = nil then
     Exit;
 
-  var row := _view.GetActiveRowIfExists(_selectionInfo.ViewListIndex);
-  if row <> nil then
+  for var row in _view.ActiveViewRows do
     VisualizeRowSelection(row);
 end;
 
@@ -438,8 +439,8 @@ begin
     _view := TDataViewList.Create(_dataModelView, DoCreateNewRow, OnViewChanged) else
     _view := TDataViewList.Create(_dataList, DoCreateNewRow, OnViewChanged);
 
-  if ViewIsDataModel then
-    set_current(GetDataModelView.CurrencyManager.Current);
+  if ViewIsDataModelView and (GetDataModelView.CurrencyManager.Current <> -1) then
+    InternalSetCurrent(GetDataModelView.CurrencyManager.Current, TSelectionEventTrigger.External, []);
 
   RefreshControl;
 end;
@@ -524,6 +525,11 @@ begin
     _selectionInfo.Deselect(dataIndex);
 end;
 
+function TDCScrollableRowControl.get_AllowNoneSelected: Boolean;
+begin
+  Result := _allowNoneSelected;
+end;
+
 function TDCScrollableRowControl.get_Current: Integer;
 begin
   Result := _selectionInfo.ViewListIndex;
@@ -600,7 +606,7 @@ end;
 
 procedure TDCScrollableRowControl.ClearSelections;
 begin
-  _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.External;
+  _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.External;
   _selectionInfo.BeginUpdate;
   try
     var cln := _selectionInfo.Clone;
@@ -615,13 +621,13 @@ end;
 
 function TDCScrollableRowControl.CreateSelectioninfoInstance: IRowSelectionInfo;
 begin
-  Result := TRowSelectionInfo.Create;
+  Result := TRowSelectionInfo.Create(Self);
 end;
 
 function TDCScrollableRowControl.CurrentRowIsExpanded: Boolean;
 begin
   Result := False;
-  if not ViewIsDataModel then
+  if not ViewIsDataModelView then
     Exit;
 
   var drv: IDataRowView;
@@ -633,7 +639,7 @@ end;
 
 procedure TDCScrollableRowControl.CollapseCurrentRow;
 begin
-  if not ViewIsDataModel then
+  if not ViewIsDataModelView then
     Exit;
 
   var drv: IDataRowView;
@@ -647,7 +653,7 @@ end;
 
 procedure TDCScrollableRowControl.ExpandCurrentRow;
 begin
-  if not ViewIsDataModel then
+  if not ViewIsDataModelView then
     Exit;
 
   var drv: IDataRowView;
@@ -683,7 +689,6 @@ begin
   _selectionType := TSelectionType.RowSelection;
 
   _selectionInfo := CreateSelectionInfoInstance;
-  _selectionInfo.OnSelectionInfoChanged := OnSelectionInfoChanged;
   _rowHeightDefault := 30;
 
   _options := [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid];
@@ -889,25 +894,6 @@ var
   filterChanged: Boolean;
   newViewListIndex: Integer;
 
-  function TryDetermineDirectionBeforeRealigning: TAlignDirection;
-  begin
-    if get_Current = -1 then
-      Exit(TAlignDirection.TopToBottom);
-
-    if sortChanged or filterChanged then
-      Exit(TAlignDirection.Undetermined);
-
-    var orgIndex := get_Current;
-    if orgIndex = newViewListIndex then
-      Exit(TAlignDirection.Undetermined);
-
-    if get_Current < newViewListIndex then
-      Result := TAlignDirection.BottomToTop else
-      Result := TAlignDirection.TopToBottom;
-
-    _selectionInfo.ForceScrollToSelection := True;
-  end;
-
 begin
   if _view = nil then
     Exit;
@@ -937,16 +923,8 @@ begin
         newViewListIndex := _view.GetViewListIndex(_waitForRepaintInfo.DataItem) else
         newViewListIndex := _waitForRepaintInfo.Current;
 
-      if newViewListIndex = -1 then
-        Exit;
-
-      _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.External;
-
-      _alignDirection := TryDetermineDirectionBeforeRealigning;
-
-      var requestedSelection := _selectionInfo.Clone;
-      requestedSelection.UpdateLastSelection(_view.GetDataIndex(newViewListIndex), newViewListIndex, _view.GetViewList[newViewListIndex]);
-      TrySelectItem(requestedSelection, []);
+      if newViewListIndex <> -1 then
+        InternalSetCurrent(newViewListIndex, TSelectionEventTrigger.External, [], sortChanged or filterChanged);
     end;
   end;
 end;
@@ -1188,7 +1166,7 @@ begin
       viewListindex := GetSelectableViewIndex(viewListindex, False);
     end;
 
-    set_Current(viewListindex);
+    InternalSetCurrent(viewListindex, TSelectionEventTrigger.Key, Shift);
 
     Key := 0;
     Exit;
@@ -1197,7 +1175,7 @@ begin
   var rowViewListIndex := GetRowViewListIndexByKey(Key, Shift);
   if _selectionInfo.ViewListIndex <> rowViewListIndex then
   begin
-    set_Current(rowViewListIndex);
+    InternalSetCurrent(rowViewListIndex, TSelectionEventTrigger.Key, Shift);
     Key := 0;
   end;
 end;
@@ -1210,10 +1188,22 @@ begin
     Exit;
   end;
 
-  UpdateScrollAndSelectionByKey({var} Key, Shift);
+  if (Key = vkA) and (ssCtrl in Shift) then
+  begin
+    SelectAll;
+    Key := 0;
+  end
+
+  else
+    UpdateScrollAndSelectionByKey({var} Key, Shift);
 
   if Key <> 0 then
     inherited;
+end;
+
+function TDCScrollableRowControl.ListHoldsOrdinalType: Boolean;
+begin
+  Result := not (&Type.GetTypeCode(GetItemType) in [TypeCode.&Object, TypeCode.&Interface, TypeCode.&Array]);
 end;
 
 procedure TDCScrollableRowControl.OnCollapseOrExpandRowClick(const ViewListIndex: Integer);
@@ -1252,27 +1242,27 @@ begin
 
   if (_model <> nil) then
     _model.ObjectContext := ValidDataItem(Self.DataItem)
-  else if GetDataModelView <> nil then
+  else if (GetDataModelView <> nil) and (Self.DataItem <> nil) and (Self.DataItem.IsOfType<IDataRowView>) then
     GetDataModelView.CurrencyManager.Current := Self.DataItem.AsType<IDataRowView>.ViewIndex;
 end;
 
 function TDCScrollableRowControl.ValidDataItem(const Item: CObject): CObject;
 begin
   var drv: IDataRowView;
-  if ViewIsDataModel and Item.TryAsType<IDataRowView>(drv) then
+  if ViewIsDataModelView and Item.TryAsType<IDataRowView>(drv) then
     Result := drv.Row.Data else
     Result := Item;
 end;
 
-function TDCScrollableRowControl.ViewIsDataModel: Boolean;
+function TDCScrollableRowControl.ViewIsDataModelView: Boolean;
 begin
   Result := (_dataModelView <> nil) or interfaces.Supports<IDataModel>(_dataList);
 end;
 
 procedure TDCScrollableRowControl.VisualizeRowSelection(const Row: IDCRow);
 begin
-  var isSelected := (_selectionType <> TSelectionType.HideSelection) and _selectionInfo.IsSelected(Row.DataIndex);
-  Row.UpdateSelectionVisibility(isSelected, Self.IsFocused);
+  if (_selectionType <> TSelectionType.HideSelection) then
+    Row.UpdateSelectionVisibility(_selectionInfo, Self.IsFocused);
 end;
 
 procedure TDCScrollableRowControl.OnViewChanged;
@@ -1286,9 +1276,18 @@ begin
   if _selectionInfo.DataItem <> nil then
   begin
     var newViewListIndex := _view.GetViewListIndex(_selectionInfo.DataItem);
+
+    // in case of sorting/filtering this is always the same
+    // in case of deleting/adding this can vary
+    var dataIndex := _view.GetDataIndex(_selectionInfo.DataItem);
+
     _selectionInfo.BeginUpdate;
     try
-      _selectionInfo.UpdateSingleSelection(_selectionInfo.DataIndex {not changed}, newViewListIndex, _selectionInfo.DataItem {not changed});
+
+      if dataIndex <> -1 then
+        _selectionInfo.UpdateSingleSelection(dataIndex {not changed}, newViewListIndex, _selectionInfo.DataItem {not changed}) else
+        _selectionInfo.ClearAllSelections;  // when all items are deleted
+
     finally
       _selectionInfo.EndUpdate(True {ignore change event});
     end;
@@ -1396,21 +1395,15 @@ end;
 
 procedure TDCScrollableRowControl.InternalDoSelectRow(const Row: IDCRow; Shift: TShiftState);
 begin
-  if get_DataItem = Row.DataItem then
+  if CObject.Equals(get_DataItem, Row.DataItem) and ((ssCtrl in Shift) = (_selectionInfo.SelectedRowCount > 1)) then
   begin
-    if _allowNoneSelected then
+    if _allowNoneSelected or (_selectionInfo.SelectedRowCount > 1) then
       _selectionInfo.Deselect(Row.DataIndex);
 
     Exit;
   end;
 
-  if (TDCTreeOption.MultiSelect in _options) and (ssCtrl in Shift) then
-  begin
-    if not _selectionInfo.IsSelected(Row.DataIndex) then
-      _selectionInfo.AddToSelection(Row.DataIndex, Row.ViewListIndex, Row.DataItem) else
-      _selectionInfo.Deselect(Row.DataIndex);
-  end
-  else if (TDCTreeOption.MultiSelect in _options) and (ssShift in Shift) then
+  if (TDCTreeOption.MultiSelect in _options) and (ssShift in Shift) then
   begin
     var lastSelectedIndex := _selectionInfo.ViewListIndex;
 
@@ -1426,8 +1419,45 @@ begin
 
     _selectionInfo.AddToSelection(Row.DataIndex, Row.ViewListIndex, Row.DataItem);
   end
+  else if (TDCTreeOption.MultiSelect in _options) and (ssCtrl in Shift) and (_selectionInfo.LastSelectionEventTrigger = TSelectionEventTrigger.Click) then
+  begin
+    if not _selectionInfo.IsSelected(Row.DataIndex) then
+      _selectionInfo.AddToSelection(Row.DataIndex, Row.ViewListIndex, Row.DataItem) else
+      _selectionInfo.Deselect(Row.DataIndex);
+  end
   else
     _selectionInfo.UpdateSingleSelection(Row.DataIndex, Row.ViewListIndex, Row.DataItem);
+end;
+
+procedure TDCScrollableRowControl.InternalSetCurrent(const Index: Integer; const EventTrigger: TSelectionEventTrigger; Shift: TShiftState; SortOrFilterChanged: Boolean = False);
+
+  function TryDetermineDirectionBeforeRealigning: TAlignDirection;
+  begin
+    if get_Current = -1 then
+      Exit(TAlignDirection.TopToBottom);
+
+    if SortOrFilterChanged then
+      Exit(TAlignDirection.Undetermined);
+
+    var orgIndex := get_Current;
+    if orgIndex = Index then
+      Exit(TAlignDirection.Undetermined);
+
+    if get_Current < Index then
+      Result := TAlignDirection.BottomToTop else
+      Result := TAlignDirection.TopToBottom;
+
+    _selectionInfo.ForceScrollToSelection := True;
+  end;
+
+begin
+  _selectionInfo.LastSelectionEventTrigger := EventTrigger;
+
+  _alignDirection := TryDetermineDirectionBeforeRealigning;
+
+  var requestedSelection := _selectionInfo.Clone;
+  requestedSelection.UpdateLastSelection(_view.GetDataIndex(Index), Index, _view.GetViewList[Index]);
+  TrySelectItem(requestedSelection, Shift);
 end;
 
 function TDCScrollableRowControl.IsSelected(const DataItem: CObject): Boolean;
@@ -1481,6 +1511,9 @@ end;
 
 procedure TDCScrollableRowControl.RealignFinished;
 begin
+  if (_hoverRect <> nil) and _hoverRect.Visible and (_scrollingType <> TScrollingType.None) then
+    _hoverRect.Visible := False;
+
   if _view <> nil then
     for var row in _view.ActiveViewRows do
       DoRowLoaded(row);
@@ -1562,7 +1595,7 @@ begin
 
   var currentSelection := _selectionInfo.Clone;
 
-  _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.External;
+  _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.External;
   _selectionInfo.BeginUpdate;
   try
     var cln := _selectionInfo.Clone;
@@ -1620,7 +1653,7 @@ begin
       Exit;
   end;
 
-  _selectionInfo.LastSelectionChangedBy := TSelectionChangedBy.Internal;
+  _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.Internal;
 
   var requestedSelection := _selectionInfo.Clone;
   requestedSelection.UpdateLastSelection(_view.GetDataIndex(viewListIndex), viewListIndex, _view.GetViewList[viewListIndex]);
@@ -1653,21 +1686,19 @@ end;
 
 procedure TDCScrollableRowControl.set_AllowNoneSelected(const Value: Boolean);
 begin
-  if _allowNoneSelected <> Value then
-  begin
-    _allowNoneSelected := Value;
-    _selectionInfo.AllowNoneSelected := Value;
-  end;
+  _allowNoneSelected := Value;
 end;
 
 procedure TDCScrollableRowControl.set_Current(const Value: Integer);
 begin
-  GetInitializedWaitForRefreshInfo.Current := Value;
+  if get_Current <> Value then
+    GetInitializedWaitForRefreshInfo.Current := Value;
 end;
 
 procedure TDCScrollableRowControl.set_DataItem(const Value: CObject);
 begin
-  GetInitializedWaitForRefreshInfo.DataItem := Value;
+  if get_DataItem <> Value then
+    GetInitializedWaitForRefreshInfo.DataItem := Value;
 end;
 
 function TDCScrollableRowControl.GetItemType: &Type;

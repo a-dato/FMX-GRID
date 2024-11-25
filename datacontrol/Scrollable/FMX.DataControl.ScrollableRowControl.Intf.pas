@@ -12,12 +12,91 @@ type
   TTreeRowState = (SortChanged, FilterChanged, RowChanged);
   TTreeRowStateFlags = set of TTreeRowState;
   TAlignDirection = (Undetermined, TopToBottom, BottomToTop);
-  TSelectionChangedBy = (Internal, External, UserEvent);
+  TSelectionEventTrigger = record
+  const
+    Internal = 0;
+    External = 1;
+    Click = 2;
+    Key = 3;
+  private
+    value: Integer;
+  public
+    function IsUserEvent: Boolean;
+
+    class operator Equal(const L, R: TSelectionEventTrigger) : Boolean;
+    class operator NotEqual(const L, R: TSelectionEventTrigger) : Boolean;
+    class operator Implicit(AValue: Integer) : TSelectionEventTrigger;
+    class operator Implicit(const AValue: TSelectionEventTrigger) : Integer;
+  end;
 
 //(DataChanged {data list changed}, SortChanged)
 //  ColumnsChanged, {DataBindingChanged {data source changed}}, ViewChanged, Refresh, OptionsChanged, CurrentRowChangedFromDataModel, CellChanged);
 
   TDoRowExpandCollapse = reference to procedure(const ViewListIndex: Integer);
+
+  TSelectionCanChange = reference to function: Boolean;
+
+  IRowsControl = interface
+    ['{AC852A77-01E3-4419-8F8F-D6162F758A74}']
+    function  get_AllowNoneSelected: Boolean;
+    procedure set_AllowNoneSelected(const Value: Boolean);
+    function  get_SelectionType: TSelectionType;
+    procedure set_SelectionType(const Value: TSelectionType);
+
+    procedure OnSelectionInfoChanged;
+
+    property AllowNoneSelected: Boolean read get_AllowNoneSelected write set_AllowNoneSelected;
+    property SelectionType: TSelectionType read get_SelectionType write set_SelectionType;
+  end;
+
+  TDataIndexArray = array of Integer;
+  IRowSelectionInfo = interface
+    ['{FC3AA96A-7C9A-4965-8329-3AC17AE28728}']
+    function  get_DataIndex: Integer;
+    function  get_DataItem: CObject;
+    function  get_ViewListIndex: Integer;
+    function  get_IsMultiSelection: Boolean;
+    function  get_ForceScrollToSelection: Boolean;
+    procedure set_ForceScrollToSelection(const Value: Boolean);
+    function  get_EventTrigger: TSelectionEventTrigger;
+    procedure set_EventTrigger(const Value: TSelectionEventTrigger);
+    function  get_NotSelectableDataIndexes: TDataIndexArray;
+    procedure set_NotSelectableDataIndexes(const Value: TDataIndexArray);
+
+    procedure Clear;
+    procedure ClearAllSelections;
+    procedure ClearMultiSelections;
+
+    function  CanSelect(const DataIndex: Integer): Boolean;
+    function  HasSelection: Boolean;
+    function  IsSelected(const DataIndex: Integer): Boolean;
+    function  GetSelectionInfo(const DataIndex: Integer): IRowSelectionInfo;
+
+    function  SelectedRowCount: Integer;
+    function  SelectedDataIndexes: List<Integer>;
+
+    procedure BeginUpdate;
+    procedure EndUpdate(IgnoreChangeEvent: Boolean = False);
+
+    function  Clone: IRowSelectionInfo;
+    function  SelectionType: TSelectionType;
+
+    procedure UpdateLastSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
+
+    procedure UpdateSingleSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
+    procedure AddToSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
+    procedure Deselect(const DataIndex: Integer);
+    procedure SelectedRowClicked(const DataIndex: Integer);
+
+    property DataIndex: Integer read get_DataIndex;
+    property DataItem: CObject read get_DataItem;
+    property ViewListIndex: Integer read get_ViewListIndex;
+    property IsMultiSelection: Boolean read get_IsMultiSelection;
+    property ForceScrollToSelection: Boolean read get_ForceScrollToSelection write set_ForceScrollToSelection;
+    property LastSelectionEventTrigger: TSelectionEventTrigger read get_EventTrigger write set_EventTrigger;
+
+    property NotSelectableDataIndexes: TDataIndexArray read get_NotSelectableDataIndexes write set_NotSelectableDataIndexes;
+  end;
 
   IDCRow = interface(IBaseInterface)
     ['{C9AFABA4-644A-4FA7-A911-AC6ACFD7C608}']
@@ -45,7 +124,7 @@ type
     function  IsClearedForReassignment: Boolean;
     function  IsScrollingIntoView: Boolean;
 
-    procedure UpdateSelectionVisibility(IsSelected, OwnerIsFocused: Boolean);
+    procedure UpdateSelectionVisibility(const SelectionInfo: IRowSelectionInfo; OwnerIsFocused: Boolean);
 
     property DataIndex: Integer read get_DataIndex write set_DataIndex;
     property DataItem: CObject read get_DataItem write set_DataItem;
@@ -57,60 +136,6 @@ type
   end;
 
   TDoCreateNewRow = reference to function: IDCRow;
-  TSelectionCanChange = reference to function: Boolean;
-
-  TDataIndexArray = array of Integer;
-  IRowSelectionInfo = interface
-    ['{FC3AA96A-7C9A-4965-8329-3AC17AE28728}']
-    function  get_DataIndex: Integer;
-    function  get_DataItem: CObject;
-    function  get_ViewListIndex: Integer;
-    function  get_IsMultiSelection: Boolean;
-    function  get_ForceScrollToSelection: Boolean;
-    procedure set_ForceScrollToSelection(const Value: Boolean);
-    function  get_ChangedBy: TSelectionChangedBy;
-    procedure set_ChangedBy(const Value: TSelectionChangedBy);
-    procedure set_AllowNoneSelected(const Value: Boolean);
-    function  get_NotSelectableDataIndexes: TDataIndexArray;
-    procedure set_NotSelectableDataIndexes(const Value: TDataIndexArray);
-
-    procedure set_OnSelectionInfoChanged(const Value: TProc);
-
-    procedure Clear;
-    procedure ClearAllSelections;
-    procedure ClearMultiSelections;
-
-    function  CanSelect(const DataIndex: Integer): Boolean;
-    function  HasSelection: Boolean;
-    function  IsSelected(const DataIndex: Integer): Boolean;
-    function  GetSelectionInfo(const DataIndex: Integer): IRowSelectionInfo;
-
-    function  SelectedRowCount: Integer;
-    function  SelectedDataIndexes: List<Integer>;
-
-    procedure BeginUpdate;
-    procedure EndUpdate(IgnoreChangeEvent: Boolean = False);
-
-    function  Clone: IRowSelectionInfo;
-
-    procedure UpdateLastSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
-
-    procedure UpdateSingleSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
-    procedure AddToSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
-    procedure Deselect(const DataIndex: Integer);
-    procedure SelectedRowClicked(const DataIndex: Integer);
-
-    property DataIndex: Integer read get_DataIndex;
-    property DataItem: CObject read get_DataItem;
-    property ViewListIndex: Integer read get_ViewListIndex;
-    property IsMultiSelection: Boolean read get_IsMultiSelection;
-    property ForceScrollToSelection: Boolean read get_ForceScrollToSelection write set_ForceScrollToSelection;
-    property LastSelectionChangedBy: TSelectionChangedBy read get_ChangedBy write set_ChangedBy;
-
-    property AllowNoneSelected: Boolean write set_AllowNoneSelected;
-    property OnSelectionInfoChanged: TProc write set_OnSelectionInfoChanged;
-    property NotSelectableDataIndexes: TDataIndexArray read get_NotSelectableDataIndexes write set_NotSelectableDataIndexes;
-  end;
 
   IWaitForRepaintInfo = interface
     ['{BA3C974D-09FF-42BD-887F-0D4523D8BDF1}']
@@ -147,7 +172,9 @@ type
     TreeOption_AlternatingRowBackground,
     TreeOption_ReadOnly,
     TreeOption_MultiSelect,
-    TreeOption_AllowColumnUpdates
+    TreeOption_AllowColumnUpdates,
+    TreeOption_AllowAddNewRows,
+    TreeOption_AllowDeleteRows
 //    TreeOption_AutoCommit,
 //    TreeOption_DisplayPartialRows
 //    TreeOption_AssumeObjectTypesDiffer,
@@ -180,6 +207,8 @@ type
     ReadOnly: TDCTreeOptionFlag = TreeOption_ReadOnly;
     MultiSelect: TDCTreeOptionFlag = TreeOption_MultiSelect;
     AllowColumnUpdates: TDCTreeOptionFlag = TreeOption_AllowColumnUpdates;
+    AllowAddNewRows: TDCTreeOptionFlag = TreeOption_AllowAddNewRows;
+    AllowDeleteRows: TDCTreeOptionFlag = TreeOption_AllowDeleteRows;
 //    AutoCommit: TDCTreeOptionFlag = TreeOption_AutoCommit;
 //    AllowCellSelection: TDCTreeOptionFlag = TreeOption_AllowCellSelection;
 //    DisplayPartialRows: TDCTreeOptionFlag = TreeOption_DisplayPartialRows;
@@ -202,5 +231,32 @@ type
   TDCTreeOptions = set of TDCTreeOptionFlag;
 
 implementation
+
+{ TSelectionEventTrigger }
+
+function TSelectionEventTrigger.IsUserEvent: Boolean;
+begin
+  Result := (value in [TSelectionEventTrigger.Click, TSelectionEventTrigger.Key]);
+end;
+
+class operator TSelectionEventTrigger.Equal(const L, R: TSelectionEventTrigger): Boolean;
+begin
+  Result := L.value = R.value;
+end;
+
+class operator TSelectionEventTrigger.NotEqual(const L, R: TSelectionEventTrigger): Boolean;
+begin
+  Result := L.value <> R.value;
+end;
+
+class operator TSelectionEventTrigger.Implicit(AValue: Integer): TSelectionEventTrigger;
+begin
+  Result.value := AValue;
+end;
+
+class operator TSelectionEventTrigger.Implicit(const AValue: TSelectionEventTrigger): Integer;
+begin
+  Result := AValue.value;
+end;
 
 end.

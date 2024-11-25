@@ -251,7 +251,7 @@ begin
       2: _Column := TDCTreeCheckboxColumn.Create; // Data bound column
     end;
 
-    _Column.TreeControl := _Control as IColumnControl;
+    _Column.TreeControl := _Control as IColumnsControl;
     _Column.Caption := Dlg.edCaption.Text;
 
     if _Control.Columns.Count = 0 then

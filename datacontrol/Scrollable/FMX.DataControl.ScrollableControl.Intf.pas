@@ -2,6 +2,9 @@ unit FMX.DataControl.ScrollableControl.Intf;
 
 interface
 
+uses
+  System_;
+
 type
   TScrollingType = (None, WithScrollBar, Other);
 

@@ -371,6 +371,8 @@ end;
 
 procedure TDCScrollableControl.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 begin
+  if not Self.IsFocused then Exit;
+
   inherited;
 
   var doMouseClick := True;

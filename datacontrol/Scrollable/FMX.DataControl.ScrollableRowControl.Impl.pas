@@ -5,7 +5,7 @@ interface
 uses
   System_, FMX.Controls, FMX.DataControl.ScrollableRowControl.Intf,
   System.Collections.Generic, System.SysUtils, System.ComponentModel,
-  System.Classes, FMX.DataControl.ScrollableControl.Intf;
+  System.Classes, FMX.DataControl.ScrollableControl.Intf, FMX.Objects;
 
 type
   TDCRow = class(TBaseInterfacedObject, IDCRow)
@@ -19,8 +19,6 @@ type
     _control: TControl;
 
     _isHeaderRow: Boolean;
-
-    _selectionRect: TControl;
 
     function  get_DataIndex: Integer;
     procedure set_DataIndex(const Value: Integer);
@@ -38,11 +36,17 @@ type
     procedure set_IsHeaderRow(const Value: Boolean);
 
     procedure UpdateControlVisibility;
+
+  protected
+    _selectionRect: TRectangle;
+
+    procedure UpdateSelectionRect(OwnerIsFocused: Boolean);
+
   public
     constructor Create; reintroduce; overload;
     destructor Destroy; override;
 
-    procedure UpdateSelectionVisibility(IsSelected, OwnerIsFocused: Boolean);
+    procedure UpdateSelectionVisibility(const SelectionInfo: IRowSelectionInfo; OwnerIsFocused: Boolean); virtual;
 
     procedure ClearRowForReassignment;
     function  IsClearedForReassignment: Boolean;
@@ -56,18 +60,17 @@ type
 
   TRowSelectionInfo = class(TInterfacedObject, IRowSelectionInfo)
   protected
+    [unsafe ]_rowsControl: IRowsControl;
+
     _lastSelectedDataIndex: Integer;
     _lastSelectedViewListIndex: Integer;
     _lastSelectedDataItem: CObject;
     _forceScrollToSelection: Boolean;
 
-    _OnSelectionInfoChanged: TProc;
-
     _selectionChanged: Boolean;
     _updateCount: Integer;
 
-    _changedBy: TSelectionChangedBy;
-    _allowNoneSelected: Boolean;
+    _EventTrigger: TSelectionEventTrigger;
     _notSelectableDataIndexes: TDataIndexArray;
 
     function  get_DataIndex: Integer;
@@ -76,13 +79,10 @@ type
     function  get_IsMultiSelection: Boolean;
     function  get_ForceScrollToSelection: Boolean;
     procedure set_ForceScrollToSelection(const Value: Boolean);
-    function  get_ChangedBy: TSelectionChangedBy;
-    procedure set_ChangedBy(const Value: TSelectionChangedBy);
-    procedure set_AllowNoneSelected(const Value: Boolean);
+    function  get_EventTrigger: TSelectionEventTrigger;
+    procedure set_EventTrigger(const Value: TSelectionEventTrigger);
     function  get_NotSelectableDataIndexes: TDataIndexArray;
     procedure set_NotSelectableDataIndexes(const Value: TDataIndexArray);
-
-    procedure set_OnSelectionInfoChanged(const Value: TProc);
 
   protected
     _multiSelection: Dictionary<Integer {DataIndex}, IRowSelectionInfo>;
@@ -94,7 +94,9 @@ type
     procedure UpdateLastSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
 
   public
-    constructor Create;
+    constructor Create(const RowsControl: IRowsControl); reintroduce;
+
+    function  SelectionType: TSelectionType;
 
     procedure UpdateSingleSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
     procedure AddToSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
@@ -155,7 +157,7 @@ type
 implementation
 
 uses
-  FMX.Objects, FMX.Types, FMX.StdCtrls, ADato.Data.DataModel.intf,
+  FMX.Types, FMX.StdCtrls, ADato.Data.DataModel.intf,
   System.UITypes, FMX.DataControl.ControlClasses, System.Generics.Collections;
 
 { TDCRow }
@@ -166,14 +168,8 @@ begin
     _control.Visible := _isHeaderRow or (_virtualYPosition <> -1);
 end;
 
-procedure TDCRow.UpdateSelectionVisibility(IsSelected, OwnerIsFocused: Boolean);
+procedure TDCRow.UpdateSelectionRect(OwnerIsFocused: Boolean);
 begin
-  if not IsSelected then
-  begin
-    FreeAndNil(_selectionRect);
-    Exit;
-  end;
-
   if _selectionRect = nil then
   begin
     var rect := TRectangle.Create(_control);
@@ -187,10 +183,21 @@ begin
     _selectionRect.BringToFront;
   end;
 
-  var rr := _selectionRect as TRectangle;
   if OwnerIsFocused then
-    rr.Fill.Color := DEFAULT_ROW_SELECTION_ACTIVE_COLOR else
-    rr.Fill.Color := DEFAULT_ROW_SELECTION_INACTIVE_COLOR;
+    _selectionRect.Fill.Color := DEFAULT_ROW_SELECTION_ACTIVE_COLOR else
+    _selectionRect.Fill.Color := DEFAULT_ROW_SELECTION_INACTIVE_COLOR;
+end;
+
+procedure TDCRow.UpdateSelectionVisibility(const SelectionInfo: IRowSelectionInfo; OwnerIsFocused: Boolean);
+begin
+  var isSelected := SelectionInfo.IsSelected(get_DataIndex);
+  if not isSelected then
+  begin
+    FreeAndNil(_selectionRect);
+    Exit;
+  end;
+
+  UpdateSelectionRect(OwnerIsFocused);
 end;
 
 procedure TDCRow.ClearRowForReassignment;
@@ -288,7 +295,7 @@ end;
 procedure TDCRow.set_Control(const Value: TControl);
 begin
   var wasSelected := _selectionRect <> nil;
-  var wasFocused := wasSelected and ((_selectionRect as TRectangle).Fill.Color = TAlphaColors.Slateblue);
+  var wasFocused := wasSelected and (_selectionRect.Fill.Color = TAlphaColors.Slateblue);
 
   if (_control <> nil) and (_control <> Value) then
   begin
@@ -297,7 +304,9 @@ begin
   end;
 
   _control := Value;
-  UpdateSelectionVisibility(wasSelected, wasFocused);
+
+  if wasSelected then
+    UpdateSelectionRect(wasFocused);
 
   UpdateControlVisibility;
 end;
@@ -335,9 +344,11 @@ end;
 
 { TRowSelectionInfo }
 
-constructor TRowSelectionInfo.Create;
+constructor TRowSelectionInfo.Create(const RowsControl: IRowsControl);
 begin
-  inherited;
+  inherited Create;
+
+  _rowsControl := RowsControl;
   _multiSelection := CDictionary<Integer {ViewListIndex}, IRowSelectionInfo>.Create;
   ClearAllSelections;
 end;
@@ -402,9 +413,9 @@ begin
   Result := _lastSelectedViewListIndex;
 end;
 
-function TRowSelectionInfo.get_ChangedBy: TSelectionChangedBy;
+function TRowSelectionInfo.get_EventTrigger: TSelectionEventTrigger;
 begin
-  Result := _changedBy;
+  Result := _EventTrigger;
 end;
 
 function TRowSelectionInfo.get_DataIndex: Integer;
@@ -447,14 +458,16 @@ begin
   Result := _multiSelection.Count;
 end;
 
-procedure TRowSelectionInfo.set_AllowNoneSelected(const Value: Boolean);
+function TRowSelectionInfo.SelectionType: TSelectionType;
 begin
-  _allowNoneSelected := Value;
+  if (_rowsControl <> nil {not a clone}) then
+    Result := _rowsControl.SelectionType else
+    Result := TSelectionType.HideSelection;
 end;
 
-procedure TRowSelectionInfo.set_ChangedBy(const Value: TSelectionChangedBy);
+procedure TRowSelectionInfo.set_EventTrigger(const Value: TSelectionEventTrigger);
 begin
-  _changedBy := Value;
+  _EventTrigger := Value;
 end;
 
 procedure TRowSelectionInfo.set_ForceScrollToSelection(const Value: Boolean);
@@ -467,31 +480,25 @@ begin
   _notSelectableDataIndexes := Value;
 end;
 
-procedure TRowSelectionInfo.set_OnSelectionInfoChanged(const Value: TProc);
-begin
-  _OnSelectionInfoChanged := Value;
-end;
-
 function TRowSelectionInfo.Clone: IRowSelectionInfo;
 begin
   Result := CreateInstance;
   (Result as IRowSelectionInfo).UpdateSingleSelection(_lastSelectedDataIndex, _lastSelectedViewListIndex, _lastSelectedDataItem);
 
-  Result.LastSelectionChangedBy := _changedBy;
-  Result.AllowNoneSelected := _allowNoneSelected;
+  Result.LastSelectionEventTrigger := _EventTrigger;
   Result.NotSelectableDataIndexes := _notSelectableDataIndexes;
 end;
 
 function TRowSelectionInfo.CreateInstance: IRowSelectionInfo;
 begin
-  Result := TRowSelectionInfo.Create;
+  Result := TRowSelectionInfo.Create(nil {clones don't get the treecontrol, for they dopn't need to make changes});
 end;
 
 procedure TRowSelectionInfo.Deselect(const DataIndex: Integer);
 begin
   if (_multiSelection.Count <= 1) or not _multiSelection.ContainsKey(DataIndex) then
   begin
-    if _allowNoneSelected then
+    if (_rowsControl <> nil {not a clone}) and _rowsControl.AllowNoneSelected then
     begin
       if _multiSelection.ContainsKey(DataIndex) then
         _multiSelection.Remove(DataIndex);
@@ -524,14 +531,17 @@ end;
 
 procedure TRowSelectionInfo.DoSelectionInfoChanged;
 begin
+  // check if we are dealing with clone
+  if _rowsControl = nil then
+    Exit;
+
   if _updateCount > 0 then
   begin
     _selectionChanged := True;
     Exit;
   end;
 
-  if Assigned(_OnSelectionInfoChanged) then
-    _OnSelectionInfoChanged();
+  _rowsControl.OnSelectionInfoChanged;
 end;
 
 procedure TRowSelectionInfo.UpdateSingleSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject);
@@ -650,24 +660,18 @@ end;
 
 procedure TWaitForRepaintInfo.set_Current(const Value: Integer);
 begin
-  if not CObject.Equals(_current, Value) then
-  begin
-    _current := Value;
-    _rowStateFlags := _rowStateFlags + [TTreeRowState.RowChanged];
-    if _owner.IsInitialized then
-      _owner.RefreshControl;
-  end;
+  _current := Value;
+  _rowStateFlags := _rowStateFlags + [TTreeRowState.RowChanged];
+  if _owner.IsInitialized then
+    _owner.RefreshControl;
 end;
 
 procedure TWaitForRepaintInfo.set_DataItem(const Value: CObject);
 begin
-  if not CObject.Equals(_dataItem, Value) then
-  begin
-    _dataItem := Value;
-    _rowStateFlags := _rowStateFlags + [TTreeRowState.RowChanged];
-    if _owner.IsInitialized then
-      _owner.RefreshControl;
-  end;
+  _dataItem := Value;
+  _rowStateFlags := _rowStateFlags + [TTreeRowState.RowChanged];
+  if _owner.IsInitialized then
+    _owner.RefreshControl;
 end;
 
 procedure TWaitForRepaintInfo.set_FilterDescriptions(const Value: List<IListFilterDescription>);
