@@ -3858,6 +3858,13 @@ end;
 
 function CCultureInfo.get_NumberFormat: NumberFormatInfo;
 begin
+  if numInfo = nil then
+  begin
+    numinfo := CNumberFormatInfo.Create;
+    if cultureID = $7f {Invariant} then
+      numInfo.NumberDecimalSeparator := '.';
+  end;
+
   Result := numInfo;
 end;
 
