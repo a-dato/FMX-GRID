@@ -1325,7 +1325,7 @@ begin
   var treeRow := inherited as IDCTreeRow;
   var flatColumnIx := (FromSelectionInfo as ITreeSelectionInfo).SelectedLayoutColumn;
 
-  if flatColumnIx <> -1 then
+  if (flatColumnIx <> -1) then
   begin
     var cell: IDCTreeCell := TDCTreeCell.Create(treeRow, _treeLayout.LayoutColumns[flatColumnIx]);
     treeRow.Cells.Add(flatColumnIx, cell);
