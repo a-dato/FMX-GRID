@@ -400,6 +400,8 @@ begin
       if NewItem <> nil then
         dataRow.Data := NewItem;
 
+      _view.RecalcSortedRows;
+
       var drv := GetDataModelView.FindRow(dataRow);
       if drv <> nil then
       begin

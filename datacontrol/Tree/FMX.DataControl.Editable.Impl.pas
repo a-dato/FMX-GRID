@@ -640,27 +640,12 @@ end;
 
 procedure TObjectListModelItemChangedDelegate.AddingNew(const Value: CObject; var Index: Integer; Position: InsertPosition);
 begin
-  var dataIndex := _Owner.View.GetDataIndex(Value);
-  if dataIndex = -1 then
-  begin
-    _Owner.View.OriginalData.Insert(Index, Value);
-    dataIndex := Index;
-  end;
-
-  var viewListIndex := _Owner.View.GetViewListIndex(Value);
-
   _Owner.View.RecalcSortedRows;
-  _Owner.View.ResetView(viewListIndex, False);
 end;
 
 procedure TObjectListModelItemChangedDelegate.Removed(const Value: CObject; const Index: Integer);
 begin
-  for var row in _Owner.View.ActiveViewRows do
-    if CObject.Equals(row.DataItem, Value) then
-    begin
-      _Owner.View.ResetView(row.ViewListIndex, False);
-      Exit;
-    end;
+  _Owner.View.RecalcSortedRows;
 end;
 
 procedure TObjectListModelItemChangedDelegate.BeginEdit(const Item: CObject);

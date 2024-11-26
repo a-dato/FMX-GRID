@@ -1697,7 +1697,11 @@ end;
 
 procedure TDCScrollableRowControl.set_DataItem(const Value: CObject);
 begin
-  if get_DataItem <> Value then
+  var dItem := get_DataItem;
+  if ViewIsDataModelView and (dItem <> nil) then
+    dItem := dItem.AsType<IDataRowView>.Row.Data;
+
+  if not CObject.Equals(dItem, Value) then
     GetInitializedWaitForRefreshInfo.DataItem := Value;
 end;
 
