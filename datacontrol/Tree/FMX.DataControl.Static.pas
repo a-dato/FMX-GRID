@@ -291,7 +291,7 @@ begin
 
     UpdateScrollbarMargins;
 
-    _frozenRectLine.Visible := _horzScrollBar.Value > _horzScrollBar.Min;
+    _frozenRectLine.Visible := (_horzScrollBar.Value > _horzScrollBar.Min) and _treeLayout.HasFrozenColumns;
     _frozenRectLine.Position.X := _treeLayout.FrozenColumnWidth - 1;
     _frozenRectLine.BringToFront;
   end else
@@ -317,7 +317,21 @@ begin
     // y positions already set in "inherited"
     var hoverMargin := 1;
     _hoverRect.Position.X := clmn.Left + hoverMargin;
-    _hoverRect.Width := clmn.Width - (2*hoverMargin);
+
+    var hoverWidth := clmn.Width;
+    if not clmn.Column.Frozen and _horzScrollBar.Visible then
+    begin
+      var xPos := _hoverRect.Position.X - (_horzScrollBar.Value - _horzScrollBar.Min);
+      if xPos < _horzScrollBar.Min then
+      begin
+        var diff := _horzScrollBar.Min - xPos;
+        hoverWidth := hoverWidth - diff;
+        _hoverRect.Position.X := xPos + diff;
+      end else
+        _hoverRect.Position.X := xPos;
+    end;
+
+    _hoverRect.Width := hoverWidth - (2*hoverMargin);
   end;
 //   else
 //    _hoverCellRect.Visible := False;
@@ -868,7 +882,7 @@ procedure TStaticDataControl.OnSelectionInfoChanged;
 begin
   inherited;
 
-  if _horzScrollBar.Visible then
+  if _horzScrollBar.Visible and (_selectionType = TSelectionType.CellSelection) then
   begin
     var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
     var currentFlatColumn := _treeLayout.LayoutColumns[treeSelectionInfo.SelectedLayoutColumn];
@@ -1307,7 +1321,7 @@ begin
   inherited;
 
   UpdatePositionAndWidthCells;
-  _frozenRectLine.Visible := _horzScrollBar.Value > _horzScrollBar.Min;
+  _frozenRectLine.Visible := (_horzScrollBar.Value > _horzScrollBar.Min) and _treeLayout.HasFrozenColumns;
 end;
 
 procedure TStaticDataControl.DoResized;
@@ -1730,6 +1744,15 @@ var
   col : IDCTreeColumn;
 //  dummy: CObject;
 
+  function AssignDefaultColumn: IDCTreeColumn;
+  begin
+    Result := TDCTreeColumn.Create;
+    Result.TreeControl := Self;
+    Result.WidthSettings.WidthType := TDCColumnWidthType.AlignToContent;
+    Result.WidthSettings.WidthMax := 400;
+    _columns.Add(Result);
+  end;
+
 begin
   Assert(_columns.Count = 0);
   _defaultColumnsGenerated := True;
@@ -1740,12 +1763,9 @@ begin
 
     for i := 0 to clmns.Count - 1 do
     begin
-      col := TDCTreeColumn.Create;
+      col := AssignDefaultColumn;
       col.PropertyName := clmns[i].Name;
       col.Caption := col.PropertyName;
-      col.WidthSettings.WidthType := TDCColumnWidthType.AlignToContent;
-      col.WidthSettings.WidthMax := 400;
-      _columns.Add(col);
     end;
   end else
   begin
@@ -1761,11 +1781,9 @@ begin
         begin
           propInfo := props[i];
           try
-            col := TDCTreeColumn.Create;
-            col.TreeControl := Self;
+            col := AssignDefaultColumn;
             col.PropertyName := propInfo.Name;
             col.Caption := propInfo.Name;
-            _columns.Add(col);
           except
             ; // Some properties may not work (are not supported)
           end;
@@ -1778,11 +1796,9 @@ begin
 
   if _Columns.Count = 0 then
   begin
-    col := TDCTreeColumn.Create;
-    col.TreeControl := Self;
+    col := AssignDefaultColumn;
     col.PropertyName := COLUMN_SHOW_DEFAULT_OBJECT_TEXT;
     col.Caption := 'item';
-    _columns.Add(col);
   end;
 end;
 
