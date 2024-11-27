@@ -163,6 +163,7 @@
         <DCCReference Include="..\ObjectModel\ADato.ObjectModel.List.Tracking.intf.pas"/>
         <DCCReference Include="..\ObjectModel\ADato.ObjectModel.TrackInterfaces.pas"/>
         <DCCReference Include="..\General\ADato.Sortable.Impl.pas"/>
+        <DCCReference Include="..\ObjectModel\ADato.MultiObjectModelContextSupport.intf.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

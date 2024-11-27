@@ -29,7 +29,14 @@ uses
   FireDAC.Phys.FBDef, FireDAC.Phys.IBDef, FireDAC.Phys.ODBCDef,
   FireDAC.Phys.MongoDBDef, FireDAC.Phys.IBBase, FireDAC.Phys.ODBCBase,
   FireDAC.Phys.MySQLDef, FireDAC.Stan.ExprFuncs,
-  FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Phys.SQLiteDef, FireDAC.Phys.SQLite;
+  FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Phys.SQLiteDef, FireDAC.Phys.SQLite,
+
+  FMX.DataControl.ScrollableControl,
+  FMX.DataControl.ScrollableRowControl,
+  FMX.DataControl.Static,
+  FMX.DataControl.Editable,
+  FMX.DataControl.Impl,
+  FMX.DataControl.Events;
 
 type
   {$M+} // Load RTTI information for IDBItem interface
@@ -37,7 +44,6 @@ type
 
   TfrmInspector = class(TForm)
     ActionList1: TActionList;
-    DBTables: TFMXTreeControl;
     tcColumns: TTabControl;
     Splitter1: TSplitter;
     tbFields: TTabItem;
@@ -58,9 +64,6 @@ type
     Layout4: TLayout;
     edSearch: TEdit;
     Timer1: TTimer;
-    DBColumns: TFMXTreeControl;
-    DBIndexes: TFMXTreeControl;
-    DBIndexColumns: TFMXTreeControl;
     SpeedButton1: TSpeedButton;
     Layout3: TLayout;
     acOpenObject: TAction;
@@ -90,6 +93,11 @@ type
     Label1: TLabel;
     Label2: TLabel;
     FDPhysSQLiteDriverLink1: TFDPhysSQLiteDriverLink;
+    lyTables: TLayout;
+    DBTables: TDataControl;
+    DBColumns: TDataControl;
+    DBIndexes: TDataControl;
+    DBIndexColumns: TDataControl;
 
     procedure FormDestroy(Sender: TObject);
     procedure acAddConnectionExecute(Sender: TObject);
@@ -101,14 +109,12 @@ type
     procedure acViewSourceExecute(Sender: TObject);
     procedure cbConnectionsChange(Sender: TObject);
     procedure cbDataBasesChange(Sender: TObject);
-    procedure DBColumnsCopyToClipboard(Sender: TObject);
-    procedure DBIndexesCellChanged(Sender: TCustomTreeControl; e:
-        CellChangedEventArgs);
-    procedure fdConnectionLogin(AConnection: TFDCustomConnection; AParams:
-        TFDConnectionDefParams);
-    procedure DBTablesCellChanged(Sender: TCustomTreeControl; e:
-        CellChangedEventArgs);
-    procedure DBTablesCopyToClipboard(Sender: TObject);
+    procedure DBColumns_CopyToClipboard(Sender: TObject);
+    procedure DBIndexesCellChanged(Sender: TObject; e: DCCellChangedEventArgs);
+    procedure fdConnectionLogin(AConnection: TFDCustomConnection; AParams: TFDConnectionDefParams);
+    procedure DBTables_oldCellChanged(Sender: TCustomTreeControl; e: CellChangedEventArgs);
+    procedure DBTables_CopyToClipboard(Sender: TObject);
+    procedure DBTablesCellChanged(const Sender: TObject; e: DCCellChangedEventArgs);
     procedure edSearchChangeTracking(Sender: TObject);
     procedure fdConnectionAfterConnect(Sender: TObject);
     procedure tbAddNewTabClick(Sender: TObject);
@@ -219,7 +225,7 @@ implementation
 
 uses Login, FireDAC.VCLUI.ConnEdit, System.Rtti, System.Math, CopyData,
   FMX.Clipboard, FMX.Platform, FMX.Platform.Win, Winapi.Windows,
-  Winapi.Messages, FMX.Memo;
+  Winapi.Messages, FMX.Memo, System.Collections;
 
 procedure TfrmInspector.FormDestroy(Sender: TObject);
 begin
@@ -330,10 +336,10 @@ end;
 
 procedure TfrmInspector.Clear(ClearConnection: Boolean);
 begin
-  DBTables.Data := nil;
-  DBColumns.Data := nil;
-  DBIndexes.Data := nil;
-  DBIndexColumns.Data := nil;
+  DBTables.DataList := nil;
+  DBColumns.DataList := nil;
+  DBIndexes.DataList := nil;
+  DBIndexColumns.DataList := nil;
 
   cbDataBases.Clear;
   if ClearConnection then
@@ -390,13 +396,13 @@ begin
 
 end;
 
-procedure TfrmInspector.DBIndexesCellChanged(Sender: TCustomTreeControl; e: CellChangedEventArgs);
+procedure TfrmInspector.DBIndexesCellChanged(Sender: TObject; e: DCCellChangedEventArgs);
 begin
   var table: IDBItem;
   var index: IDBItem;
 
   if DBTables.DataItem.TryGetValue<IDBItem>(table) and DBIndexes.DataItem.TryGetValue<IDBItem>(index) then
-    DBIndexColumns.Data := LoadIndexFields(table, index);
+    DBIndexColumns.DataList := LoadIndexFields(table, index) as IList;
 end;
 
 // FireDAC.Stan.Intf.TFDDataType
@@ -587,7 +593,7 @@ begin
 //  Result := v;
 end;
 
-procedure TfrmInspector.DBTablesCellChanged(Sender: TCustomTreeControl; e: CellChangedEventArgs);
+procedure TfrmInspector.DBTables_oldCellChanged(Sender: TCustomTreeControl; e: CellChangedEventArgs);
 begin
   LoadFieldNames;
   LoadIndexes;
@@ -716,7 +722,7 @@ begin
     Exit;
 
   try
-    DBColumns.Data := nil;
+    DBColumns.DataList := nil;
 
     // Retrieve field names for a table?
     if db_item.ItemType in [TDBItemType.Table, TDBItemType.View] then
@@ -748,7 +754,7 @@ begin
         fdMetaInfoQuery.Next;
       end;
 
-      DBColumns.Data := columns;
+      DBColumns.DataList := columns as IList;
     end
     else
     // Stored procedure or function
@@ -779,7 +785,7 @@ begin
         fdMetaInfoQuery.Next;
       end;
 
-      DBColumns.Data := params;
+      DBColumns.DataList := params as IList;
     end;
   finally
     fdMetaInfoQuery.Close;
@@ -794,8 +800,8 @@ begin
     Exit;
 
   try
-    DBIndexes.Data := nil;
-    DBIndexColumns.Data := nil;
+    DBIndexes.DataList := nil;
+    DBIndexColumns.DataList := nil;
 
     // Retrieve field names for a table?
     if db_item.ItemType in [TDBItemType.Table, TDBItemType.View] then
@@ -825,7 +831,7 @@ begin
         end;
       end;
 
-      DBIndexes.Data := indexes;
+      DBIndexes.DataList := indexes as IList;
     end;
   finally
     fdMetaInfoQuery.Close;
@@ -866,7 +872,7 @@ begin
   TablesLoading := True;
 
   try
-    DBTables.Data := nil;
+    DBTables.DataList := nil;
 
     fdMetaInfoQuery.CatalogName := cbDatabases.Text;
     fdMetaInfoQuery.SchemaName := edSchema.Text;
@@ -943,7 +949,7 @@ begin
       fdMetaInfoQuery.Next;
     end;
 
-    DBTables.Data := items;
+    DBTables.DataList := items as IList;
 
   finally
     fdMetaInfoQuery.Close;
@@ -1052,13 +1058,13 @@ begin
   tcRecordSets.AddObject(newTab);
 end;
 
-procedure TfrmInspector.DBColumnsCopyToClipboard(Sender: TObject);
+procedure TfrmInspector.DBColumns_CopyToClipboard(Sender: TObject);
 begin
   var sb: StringBuilder := CStringBuilder.Create;
-  for var row in DBColumns.SelectedRows do
+  for var o in DBColumns.SelectedItems do
   begin
     var item: IDbItem;
-    if row.DataItem.TryGetValue<IDBItem>(item) then
+    if o.TryGetValue<IDBItem>(item) then
     begin
       if sb.Length > 0 then
         sb.Append(', ');
@@ -1071,13 +1077,14 @@ begin
     cb.SetText(sb.ToString);
 end;
 
-procedure TfrmInspector.DBTablesCopyToClipboard(Sender: TObject);
+procedure TfrmInspector.DBTables_CopyToClipboard(Sender: TObject);
 begin
   var sb: StringBuilder := CStringBuilder.Create;
-  for var row in DBTables.SelectedRows do
+
+  for var o in DBTables.SelectedItems do
   begin
     var item: IDbItem;
-    if row.DataItem.TryGetValue<IDBItem>(item) then
+    if o.TryGetValue<IDBItem>(item) then
     begin
       if sb.Length > 0 then
         sb.Append(', ');
@@ -1088,6 +1095,13 @@ begin
   var cb: IFMXExtendedClipboardService;
   if TPlatformServices.Current.SupportsPlatformService(IFMXExtendedClipboardService, IInterface(cb)) then
     cb.SetText(sb.ToString);
+end;
+
+procedure TfrmInspector.DBTablesCellChanged(const Sender: TObject; e:
+    DCCellChangedEventArgs);
+begin
+  LoadFieldNames;
+  LoadIndexes;
 end;
 
 procedure TfrmInspector.Timer1Timer(Sender: TObject);

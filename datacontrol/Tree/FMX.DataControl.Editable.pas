@@ -32,6 +32,9 @@ type
     procedure KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
     procedure UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single); override;
 
+    function  CopyToClipBoard: Boolean; virtual;
+    function  PasteFromClipBoard: Boolean; virtual;
+
     procedure StartEditCell(const Cell: IDCTreeCell);
     function  EndEditCell: Boolean;
 
@@ -59,6 +62,9 @@ type
 
   // events
   protected
+    _copyToClipboard: TNotifyEvent;
+    _pasteFromClipboard: TNotifyEvent;
+
     _startRowEdit: RowEditEvent;
     _endRowEdit: RowEditEvent;
     _startCellEdit: StartEditEvent;
@@ -103,7 +109,8 @@ type
     property StartCellEdit: StartEditEvent read _startCellEdit write _startCellEdit;
     property EndCellEdit: EndEditEvent read _endCellEdit write _endCellEdit;
     property CellParsing: CellParsingEvent read _cellParsing write _cellParsing;
-
+    property OnCopyToClipBoard: TNotifyEvent read _copyToClipBoard write _copyToClipBoard;
+    property OnPasteFromClipBoard: TNotifyEvent read _pasteFromClipBoard write _pasteFromClipBoard;
     property RowAdding: RowAddedEvent read _rowAdding write _rowAdding;
     property RowDeleting: RowDeletingEvent read _rowDeleting write _rowDeleting;
     property RowDeleted: TNotifyEvent read _rowDeleted write _rowDeleted;
@@ -140,6 +147,18 @@ end;
 
 procedure TEditableDataControl.KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
 begin
+  if ssCtrl in Shift then
+  begin
+    if (Key = vkC) and CopyToClipboard then
+      Key := 0;
+
+    if (Key = vkV) and PasteFromClipboard then
+      Key := 0;
+
+    if Key = 0 then
+      Exit;
+  end;
+
   // check start edit
   if (Key in [vkF2, vkReturn]) and not _editingInfo.CellIsEditing then
   begin
@@ -400,6 +419,8 @@ begin
       if NewItem <> nil then
         dataRow.Data := NewItem;
 
+      _view.RecalcSortedRows;
+
       var drv := GetDataModelView.FindRow(dataRow);
       if drv <> nil then
       begin
@@ -509,6 +530,26 @@ begin
   Result := _cellEditor <> nil;
   if Result and SetFocus then
     _cellEditor.Editor.SetFocus;
+end;
+
+function TEditableDataControl.CopyToClipBoard : Boolean;
+begin
+  if Assigned(_copyToClipboard) then
+  begin
+    _copyToClipboard(Self);
+    Result := True;
+  end else
+    Result := False;
+end;
+
+function TEditableDataControl.PasteFromClipBoard : Boolean;
+begin
+  if Assigned(_pasteFromClipboard) then
+  begin
+    _pasteFromClipboard(Self);
+    Result := True;
+  end else
+    Result := False;
 end;
 
 function TEditableDataControl.EndEditCell: Boolean;
