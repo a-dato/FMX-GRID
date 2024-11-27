@@ -1555,6 +1555,7 @@ type
     class function Parse(const s: CString; const style: NumberStyles; const info: IFormatProvider): Double; overload; static;
     class function Parse(const s: CString; const info: IFormatProvider): Double; overload; static;
     function ToString: CString; overload;
+    function ToString(const provider: IFormatProvider): CString; overload;
     function ToString(const formatString: CString; const provider: IFormatProvider): CString; overload;
 
     class function TryParse(const Value: CString; out d: Double) : Boolean; overload; static;
@@ -10542,6 +10543,29 @@ end;
 function CDouble.ToString: CString;
 begin
   Result := FloatToStr(_value);
+end;
+
+function CDouble.ToString(const provider: IFormatProvider): CString;
+begin
+  var fs: TFormatSettings;
+
+  if CObject.ReferenceEquals(provider, CCultureInfo.InvariantCulture) then
+    fs := TFormatSettings.Invariant else
+    fs := FormatSettings;
+
+    // C# Implementation => Not working as provider.GetFormat returns nil for NumberFormatInfo
+//    var [unsafe]nf: NumberFormatInfo := nil;
+//    if provider <> nil then
+//    begin
+//      nf := provider.GetFormat(Global.GetTypeOf(NumberFormatInfo)) as NumberFormatInfo;
+//      if nf <> nil then
+//      begin
+//        fs := TFormatSettings.Create;
+//        fs.DecimalSeparator := nf.NumberDecimalSeparator[0];
+//      end;
+//    end;
+
+  Exit(FloatToStr(_value, fs));
 end;
 
 function CDouble.ToString(const formatString: CString; const provider: IFormatProvider): CString;

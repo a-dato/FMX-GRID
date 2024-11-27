@@ -193,7 +193,7 @@ begin
 
   TheQuery.ResourceOptions.CmdExecMode := amBlocking;
 
-  DataGrid.DataList := nil;
+  // DataGrid.DataList := nil;
   DatasetDataModel1.Close;
   TheQuery.FetchOptions.AutoClose := False;
   TheQuery.Close;
