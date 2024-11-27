@@ -146,6 +146,20 @@ begin
 end;
 
 procedure TEditableDataControl.KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+
+  function KeysImplyToAddRow: Boolean;
+  begin
+    Result := False;
+    if not (TDCTreeOption.AllowAddNewRows in _options) then
+      Exit(False);
+
+    if (Key = vkInsert) then
+      Exit(True);
+
+    if (Key = vkDown) and not (ssCtrl in Shift) and not (ssShift in Shift) and (_view <> nil) and (Self.Current = _view.ViewCount - 1) then
+      Exit(True);
+  end;
+
 begin
   if ssCtrl in Shift then
   begin
@@ -181,7 +195,7 @@ begin
   end
 
   // check insert new row
-  else if (Key = vkInsert) and (TDCTreeOption.AllowAddNewRows in _options) then
+  else if KeysImplyToAddRow then
   begin
     if CheckCanChangeRow and TryAddRow(InsertPosition.After) then
       Key := 0;

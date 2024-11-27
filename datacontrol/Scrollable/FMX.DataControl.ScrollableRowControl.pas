@@ -439,7 +439,7 @@ begin
     _view := TDataViewList.Create(_dataModelView, DoCreateNewRow, OnViewChanged) else
     _view := TDataViewList.Create(_dataList, DoCreateNewRow, OnViewChanged);
 
-  if ViewIsDataModelView and (GetDataModelView.CurrencyManager.Current <> -1) then
+  if ViewIsDataModelView and (GetDataModelView.CurrencyManager.Current <> -1) and (_view.ActiveViewRows.Count > 0) then
     InternalSetCurrent(GetDataModelView.CurrencyManager.Current, TSelectionEventTrigger.External, []);
 
   RefreshControl;
@@ -1643,7 +1643,9 @@ begin
 
     if viewListIndex = -1 then
       viewListIndex := 0;
-  end;
+  end
+  else if ViewIsDataModelView then
+    viewListIndex := CMath.Max(0, GetDataModelView.CurrencyManager.Current);
 
   viewListIndex := GetSelectableViewIndex(viewListIndex, True);
   if viewListIndex = -1 then
