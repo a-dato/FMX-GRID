@@ -260,6 +260,9 @@ procedure TStaticDataControl.AfterRealignContent;
 begin
   inherited;
 
+  if _columns.Count = 0 then
+    Exit;
+
   var fullRowList: List<IDCTreeRow> := HeaderAndTreeRows;
 
   for var flatClmn in _treeLayout.FlatColumns do
