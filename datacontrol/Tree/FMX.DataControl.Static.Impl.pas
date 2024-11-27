@@ -822,7 +822,6 @@ begin
       else
       begin
         column := Self[n];
-        column.CustomHidden := customHidden and column.AllowHide;
         if column.Visible and not column.CustomHidden and (index >= 0) and (index <> n) then
         begin
           RemoveAt(n);
@@ -831,6 +830,7 @@ begin
         end;
       end;
 
+      column.CustomHidden := customHidden and column.AllowHide;
       column.CustomWidth := customWidth;
     end;
   end;

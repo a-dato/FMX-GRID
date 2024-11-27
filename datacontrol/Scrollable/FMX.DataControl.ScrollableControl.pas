@@ -32,6 +32,7 @@ type
 
   TDCScrollableControl = class(TLayout, IRefreshControl)
   private
+    _clickEnable: Boolean;
     _safeObj: IBaseInterface;
     _realignIndex: Integer;
     _timer: TTimer;
@@ -327,6 +328,8 @@ end;
 
 procedure TDCScrollableControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 begin
+  _clickEnable := True;
+
   inherited;
 
   _mouseRollingBoostTimer.Enabled := False;
@@ -371,47 +374,51 @@ end;
 
 procedure TDCScrollableControl.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 begin
-  if not Self.IsFocused then Exit;
+  if not _clickEnable then Exit;
 
-  inherited;
+  try
+    inherited;
 
-  var doMouseClick := True;
-  var pixelsPerSecond := 0.0;
+    var doMouseClick := True;
+    var pixelsPerSecond := 0.0;
 
-  if _vertScrollBar.Visible then
-  begin
-    var time := _scrollStopWatch_mouse.ElapsedMilliseconds;
-    var distance := (Y - _content.Position.Y) - _mousePositionOnMouseDown.Y;
-    pixelsPerSecond := (distance / time) * 50;
-
-    if _scrollStopWatch_mouse_lastMove.ElapsedMilliseconds > 200 then
+    if _vertScrollBar.Visible then
     begin
-      _scrollStopWatch_mouse_lastMove.Reset;
-//      _scrollStopWatch_mouse.Reset;
-    end;
+      var time := _scrollStopWatch_mouse.ElapsedMilliseconds;
+      var distance := (Y - _content.Position.Y) - _mousePositionOnMouseDown.Y;
+      pixelsPerSecond := (distance / time) * 50;
 
-    if _scrollStopWatch_mouse.IsRunning then
-    begin
-      if (pixelsPerSecond < -10) or (pixelsPerSecond > 10) then
+      if _scrollStopWatch_mouse_lastMove.ElapsedMilliseconds > 200 then
       begin
-        // give scrolling a boost after faste scroll
-        _mouseRollingBoostDistanceToGo := Round(pixelsPerSecond * 25);
-        _mouseRollingBoostPercPerScroll := 0.01;
-        _mouseRollingBoostTimer.Enabled := True;
-
-        doMouseClick := False;
+        _scrollStopWatch_mouse_lastMove.Reset;
+  //      _scrollStopWatch_mouse.Reset;
       end;
 
-//      _scrollStopWatch_mouse.Reset;
+      if _scrollStopWatch_mouse.IsRunning then
+      begin
+        if (pixelsPerSecond < -10) or (pixelsPerSecond > 10) then
+        begin
+          // give scrolling a boost after faste scroll
+          _mouseRollingBoostDistanceToGo := Round(pixelsPerSecond * 25);
+          _mouseRollingBoostPercPerScroll := 0.01;
+          _mouseRollingBoostTimer.Enabled := True;
+
+          doMouseClick := False;
+        end;
+
+  //      _scrollStopWatch_mouse.Reset;
+      end;
     end;
+
+    // determine the mouseUp as a click event
+    if doMouseClick and (pixelsPerSecond > -2) and (pixelsPerSecond < 2) then
+      UserClicked(Button, Shift, X, Y - _content.Position.Y);
+
+    if _scrollStopWatch_mouse.IsRunning then
+      _scrollStopWatch_mouse.Reset;
+  finally
+    _clickEnable := False;
   end;
-
-  // determin the mouseUp as a click event
-  if doMouseClick and (pixelsPerSecond > -2) and (pixelsPerSecond < 2) then
-    UserClicked(Button, Shift, X, Y - _content.Position.Y);
-
-  if _scrollStopWatch_mouse.IsRunning then
-    _scrollStopWatch_mouse.Reset;
 end;
 
 procedure TDCScrollableControl.MouseRollingBoostTimer(Sender: TObject);
