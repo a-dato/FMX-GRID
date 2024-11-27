@@ -809,7 +809,7 @@ begin
       if not col.TryGetValue<Boolean>('CustomHidden', customHidden) then customHidden := False;
       if not col.TryGetValue<Single>('CustomWidth', customWidth) then customWidth := -1;
 
-      if not col.TryGetValue<Boolean>('ReadOnly', readonly) then readonly := True;
+      if not col.TryGetValue<Boolean>('ReadOnly', readonly) then readonly := False;
       if not col.TryGetValue<Boolean>('Checkbox', checkbox) then checkbox := False;
       if not col.TryGetValue<Integer>('Index', index) then index := -1;
 
@@ -822,7 +822,6 @@ begin
       else
       begin
         column := Self[n];
-        column.CustomHidden := customHidden and column.AllowHide;
         if column.Visible and not column.CustomHidden and (index >= 0) and (index <> n) then
         begin
           RemoveAt(n);
@@ -831,6 +830,7 @@ begin
         end;
       end;
 
+      column.CustomHidden := customHidden and column.AllowHide;
       column.CustomWidth := customWidth;
     end;
   end;
@@ -2580,7 +2580,6 @@ begin
 
   _visible := True;
   _selectable := True;
-  _readOnly := True;
 end;
 
 function TDCColumnVisualisation.get_Format: CString;
