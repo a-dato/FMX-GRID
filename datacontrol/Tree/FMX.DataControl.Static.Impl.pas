@@ -373,19 +373,8 @@ type
     _flatColumns: List<IDCTreeLayoutColumn>;
     _overflow: Single;
 
-//    _FirstColumn    : Integer;
-//    _FrozenColumns  : Integer;
-//    _FlatColumns    : List<IDCTreeLayoutColumn>;
-//    _owner          : TCustomTreeControl;
-//    _totalWidth     : Single;
-//
     function  get_LayoutColumns: List<IDCTreeLayoutColumn>;
-//    function  get_FirstColumn: Integer;
-//    procedure set_FirstColumn(Value: Integer);
-//    function  get_FrozenColumns: Integer;
-//    procedure set_FrozenColumns(Value: Integer);
     function  get_FlatColumns: List<IDCTreeLayoutColumn>;
-//    function  get_TotalWidth: Single;
 
   public
     constructor Create(const ColumnControl: IColumnsControl); reintroduce;
@@ -400,24 +389,7 @@ type
     function  ContentOverFlow: Integer;
     function  FrozenColumnWidth: Single;
     function  RecalcRequired: Boolean;
-
-//    constructor Create(Owner: TCustomTreeControl);
-//    destructor Destroy; override;
-//    procedure Reset;
-//    function  FindColumnByPropertyName(const Name: CString) : Integer;
-//    function  FindColumnByTag(const Tag: CObject) : Integer;
-//    function  FirstSelectableColumn: Integer;
-//   // function  FlatToColumnIndex(ColumnIndex: Integer) : Integer;
-//   // function  ColumnToFlatIndex(ColumnIndex: Integer) : Integer;
-//    function  ColumnToCellIndex(const Column: IDCTreeColumn) : Integer;
-//    procedure RealignFlatColumns;
-//
-//    function  FixedWidth: Single;
-//    procedure SetColumnWidth(const ColumnIndex: Integer; Width: Integer);
-//    procedure UpdateColumnWidth(ColumnIndex: Integer;Width: Single; ColSpan: Integer);
   end;
-
-
 
   TDCTreeCell = class(TBaseInterfacedObject, IDCTreeCell)
   protected
@@ -837,7 +809,7 @@ begin
       if not col.TryGetValue<Boolean>('CustomHidden', customHidden) then customHidden := False;
       if not col.TryGetValue<Single>('CustomWidth', customWidth) then customWidth := -1;
 
-      if not col.TryGetValue<Boolean>('ReadOnly', readonly) then readonly := True;
+      if not col.TryGetValue<Boolean>('ReadOnly', readonly) then readonly := False;
       if not col.TryGetValue<Boolean>('Checkbox', checkbox) then checkbox := False;
       if not col.TryGetValue<Integer>('Index', index) then index := -1;
 
@@ -2608,7 +2580,6 @@ begin
 
   _visible := True;
   _selectable := True;
-  _readOnly := True;
 end;
 
 function TDCColumnVisualisation.get_Format: CString;
