@@ -952,6 +952,9 @@ begin
     Exit;
   end;
 
+  if _allowNoneSelected or (_view.ViewCount = 0) then
+    Exit;
+
   _selectionInfo.BeginUpdate;
   Try
     var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;

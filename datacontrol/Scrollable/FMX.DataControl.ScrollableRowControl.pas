@@ -113,7 +113,7 @@ type
     procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
     procedure DoMouseLeave; override;
 
-    procedure ClearSelectionInfo; virtual;
+    procedure ClearSelectionInfo; {virtual;}
     procedure OnSelectionInfoChanged; virtual;
     function  CreateSelectioninfoInstance: IRowSelectionInfo; virtual;
     procedure SetSingleSelectionIfNotExists; virtual;
