@@ -98,6 +98,8 @@ type
     DBColumns: TDataControl;
     DBIndexes: TDataControl;
     DBIndexColumns: TDataControl;
+    fdMsSqlGetIncludeColumns: TFDQuery;
+    fdMsSqlFilterExpression: TFDQuery;
 
     procedure FormDestroy(Sender: TObject);
     procedure acAddConnectionExecute(Sender: TObject);
@@ -110,7 +112,9 @@ type
     procedure cbConnectionsChange(Sender: TObject);
     procedure cbDataBasesChange(Sender: TObject);
     procedure DBColumns_CopyToClipboard(Sender: TObject);
+    procedure DBIndexColumnsCopyToClipBoard(Sender: TObject);
     procedure DBIndexesCellChanged(Sender: TObject; e: DCCellChangedEventArgs);
+    procedure DBIndexesCopyToClipBoard(Sender: TObject);
     procedure fdConnectionLogin(AConnection: TFDCustomConnection; AParams: TFDConnectionDefParams);
     procedure DBTables_oldCellChanged(Sender: TCustomTreeControl; e: CellChangedEventArgs);
     procedure DBTables_CopyToClipboard(Sender: TObject);
@@ -126,6 +130,7 @@ type
     passwords: TStringList;
     OpenRecordSetCount: Integer;
 
+    procedure CopySelectedItemsToClipBoard(DataControl: TDataControl);
     procedure AddEmptyTab(TabIndex: Integer);
     procedure Clear(ClearConnection: Boolean);
     procedure Connect(ConnectionName: string; DataBaseName: string = '');
@@ -140,12 +145,14 @@ type
     procedure LoadFieldNames;
     procedure LoadIndexes;
     function  LoadIndexFields(const Table: IDBItem; const Index: IDBItem) : List<IDBItem>;
+    function  LoadMsSqlIndexFields(const Table: IDBItem; const Index: IDBItem) : List<IDBItem>;
     function  GetCatalogName: string;
     procedure TabCloseButtonClicked(Sender: TObject);
     procedure UpdateTabText(Tab: TTabItem; Text: string);
 
   protected
-    function GetConnectionText: string;
+    function  GetConnectionText: string;
+    function  IsMSSqlConnection: Boolean;
     procedure InitializeFrameForTab(Tab: TTabItem);
     procedure UpdateConnectionForTab(Tab: TTabItem; OverrideExistingConnection: Boolean);
 
@@ -156,7 +163,7 @@ type
     { Public declarations }
   end;
 
-  TDBItemType = (Table, View, &Procedure, &Function, Column, Index, Parameter);
+  TDBItemType = (Table, View, &Procedure, &Function, Column, Index, Parameter, Include, Filter);
 
   IDBItem = interface(IBaseInterface)
 
@@ -314,6 +321,7 @@ var
   sqlText: string;
 begin
   var db_item: IDBItem;
+
   if DBTables.DataItem.TryGetValue<IDBItem>(db_item) then
   begin
     sqlText := GetObjectSource(db_item);
@@ -394,6 +402,26 @@ begin
     end);
   end).Start;
 
+end;
+
+procedure TfrmInspector.CopySelectedItemsToClipBoard(DataControl: TDataControl);
+begin
+  var sb: StringBuilder := CStringBuilder.Create;
+
+  for var o in DataControl.SelectedItems do
+  begin
+    var item: IDbItem;
+    if o.TryGetValue<IDBItem>(item) then
+    begin
+      if sb.Length > 0 then
+        sb.Append(', ');
+      sb.Append(item.Name);
+    end;
+  end;
+
+  var cb: IFMXExtendedClipboardService;
+  if TPlatformServices.Current.SupportsPlatformService(IFMXExtendedClipboardService, IInterface(cb)) then
+    cb.SetText(sb.ToString);
 end;
 
 procedure TfrmInspector.DBIndexesCellChanged(Sender: TObject; e: DCCellChangedEventArgs);
@@ -661,6 +689,11 @@ begin
     inherited;
 end;
 
+function TfrmInspector.IsMSSqlConnection: Boolean;
+begin
+  Result := fdConnection.DriverName = 'MSSQL';
+end;
+
 procedure TfrmInspector.UpdateConnectionForTab(Tab: TTabItem; OverrideExistingConnection: Boolean);
 begin
   var frame := Tab.TagObject as TOpenRecordSetFrame;
@@ -838,6 +871,37 @@ begin
   end;
 end;
 
+function TfrmInspector.LoadMsSqlIndexFields(const Table: IDBItem; const Index: IDBItem) : List<IDBItem>;
+begin
+  Result := CList<IDBItem>.Create;
+
+  // Get include columns
+  fdMsSqlGetIncludeColumns.Params.ParamByName('TABLENAME').Value := Table.Name;
+  fdMsSqlGetIncludeColumns.Params.ParamByName('INDEXNAME').Value := Index.Name;
+  fdMsSqlGetIncludeColumns.Open;
+  while not fdMsSqlGetIncludeColumns.EOF do
+  begin
+    var col_name := fdMsSqlGetIncludeColumns['COLUMN_NAME'];
+    var item := TDBItem.Create(col_name, TDBItemType.Include);
+    Result.Add(item);
+    fdMsSqlGetIncludeColumns.Next;
+  end;
+  fdMsSqlGetIncludeColumns.Close;
+
+  // Get filter condition
+  fdMsSqlFilterExpression.Params.ParamByName('TABLENAME').Value := Table.Name;
+  fdMsSqlFilterExpression.Params.ParamByName('INDEXNAME').Value := Index.Name;
+  fdMsSqlFilterExpression.Open;
+  while not fdMsSqlFilterExpression.EOF do
+  begin
+    var col_name := fdMsSqlFilterExpression['FilterCondition'];
+    var item := TDBItem.Create(col_name, TDBItemType.Filter);
+    Result.Add(item);
+    fdMsSqlFilterExpression.Next;
+  end;
+  fdMsSqlFilterExpression.Close;
+end;
+
 function TfrmInspector.LoadIndexFields(const Table: IDBItem; const Index: IDBItem) : List<IDBItem>;
 begin
   fdMetaInfoQuery.Filtered := False;
@@ -859,6 +923,9 @@ begin
   end;
 
   fdMetaInfoQuery.Close;
+
+  if IsMSSqlConnection then
+    Result.AddRange(LoadMsSqlIndexFields(Table, Index));
 end;
 
 procedure TfrmInspector.LoadTableNames;
@@ -1060,41 +1127,22 @@ end;
 
 procedure TfrmInspector.DBColumns_CopyToClipboard(Sender: TObject);
 begin
-  var sb: StringBuilder := CStringBuilder.Create;
-  for var o in DBColumns.SelectedItems do
-  begin
-    var item: IDbItem;
-    if o.TryGetValue<IDBItem>(item) then
-    begin
-      if sb.Length > 0 then
-        sb.Append(', ');
-      sb.Append(item.Name);
-    end;
-  end;
+  CopySelectedItemsToClipBoard(Sender as TDataControl);
+end;
 
-  var cb: IFMXExtendedClipboardService;
-  if TPlatformServices.Current.SupportsPlatformService(IFMXExtendedClipboardService, IInterface(cb)) then
-    cb.SetText(sb.ToString);
+procedure TfrmInspector.DBIndexColumnsCopyToClipBoard(Sender: TObject);
+begin
+  CopySelectedItemsToClipBoard(Sender as TDataControl);
+end;
+
+procedure TfrmInspector.DBIndexesCopyToClipBoard(Sender: TObject);
+begin
+  CopySelectedItemsToClipBoard(Sender as TDataControl);
 end;
 
 procedure TfrmInspector.DBTables_CopyToClipboard(Sender: TObject);
 begin
-  var sb: StringBuilder := CStringBuilder.Create;
-
-  for var o in DBTables.SelectedItems do
-  begin
-    var item: IDbItem;
-    if o.TryGetValue<IDBItem>(item) then
-    begin
-      if sb.Length > 0 then
-        sb.Append(', ');
-      sb.Append(item.Name);
-    end;
-  end;
-
-  var cb: IFMXExtendedClipboardService;
-  if TPlatformServices.Current.SupportsPlatformService(IFMXExtendedClipboardService, IInterface(cb)) then
-    cb.SetText(sb.ToString);
+  CopySelectedItemsToClipBoard(Sender as TDataControl);
 end;
 
 procedure TfrmInspector.DBTablesCellChanged(const Sender: TObject; e:

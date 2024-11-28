@@ -127,6 +127,7 @@ object frmInspector: TfrmInspector
           Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid]
           RowHeightDefault = 30.000000000000000000
           CellChanged = DBIndexesCellChanged
+          OnCopyToClipBoard = DBIndexesCopyToClipBoard
           Columns_ = 
             '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
             'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
@@ -177,6 +178,7 @@ object frmInspector: TfrmInspector
           TabOrder = 0
           Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid]
           RowHeightDefault = 30.000000000000000000
+          OnCopyToClipBoard = DBIndexColumnsCopyToClipBoard
           Columns_ = 
             '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
             'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
@@ -932,5 +934,64 @@ object frmInspector: TfrmInspector
   object FDPhysSQLiteDriverLink1: TFDPhysSQLiteDriverLink
     Left = 776
     Top = 264
+  end
+  object fdMsSqlGetIncludeColumns: TFDQuery
+    Connection = fdConnection
+    SQL.Strings = (
+      'SELECT '
+      '    i.name AS IndexName,'
+      '    c.name AS COLUMN_NAME,'
+      '    ic.is_included_column AS IsIncludedColumn'
+      'FROM '
+      '    sys.indexes i'
+      'INNER JOIN '
+      
+        '    sys.index_columns ic ON i.object_id = ic.object_id AND i.ind' +
+        'ex_id = ic.index_id'
+      'INNER JOIN '
+      
+        '    sys.columns c ON ic.object_id = c.object_id AND ic.column_id' +
+        ' = c.column_id'
+      'WHERE '
+      
+        '    i.object_id = OBJECT_ID(:TableName) and i.name = :IndexName ' +
+        'AND ic.is_included_column = 1'
+      'ORDER BY '
+      '    i.name, c.name;')
+    Left = 104
+    Top = 412
+    ParamData = <
+      item
+        Name = 'TABLENAME'
+        ParamType = ptInput
+      end
+      item
+        Name = 'INDEXNAME'
+        ParamType = ptInput
+      end>
+  end
+  object fdMsSqlFilterExpression: TFDQuery
+    Connection = fdConnection
+    SQL.Strings = (
+      'SELECT '
+      '    i.name AS IndexName,'
+      '    i.filter_definition AS FilterCondition'
+      'FROM '
+      '    sys.indexes i'
+      'WHERE '
+      
+        '    i.object_id = OBJECT_ID(:TableName) and i.name = :IndexName ' +
+        'and i.filter_definition IS NOT NULL')
+    Left = 104
+    Top = 468
+    ParamData = <
+      item
+        Name = 'TABLENAME'
+        ParamType = ptInput
+      end
+      item
+        Name = 'INDEXNAME'
+        ParamType = ptInput
+      end>
   end
 end
