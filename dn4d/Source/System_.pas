@@ -917,6 +917,7 @@ type
     function GetHashCode: Integer;
     function Negate: CTimeSpan;
     function ToString(): CString; overload;
+    function ToString(const Format: CString) : CString; overload;
     function ToString(const Format: CString; {const} Provider: IFormatProvider) : CString; overload;
     function Subtract(const Value: CTimeSpan): CTimeSpan;
 
@@ -11696,6 +11697,11 @@ begin
     builder.Append(format('%.7d', [n]))
   end;
   result := builder.ToString;
+end;
+
+function CTimeSpan.ToString(const Format: CString) : CString;
+begin
+  Result := ToString(Format, nil);
 end;
 
 function CTimeSpan.ToString(const Format: CString; {const} Provider: IFormatProvider) : CString;
