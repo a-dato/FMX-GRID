@@ -623,11 +623,7 @@ type
     // 14-8-2020 [weak] removed
     {[weak]}_dataModelView: TDataModelView;
     _checkCurrent       : Boolean;
-    _currentViewIndex   : Integer;
-
-    {$IFDEF USE_INDEX}
-    [unsafe]_currentRowView: IDataRowView;
-    {$ENDIF}
+    [unsafe]_currentRow: IDataRow;
 
     _current            : Integer;
     _topRow             : Integer;
@@ -4694,14 +4690,6 @@ var
   Args: RowChangedEventArgs;
 
 begin
-  {$IFDEF USE_INDEX}
-  if (NewRow <> -1) and (_dataModelView <> nil) then
-    _currentRowView := _dataModelView.Rows[NewRow] else
-    _currentRowView := nil;
-  {$ENDIF}
-
-  _currentViewIndex := NewRow;
-
   if _CurrentRowChanged <> nil then
   begin
     AutoObject.Guard(RowChangedEventArgs.Create(OldRow, NewRow), Args);
@@ -4736,26 +4724,12 @@ begin
     else if (_current >= cnt) then
       _current := cnt - 1;
 
-    // KV 29/03/2022 Removed check on (_current >= 0)
-    // Also trigger event when current view becomes empty and _current equals -1
-    if _currentViewIndex <> _current then
-      DoCurrentRowChanged(_currentViewIndex, _current);
-
-//    // Check on valid index and if we are on the right track
-//    if (_current >= 0) and (_currentViewIndex <> _current) then
-//      DoCurrentRowChanged(-1, _current);
-
-
-    {$IFDEF USE_INDEX}
-    // Multiple instances of DataModelCurrencyManager can exist, each having their own instance
-    // of _currentRowView. Therefore this check fails _currentRowView <> _dataModelView.Rows[_current]
-    // for each instance of DataModelCurrencyManager. As a result event
-    // DoCurrentRowChanged is raised many times, This should not happen.
-    // Using an Index instead prevenst this
-    // This change might raise an issue when view is reloaded but smae row stays selected
-    if (_current >= 0) and ((_currentRowView = nil) or (_currentRowView <> _dataModelView.Rows[_current])) then
+    if ((_currentRow <> nil) and (_current < 0)) or ((_current >= 0) and (_currentRow = nil)) or
+       ((_current >= 0) and (_currentRow <> _dataModelView.Rows[_current].Row))
+    then
       DoCurrentRowChanged(-1, _current);
-    {$ENDIF}
+
+    _currentRow := nil;
   end;
 
   Result := _current;
@@ -4815,10 +4789,7 @@ begin
   if _current = Value then Exit;
 
   _checkCurrent := False;
-  {$IFDEF USE_INDEX}
-  _currentRowView := nil;
-  {$ENDIF}
-  _currentViewIndex := -1;
+  _currentRow := nil;
 
   c := _DataModelView.Rows.Count;
   if c = 0 then
@@ -4882,6 +4853,14 @@ end;
 
 procedure DataModelCurrencyManager.ResetRows;
 begin
+  if not _checkCurrent then
+  begin
+    _checkCurrent := True;
+
+    if _current >= 0 then
+      _currentRow := _dataModelView.Rows[_current].Row else
+      _currentRow := nil;
+  end;
 end;
 
 constructor DataLink.Create;
