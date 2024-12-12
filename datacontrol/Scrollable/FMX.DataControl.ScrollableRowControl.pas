@@ -162,6 +162,8 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
+    procedure ExecuteKeyFromExternal(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+
     procedure AddSortDescription(const Sort: IListSortDescription; const ClearOtherSort: Boolean);
     procedure AddFilterDescription(const Filter: IListFilterDescription; const ClearOtherFlters: Boolean);
     function  ViewIsDataModelView: Boolean;
@@ -651,6 +653,11 @@ begin
   RefreshControl;
 end;
 
+procedure TDCScrollableRowControl.ExecuteKeyFromExternal(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+begin
+  KeyDown(Key, KeyChar, Shift);
+end;
+
 procedure TDCScrollableRowControl.ExpandCurrentRow;
 begin
   if not ViewIsDataModelView then
@@ -816,7 +823,8 @@ begin
 
     if _model.Context <> nil then
       ModelListContextChanged(_model, _model.Context);
-  end;
+  end else
+    set_DataList(nil);
 end;
 
 procedure TDCScrollableRowControl.set_NotSelectableItems(const Value: IList);
