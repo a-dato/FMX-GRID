@@ -11,8 +11,8 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
     Size.Height = 80.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 0
-    Viewport.Width = 852.000000000000000000
-    Viewport.Height = 76.000000000000000000
+    Viewport.Width = 856.000000000000000000
+    Viewport.Height = 80.000000000000000000
   end
   object Layout1: TLayout
     Align = Top
@@ -153,8 +153,8 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
         Size.PlatformDefault = False
         TabOrder = 1
         OnKeyDown = DataEditorKeyDown
-        Viewport.Width = 852.000000000000000000
-        Viewport.Height = 59.000000000000000000
+        Viewport.Width = 856.000000000000000000
+        Viewport.Height = 63.000000000000000000
       end
       object lblCellEditor: TLabel
         Align = Contents
@@ -190,8 +190,8 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
       Size.Height = 51.000000000000000000
       Size.PlatformDefault = False
       TabOrder = 1
-      Viewport.Width = 852.000000000000000000
-      Viewport.Height = 47.000000000000000000
+      Viewport.Width = 856.000000000000000000
+      Viewport.Height = 51.000000000000000000
     end
     object lblExecutionLog: TLabel
       Align = Contents

@@ -628,7 +628,12 @@ begin
   else
   begin
     if not CString.IsNullOrEmpty(Cell.Column.PropertyName) then
-      dataType := GetItemType.PropertyByName(Cell.Column.PropertyName).GetType else
+    begin
+      if ViewIsDataModelView then
+        dataType := GetDataModelView.DataModel.FindColumnByName(Cell.Column.PropertyName).DataType else
+        dataType := GetItemType.PropertyByName(Cell.Column.PropertyName).GetType;
+    end
+    else
       dataType := Global.StringType;
 
     if dataType.IsDateTime then
