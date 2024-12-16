@@ -17,26 +17,14 @@ uses
   ADato.FMX.Controls.ScrollableControl.Impl, FMX.Edit, System_,
   System.Collections.Generic, FireDAC.Comp.UI, FireDAC.FMXUI.Async,
   OpenRecordset, FireDAC.FMXUI.Login,
-  FireDAC.Phys.MSSQL,
-  FireDAC.Phys.IB,
-  FireDAC.Phys.MySQL,
-  FireDAC.Phys.PG,
-  FireDAC.Phys.FB,
-  FireDAC.Phys.ODBC,
-  FireDAC.Phys.TDBX,
-  FireDAC.Phys.Oracle,
-  FireDAC.Phys.MongoDB, FireDAC.Phys.PGDef, FireDAC.Phys.OracleDef,
-  FireDAC.Phys.FBDef, FireDAC.Phys.IBDef, FireDAC.Phys.ODBCDef,
-  FireDAC.Phys.MongoDBDef, FireDAC.Phys.IBBase, FireDAC.Phys.ODBCBase,
-  FireDAC.Phys.MySQLDef, FireDAC.Stan.ExprFuncs,
-  FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Phys.SQLiteDef, FireDAC.Phys.SQLite,
 
   FMX.DataControl.ScrollableControl,
   FMX.DataControl.ScrollableRowControl,
   FMX.DataControl.Static,
   FMX.DataControl.Editable,
   FMX.DataControl.Impl,
-  FMX.DataControl.Events;
+  FMX.DataControl.Events, FireDAC.Phys.MSSQL, FireDAC.Stan.ExprFuncs,
+  FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Phys.SQLiteDef, FireDAC.Phys.SQLite;
 
 type
   {$M+} // Load RTTI information for IDBItem interface
@@ -78,14 +66,6 @@ type
     FDGUIxLoginDialog1: TFDGUIxLoginDialog;
     acExecuteQuery: TAction;
     StyleBook1: TStyleBook;
-    FDPhysMSSQLDriverLink1: TFDPhysMSSQLDriverLink;
-    FDPhysPgDriverLink1: TFDPhysPgDriverLink;
-    FDPhysOracleDriverLink1: TFDPhysOracleDriverLink;
-    FDPhysFBDriverLink1: TFDPhysFBDriverLink;
-    FDPhysIBDriverLink1: TFDPhysIBDriverLink;
-    FDPhysODBCDriverLink1: TFDPhysODBCDriverLink;
-    FDPhysMongoDriverLink1: TFDPhysMongoDriverLink;
-    FDPhysMySQLDriverLink1: TFDPhysMySQLDriverLink;
     edSchema: TEdit;
     SpeedButton5: TSpeedButton;
     acMoveData: TAction;
