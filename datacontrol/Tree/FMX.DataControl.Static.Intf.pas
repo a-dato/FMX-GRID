@@ -15,7 +15,7 @@ uses
 
   FMX.Controls,
   FMX.DataControl.ScrollableRowControl.Intf,
-  FMX.StdCtrls, FMX.Graphics, FMX.ImgList;
+  FMX.StdCtrls, FMX.Graphics, FMX.ImgList, FMX.Layouts;
 
 type
   TSortType = (None, Displaytext, CellData, PropertyValue, ColumnCellComparer, RowComparer);
@@ -390,8 +390,8 @@ type
     function  get_LayoutColumn: IDCTreeLayoutColumn;
     function  get_Control: TControl;
     procedure set_Control(const Value: TControl);
-    function  get_ExpandButton: TButton;
-    procedure set_ExpandButton(const Value: TButton);
+    function  get_ExpandButton: TLayout;
+    procedure set_ExpandButton(const Value: TLayout);
     function  get_HideCellInView: Boolean;
     procedure set_HideCellInView(const Value: Boolean);
 
@@ -424,7 +424,7 @@ type
     property CustomInfoControlBounds: TRectF read get_CustomInfoControlBounds write set_CustomInfoControlBounds;
     property SubInfoControl: TControl read get_SubInfoControl write set_SubInfoControl;
     property CustomSubInfoControlBounds: TRectF read get_CustomSubInfoControlBounds write set_CustomSubInfoControlBounds;
-    property ExpandButton: TButton read get_ExpandButton write set_ExpandButton;
+    property ExpandButton: TLayout read get_ExpandButton write set_ExpandButton;
     property HideCellInView: Boolean read get_HideCellInView write set_HideCellInView;
 
 //    property ColSpan: Byte read get_ColSpan write set_ColSpan;

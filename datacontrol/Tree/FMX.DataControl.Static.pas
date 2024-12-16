@@ -17,7 +17,8 @@ uses
   FMX.DataControl.ScrollableRowControl.Intf, FMX.Objects,
   FMX.DataControl.Events, FMX.DataControl.ControlClasses,
   FMX.DataControl.ScrollableControl, System.UITypes, System.SysUtils,
-  System.Generics.Defaults, FMX.Controls, System.Types, FMX.Forms, FMX.ImgList;
+  System.Generics.Defaults, FMX.Controls, System.Types, FMX.Forms, FMX.ImgList,
+  ADato.Data.DataModel.intf;
 
 type
   TRightLeftScroll = (None, FullLeft, Left, Right, FullRight);
@@ -29,7 +30,6 @@ type
     _treeLayout: IDCTreeLayout;
 
     _frozenRectLine: TRectangle;
-//    _hoverCellRect: TRectangle;
 
     _defaultColumnsGenerated: Boolean;
 
@@ -61,14 +61,17 @@ type
   protected
     procedure DoHorzScrollBarChanged; override;
     procedure GenerateView; override;
+    procedure RealignFinished; override;
 
   // properties
   protected
     _columns: IDCTreeColumnList;
     _autoFitColumns: Boolean;
     _reloadForSpecificColumn: IDCTreeLayoutColumn;
+    _headerHeight: Single;
 
     procedure set_AutoFitColumns(const Value: Boolean);
+    procedure set_HeaderHeight(const Value: Single);
 
   // events
   protected
@@ -129,6 +132,9 @@ type
 
     procedure UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single); override;
     procedure OnHeaderMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+    procedure DataModelViewRowPropertiesChanged(Sender: TObject; Args: RowPropertiesChangedEventArgs); override;
+
+    procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
 
     procedure UpdateHoverRect(MousePos: TPointF); override;
 
@@ -181,6 +187,7 @@ type
   published
     property Columns: IDCTreeColumnList read _columns write _columns;  // stored DoStoreColumns;
     property AutoFitColumns: Boolean read _autoFitColumns write set_AutoFitColumns default False;
+    property HeaderHeight: Single read _headerHeight write set_HeaderHeight;
 
     // events
     property CellLoading: CellLoadingEvent read _cellLoading write _cellLoading;
@@ -203,7 +210,7 @@ implementation
 
 uses
   FMX.DataControl.Static.Impl, FMX.Types,
-  ADato.Data.DataModel.intf, System.Math,
+  System.Math,
   FMX.ControlCalculations, FMX.Graphics, FMX.StdCtrls,
   FMX.DataControl.ScrollableRowControl.Impl, ADato.Data.DataModel.impl,
   FMX.DataControl.SortAndFilter,
@@ -239,6 +246,14 @@ begin
     end;
 end;
 
+procedure TStaticDataControl.RealignFinished;
+begin
+  if _headerRow <> nil then
+    DoRowAligned(_headerRow);
+
+  inherited;
+end;
+
 procedure TStaticDataControl.RefreshColumn(const Column: IDCTreeColumn);
 begin
   if _view = nil then
@@ -253,7 +268,7 @@ begin
     _reloadForSpecificColumn := nil;
   end;
 
-  RequestRealignContent;
+  RefreshControl;
 end;
 
 procedure TStaticDataControl.AfterRealignContent;
@@ -417,6 +432,9 @@ begin
           cell.Control.Position.X := leftPos - {frozenColumnWidth - }_horzScrollBar.Value else
           cell.Control.Position.X := leftPos - frozenColumnWidth;
       end;
+
+      if cell.ExpandButton <> nil then
+        cell.ExpandButton.Position.Y := ((cell.Row.Height - cell.ExpandButton.Height) / 2) + 0.5;
     end;
   end;
 end;
@@ -1062,6 +1080,8 @@ begin
   _frozenRectLine.Visible := False;
   _content.AddObject(_frozenRectLine);
 
+  _headerHeight := 24;
+
 //  _hoverCellRect := TRectangle.Create(_hoverRect);
 //  _hoverCellRect.Stored := False;
 //  _hoverCellRect.Align := TAlignLayout.Client;
@@ -1133,7 +1153,7 @@ begin
     if _treeLayout <> nil then
       _treeLayout.ForceRecalc;
 
-    RequestRealignContent;
+    RefreshControl;
   end;
 end;
 
@@ -1155,6 +1175,26 @@ begin
   if _view <> nil then
     for var row in _view.ActiveViewRows do
       Result.Add(row as IDCTreeRow);
+end;
+
+procedure TStaticDataControl.DataModelViewRowPropertiesChanged(Sender: TObject; Args: RowPropertiesChangedEventArgs);
+begin
+  inherited;
+
+  if Args.Row = nil then
+    Exit;
+
+  var drv := GetDataModelView.FindRow(Args.Row);
+  if drv = nil then
+    Exit;
+
+  var row := _view.GetActiveRowIfExists(drv.ViewIndex);
+  if row = nil then
+    Exit;
+
+  for var cell in (row as IDCTreeRow).Cells.Values do
+    if cell.ExpandButton <> nil then
+      (cell.ExpandButton as TExpandButton).ShowExpanded := not RowIsExpanded(drv.ViewIndex);
 end;
 
 destructor TStaticDataControl.Destroy;
@@ -1508,10 +1548,9 @@ begin
     var headerRect := TLayout.Create(Self);
     headerRect.Stored := False;
     headerRect.Align := TAlignLayout.Top;
-    headerRect.Height := 24;
+    headerRect.Height := _headerHeight;
     headerRect.HitTest := True;
     headerRect.OnMouseUp := OnHeaderMouseUp;
-    headerRect.Margins.Bottom := 1;
     Self.AddObject(headerRect);
 
     _headerRow.Control := headerRect;
@@ -1543,7 +1582,9 @@ begin
 
       flatColumn.UpdateCellControlsByRow(headerCell);
 
-      (headerCell.InfoControl as ScrollableRowControl_DefaultTextClass).Text := CStringToString(flatColumn.Column.Caption);
+      var txt := headerCell.InfoControl as ScrollableRowControl_DefaultTextClass;
+      txt.VertTextAlign := TTextAlign.Trailing;
+      txt.Text := CStringToString(flatColumn.Column.Caption);
 
       DoCellLoaded(headerCell, False, {var} dummyManualHeight);
 
@@ -1553,6 +1594,8 @@ begin
 
       _headerRow.Cells.Add(flatColumn.Index, headerCell);
     end;
+
+    DoRowLoaded(_headerRow);
   end;
 
   SetBasicVertScrollBarValues;
@@ -1596,6 +1639,24 @@ begin
   end;
 end;
 
+procedure TStaticDataControl.MouseMove(Shift: TShiftState; X, Y: Single);
+begin
+  inherited;
+
+  // no mouse down is detected
+  if not _scrollStopWatch_mouse.IsRunning then
+    Exit;
+
+  if _horzScrollBar.Visible then
+  begin
+    var xDiffSinceLastMove := (X - _mousePositionOnMouseDown.X);
+    var xAlreadyMovedSinceMouseDown := _scrollbarPositionsOnMouseDown.X - _horzScrollBar.Value;
+
+    if (xDiffSinceLastMove < -1) or (xDiffSinceLastMove > 1) then
+      _horzScrollBar.Value := _horzScrollBar.Value - (xDiffSinceLastMove - xAlreadyMovedSinceMouseDown);
+  end;
+end;
+
 function TStaticDataControl.MultiSelectAllowed: Boolean;
 begin
   Result := TDCTreeOption.MultiSelect in  _options;
@@ -1633,7 +1694,10 @@ begin
     flatColumn.UpdateCellControlsByRow(cell);
 
     if cell.ExpandButton <> nil then
+    begin
+      (cell.ExpandButton as TExpandButton).ShowExpanded := not RowIsExpanded(cell.Row.ViewListIndex);
       cell.ExpandButton.OnClick := OnExpandCollapseHierarchy;
+    end;
 
     if loadDefaultData then
     begin
@@ -1653,6 +1717,8 @@ begin
   if manualHeight <> -1 then
     Row.Control.Height := manualHeight else
     Row.Control.Height := CalculateRowHeight(Row as IDCTreeRow);
+
+  inherited;
 end;
 
 function TStaticDataControl.CalculateCellWidth(const LayoutColumn: IDCTreeLayoutColumn; const Cell: IDCTreeCell): Single;
@@ -1807,9 +1873,16 @@ end;
 
 procedure TStaticDataControl.OnExpandCollapseHierarchy(Sender: TObject);
 begin
-  var viewListIndex := (Sender as TButton).Tag;
+  var viewListIndex := (Sender as TControl).Tag;
+
+  var drv: IDataRowView;
+  if not _view.GetViewList[viewListIndex].TryAsType<IDataRowView>(drv) then
+    Exit;
+
+  var setExpanded := not drv.DataView.IsExpanded[drv.Row];
+
   Self.Current := viewListIndex;
-  OnCollapseOrExpandRowClick(viewListIndex);
+  DoCollapseOrExpandRow(viewListIndex, setExpanded);
 end;
 
 function TStaticDataControl.OnGetCellDataForSorting(const Cell: IDCTreeCell): CObject;
@@ -1854,6 +1927,15 @@ begin
   _autoFitColumns := Value;
   if _treeLayout <> nil then
     AfterRealignContent;
+end;
+
+procedure TStaticDataControl.set_HeaderHeight(const Value: Single);
+begin
+  if not SameValue(_headerHeight, Value) then
+  begin
+    _headerHeight := Value;
+    RefreshControl;
+  end;
 end;
 
 end.

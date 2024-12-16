@@ -20,36 +20,37 @@ uses
 type
   TRealignState = (Waiting, BeforeRealign, Realigning, AfterRealign, RealignDone);
 
-//  TCustomSmallScrollBar = class(TSmallScrollBar)
-//  protected
-//    _onUserLeavesScrollbar: TProc;
-//    procedure DoMouseLeave; override;
-//
-//    function IsTracking: Boolean;
-//  end;
+  TCustomSmallScrollBar = class(TSmallScrollBar)
+  protected
+    function IsTracking: Boolean;
+  end;
 
+  TDoLog = procedure(const Message: CString) of object;
   TOnViewportPositionChange = procedure(Sender: TObject; const OldViewportPosition, NewViewportPosition: TPointF; const ContentSizeChanged: Boolean) of object;
 
   TDCScrollableControl = class(TLayout, IRefreshControl)
   private
     _clickEnable: Boolean;
     _safeObj: IBaseInterface;
-    _realignIndex: Integer;
-    _timer: TTimer;
     _checkWaitForRealignTimer: TTimer; // for info see: WaitForRealignEndedWithoutAnotherScrollTimer
     _oldViewPortPos: TPointF;
 
-    procedure OnScrollBarChange(Sender: TObject);
-    procedure OnHorzScrollBarChange(Sender: TObject);
-    procedure OnScrollBarScrollingTimer(Sender: TObject);
+    _additionalTimerTime: Integer;
+    _timerDoRealignWhenScrollingStopped: Boolean;
+
     procedure DoViewPortPositionChanged;
 
     function  VertScrollbarIsTracking: Boolean;
 
-    procedure DoRealignContent;
+  protected
+    procedure OnHorzScrollBarChange(Sender: TObject); virtual;
+    procedure OnScrollBarChange(Sender: TObject);
+
+    procedure RestartWaitForRealignTimer(const AdditionalContentTime: Integer; OnlyForRealignWhenScrollingStopped: Boolean = False);
 
   // scrolling events
   protected
+    _threadIndex: Integer;
     _scrollUpdateCount: Integer;
     _realignState: TRealignState;
 
@@ -76,7 +77,10 @@ type
 
     procedure MouseRollingBoostTimer(Sender: TObject);
 
-    function  DoWaitForRealign: Boolean;
+    procedure PerformanceSafeRealign(ScrollingType: TScrollingType = TScrollingType.None);
+    function  CanRealignNow: Boolean;
+    function  RealignContentTime: Integer;
+
     procedure WaitForRealignEndedWithoutAnotherScrollTimer(Sender: TObject);
     procedure MouseWheelSmoothScrollingTimer(Sender: TObject);
 
@@ -90,7 +94,7 @@ type
     _vertScrollBar: TSmallScrollBar;
     _horzScrollBar: TSmallScrollBar;
 
-    _content: TLayout;
+    _content: TControl;
     _realignContentTime: Int64;
 
     _realignContentRequested: Boolean;
@@ -103,9 +107,10 @@ type
     procedure AfterRealignContent; virtual;
     procedure RealignFinished; virtual;
 
+    procedure DoRealignContent; virtual;
+
     procedure SetBasicVertScrollBarValues; virtual;
     procedure SetBasicHorzScrollBarValues; virtual;
-    procedure OnUserLeavesScrollBar;
 
     procedure CalculateScrollBarMax; virtual; abstract;
     procedure ScrollManualInstant(YChange: Integer);
@@ -113,6 +118,8 @@ type
 
     procedure DoResized; override;
     procedure UpdateScrollbarMargins;
+
+    procedure Log(const Message: CString);
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -123,7 +130,7 @@ type
 
     procedure Painting; override;
 
-    procedure RefreshControl;
+    procedure RefreshControl(const DataChanged: Boolean = False); virtual;
 
     function  TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
 
@@ -132,6 +139,14 @@ type
   published
     property OnViewPortPositionChanged: TOnViewportPositionChange read _onViewPortPositionChanged write _onViewPortPositionChanged;
 
+  {$IFDEF DEBUG}
+  protected
+    _onLog: TDoLog;
+
+  public
+    property OnLog: TDoLog write _onLog;
+
+  {$ENDIF}
   end;
 
 implementation
@@ -153,18 +168,17 @@ begin
 //  Self.Fill.Color := TAlphaColors.Orange;
 //  Self.Stroke.Color := TAlphaColors.Null;
 
-  _vertScrollBar := TSmallScrollBar.Create(Self);
+  _vertScrollBar := TCustomSmallScrollBar.Create(Self);
   _vertScrollBar.Stored := False;
   _vertScrollBar.Orientation := TOrientation.Vertical;
   _vertScrollBar.Width := 10;
   _vertScrollBar.Align := TAlignLayout.Right;
   _vertScrollBar.OnChange := OnScrollBarChange;
   _vertScrollBar.SmallChange := 23; // same as Delphi under windows
-//  _vertScrollBar._onUserLeavesScrollbar := OnUserLeavesScrollBar;
   _vertScrollBar.Visible := False;
   Self.AddObject(_vertScrollBar);
 
-  _horzScrollBar := TSmallScrollBar.Create(Self);
+  _horzScrollBar := TCustomSmallScrollBar.Create(Self);
   _horzScrollBar.Stored := False;
   _horzScrollBar.Orientation := TOrientation.Horizontal;
   _horzScrollBar.Height := 10;
@@ -220,30 +234,38 @@ procedure TDCScrollableControl.BeforeRealignContent;
 begin
   _realignState := TRealignState.BeforeRealign;
 
-  inc(_realignIndex);
-
   CalculateScrollBarMax;
   UpdateScrollbarMargins;
 end;
 
-function TDCScrollableControl.DoWaitForRealign: Boolean;
+function TDCScrollableControl.CanRealignNow: Boolean;
 begin
-  if _scrollStopWatch_scrollbar.IsRunning then
-  begin
-    if (_scrollStopWatch_scrollbar.ElapsedMilliseconds < _realignContentTime*1.1) then
-    begin
-      _checkWaitForRealignTimer.Interval := (_realignContentTime*3);
-      _checkWaitForRealignTimer.Enabled := False;
-      _checkWaitForRealignTimer.Enabled := True;
+  Result := not _scrollStopWatch_scrollbar.IsRunning or (_scrollStopWatch_scrollbar.ElapsedMilliseconds > RealignContentTime);
+end;
 
-      Exit(True);
+procedure TDCScrollableControl.PerformanceSafeRealign(ScrollingType: TScrollingType = TScrollingType.None);
+begin
+  inc(_threadIndex);
+  var ix := _threadIndex;
+
+  TThread.ForceQueue(nil, procedure
+  begin
+    if ix <> _threadIndex then
+      Exit;
+
+    if _scrollStopWatch_scrollbar.IsRunning then
+    begin
+      if not CanRealignNow then
+      begin
+        _scrollingType := ScrollingType;
+        RestartWaitForRealignTimer(0);
+        Exit;
+      end;
     end;
 
-    _scrollStopWatch_scrollbar.Reset;
-  end;
-
-  _scrollStopWatch_scrollbar.Start;
-  Result := False;
+    _scrollingType := ScrollingType;
+    DoRealignContent;
+  end);
 end;
 
 procedure TDCScrollableControl.WaitForRealignEndedWithoutAnotherScrollTimer(Sender: TObject);
@@ -252,8 +274,25 @@ begin
   // but if no other scrollaction is coming when this check returns False
   // we have to make sure that the scrolling is done anyway
 
+  var restartAgain := False;
+  if (_vertScrollBar as TCustomSmallScrollBar).IsTracking then
+  begin
+    // still scrolling, so nothing to do now
+    if _timerDoRealignWhenScrollingStopped then
+      Exit;
+
+    _scrollingType := TScrollingType.WithScrollBar;
+    restartAgain := True;
+  end else
+    _scrollingType := TScrollingType.None;
+
+  _additionalTimerTime := 0;
   _checkWaitForRealignTimer.Enabled := False;
-  ScrollManualInstant(0);
+  Log('WaitForRealignEndedWithoutAnotherScrollTimer');
+  DoRealignContent;
+
+  if restartAgain then
+    RestartWaitForRealignTimer(0, True);
 end;
 
 procedure TDCScrollableControl.DoHorzScrollBarChanged;
@@ -274,21 +313,28 @@ begin
   if not (_realignState in [TRealignState.Waiting, TRealignState.RealignDone]) then
     Exit;
 
+  Log('DoRealignContent');
   _realignContentRequested := False;
   _checkWaitForRealignTimer.Enabled := False;
 
   var stopwatch := TStopwatch.StartNew;
 
-  BeforeRealignContent;
   try
-    RealignContent;
-    AfterRealignContent;
+    BeforeRealignContent;
+    try
+      RealignContent;
+      AfterRealignContent;
+    finally
+      RealignFinished;
+    end;
   finally
-    RealignFinished;
+    _scrollingType := TScrollingType.None;
   end;
 
   stopwatch.Stop;
   _realignContentTime := stopwatch.ElapsedMilliseconds;
+
+  _scrollStopWatch_scrollbar := TStopwatch.StartNew;
 end;
 
 procedure TDCScrollableControl.DoViewPortPositionChanged;
@@ -318,11 +364,18 @@ begin
   Result := _realignState <> TRealignState.Waiting;
 end;
 
+procedure TDCScrollableControl.Log(const Message: CString);
+begin
+  {$IFDEF DEBUG}
+  if Assigned(_onLog) then
+    _onLog(Self.Name + ': ' + Message);
+  {$ENDIF}
+end;
+
 procedure TDCScrollableControl.DoResized;
 begin
   inherited;
 
-  SetBasicVertScrollBarValues;
   SetBasicHorzScrollBarValues;
 end;
 
@@ -360,15 +413,6 @@ begin
 
     if (yDiffSinceLastMove < -1) or (yDiffSinceLastMove > 1) then
       ScrollManualInstant(Round(yDiffSinceLastMove - yAlreadyMovedSInceMouseDown));
-  end;
-
-  if _horzScrollBar.Visible then
-  begin
-    var xDiffSinceLastMove := (X - _mousePositionOnMouseDown.X);
-    var xAlreadyMovedSinceMouseDown := _scrollbarPositionsOnMouseDown.X - _horzScrollBar.Value;
-
-    if (xDiffSinceLastMove < -1) or (xDiffSinceLastMove > 1) then
-      _horzScrollBar.Value := _horzScrollBar.Value - (xDiffSinceLastMove - xAlreadyMovedSinceMouseDown);
   end;
 end;
 
@@ -430,7 +474,7 @@ begin
 
   ScrollManualInstant(scrollBy);
 
-  if (_mouseRollingBoostDistanceToGo > -5) and (_mouseRollingBoostDistanceToGo < -5) then
+  if (_mouseRollingBoostDistanceToGo > -5) and (_mouseRollingBoostDistanceToGo < 5) then
     _mouseRollingBoostTimer.Enabled := False;
 end;
 
@@ -461,25 +505,6 @@ begin
 
   var cycles: Integer := Trunc(offset / DefaultMoveDistance) + 1;
   ScrollManualAnimated(ifThen(goUp, 1, -1) * Round(cycles * DefaultMoveDistance));
-
-//  // stop smooth scrolling and go fast
-//  if _mouseWheelSmoothScrollTimer.Enabled and (_mouseWheelSmoothScrollTimer.Tag > 3) then
-//  begin
-//    _scrollStopWatch_wheel_lastSpin := TStopWatch.StartNew;
-//
-//    ScrollManualInstant(_mouseWheelDistanceToGo);
-//    _mouseWheelDistanceToGo := 0;
-//
-//    Exit;
-//  end;
-//
-//  _scrollStopWatch_wheel_lastSpin.Reset;
-//
-//  if not _mouseWheelSmoothScrollTimer.Enabled then
-//    _mouseWheelSmoothScrollTimer.Tag := 0 else
-//    _mouseWheelSmoothScrollTimer.Tag := _mouseWheelSmoothScrollTimer.Tag + 1;
-//
-//  _mouseWheelSmoothScrollTimer.Enabled := True;
 end;
 
 procedure TDCScrollableControl.MouseWheelSmoothScrollingTimer(Sender: TObject);
@@ -524,53 +549,35 @@ end;
 
 procedure TDCScrollableControl.OnScrollBarChange(Sender: TObject);
 begin
+  DoViewPortPositionChanged;
+
   if _scrollUpdateCount <> 0 then
     Exit;
 
-  DoViewPortPositionChanged;
+  // only get's here when scrolling with scrollbar!
+  // otherwise _scrollUpdateCount > 0
 
-  if _scrollingType <> TScrollingType.None then
-    Exit;
-
-  if DoWaitForRealign then
-    Exit;
-
-  _scrollingType := TScrollingType.WithScrollBar;
-  try
-    DoRealignContent;
-  finally
-    _scrollingType := TScrollingType.None;
-  end;
-
-  if _timer = nil then
+  if (_scrollingType = TScrollingType.None) and CanRealignNow then
   begin
-    _timer := TTimer.Create(Self);
-    _timer.Interval := 500;
-    _timer.OnTimer := OnScrollBarScrollingTimer;
+    _scrollingType := TScrollingType.WithScrollBar;
+
+    Log('OnScrollBarChange');
+    DoRealignContent;
   end;
 
-  if VertScrollbarIsTracking then
-    _timer.Enabled := True;
-end;
-
-procedure TDCScrollableControl.OnScrollBarScrollingTimer(Sender: TObject);
-begin
-  if VertScrollbarIsTracking then
-    Exit;
-
-  _timer.Enabled := False;
-  OnUserLeavesScrollBar;
-end;
-
-procedure TDCScrollableControl.OnUserLeavesScrollBar;
-begin
-  ScrollManualInstant(0);
+  // make sure the timer is exexcuted directly right after it can be executed
+  _additionalTimerTime := 0;
+  RestartWaitForRealignTimer(0);
 end;
 
 procedure TDCScrollableControl.Painting;
 begin
   if _realignContentRequested then
+  begin
+    SetBasicVertScrollBarValues;
+    Log('Painting');
     DoRealignContent;
+  end;
 
   inherited;
 end;
@@ -580,40 +587,47 @@ begin
   _realignState := TRealignState.Realigning;
 end;
 
+function TDCScrollableControl.RealignContentTime: Integer;
+begin
+  Result := Round(_realignContentTime * 1.1);
+end;
+
 procedure TDCScrollableControl.RealignFinished;
 begin
   _realignState := TRealignState.RealignDone;
 end;
 
-procedure TDCScrollableControl.RefreshControl;
+procedure TDCScrollableControl.RefreshControl(const DataChanged: Boolean = False);
 begin
-  inc(_realignIndex);
   _realignState := TRealignState.Waiting;
   RequestRealignContent;
 end;
 
 procedure TDCScrollableControl.ScrollManualInstant(YChange: Integer);
 begin
-  if _scrollingType <> TScrollingType.None then
-    Exit;
+  Assert(_scrollingType <> TScrollingType.WithScrollBar);
 
-  _scrollingType := TScrollingType.Other;
-  try
-    if YChange <> 0 then
+  if YChange <> 0 then
+  begin
+    inc(_scrollUpdateCount);
+    try
+      var oldVal := _vertScrollBar.Value;
       _vertScrollBar.Value := _vertScrollBar.Value - YChange;
 
-    if DoWaitForRealign then
-      Exit;
-
-    DoRealignContent;
-  finally
-    _scrollingType := TScrollingType.None;
+      // in case the scroll Min/Max is hit
+      if SameValue(oldVal, _vertScrollBar.Value) then
+        Exit;
+    finally
+      dec(_scrollUpdateCount);
+    end;
   end;
-end;
 
-function TDCScrollableControl.VertScrollbarIsTracking: Boolean;
-begin
-  Result := False;
+  if CanRealignNow then
+  begin
+    _scrollingType := TScrollingType.Other;
+    DoRealignContent;
+  end else
+    RestartWaitForRealignTimer(0);
 end;
 
 procedure TDCScrollableControl.ScrollManualAnimated(YChange: Integer);
@@ -637,33 +651,28 @@ begin
   // stop smooth scrolling and go fast
   if _mouseWheelSmoothScrollTimer.Enabled and goImmeditate then
   begin
-//    if _mouseWheelDistanceToGo > (2*YChange) then
-//      _mouseWheelSmoothScrollTimer.Tag := 4; // go instant immidetaly
-//
-//    if (_mouseWheelSmoothScrollTimer.Tag > 3) then
-//    begin
-      _scrollStopWatch_wheel_lastSpin := TStopWatch.StartNew;
+    _scrollStopWatch_wheel_lastSpin := TStopWatch.StartNew;
 
-      ScrollManualInstant(_mouseWheelDistanceToGo);
-      _mouseWheelDistanceToGo := 0;
+    ScrollManualInstant(_mouseWheelDistanceToGo);
+    _mouseWheelDistanceToGo := 0;
 
-      Exit;
-//    end;
+    Exit;
   end;
 
   _scrollStopWatch_wheel_lastSpin.Reset;
 
-//  if not _mouseWheelSmoothScrollTimer.Enabled then
-//    _mouseWheelSmoothScrollTimer.Tag := 0 else
-//    _mouseWheelSmoothScrollTimer.Tag := _mouseWheelSmoothScrollTimer.Tag + 1;
-
   _mouseWheelSmoothScrollTimer.Enabled := True;
+end;
+
+function TDCScrollableControl.VertScrollbarIsTracking: Boolean;
+begin
+  (_vertScrollBar as TCustomSmallScrollBar).IsTracking;
 end;
 
 procedure TDCScrollableControl.SetBasicHorzScrollBarValues;
 begin
   _horzScrollBar.Min := 0;
-  _horzScrollBar.ViewportSize := _content.Height;
+  _horzScrollBar.ViewportSize := _content.Width;
 end;
 
 procedure TDCScrollableControl.SetBasicVertScrollBarValues;
@@ -685,6 +694,16 @@ begin
   Self.Repaint;
 end;
 
+procedure TDCScrollableControl.RestartWaitForRealignTimer(const AdditionalContentTime: Integer; OnlyForRealignWhenScrollingStopped: Boolean = False);
+begin
+  _additionalTimerTime := CMath.Max(_additionalTimerTime, AdditionalContentTime);
+  _timerDoRealignWhenScrollingStopped := OnlyForRealignWhenScrollingStopped;
+
+  _checkWaitForRealignTimer.Interval := CMath.Max(10, (RealignContentTime*3) + _additionalTimerTime);
+  _checkWaitForRealignTimer.Enabled := False;
+  _checkWaitForRealignTimer.Enabled := True;
+end;
+
 procedure TDCScrollableControl.UpdateScrollbarMargins;
 begin
   if not _horzScrollBar.Visible then
@@ -695,17 +714,9 @@ end;
 
 { TCustomSmallScrollBar }
 
-//procedure TCustomSmallScrollBar.DoMouseLeave;
-//begin
-//  inherited;
-//
-//  if Assigned(_onUserLeavesScrollbar) then
-//    _onUserLeavesScrollbar();
-//end;
-//
-//function TCustomSmallScrollBar.IsTracking: Boolean;
-//begin
-//  Result := Self.Track.IsTracking;
-//end;
+function TCustomSmallScrollBar.IsTracking: Boolean;
+begin
+  Result := (Self.Track <> nil) and Self.Track.IsTracking;
+end;
 
 end.

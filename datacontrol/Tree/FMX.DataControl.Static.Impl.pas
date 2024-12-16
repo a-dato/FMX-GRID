@@ -15,7 +15,7 @@ uses
 
   ADato.Collections.Specialized, System.Collections.Specialized, FMX.StdCtrls,
   FMX.DataControl.ScrollableRowControl.Intf, System.Classes, System.SysUtils,
-  FMX.Layouts, System.UITypes, System.Types;
+  FMX.Layouts, System.UITypes, System.Types, FMX.ImgList, FMX.Objects;
 
 type
   TDCColumnSortAndFilter = class(TObservableObject, IDCColumnSortAndFilter)
@@ -364,6 +364,23 @@ type
     procedure UpdateCellControlsPositions(const Cell: IDCTreeCell);
   end;
 
+  TExpandButton = class(TLayout)
+  private
+    _plusRect: TRectangle;
+    _minRect: TRectangle;
+
+    procedure set_ShowExpanded(const Value: Boolean);
+
+  protected
+    procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
+    procedure DoMouseLeave; override;
+
+  public
+    constructor Create(Owner: TComponent); override;
+
+    property ShowExpanded: Boolean write set_ShowExpanded;
+  end;
+
   TDCTreeLayout = class(TBaseInterfacedObject, IDCTreeLayout)
   protected
     _content: TControl;
@@ -396,7 +413,7 @@ type
     _control: TControl; // can be custom user control, not only TCellControl
     _infoControl: TControl;
     _subInfoControl: TControl;
-    _expandButton: TButton;
+    _expandButton: TLayout;
     _customInfoControlBounds: TRectF;
     _customSubInfoControlBounds: TRectF;
 
@@ -411,8 +428,8 @@ type
     function  get_LayoutColumn: IDCTreeLayoutColumn;
     function  get_Control: TControl;
     procedure set_Control(const Value: TControl); virtual;
-    function  get_ExpandButton: TButton;
-    procedure set_ExpandButton(const Value: TButton);
+    function  get_ExpandButton: TLayout;
+    procedure set_ExpandButton(const Value: TLayout);
     function  get_HideCellInView: Boolean;
     procedure set_HideCellInView(const Value: Boolean);
 
@@ -454,10 +471,6 @@ type
 
   THeaderCell = class(TDCTreeCell, IHeaderCell)
   private
-//    procedure SplitterMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
-//    procedure DoSplitterMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
-//    procedure SplitterMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
-
     procedure OnResizeControlMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 
   protected
@@ -541,57 +554,35 @@ type
     property CellSizeUpdates: Dictionary<Integer {FlatColumnIndex}, Single> read get_CellSizeUpdates write set_CellSizeUpdates;
   end;
 
-//  TCellSelectionInfo = class(TSelectionInfo, ICellSelectionInfo)
-//  private
-//    _columnIndexes: List<Integer>;
-//    _lastSelectedCellColumnIndex: Integer;
-//
-//  protected
-//    function  CreateInstance: ISelectionInfo; override;
-//    function  Clone: ISelectionInfo; override;
-//    procedure UpdateLastSelection(const DataIndex, ViewListIndex: Integer; const DataItem: CObject; const VirtualYPosition: Single); override;
-//
-//    function  CopyColumnIndexes: List<Integer>;
-//  public
-//    procedure ClearAllSelections; override;
-//
-//    function  CellIsSelected(const ColumnIndex: Integer): Boolean;
-//    procedure AddCellSelection(const ColumnIndex: Integer);
-//    procedure RemoveCellSelection(const ColumnIndex: Integer);
-//    function  SelectedCellCount: Integer;
-//
-//    function  LastSelectedColumnIndex: Integer;
-//  end;
-
-    THeaderColumnResizeControl = class(TInterfacedObject, IHeaderColumnResizeControl)
-    private
-      [unsafe] _headerCell: IHeaderCell;
-      _treeControl: IColumnsControl;
+  THeaderColumnResizeControl = class(TInterfacedObject, IHeaderColumnResizeControl)
+  private
+    [unsafe] _headerCell: IHeaderCell;
+    _treeControl: IColumnsControl;
 
 //      _onResized: TNotifyEvent;
 
-      _columnResizeFullHeaderControl: TControl;
-      _columnResizeControl: TControl;
+    _columnResizeFullHeaderControl: TControl;
+    _columnResizeControl: TControl;
 
 //    procedure SplitterMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
-      procedure DoSplitterMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
-      procedure DoSplitterMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
-      procedure DoSplitterMouseLeave(Sender: TObject);
+    procedure DoSplitterMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
+    procedure DoSplitterMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+    procedure DoSplitterMouseLeave(Sender: TObject);
 
-      procedure StopResizing;
+    procedure StopResizing;
 
-    public
-      constructor Create(const TreeControl: IColumnsControl); reintroduce;
-      procedure StartResizing(const HeaderCell: IHeaderCell);
-    end;
+  public
+    constructor Create(const TreeControl: IColumnsControl); reintroduce;
+    procedure StartResizing(const HeaderCell: IHeaderCell);
+  end;
 
 
 implementation
 
 uses
   FMX.DataControl.ControlClasses, FMX.ActnList,
-  ADato.Data.DataModel.intf, FMX.Types, System.Math, FMX.Objects,
-  FMX.Graphics, FMX.ControlCalculations, FMX.ImgList, System.ClassHelpers;
+  ADato.Data.DataModel.intf, FMX.Types, System.Math,
+  FMX.Graphics, FMX.ControlCalculations, System.ClassHelpers;
 
 { TDCTreeColumnList }
 
@@ -1291,10 +1282,12 @@ begin
   begin
     if Cell.ExpandButton = nil then
     begin
-      Cell.ExpandButton := ScrollableRowControl_DefaultButtonClass.Create(Cell.Control);
+      Cell.ExpandButton := TExpandButton.Create(Cell.Control);
       Cell.ExpandButton.Align := TAlignLayout.None;
-      Cell.ExpandButton.Width := CELL_MIN_INDENT;
-      Cell.ExpandButton.Height := CELL_MIN_INDENT;
+      Cell.ExpandButton.HitTest := True;
+      Cell.ExpandButton.Width := 8;
+      Cell.ExpandButton.Height := 8;
+
       Cell.Control.AddObject(Cell.ExpandButton);
     end;
 
@@ -1342,15 +1335,15 @@ begin
   end
   else begin
     var indentPerLevel := CMath.Max(Cell.Column.Indent, CELL_MIN_INDENT) + CELL_CONTENT_MARGIN;
+
+    if Cell.Column.ShowHierarchy then
+      spaceUsed := indentPerLevel * (cell.Row.ParentCount {can be 0} + 1);
+
     if Cell.ExpandButton <> nil then
     begin
       cell.ExpandButton.Position.Y := CELL_CONTENT_MARGIN;
-      cell.ExpandButton.Position.X := CELL_CONTENT_MARGIN;
-
-      spaceUsed := cell.ExpandButton.Position.X + cell.ExpandButton.Width;
-    end
-    else if Cell.Column.ShowHierarchy then
-      spaceUsed := indentPerLevel * cell.Row.ParentCount {can be 0};
+      cell.ExpandButton.Position.X := (spaceUsed - cell.ExpandButton.Width);
+    end;
   end;
 
   var textCtrlHeight := (Cell.Row.Control.Height - (2*CELL_CONTENT_MARGIN));
@@ -1955,7 +1948,7 @@ begin
   Result := _data;
 end;
 
-function TDCTreeCell.get_ExpandButton: TButton;
+function TDCTreeCell.get_ExpandButton: TLayout;
 begin
   Result := _expandButton;
 end;
@@ -2028,7 +2021,7 @@ begin
   _data := Value;
 end;
 
-procedure TDCTreeCell.set_ExpandButton(const Value: TButton);
+procedure TDCTreeCell.set_ExpandButton(const Value: TLayout);
 begin
   _expandButton := Value;
 end;
@@ -2181,38 +2174,6 @@ begin
   if Assigned(_onHeaderCellResizeClicked) then
     _onHeaderCellResizeClicked(Self);
 end;
-
-//procedure THeaderCell.SplitterMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
-//begin
-//  _resizeControl.Align := TAlignLayout.None;
-////  _resizeControl.Posi
-//end;
-//
-//procedure THeaderCell.SplitterMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
-//begin
-//  if Button in [TMouseButton.mbLeft, TMouseButton.mbRight] then
-//  begin
-//    var w: Single := _resizeControl.Size.Width;
-//    _layoutColumn.UpdateUserWidth(w);
-//    (_resizeControl as TRectangle).Fill.Color := TAlphaColors.Green;
-//  end;
-//end;
-//
-//procedure THeaderCell.DoSplitterMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
-//var
-//  NewSize: Single;
-//begin
-//  if _resizeControl.Pressed then
-//  begin
-//    NewSize := _resizeControl.ParentControl.AbsoluteToLocal(_resizeControl.LocalToAbsolute(PointF(X, Y))).X;
-//    if NewSize < 0 then
-//      NewSize := 0;
-//
-////    if Resizing(NewSize) then
-//    _resizeControl.Size.Width := NewSize + 5;
-//    (_resizeControl as TRectangle).Fill.Color := TAlphaColors.Red;
-//  end;
-//end;
 
 procedure THeaderCell.set_FilterControl(const Value: TControl);
 begin
@@ -2729,6 +2690,54 @@ begin
   _headerCell.Column.CustomWidth := _columnResizeControl.Size.Width;
   _treeControl.ColumnWidthChanged(_headerCell.Column);
   StopResizing;
+end;
+
+{ TExpandButton }
+
+constructor TExpandButton.Create(Owner: TComponent);
+begin
+  inherited;
+
+  _minRect := TRectangle.Create(Self);
+  _minRect.Height := 2;
+  _minRect.HitTest := False;
+  _minRect.Align := TAlignLayout.VertCenter;
+  _minRect.XRadius := 1;
+  _minRect.YRadius := 2;
+  _minRect.Stroke.Kind := TBrushKind.None;
+  _minRect.Fill.Color := TAlphaColors.Navy;
+  Self.AddObject(_minRect);
+
+  _plusRect := TRectangle.Create(Self);
+  _plusRect.Width := 2;
+  _plusRect.HitTest := False;
+  _plusRect.Align := TAlignLayout.HorzCenter;
+  _plusRect.XRadius := 2;
+  _plusRect.YRadius := 1;
+  _plusRect.Stroke.Kind := TBrushKind.None;
+  _plusRect.Fill.Color := TAlphaColors.Navy;
+  Self.AddObject(_plusRect);
+end;
+
+procedure TExpandButton.DoMouseLeave;
+begin
+  inherited;
+
+  _minRect.Fill.Color := TAlphaColors.Navy;
+  _plusRect.Fill.Color := TAlphaColors.Navy;
+end;
+
+procedure TExpandButton.MouseMove(Shift: TShiftState; X, Y: Single);
+begin
+  inherited;
+
+  _minRect.Fill.Color := TAlphaColors.Orange;
+  _plusRect.Fill.Color := TAlphaColors.Orange;
+end;
+
+procedure TExpandButton.set_ShowExpanded(const Value: Boolean);
+begin
+  _plusRect.Visible := Value;
 end;
 
 end.

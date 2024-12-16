@@ -28,6 +28,8 @@ type
     function OnRowOutOfView: TRowInfoRecord;
     function AfterCellsApplies(const RowHeight: Single; const HeightNeedsRecalc: Boolean): TRowInfoRecord;
 
+    function IsNull: Boolean;
+
     class function Null: TRowInfoRecord; static;
   end;
 
@@ -36,10 +38,12 @@ type
     function  get_OriginalData: IList;
 
     function  RowLoadedInfo(const ViewListIndex: Integer): TRowInfoRecord;
-    procedure RowLoaded(const Row: IDCRow; const RowHeightChanged: Boolean; const NeedsResize: Boolean);
+    procedure RowLoaded(const Row: IDCRow; const NeedsResize: Boolean);
 
     function  InsertNewRowAbove: IDCRow;
     function  InsertNewRowBeneeth: IDCRow;
+    function  InsertNewRowFromIndex(const ViewListIndex, ViewPortIndex: Integer): IDCRow;
+    procedure ReindexActiveRow(const Row: IDCRow);
     function  ProvideReferenceRowByPosition(DataYPosition: Single): IDCRow;
 
     procedure RemoveRowFromActiveView(const Row: IDCRow);
@@ -50,7 +54,8 @@ type
 
     function  GetDataIndex(const ViewListIndex: Integer): Integer; overload;
     function  GetDataIndex(const DataItem: CObject): Integer; overload;
-    function  GetViewListIndex(const DataItem: CObject): Integer;
+    function  GetViewListIndex(const DataItem: CObject): Integer; overload;
+    function  GetViewListIndex(const DataIndex: Integer): Integer; overload;
     procedure GetFastPerformanceRowInfo(const ViewListIndex: Integer; out DataItem: CObject; out VirtualYPosition: Single);
     procedure GetSlowPerformanceRowInfo(const ViewListIndex: Integer; out DataItem: CObject; out VirtualYPosition: Single);
 
@@ -59,7 +64,8 @@ type
     procedure ApplySort(const Sorts: List<IListSortDescription>);
     procedure ApplyFilter(const Filters: List<IListFilterDescription>);
 
-    procedure ViewLoadingStart(const TotalStartYPosition, TotalStopYPosition, DefaultRowHeight: Single);
+    procedure ViewLoadingStart(const TotalStartYPosition, TotalStopYPosition, DefaultRowHeight: Single); overload;
+    procedure ViewLoadingStart(const SynchronizeFromView: IDataViewList); overload;
     procedure ViewLoadingFinished;
     procedure ViewLoadingRemoveNonUsedRows(const TillSpecifiedViewFrameIndex: Integer = -1; const FromTop: Boolean = True);
     procedure ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
@@ -73,6 +79,8 @@ type
     function ActiveViewRows: List<IDCRow>;
     function ViewCount: Integer;
     function TotalDataHeight(DefaultRowHeight: Single): Single;
+    function DefaultRowHeight: Single;
+    function IsFirstAlign: Boolean;
 
     property OriginalData: IList read get_OriginalData;
   end;
@@ -94,6 +102,15 @@ end;
 function TRowInfoRecord.InnerCellsAreApplied: Boolean;
 begin
   Result := CellsApplied;
+end;
+
+function TRowInfoRecord.IsNull: Boolean;
+begin
+  Result :=
+    (CalculatedHeight = 0) and
+    NeedsResize and
+    not CellsApplied and
+    not RowInActiveView;
 end;
 
 function TRowInfoRecord.RowIsInActiveView: Boolean;
