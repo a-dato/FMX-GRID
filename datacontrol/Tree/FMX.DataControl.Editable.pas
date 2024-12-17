@@ -123,7 +123,7 @@ uses
   System.ComponentModel, FMX.DataControl.ScrollableRowControl.Intf,
   FMX.DataControl.ControlClasses, FMX.StdCtrls, System.TypInfo, FMX.Controls,
   System.Math, ADato.Collections.Specialized,
-  System.Reflection, System.Collections.Generic;
+  System.Reflection, System.Collections.Generic, FMX.ActnList;
 
 { TEditableDataControl }
 
@@ -245,14 +245,18 @@ begin
 end;
 
 procedure TEditableDataControl.OnPropertyCheckBoxChange(Sender: TObject);
+var
+  check: IIsChecked;
 begin
   if _checkBoxUpdateCount > 0 then
     Exit;
 
   inc(_checkBoxUpdateCount);
   try
-    var checkBox := Sender as TCheckBox;
-    var cell := GetCellByControl(checkBox);
+    if not Supports(Sender, IIsChecked, check) then
+      Exit;
+
+    var cell := GetCellByControl(TControl(check));
 
     _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.Internal;
 
@@ -269,7 +273,7 @@ begin
 
     // cannot select, so reset the value
     if not editStarted then
-      checkBox.IsChecked := not checkBox.IsChecked;
+      check.IsChecked := not check.IsChecked;
   finally
     dec(_checkBoxUpdateCount);
   end;
