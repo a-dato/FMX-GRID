@@ -9,7 +9,7 @@ uses
 
 type
   TDCRow = class(TBaseInterfacedObject, IDCRow)
-  private
+  protected
     _dataItem: CObject;
     _dataIndex: Integer;
     _viewPortIndex: Integer;
@@ -19,6 +19,7 @@ type
     _control: TControl;
 
     _isHeaderRow: Boolean;
+    _ownerIsScrolling: Boolean;
 
     function  get_DataIndex: Integer;
     procedure set_DataIndex(const Value: Integer);
@@ -31,9 +32,11 @@ type
     function  get_VirtualYPosition: Single;
     procedure set_VirtualYPosition(const Value: Single);
     function  get_Control: TControl;
-    procedure set_Control(const Value: TControl);
+    procedure set_Control(const Value: TControl); virtual;
     function  get_IsHeaderRow: Boolean;
     procedure set_IsHeaderRow(const Value: Boolean);
+    function  get_OwnerIsScrolling: Boolean;
+    procedure set_OwnerIsScrolling(const Value: Boolean); virtual;
 
     procedure UpdateControlVisibility;
 
@@ -43,12 +46,12 @@ type
     procedure UpdateSelectionRect(OwnerIsFocused: Boolean);
 
   public
-    constructor Create; reintroduce; overload;
+    constructor Create; reintroduce;
     destructor Destroy; override;
 
     procedure UpdateSelectionVisibility(const SelectionInfo: IRowSelectionInfo; OwnerIsFocused: Boolean); virtual;
 
-    procedure ClearRowForReassignment;
+    procedure ClearRowForReassignment; virtual;
     function  IsClearedForReassignment: Boolean;
     function  IsScrollingIntoView: Boolean;
 
@@ -246,6 +249,11 @@ begin
   Result := _isHeaderRow
 end;
 
+function TDCRow.get_OwnerIsScrolling: Boolean;
+begin
+  Result := _ownerIsScrolling
+end;
+
 function TDCRow.get_VirtualYPosition: Single;
 begin
   Result := _virtualYPosition;
@@ -329,6 +337,11 @@ end;
 procedure TDCRow.set_IsHeaderRow(const Value: Boolean);
 begin
   _isHeaderRow := Value;
+end;
+
+procedure TDCRow.set_OwnerIsScrolling(const Value: Boolean);
+begin
+  _ownerIsScrolling := Value;
 end;
 
 procedure TDCRow.set_VirtualYPosition(const Value: Single);

@@ -35,6 +35,8 @@ type
 
     _editItem: CObject;
 
+    _isFirstAlign: Boolean;
+
     function  get_OriginalData: IList;
 
     procedure DataModelViewChanged(Sender: TObject; e: EventArgs);
@@ -51,12 +53,14 @@ type
     destructor Destroy; override;
 
     function  RowLoadedInfo(const ViewListIndex: Integer): TRowInfoRecord;
-    procedure RowLoaded(const Row: IDCRow; const RowHeightChanged: Boolean; const NeedsResize: Boolean);
+    procedure RowLoaded(const Row: IDCRow; const NeedsResize: Boolean);
 
     procedure RemoveRowFromActiveView(const Row: IDCRow);
 
     function  InsertNewRowABove: IDCRow;
     function  InsertNewRowBeneeth: IDCRow;
+    function  InsertNewRowFromIndex(const ViewListIndex, ViewPortIndex: Integer): IDCRow;
+    procedure ReindexActiveRow(const Row: IDCRow);
     function  ProvideReferenceRowByPosition(VirtualYPosition: Single): IDCRow;
 
     function  GetSortDescriptions: List<IListSortDescription>;
@@ -64,7 +68,9 @@ type
     procedure ApplySort(const Sorts: List<IListSortDescription>);
     procedure ApplyFilter(const Filters: List<IListFilterDescription>);
 
-    procedure ViewLoadingStart(const VirtualYPositionStart, VirtualYPositionStop, DefaultRowHeight: Single);
+    procedure ViewLoadingStart(const VirtualYPositionStart, VirtualYPositionStop, DefaultRowHeight: Single); overload;
+    procedure ViewLoadingStart(const SynchronizeFromView: IDataViewList); overload;
+
     procedure ViewLoadingFinished;
     procedure ViewLoadingRemoveNonUsedRows(const TillSpecifiedViewIndex: Integer = -1; const FromTop: Boolean = True);
     procedure ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
@@ -74,8 +80,9 @@ type
 
     function  GetDataIndex(const ViewListIndex: Integer): Integer; overload;
     function  GetDataIndex(const DataItem: CObject): Integer; overload;
+    function  GetViewListIndex(const DataItem: CObject): Integer; overload;
+    function  GetViewListIndex(const DataIndex: Integer): Integer; overload;
     function  GetDataItem(const ViewListIndex: Integer): CObject;
-    function  GetViewListIndex(const DataItem: CObject): Integer;
 
     procedure StartEdit(const EditItem: CObject);
     procedure EndEdit;
@@ -89,6 +96,8 @@ type
     function CachedRowHeight(const RowViewListIndex: Integer): Single;
     function ViewCount: Integer;
     function TotalDataHeight(DefaultRowHeight: Single): Single;
+    function DefaultRowHeight: Single;
+    function IsFirstAlign: Boolean;
 
     property OriginalData: IList read get_OriginalData;
   end;
@@ -111,6 +120,7 @@ begin
 
   _doCreateNewRow := DoCreateNewRow;
   _onViewChanged := OnViewChanged;
+  _isFirstAlign := True;
 
   var dm: IDataModel;
   var cmp: IComparableList;
@@ -143,11 +153,17 @@ begin
 
   _doCreateNewRow := DoCreateNewRow;
   _onViewChanged := OnViewChanged;
+  _isFirstAlign := True;
 
   _dataModelView := DataModelView;
   _dataModelView.ViewChanged.Add(DataModelViewChanged);
 
   ResetView;
+end;
+
+function TDataViewList.DefaultRowHeight: Single;
+begin
+  Result := _defaultRowHeight;
 end;
 
 destructor TDataViewList.Destroy;
@@ -176,9 +192,10 @@ end;
 
 function TDataViewList.GetActiveRowIfExists(const ViewListIndex: Integer): IDCRow;
 begin
-  for var row in _activeRows do
-    if row.ViewListIndex = ViewListIndex then
-      Exit(row);
+  if ViewListIndex <> -1 then
+    for var row in _activeRows do
+      if row.ViewListIndex = ViewListIndex then
+        Exit(row);
 
   Result := nil;
 end;
@@ -253,7 +270,7 @@ begin
     else begin
       Result := CList<CObject>.Create(_dataModelView.DataModel.Rows.Count);
       for var row in _dataModelView.DataModel.Rows do
-        Result.Add(row.Data);
+        Result.Add(row);
     end;
   end
   else
@@ -372,6 +389,35 @@ begin
     Result := _dataModelView.Rows as IList;
 end;
 
+function TDataViewList.GetViewListIndex(const DataIndex: Integer): Integer;
+begin
+  if DataIndex = -1 then
+    Exit(-1);
+
+  if _comparer <> nil then
+  begin
+    if _comparer.Comparer.SortedRows <> nil then
+      Result := _comparer.Comparer.SortedRows.IndexOf(DataIndex) else
+      Result := DataIndex; // no sortdescription, indexes are the same
+  end
+  else begin
+    var orgData := get_OriginalData;
+    var dm: IDataModel;
+    var dr: IDataRow;
+    if interfaces.Supports<IDataModel>(orgData, dm) then
+      dr := dm.Rows[DataIndex]
+    else begin
+      var di := orgData[DataIndex];
+      dr := di.AsType<IDataRow>;
+    end;
+
+    var drv := _dataModelView.FindRow(dr);
+    if drv <> nil then
+      Result := drv.ViewIndex else
+      Result := -1;
+  end;
+end;
+
 function TDataViewList.InsertNewRowBeneeth: IDCRow;
 begin
   Result := GetNewActiveRow;
@@ -391,6 +437,22 @@ begin
   end;
 
   AddNewRowToActiveRows(Result, -1);
+end;
+
+function TDataViewList.InsertNewRowFromIndex(const ViewListIndex, ViewPortIndex: Integer): IDCRow;
+begin
+  Result := GetNewActiveRow;
+
+  Result.ViewListIndex := ViewListIndex;
+  Result.DataItem := GetDataItem(ViewListIndex);
+  Result.DataIndex := GetDataIndex(ViewListIndex);
+
+  AddNewRowToActiveRows(Result, ViewPortIndex);
+end;
+
+function TDataViewList.IsFirstAlign: Boolean;
+begin
+  Result := _isFirstAlign;
 end;
 
 function TDataViewList.InsertNewRowABove: IDCRow;
@@ -477,6 +539,24 @@ begin
     _dataModelView.Refresh;
 end;
 
+procedure TDataViewList.ReindexActiveRow(const Row: IDCRow);
+begin
+  _activeRows.Remove(Row);
+
+  var correctIndex := 0;
+  for var ix := 0 to _activeRows.Count - 1 do
+  begin
+    var r := _activeRows[ix];
+    if r.ViewListIndex < Row.ViewListIndex then
+      correctIndex := ix + 1;
+  end;
+
+  _activeRows.Insert(correctIndex, Row);
+
+  for var ix := 0 to _activeRows.Count - 1 do
+    _activeRows[ix].ViewPortIndex := ix;
+end;
+
 procedure TDataViewList.ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
 begin
   if FromViewListIndex = -1 then
@@ -507,7 +587,7 @@ begin
   end;
 end;
 
-procedure TDataViewList.RowLoaded(const Row: IDCRow; const RowHeightChanged: Boolean; const NeedsResize: Boolean);
+procedure TDataViewList.RowLoaded(const Row: IDCRow; const NeedsResize: Boolean);
 begin
   _viewRowHeights[Row.ViewListIndex] := _viewRowHeights[Row.ViewListIndex].AfterCellsApplies(Row.Control.Height, NeedsResize);
 end;
@@ -560,6 +640,24 @@ begin
   end;
 end;
 
+procedure TDataViewList.ViewLoadingStart(const SynchronizeFromView: IDataViewList);
+begin
+  _defaultRowHeight := SynchronizeFromView.DefaultRowHeight;
+  for var index := _activeRows.Count - 1 downto 0 do
+  begin
+    var row := _activeRows[index];
+    var otherRow := SynchronizeFromView.GetActiveRowIfExists(row.ViewListIndex);
+    if otherRow = nil then
+      RemoveRowFromActiveView(row);
+  end;
+
+  for var ix2 := 0 to _activeRows.Count - 1 do
+  begin
+    var viewListIndex := _activeRows[ix2].ViewListIndex;
+    _viewRowHeights[viewListIndex] := _viewRowHeights[viewListIndex].OnViewLoading;
+  end;
+end;
+
 procedure TDataViewList.ViewLoadingRemoveNonUsedRows(const TillSpecifiedViewIndex: Integer = -1; const FromTop: Boolean = True);
 begin
   // if not all existing rows fit in the current view
@@ -576,6 +674,7 @@ end;
 
 procedure TDataViewList.ViewLoadingFinished;
 begin
+  _isFirstAlign := False;
 end;
 
 procedure TDataViewList.RemoveRowFromActiveView(const Row: IDCRow);

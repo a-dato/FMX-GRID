@@ -287,6 +287,37 @@ object frmFMXPopupMenuDataControl: TfrmFMXPopupMenuDataControl
               'png'
           end>
         Name = 'ImageList strip 7x24x24'
+      end
+      item
+        MultiResBitmap.TransparentColor = 536870912
+        MultiResBitmap = <
+          item
+            Width = 9
+            Height = 9
+            PNG = {
+              89504E470D0A1A0A0000000D4948445200000009000000090806000000E09106
+              100000000473424954080808087C0864880000003C4944415418958D8F410E00
+              2008C356E3FFBF3C4F781024F444960686340049B2EDAF00AC224C62922A76B5
+              21E66871A50800BD1547E792D43CDA730026C11012167575750000000049454E
+              44AE426082}
+            FileName = 'D:\adato_lynx_master\Resources\expand.bmp'
+          end>
+        Name = 'expand'
+      end
+      item
+        MultiResBitmap.TransparentColor = 536870912
+        MultiResBitmap = <
+          item
+            Width = 9
+            Height = 9
+            PNG = {
+              89504E470D0A1A0A0000000D4948445200000009000000090806000000E09106
+              100000000473424954080808087C086488000000314944415418956360200230
+              32303030FCFFFFFF3F4E058C8C8C4CC498449422162463312461AE60411720DB
+              3AA21411050000830A0F01B071D80000000049454E44AE426082}
+            FileName = 'D:\adato_lynx_master\Resources\collapse.bmp'
+          end>
+        Name = 'collapse'
       end>
     Destination = <
       item
@@ -349,6 +380,22 @@ object frmFMXPopupMenuDataControl: TfrmFMXPopupMenuDataControl
             SourceRect.Left = 144.000000000000000000
             SourceRect.Right = 168.000000000000000000
             SourceRect.Bottom = 24.000000000000000000
+          end>
+      end
+      item
+        Layers = <
+          item
+            Name = 'expand'
+            SourceRect.Right = 9.000000000000000000
+            SourceRect.Bottom = 9.000000000000000000
+          end>
+      end
+      item
+        Layers = <
+          item
+            Name = 'collapse'
+            SourceRect.Right = 9.000000000000000000
+            SourceRect.Bottom = 9.000000000000000000
           end>
       end>
     Left = 48

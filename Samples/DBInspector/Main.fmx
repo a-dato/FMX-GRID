@@ -898,39 +898,6 @@ object frmInspector: TfrmInspector
     Left = 224
     Top = 186
   end
-  object FDPhysMSSQLDriverLink1: TFDPhysMSSQLDriverLink
-    Left = 369
-    Top = 273
-  end
-  object FDPhysPgDriverLink1: TFDPhysPgDriverLink
-    VendorLib = 'C:\Program Files\PostgreSQL\16\bin\libpq.dll'
-    Left = 369
-    Top = 337
-  end
-  object FDPhysOracleDriverLink1: TFDPhysOracleDriverLink
-    Left = 369
-    Top = 393
-  end
-  object FDPhysFBDriverLink1: TFDPhysFBDriverLink
-    Left = 513
-    Top = 273
-  end
-  object FDPhysIBDriverLink1: TFDPhysIBDriverLink
-    Left = 513
-    Top = 329
-  end
-  object FDPhysODBCDriverLink1: TFDPhysODBCDriverLink
-    Left = 521
-    Top = 401
-  end
-  object FDPhysMongoDriverLink1: TFDPhysMongoDriverLink
-    Left = 641
-    Top = 273
-  end
-  object FDPhysMySQLDriverLink1: TFDPhysMySQLDriverLink
-    Left = 641
-    Top = 345
-  end
   object FDPhysSQLiteDriverLink1: TFDPhysSQLiteDriverLink
     Left = 776
     Top = 264

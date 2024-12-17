@@ -36,6 +36,8 @@ type
 
   TSelectionCanChange = reference to function: Boolean;
 
+  IDCRow = interface;
+
   IRowsControl = interface
     ['{AC852A77-01E3-4419-8F8F-D6162F758A74}']
     function  get_AllowNoneSelected: Boolean;
@@ -115,6 +117,9 @@ type
     function  get_IsHeaderRow: Boolean;
     procedure set_IsHeaderRow(const Value: Boolean);
 
+    function  get_OwnerIsScrolling: Boolean;
+    procedure set_OwnerIsScrolling(const Value: Boolean);
+
     function  Height: Single;
     function  HasChildren: Boolean;
     function  ParentCount: Integer;
@@ -133,6 +138,8 @@ type
     property VirtualYPosition: Single read get_VirtualYPosition write set_VirtualYPosition;
     property Control: TControl read get_Control write set_Control;
     property IsHeaderRow: Boolean read get_IsHeaderRow write set_IsHeaderRow;
+
+    property OwnerIsScrolling: Boolean read get_OwnerIsScrolling write set_OwnerIsScrolling;
   end;
 
   TDoCreateNewRow = reference to function: IDCRow;
@@ -170,6 +177,7 @@ type
     TreeOption_HideHScrollBar,
 
     TreeOption_AlternatingRowBackground,
+    TreeOption_HideHoverEffect,
     TreeOption_ReadOnly,
     TreeOption_MultiSelect,
     TreeOption_AllowColumnUpdates,
@@ -204,6 +212,7 @@ type
     HideVScrollBar: TDCTreeOptionFlag = TreeOption_HideVScrollBar;
     HideHScrollBar: TDCTreeOptionFlag = TreeOption_HideHScrollBar;
     AlternatingRowBackground: TDCTreeOptionFlag = TreeOption_AlternatingRowBackground;
+    HideHoverEffect: TDCTreeOptionFlag = TreeOption_HideHoverEffect;
     ReadOnly: TDCTreeOptionFlag = TreeOption_ReadOnly;
     MultiSelect: TDCTreeOptionFlag = TreeOption_MultiSelect;
     AllowColumnUpdates: TDCTreeOptionFlag = TreeOption_AllowColumnUpdates;
