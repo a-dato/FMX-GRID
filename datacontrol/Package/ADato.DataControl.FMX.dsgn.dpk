@@ -32,7 +32,8 @@ requires
   rtl,
   fmx,
   ADato.Grid.VCL.dsgn,
-  ADato.DataControl.FMX;
+  ADato.DataControl.FMX,
+  ADato.Grid.FMX;
 
 contains
   FMX.DataControl.ColumnsProperty in 'FMX.DataControl.ColumnsProperty.pas',

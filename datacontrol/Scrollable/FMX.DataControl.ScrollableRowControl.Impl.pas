@@ -18,7 +18,6 @@ type
 
     _control: TControl;
 
-    _isHeaderRow: Boolean;
     _ownerIsScrolling: Boolean;
 
     function  get_DataIndex: Integer;
@@ -33,8 +32,7 @@ type
     procedure set_VirtualYPosition(const Value: Single);
     function  get_Control: TControl;
     procedure set_Control(const Value: TControl); virtual;
-    function  get_IsHeaderRow: Boolean;
-    procedure set_IsHeaderRow(const Value: Boolean);
+    function  get_IsHeaderRow: Boolean; virtual;
     function  get_OwnerIsScrolling: Boolean;
     procedure set_OwnerIsScrolling(const Value: Boolean); virtual;
 
@@ -168,7 +166,7 @@ uses
 procedure TDCRow.UpdateControlVisibility;
 begin
   if (_control <> nil) then
-    _control.Visible := _isHeaderRow or (_virtualYPosition <> -1);
+    _control.Visible := get_IsHeaderRow or (_virtualYPosition <> -1);
 end;
 
 procedure TDCRow.UpdateSelectionRect(OwnerIsFocused: Boolean);
@@ -246,7 +244,7 @@ end;
 
 function TDCRow.get_IsHeaderRow: Boolean;
 begin
-  Result := _isHeaderRow
+  Result := False
 end;
 
 function TDCRow.get_OwnerIsScrolling: Boolean;
@@ -332,11 +330,6 @@ end;
 procedure TDCRow.set_DataItem(const Value: CObject);
 begin
   _dataItem := Value;
-end;
-
-procedure TDCRow.set_IsHeaderRow(const Value: Boolean);
-begin
-  _isHeaderRow := Value;
 end;
 
 procedure TDCRow.set_OwnerIsScrolling(const Value: Boolean);
