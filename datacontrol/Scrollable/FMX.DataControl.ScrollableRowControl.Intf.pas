@@ -115,7 +115,6 @@ type
     function  get_Control: TControl;
     procedure set_Control(const Value: TControl);
     function  get_IsHeaderRow: Boolean;
-    procedure set_IsHeaderRow(const Value: Boolean);
 
     function  get_OwnerIsScrolling: Boolean;
     procedure set_OwnerIsScrolling(const Value: Boolean);
@@ -137,7 +136,7 @@ type
     property ViewListIndex: Integer read get_ViewListIndex write set_ViewListIndex;
     property VirtualYPosition: Single read get_VirtualYPosition write set_VirtualYPosition;
     property Control: TControl read get_Control write set_Control;
-    property IsHeaderRow: Boolean read get_IsHeaderRow write set_IsHeaderRow;
+    property IsHeaderRow: Boolean read get_IsHeaderRow;
 
     property OwnerIsScrolling: Boolean read get_OwnerIsScrolling write set_OwnerIsScrolling;
   end;

@@ -273,6 +273,13 @@ type
 
   IColumnsControl = interface
     ['{AC852A77-01E3-4419-8F8F-D6162F758A74}']
+    function  get_headerHeight: Single;
+    procedure set_HeaderHeight(const Value: Single);
+    function  get_headerTextTopMargin: Single;
+    procedure set_headerTextTopMargin(const Value: Single);
+    function  get_headerTextBottomMargin: Single;
+    procedure set_headerTextBottomMargin(const Value: Single);
+
     procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
     procedure ColumnWidthChanged(const Column: IDCTreeColumn);
 
@@ -283,6 +290,10 @@ type
     function  MultiSelectAllowed: Boolean;
 
     procedure GetSortAndFilterImages(out ImageList: TCustomImageList; out FilterIndex, SortAscIndex, SortDescIndex: Integer);
+
+    property HeaderHeight: Single read get_headerHeight write set_HeaderHeight;
+    property HeaderTextTopMargin: Single read get_headerTextTopMargin write set_headerTextTopMargin;
+    property HeaderTextBottomMargin: Single read get_headerTextBottomMargin write set_headerTextBottomMargin;
   end;
 
   ITreeFilterDescription = interface(IListFilterDescription)
@@ -479,6 +490,15 @@ type
 
     property FrozenColumnRowControl: TControl read get_FrozenColumnRowControl write set_FrozenColumnRowControl;
     property NonFrozenColumnRowControl: TControl read get_NonFrozenColumnRowControl write set_NonFrozenColumnRowControl;
+  end;
+
+  IDCHeaderRow = interface(IDCTreeRow)
+    ['{FF55899B-7B77-42F0-9C23-885407278FC0}']
+    function  get_ContentControl: TControl;
+
+    procedure CreateHeaderControls(const Owner: IColumnsControl);
+
+    property ContentControl: TControl read get_ContentControl;
   end;
 
   TTreeViewState = (ColumnsChanged, ColumnSizeChanged);

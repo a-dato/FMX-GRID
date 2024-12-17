@@ -515,6 +515,23 @@ type
     procedure ResetCells;
   end;
 
+  TDCHeaderRow = class(TDCTreeRow, IDCHeaderRow)
+  private
+    _contentControl: TRectangle;
+
+    function  get_ContentControl: TControl;
+
+  protected
+    function  get_IsHeaderRow: Boolean; override;
+
+  public
+    destructor Destroy; override;
+
+    procedure CreateHeaderControls(const Owner: IColumnsControl);
+
+    property ContentControl: TControl read get_ContentControl;
+  end;
+
   TTreeSelectionInfo = class(TRowSelectionInfo, ITreeSelectionInfo)
   private
     _lastSelectedLayoutColumn: Integer;
@@ -1336,17 +1353,17 @@ begin
   else begin
     var indentPerLevel := CMath.Max(Cell.Column.Indent, CELL_MIN_INDENT) + CELL_CONTENT_MARGIN;
 
-    if Cell.Column.ShowHierarchy then
-      spaceUsed := indentPerLevel * (cell.Row.ParentCount {can be 0} + 1);
-
     if Cell.ExpandButton <> nil then
     begin
       cell.ExpandButton.Position.Y := CELL_CONTENT_MARGIN;
       cell.ExpandButton.Position.X := (spaceUsed - cell.ExpandButton.Width);
-    end;
+      spaceUsed := indentPerLevel * (cell.Row.ParentCount {can be 0} + 1);
+    end
+    else if Cell.Column.ShowHierarchy then
+      spaceUsed := indentPerLevel * (cell.Row.ParentCount {can be 0});
   end;
 
-  var textCtrlHeight := (Cell.Row.Control.Height - (2*CELL_CONTENT_MARGIN));
+  var textCtrlHeight := (Cell.Row.Control.Height - IfThen(Cell.IsHeaderCell, 0, (2*CELL_CONTENT_MARGIN)));
   var validSub := (Cell.SubInfoControl <> nil) and Cell.SubInfoControl.Visible;
   if validSub and (Cell.Column.SubInfoControlClass = TInfoControlClass.Text) then
     validSub := (Cell.SubInfoControl as TText).Text <> string.Empty;
@@ -1371,7 +1388,7 @@ begin
     begin
       Cell.InfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
       Cell.InfoControl.Height := textCtrlHeight;
-      Cell.InfoControl.Position.Y := CELL_CONTENT_MARGIN;
+      Cell.InfoControl.Position.Y := (Cell.Control.Height - Cell.InfoControl.Height) / 2;
       Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
     end else
       Cell.InfoControl.BoundsRect := Cell.CustomInfoControlBounds;
@@ -1432,15 +1449,19 @@ begin
     begin
       var rect := ScrollableRowControl_DefaultRectangleClass.Create(Cell.Row.Control);
       rect.Fill.Kind := TBrushKind.None;
-//
+      rect.Fill.Color := TAlphaColors.Null;
+      rect.Stroke.Color := DEFAULT_HEADER_STROKE;
+
       var headerCell := Cell as IHeaderCell;
-      if ShowVertGrid then
+      if ShowVertGrid and (Cell.Index <> 0) then
       begin
-        if _index = 0 then
-          rect.Sides := [TSide.Top, TSide.Bottom, TSide.Left, TSide.Right] else
-          rect.Sides := [TSide.Top, TSide.Bottom, TSide.Right];
+        rect.Sides := [TSide.Left];
+
+        if Cell.Column.AllowResize then
+          rect.Stroke.Dash := TStrokeDash.Dot else
+          rect.Stroke.Dash := TStrokeDash.Solid;
       end else
-        rect.Sides := [TSide.Bottom];
+        rect.Sides := [];
 
       Cell.Control := rect;
 
@@ -2082,9 +2103,6 @@ end;
 
 destructor TDCTreeRow.Destroy;
 begin
-//  FreeAndNil(_frozenColumnRowControl);
-//  FreeAndNil(_nonFrozenColumnRowControl);
-
   inherited;
 end;
 
@@ -2738,6 +2756,49 @@ end;
 procedure TExpandButton.set_ShowExpanded(const Value: Boolean);
 begin
   _plusRect.Visible := Value;
+end;
+
+{ TDCHeaderRow }
+
+procedure TDCHeaderRow.CreateHeaderControls(const Owner: IColumnsControl);
+begin
+  _contentControl := ScrollableRowControl_DefaultRectangleClass.Create(Owner.Control);
+  _contentControl.Stored := False;
+  _contentControl.Align := TAlignLayout.Top;
+  _contentControl.Height := Owner.HeaderHeight;
+  _contentControl.HitTest := True;
+  _contentControl.Fill.Color := DEFAULT_HEADER_BACKGROUND;
+  _contentControl.Stroke.Color := DEFAULT_HEADER_STROKE;
+  _contentControl.Sides := [TSide.Bottom];
+  Owner.Control.AddObject(_contentControl);
+
+  var headerRect := TLayout.Create(_contentControl);
+  headerRect.Stored := False;
+  headerRect.Align := TAlignLayout.None;
+  headerRect.Height := _contentControl.Height - Owner.HeaderTextTopMargin - Owner.HeaderTextBottomMargin;
+  headerRect.Position.Y := Owner.HeaderTextTopMargin;
+  headerRect.HitTest := False;
+  _contentControl.AddObject(headerRect);
+
+  set_Control(headerRect);
+end;
+
+destructor TDCHeaderRow.Destroy;
+begin
+  _contentControl.Free;
+  _control := nil; // already freed by parent above
+
+  inherited;
+end;
+
+function TDCHeaderRow.get_ContentControl: TControl;
+begin
+  Result := _contentControl;
+end;
+
+function TDCHeaderRow.get_IsHeaderRow: Boolean;
+begin
+  Result := True;
 end;
 
 end.

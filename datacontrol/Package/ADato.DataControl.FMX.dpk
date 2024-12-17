@@ -33,10 +33,7 @@ requires
   fmx,
   xmlrtl,
   rtl,
-  ADato.Datamodel,
-  ADato.ProjectDataModel,
-  ADato.Grid.FMX,
-  Adato.FMX.Controls.Runtime;
+  ADato.Datamodel;
 
 contains
   FMX.DataControl.ScrollableControl in '..\Scrollable\FMX.DataControl.ScrollableControl.pas',
@@ -58,10 +55,6 @@ contains
   FMX.ControlCalculations in '..\Tree\FMX.ControlCalculations.pas',
   FMX.DataControl.Static.PopupMenu in '..\Tree\FMX.DataControl.Static.PopupMenu.pas',
   FMX.DataControl.Intf in '..\Tree\FMX.DataControl.Intf.pas',
-  FMX.DataControl.Impl in '..\Tree\FMX.DataControl.Impl.pas',
-  FMX.DateWindowControl.Gantt.Impl in '..\Timebar\FMX.DateWindowControl.Gantt.Impl.pas',
-  FMX.GanttControl.Timebar.Intf in '..\Timebar\FMX.GanttControl.Timebar.Intf.pas',
-  FMX.GanttControl.Timebar.Impl in '..\Timebar\FMX.GanttControl.Timebar.Impl.pas',
-  FMX.DateWindowControl.Gantt.Intf in '..\Timebar\FMX.DateWindowControl.Gantt.Intf.pas';
+  FMX.DataControl.Impl in '..\Tree\FMX.DataControl.Impl.pas';
 
 end.
