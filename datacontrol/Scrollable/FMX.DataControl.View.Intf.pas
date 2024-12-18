@@ -56,6 +56,7 @@ type
     function  GetDataIndex(const DataItem: CObject): Integer; overload;
     function  GetViewListIndex(const DataItem: CObject): Integer; overload;
     function  GetViewListIndex(const DataIndex: Integer): Integer; overload;
+    function  FastPerformanceDataIndexIsActive(const DataIndex: Integer): Boolean;
     procedure GetFastPerformanceRowInfo(const ViewListIndex: Integer; out DataItem: CObject; out VirtualYPosition: Single);
     procedure GetSlowPerformanceRowInfo(const ViewListIndex: Integer; out DataItem: CObject; out VirtualYPosition: Single);
 

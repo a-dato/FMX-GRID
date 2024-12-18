@@ -24,9 +24,12 @@ type
     _comparer: IComparableList;
     _dataModelView: IDataModelView;
 
+    _originalData: IList;
+
     _activeRows: List<IDCRow>;
     _cachedrows: List<IDCRow>;
 
+    _activeDataIndexes: Array of Integer;
     _viewRowHeights: Array of TRowInfoRecord;
 
     _doCreateNewRow: TDoCreateNewRow;
@@ -37,6 +40,8 @@ type
 
     _isFirstAlign: Boolean;
 
+    _performanceVar_activeStartViewListIndex, _performanceVar_activeStopViewListIndex: Integer;
+
     function  get_OriginalData: IList;
 
     procedure DataModelViewChanged(Sender: TObject; e: EventArgs);
@@ -45,6 +50,7 @@ type
     function  GetNewActiveRow: IDCRow;
     procedure AddNewRowToActiveRows(const Row: IDCRow; const Index: Integer = -1);
     procedure UpdateViewIndexFromIndex(const Index: Integer);
+    procedure UpdatePerformanceIndexIndicators;
 
   public
     constructor Create(const DataList: IList; DoCreateNewRow: TDoCreateNewRow; OnViewChanged: TProc); reintroduce; overload;
@@ -84,6 +90,8 @@ type
     function  GetViewListIndex(const DataIndex: Integer): Integer; overload;
     function  GetDataItem(const ViewListIndex: Integer): CObject;
 
+    function  FastPerformanceDataIndexIsActive(const DataIndex: Integer): Boolean;
+
     procedure StartEdit(const EditItem: CObject);
     procedure EndEdit;
 
@@ -110,7 +118,7 @@ uses
   ADato.Sortable.Impl,
 
   FMX.Objects,
-  FMX.Types;
+  FMX.Types, System.Generics.Collections;
 
 { TDataViewList }
 
@@ -185,6 +193,11 @@ begin
     _onViewChanged();
 end;
 
+function TDataViewList.FastPerformanceDataIndexIsActive(const DataIndex: Integer): Boolean;
+begin
+  Result := TArray.Contains<Integer>(_activeDataIndexes, DataIndex);
+end;
+
 procedure TDataViewList.DataModelViewChanged(Sender: TObject; e: EventArgs);
 begin
   OnViewChanged;
@@ -192,12 +205,19 @@ end;
 
 function TDataViewList.GetActiveRowIfExists(const ViewListIndex: Integer): IDCRow;
 begin
-  if ViewListIndex <> -1 then
-    for var row in _activeRows do
-      if row.ViewListIndex = ViewListIndex then
-        Exit(row);
-
   Result := nil;
+  if (ViewListIndex = -1) or (_activeRows.Count = 0) then
+    Exit;
+
+  if _performanceVar_activeStartViewListIndex > ViewListIndex then
+    Exit;
+
+  if _performanceVar_activeStopViewListIndex < ViewListIndex then
+    Exit;
+
+  for var row in _activeRows do
+    if row.ViewListIndex = ViewListIndex then
+      Exit(row);
 end;
 
 function TDataViewList.GetDataIndex(const DataItem: CObject): Integer;
@@ -261,20 +281,24 @@ end;
 
 function TDataViewList.get_OriginalData: IList;
 begin
-  if _comparer <> nil then
-    Result := _comparer.Data
-  else if _dataModelView <> nil then
+  if _originalData = nil then
   begin
-    if interfaces.Supports<IList>(_dataModelView.DataModel) then
-      Result := _dataModelView.DataModel as IList
-    else begin
-      Result := CList<CObject>.Create(_dataModelView.DataModel.Rows.Count);
-      for var row in _dataModelView.DataModel.Rows do
-        Result.Add(row);
+    if _comparer <> nil then
+      _originalData := _comparer.Data
+    else if _dataModelView <> nil then
+    begin
+      if interfaces.Supports<IList>(_dataModelView.DataModel) then
+        _originalData := _dataModelView.DataModel as IList
+      else begin
+        _originalData := _dataModelView.DataModel.Rows as IList;
+        //CList<CObject>.Create(_dataModelView.DataModel.Rows.Count);
+//        for var row in _dataModelView.DataModel.Rows do
+//          _originalData.Add(row);
+      end;
     end;
-  end
-  else
-    Result := nil;
+  end;
+
+  Result := _originalData;
 end;
 
 function TDataViewList.GetNewActiveRow: IDCRow;
@@ -521,6 +545,25 @@ begin
     _activeRows.Add(Row);
     Row.ViewPortIndex := _activeRows.Count - 1;
   end;
+
+  UpdatePerformanceIndexIndicators;
+end;
+
+procedure TDataViewList.UpdatePerformanceIndexIndicators;
+begin
+  if _activeRows.Count = 0 then
+  begin
+    _performanceVar_activeStartViewListIndex := -1;
+    _performanceVar_activeStopViewListIndex := -1;
+    SetLength(_activeDataIndexes, 0);
+  end else begin
+    _performanceVar_activeStartViewListIndex := _activeRows[0].ViewListIndex;
+    _performanceVar_activeStopViewListIndex := _activeRows[_activeRows.Count - 1].ViewListIndex;
+
+    SetLength(_activeDataIndexes, _activeRows.Count);
+    for var ix := 0 to _activeRows.Count - 1 do
+      _activeDataIndexes[ix] := _activeRows[ix].DataIndex;
+  end;
 end;
 
 function TDataViewList.CachedRowHeight(const RowViewListIndex: Integer): Single;
@@ -571,7 +614,8 @@ begin
         _activeRows.RemoveAt(ix);
   end;
 
-  ClearViewRecInfo(FromViewListIndex, ClearOneRowOnly)
+  ClearViewRecInfo(FromViewListIndex, ClearOneRowOnly);
+  UpdatePerformanceIndexIndicators;
 end;
 
 procedure TDataViewList.ClearViewRecInfo(const FromViewListIndex: Integer; ClearOneRowOnly: Boolean);
@@ -638,6 +682,8 @@ begin
     var viewListIndex := _activeRows[ix2].ViewListIndex;
     _viewRowHeights[viewListIndex] := _viewRowHeights[viewListIndex].OnViewLoading;
   end;
+
+  UpdatePerformanceIndexIndicators;
 end;
 
 procedure TDataViewList.ViewLoadingStart(const SynchronizeFromView: IDataViewList);
@@ -656,6 +702,8 @@ begin
     var viewListIndex := _activeRows[ix2].ViewListIndex;
     _viewRowHeights[viewListIndex] := _viewRowHeights[viewListIndex].OnViewLoading;
   end;
+
+  UpdatePerformanceIndexIndicators;
 end;
 
 procedure TDataViewList.ViewLoadingRemoveNonUsedRows(const TillSpecifiedViewIndex: Integer = -1; const FromTop: Boolean = True);
