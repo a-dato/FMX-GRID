@@ -1356,14 +1356,14 @@ begin
     if Cell.ExpandButton <> nil then
     begin
       cell.ExpandButton.Position.Y := CELL_CONTENT_MARGIN;
-      cell.ExpandButton.Position.X := (spaceUsed - cell.ExpandButton.Width);
+      cell.ExpandButton.Position.X := 0;
       spaceUsed := indentPerLevel * (cell.Row.ParentCount {can be 0} + 1);
     end
     else if Cell.Column.ShowHierarchy then
       spaceUsed := indentPerLevel * (cell.Row.ParentCount {can be 0});
   end;
 
-  var textCtrlHeight := (Cell.Row.Control.Height - IfThen(Cell.IsHeaderCell, 0, (2*CELL_CONTENT_MARGIN)));
+  var textCtrlHeight := IfThen(Cell.IsHeaderCell, Cell.Row.Control.Height, (Cell.Row.Control.Height - 2*CELL_CONTENT_MARGIN));
   var validSub := (Cell.SubInfoControl <> nil) and Cell.SubInfoControl.Visible;
   if validSub and (Cell.Column.SubInfoControlClass = TInfoControlClass.Text) then
     validSub := (Cell.SubInfoControl as TText).Text <> string.Empty;
@@ -1389,6 +1389,7 @@ begin
       Cell.InfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
       Cell.InfoControl.Height := textCtrlHeight;
       Cell.InfoControl.Position.Y := (Cell.Control.Height - Cell.InfoControl.Height) / 2;
+      Cell.InfoControl.Position.Y := IfThen(Cell.IsHeaderCell, 0, CELL_CONTENT_MARGIN);
       Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
     end else
       Cell.InfoControl.BoundsRect := Cell.CustomInfoControlBounds;
