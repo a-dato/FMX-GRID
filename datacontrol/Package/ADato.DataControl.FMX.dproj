@@ -169,9 +169,6 @@
         <DCCReference Include="xmlrtl.dcp"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="ADato.Datamodel.dcp"/>
-        <DCCReference Include="ADato.ProjectDataModel.dcp"/>
-        <DCCReference Include="ADato.Grid.FMX.dcp"/>
-        <DCCReference Include="Adato.FMX.Controls.Runtime.dcp"/>
         <DCCReference Include="..\Scrollable\FMX.DataControl.ScrollableControl.pas"/>
         <DCCReference Include="..\Scrollable\FMX.DataControl.ScrollableRowControl.pas"/>
         <DCCReference Include="..\Scrollable\FMX.DataControl.View.Intf.pas"/>
@@ -192,15 +189,6 @@
         <DCCReference Include="..\Tree\FMX.DataControl.Static.PopupMenu.pas"/>
         <DCCReference Include="..\Tree\FMX.DataControl.Intf.pas"/>
         <DCCReference Include="..\Tree\FMX.DataControl.Impl.pas"/>
-        <DCCReference Include="..\Timebar\FMX.DateWindowControl.Gantt.Impl.pas"/>
-        <DCCReference Include="..\Timebar\FMX.GanttControl.Timebar.Intf.pas"/>
-        <DCCReference Include="..\Timebar\FMX.GanttControl.Timebar.Impl.pas"/>
-        <DCCReference Include="..\Timebar\FMX.DateWindowControl.Gantt.Intf.pas"/>
-        <DCCReference Include="..\Timebar\FMX.DateWindowControl.Impl.pas"/>
-        <DCCReference Include="..\Timebar\FMX.DateWindowControl.Intf.pas"/>
-        <DCCReference Include="..\Timebar\FMX.GanttControl.TimebarCalculator.pas"/>
-        <DCCReference Include="..\Timebar\FMX.DateWindowControl.Background.impl.pas"/>
-        <DCCReference Include="..\Timebar\FMX.DateWindowControl.Gantt.Dependencies.Impl.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

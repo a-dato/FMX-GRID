@@ -25,7 +25,7 @@ type
 
   TStaticDataControl = class(TDCScrollableRowControl, IRowAndCellCompare, IColumnsControl)
   private
-    _headerRow: IDCTreeRow;
+    _headerRow: IDCHeaderRow;
 
     _treeLayout: IDCTreeLayout;
 
@@ -69,9 +69,16 @@ type
     _autoFitColumns: Boolean;
     _reloadForSpecificColumn: IDCTreeLayoutColumn;
     _headerHeight: Single;
+    _headerTextTopMargin: Single;
+    _headerTextBottomMargin: Single;
 
     procedure set_AutoFitColumns(const Value: Boolean);
+    function  get_headerHeight: Single;
     procedure set_HeaderHeight(const Value: Single);
+    function  get_headerTextTopMargin: Single;
+    procedure set_headerTextTopMargin(const Value: Single);
+    function  get_headerTextBottomMargin: Single;
+    procedure set_headerTextBottomMargin(const Value: Single);
 
   // events
   protected
@@ -135,6 +142,7 @@ type
     procedure DataModelViewRowPropertiesChanged(Sender: TObject; Args: RowPropertiesChangedEventArgs); override;
 
     procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
+    procedure UpdateHorzScrollbar;
 
     procedure UpdateHoverRect(MousePos: TPointF); override;
 
@@ -143,6 +151,8 @@ type
 
     function  CalculateRowHeight(const Row: IDCTreeRow): Single;
     function  CalculateCellWidth(const LayoutColumn: IDCTreeLayoutColumn; const Cell: IDCTreeCell): Single;
+
+    procedure AssignWidthsToAlignColumns;
 
     procedure UpdatePositionAndWidthCells;
     procedure LoadDefaultDataIntoControl(const Cell: IDCTreeCell; const FlatColumn: IDCTreeLayoutColumn; const IsSubProp: Boolean); virtual;
@@ -181,13 +191,15 @@ type
     function  MultiSelectAllowed: Boolean;
 
     property  Layout: IDCTreeLayout read get_Layout;
-    property  HeaderRow: IDCTreeRow read _headerRow;
+    property  HeaderRow: IDCHeaderRow read _headerRow;
     property  SelectedColumn: IDCTreeLayoutColumn read get_SelectedColumn;
 
   published
     property Columns: IDCTreeColumnList read _columns write _columns;  // stored DoStoreColumns;
     property AutoFitColumns: Boolean read _autoFitColumns write set_AutoFitColumns default False;
-    property HeaderHeight: Single read _headerHeight write set_HeaderHeight;
+    property HeaderHeight: Single read get_headerHeight write set_HeaderHeight;
+    property HeaderTextTopMargin: Single read get_headerTextTopMargin write set_headerTextTopMargin;
+    property HeaderTextBottomMargin: Single read get_headerTextBottomMargin write set_headerTextBottomMargin;
 
     // events
     property CellLoading: CellLoadingEvent read _cellLoading write _cellLoading;
@@ -278,6 +290,18 @@ begin
   if _columns.Count = 0 then
     Exit;
 
+  AssignWidthsToAlignColumns;
+
+  ProcessColumnVisibilityRules;
+
+  UpdatePositionAndWidthCells;
+
+  UpdateHorzScrollbar;
+  SetBasicVertScrollBarValues;
+end;
+
+procedure TStaticDataControl.AssignWidthsToAlignColumns;
+begin
   var fullRowList: List<IDCTreeRow> := HeaderAndTreeRows;
 
   for var flatClmn in _treeLayout.FlatColumns do
@@ -294,15 +318,23 @@ begin
 
       _treeLayout.UpdateColumnWidth(flatClmn.Index, maxCellWidth);
     end;
+end;
 
-  ProcessColumnVisibilityRules;
-  UpdatePositionAndWidthCells;
-
+procedure TStaticDataControl.UpdateHorzScrollbar;
+begin
   var contentOverflow := _treeLayout.ContentOverFlow;
   if contentOverflow > 0 then
   begin
     SetBasicHorzScrollBarValues;
-    _horzScrollBar.Visible := not (TDCTreeOption.HideHScrollBar in _options);
+
+    if _rowHeightSynchronizer <> nil then
+    begin
+      _horzScrollBar.Visible := True;
+      _horzScrollBar.Opacity := IfThen(TDCTreeOption.HideHScrollBar in _options, 0, 1);
+    end else begin
+      _horzScrollBar.Visible := not (TDCTreeOption.HideHScrollBar in _options);
+      _horzScrollBar.Opacity := 1;
+    end;
 
     UpdateScrollbarMargins;
 
@@ -311,11 +343,16 @@ begin
     _frozenRectLine.BringToFront;
   end else
   begin
-    _horzScrollBar.Visible := False;
+    if _rowHeightSynchronizer <> nil then
+    begin
+      _horzScrollBar.Visible := True;
+      _horzScrollBar.Opacity := 0;
+    end else begin
+      _horzScrollBar.Visible := False;
+    end;
+
     _frozenRectLine.Visible := False;
   end;
-
-  SetBasicVertScrollBarValues;
 end;
 
 procedure TStaticDataControl.UpdateHoverRect(MousePos: TPointF);
@@ -1081,6 +1118,8 @@ begin
   _content.AddObject(_frozenRectLine);
 
   _headerHeight := 24;
+  _headerTextTopMargin := 0;
+  _headerTextBottomMargin := 0;
 
 //  _hoverCellRect := TRectangle.Create(_hoverRect);
 //  _hoverCellRect.Stored := False;
@@ -1110,6 +1149,21 @@ begin
     _waitForRepaintInfo := TDataControlWaitForRepaintInfo.Create(Self);
 
   Result := _waitForRepaintInfo;
+end;
+
+function TStaticDataControl.get_headerHeight: Single;
+begin
+  Result := _headerHeight;
+end;
+
+function TStaticDataControl.get_headerTextBottomMargin: Single;
+begin
+  Result := _headerTextBottomMargin;
+end;
+
+function TStaticDataControl.get_headerTextTopMargin: Single;
+begin
+  Result := _headerTextTopMargin;
 end;
 
 function TStaticDataControl.get_Layout: IDCTreeLayout;
@@ -1541,19 +1595,10 @@ begin
 
   if (TDCTreeOption.ShowHeaders in _options) then
   begin
-    _headerRow := TDCTreeRow.Create;
-    _headerRow.IsHeaderRow := True;
+    _headerRow := TDCHeaderRow.Create;
     _headerRow.DataIndex := -1;
-
-    var headerRect := TLayout.Create(Self);
-    headerRect.Stored := False;
-    headerRect.Align := TAlignLayout.Top;
-    headerRect.Height := _headerHeight;
-    headerRect.HitTest := True;
-    headerRect.OnMouseUp := OnHeaderMouseUp;
-    Self.AddObject(headerRect);
-
-    _headerRow.Control := headerRect;
+    _headerRow.CreateHeaderControls(Self);
+    _headerRow.ContentControl.OnMouseUp := OnHeaderMouseUp;
 
     if _treeLayout.RecalcRequired then
       _treeLayout.RecalcColumnWidthsBasic;
@@ -1567,23 +1612,14 @@ begin
       DoCellLoading(headerCell, False, {var} dummyManualHeight);
 
       if headerCell.Control = nil then
-      begin
-        if (TreeOption_ShowHeaderGrid in _options) then
-        begin
-          flatColumn.CreateCellBaseControls(True, headerCell);
-          var rect := (headerCell.Control as TRectangle);
-          rect.Fill.Kind := TBrushKind.Solid;
-          rect.Fill.Color := DEFAULT_GREY_COLOR;
-        end else
-          flatColumn.CreateCellBaseControls(False, headerCell);
-      end;
+        flatColumn.CreateCellBaseControls(TreeOption_ShowHeaderGrid in _options, headerCell);
 
-      headerCell.Control.Height := headerRect.Height;
+      headerCell.Control.Height := _headerRow.Height;
 
       flatColumn.UpdateCellControlsByRow(headerCell);
 
       var txt := headerCell.InfoControl as ScrollableRowControl_DefaultTextClass;
-      txt.VertTextAlign := TTextAlign.Trailing;
+//      txt.VertTextAlign := TTextAlign.Trailing;
       txt.Text := CStringToString(flatColumn.Column.Caption);
 
       DoCellLoaded(headerCell, False, {var} dummyManualHeight);
@@ -1934,6 +1970,36 @@ begin
   if not SameValue(_headerHeight, Value) then
   begin
     _headerHeight := Value;
+
+    if _treeLayout <> nil then
+      _treeLayout.ForceRecalc;
+
+    RefreshControl;
+  end;
+end;
+
+procedure TStaticDataControl.set_headerTextBottomMargin(const Value: Single);
+begin
+  if not SameValue(_headerTextBottomMargin, Value) then
+  begin
+    _headerTextBottomMargin := Value;
+
+    if _treeLayout <> nil then
+      _treeLayout.ForceRecalc;
+
+    RefreshControl;
+  end;
+end;
+
+procedure TStaticDataControl.set_headerTextTopMargin(const Value: Single);
+begin
+  if not SameValue(_headerTextTopMargin, Value) then
+  begin
+    _headerTextTopMargin := Value;
+
+    if _treeLayout <> nil then
+      _treeLayout.ForceRecalc;
+
     RefreshControl;
   end;
 end;
