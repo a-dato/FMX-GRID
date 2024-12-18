@@ -537,7 +537,7 @@ type
 
 const
   CELL_CONTENT_MARGIN = 3;
-  CELL_MIN_INDENT = 15;
+  CELL_MIN_INDENT = 8;
 
 resourcestring
   COLUMN_SHOW_DEFAULT_OBJECT_TEXT = '[object]';
