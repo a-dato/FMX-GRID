@@ -62,6 +62,11 @@ contains
   FMX.DateWindowControl.Gantt.Impl in '..\Timebar\FMX.DateWindowControl.Gantt.Impl.pas',
   FMX.GanttControl.Timebar.Intf in '..\Timebar\FMX.GanttControl.Timebar.Intf.pas',
   FMX.GanttControl.Timebar.Impl in '..\Timebar\FMX.GanttControl.Timebar.Impl.pas',
-  FMX.DateWindowControl.Gantt.Intf in '..\Timebar\FMX.DateWindowControl.Gantt.Intf.pas';
+  FMX.DateWindowControl.Gantt.Intf in '..\Timebar\FMX.DateWindowControl.Gantt.Intf.pas',
+  FMX.DateWindowControl.Impl in '..\Timebar\FMX.DateWindowControl.Impl.pas',
+  FMX.DateWindowControl.Intf in '..\Timebar\FMX.DateWindowControl.Intf.pas',
+  FMX.GanttControl.TimebarCalculator in '..\Timebar\FMX.GanttControl.TimebarCalculator.pas',
+  FMX.DateWindowControl.Background.impl in '..\Timebar\FMX.DateWindowControl.Background.impl.pas',
+  FMX.DateWindowControl.Gantt.Dependencies.Impl in '..\Timebar\FMX.DateWindowControl.Gantt.Dependencies.Impl.pas';
 
 end.
