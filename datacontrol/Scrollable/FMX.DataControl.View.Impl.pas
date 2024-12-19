@@ -228,14 +228,22 @@ begin
   begin
     var drv: IDataRowView;
     if DataItem.TryAsType<IDataRowView>(drv) then
-      Exit(drv.Row.get_Index);
+    begin
+      drv := _dataModelView.FindRow(drv.Row);
+      if drv <> nil then
+        Exit(drv.Row.get_Index) else
+        Exit(-1);
+    end;
 
     var dr: IDataRow;
+    var item: CObject := DataItem;
     if DataItem.TryAsType<IDataRow>(dr) then
-      Exit(dr.get_Index);
+      item := dr.Data;
 
-    dr := _dataModelView.DataModel.FindByKey(DataItem);
-    Result := dr.get_Index;
+    dr := _dataModelView.DataModel.FindByKey(item);
+    if dr <> nil then
+      Result := dr.get_Index else
+      Result := -1;
   end;
 end;
 
@@ -272,7 +280,10 @@ begin
       var dr := _dataModelView.DataModel.FindByKey(DataItem);
       if dr <> nil then
         drv := _dataModelView.FindRow(dr);
-    end;
+    end
+    else
+      // make sure item still exists in the datamodel, even if we still have the DataRowView
+      drv := _dataModelView.FindRow(drv.Row);
 
     if drv = nil then Exit(-1);
     Result := drv.ViewIndex;

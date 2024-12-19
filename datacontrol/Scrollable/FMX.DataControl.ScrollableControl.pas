@@ -102,6 +102,10 @@ type
     _scrollingType: TScrollingType;
     _onViewPortPositionChanged: TOnViewportPositionChange;
 
+    {$IFDEF DEBUG}
+    _stopwatch2, _stopwatch3: TStopwatch;
+    {$ENDIF}
+
     procedure BeforeRealignContent; virtual;
     procedure RealignContent; virtual;
     procedure AfterRealignContent; virtual;
@@ -319,6 +323,11 @@ begin
 
   var stopwatch := TStopwatch.StartNew;
 
+  {$IFDEF DEBUG}
+  _stopwatch2 := TStopwatch.Create;
+  _stopwatch3 := TStopwatch.Create;
+  {$ENDIF}
+
   try
     BeforeRealignContent;
     try
@@ -333,6 +342,13 @@ begin
 
   stopwatch.Stop;
   _realignContentTime := stopwatch.ElapsedMilliseconds;
+
+  {$IFDEF DEBUG}
+  Log('_stopwatch2: ' + _stopwatch2.ElapsedMilliseconds.ToString);
+  Log('_stopwatch3: ' + _stopwatch3.ElapsedMilliseconds.ToString);
+  {$ENDIF}
+
+  Log('DoRealignContent end');
 
   _scrollStopWatch_scrollbar := TStopwatch.StartNew;
 end;
@@ -377,6 +393,7 @@ begin
   inherited;
 
   SetBasicHorzScrollBarValues;
+  SetBasicVertScrollBarValues;
 end;
 
 procedure TDCScrollableControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
