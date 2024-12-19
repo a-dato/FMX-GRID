@@ -1289,6 +1289,7 @@ begin
 
   var rowHeightNeedsResizeAfterScrolling := rowInfo.ControlNeedsResize and (_scrollingType = TScrollingType.WithScrollBar);
   _view.RowLoaded(Row, rowHeightNeedsResizeAfterScrolling);
+
 end;
 
 procedure TDCScrollableRowControl.UpdateHoverRect(MousePos: TPointF);
@@ -1464,11 +1465,14 @@ begin
 
     // in case of sorting/filtering this is always the same
     // in case of deleting/adding this can vary
-    var dataIndex := _view.GetDataIndex(_selectionInfo.DataItem);
+    var dataIndex: Integer;
+
+    if newViewListIndex <> -1 then
+      dataIndex := _view.GetDataIndex(_selectionInfo.DataItem) else
+      dataIndex := -1;
 
     _selectionInfo.BeginUpdate;
     try
-
       if dataIndex <> -1 then
         _selectionInfo.UpdateSingleSelection(dataIndex {not changed}, newViewListIndex, _selectionInfo.DataItem {not changed}) else
         _selectionInfo.ClearAllSelections;  // when all items are deleted
@@ -1566,29 +1570,26 @@ begin
   if (_realignState in [TRealignState.Waiting, TRealignState.BeforeRealign]) then
     Exit;
 
-  if Self.ClassName = 'TDCGantt' then
-  begin
-    Log('g clear');
-    Log('g virt: ' + Integer(_scrollingType).ToString);
-  end
-  else
-  begin
-    Log('d clear');
-    Log('d virt: ' + Integer(_scrollingType).ToString);
-  end;
+//  if Self.ClassName = 'TDCGantt' then
+//  begin
+//    Log('g clear');
+//    Log('g virt: ' + Integer(_scrollingType).ToString);
+//  end
+//  else
+//  begin
+//    Log('d clear');
+//    Log('d virt: ' + Integer(_scrollingType).ToString);
+//  end;
 
   // update YPositions
   for var row in _view.ActiveViewRows do
   begin
     if not SameValue(row.Control.Position.Y, row.VirtualYPosition - _vertScrollBar.Value) then
-    begin
       row.Control.Position.Y := row.VirtualYPosition - _vertScrollBar.Value;
 
-    end;
-
-    if Self.ClassName = 'TDCGantt' then
-      Log('g virt: ' + row.DataItem.ToString + ' | ' + row.ViewPortIndex.ToString + ' | ' + row.Control.Visible.ToString + ' | ' + row.Control.Position.Y.ToString + ' | ' + row.Control.Height.ToString) else
-      Log('d virt: ' + row.DataItem.ToString + ' | ' + row.ViewPortIndex.ToString + ' | ' + row.Control.Visible.ToString + ' | ' + row.Control.Position.Y.ToString + ' | ' + row.Control.Height.ToString);
+//    if Self.ClassName = 'TDCGantt' then
+//      Log('g virt: ' + row.DataItem.ToString + ' | ' + row.ViewPortIndex.ToString + ' | ' + row.Control.Visible.ToString + ' | ' + row.Control.Position.Y.ToString + ' | ' + row.Control.Height.ToString) else
+//      Log('d virt: ' + row.DataItem.ToString + ' | ' + row.ViewPortIndex.ToString + ' | ' + row.Control.Visible.ToString + ' | ' + row.Control.Position.Y.ToString + ' | ' + row.Control.Height.ToString);
   end;
 
   if _isMasterSynchronizer then
