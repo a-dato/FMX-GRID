@@ -21,7 +21,7 @@ type
   TRealignState = (Waiting, BeforeRealign, Realigning, AfterRealign, RealignDone);
 
   TCustomSmallScrollBar = class(TSmallScrollBar)
-  protected
+  public
     function IsTracking: Boolean;
   end;
 

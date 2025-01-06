@@ -26,7 +26,6 @@ type
   TStaticDataControl = class(TDCScrollableRowControl, IRowAndCellCompare, IColumnsControl)
   private
     _headerRow: IDCHeaderRow;
-
     _treeLayout: IDCTreeLayout;
 
     _frozenRectLine: TRectangle;
@@ -1254,6 +1253,18 @@ end;
 destructor TStaticDataControl.Destroy;
 begin
   _headerRow := nil;
+//  _treeLayout := nil;
+
+  _treeLayout := nil;
+
+//  for var clmnIx := _columns.Count - 1 downto 0 do
+//  begin
+//    var clmn := TDCTreeColumn(_columns[clmnIx]);
+//    clmn.Free;
+//  end;
+//
+//  _columns := nil;
+
   inherited;
 end;
 
@@ -1916,6 +1927,25 @@ begin
     Exit;
 
   var setExpanded := not drv.DataView.IsExpanded[drv.Row];
+
+  var row := _view.GetActiveRowIfExists(viewListIndex) as IDCTreeRow;
+  var selInfo := _selectionInfo as ITreeSelectionInfo;
+
+  for var ix := 0 to _treeLayout.FlatColumns.Count - 1 do
+  begin
+    var flatColumn := _treeLayout.FlatColumns[ix];
+    if row.Cells[flatColumn.Index].ExpandButton = Sender then
+    begin
+      selInfo.BeginUpdate;
+      try
+        selInfo.SelectedLayoutColumn := _treeLayout.FlatColumns[ix].Index;
+      finally
+        selInfo.EndUpdate(True);
+      end;
+
+      Break;
+    end;
+  end;
 
   Self.Current := viewListIndex;
   DoCollapseOrExpandRow(viewListIndex, setExpanded);

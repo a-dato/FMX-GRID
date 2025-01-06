@@ -380,7 +380,6 @@ end;
 procedure TDCScrollableRowControl.DoResized;
 begin
   inherited;
-  RefreshControl;
 end;
 
 procedure TDCScrollableRowControl.DoRowLoaded(const ARow: IDCRow);
@@ -828,7 +827,10 @@ end;
 procedure TDCScrollableRowControl.set_DataList(const Value: IList);
 begin
   if GetDataModelView <> nil then
+  begin
     GetDataModelView.CurrencyManager.CurrentRowChanged.Remove(DataModelViewRowChanged);
+    GetDataModelView.RowPropertiesChanged.Remove(DataModelViewRowPropertiesChanged);
+  end;
 
   _view := nil;
 

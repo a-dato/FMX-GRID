@@ -32,9 +32,6 @@ type
     procedure KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
     procedure UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single); override;
 
-    function  CopyToClipBoard: Boolean; virtual;
-    function  PasteFromClipBoard: Boolean; virtual;
-
     procedure StartEditCell(const Cell: IDCTreeCell);
     function  EndEditCell: Boolean;
 
@@ -99,6 +96,9 @@ type
     function  IsEditOrNew: Boolean;
 
     procedure EndEditFromExternal(const Item: CObject);
+
+    function  CopyToClipBoard: Boolean; virtual;
+    function  PasteFromClipBoard: Boolean; virtual;
 
     procedure CancelEdit(CellOnly: Boolean = False); // canceling is difficult to only do the cell
     function  EditActiveCell(SetFocus: Boolean): Boolean;
