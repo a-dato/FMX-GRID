@@ -40,7 +40,7 @@ type
 
     procedure DoViewPortPositionChanged;
 
-    function  VertScrollbarIsTracking: Boolean;
+//    function  VertScrollbarIsTracking: Boolean;
 
   protected
     procedure OnHorzScrollBarChange(Sender: TObject); virtual;
@@ -688,10 +688,10 @@ begin
   _mouseWheelSmoothScrollTimer.Enabled := True;
 end;
 
-function TDCScrollableControl.VertScrollbarIsTracking: Boolean;
-begin
-  (_vertScrollBar as TCustomSmallScrollBar).IsTracking;
-end;
+//function TDCScrollableControl.VertScrollbarIsTracking: Boolean;
+//begin
+//  Result := (_vertScrollBar as TCustomSmallScrollBar).IsTracking;
+//end;
 
 procedure TDCScrollableControl.SetBasicHorzScrollBarValues;
 begin

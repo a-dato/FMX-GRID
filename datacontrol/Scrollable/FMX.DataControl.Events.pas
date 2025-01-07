@@ -29,7 +29,7 @@ type
   public
     EventTrigger: TSelectionEventTrigger;
 
-    constructor Create(const ACell: IDCTreeCell; EventTrigger: TSelectionEventTrigger); reintroduce;
+    constructor Create(const ACell: IDCTreeCell; Trigger: TSelectionEventTrigger); reintroduce;
     property Cell: IDCTreeCell read _cell;
   end;
 
@@ -384,10 +384,10 @@ end;
 
 { DCCellSelectedEventArgs }
 
-constructor DCCellSelectedEventArgs.Create(const ACell: IDCTreeCell; EventTrigger: TSelectionEventTrigger);
+constructor DCCellSelectedEventArgs.Create(const ACell: IDCTreeCell; Trigger: TSelectionEventTrigger);
 begin
   inherited Create(ACell);
-  EventTrigger := EventTrigger;
+  EventTrigger := Trigger;
 end;
 
 { ColumnChangedByUserEventArgs }

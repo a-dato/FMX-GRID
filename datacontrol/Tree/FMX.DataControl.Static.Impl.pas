@@ -769,7 +769,6 @@ var
   propertyname, subPropertyname: string;
   customHidden: Boolean;
   customWidth: Single;
-  w: Integer;
   readonly: Boolean;
   infoCtrlClass, subinfoCtrlClass: Integer;
 
@@ -1491,7 +1490,7 @@ begin
         splitterLy.Cursor := crSizeWE;
         splitterLy.HitTest := True;
         splitterLy.Width := 1;
-        splitterLy.TouchTargetExpansion := TBounds.Create(RectF(3, 0, 3, 0));
+        splitterLy.TouchTargetExpansion.Rect := RectF(3, 0, 3, 0);
 
         rect.AddObject(splitterLy);
         headerCell.ResizeControl := splitterLy;
