@@ -1469,10 +1469,7 @@ begin
     // otherwise the TText can be the baseControl
     if Cell.IsHeaderCell then
     begin
-      var rect := ScrollableRowControl_DefaultRectangleClass.Create(Cell.Row.Control);
-      rect.Fill.Kind := TBrushKind.None;
-      rect.Fill.Color := TAlphaColors.Null;
-      rect.Stroke.Color := DEFAULT_HEADER_STROKE;
+      var rect := DataControlClassFactory.CreateHeaderCellRect(Cell.Row.Control);
 
       var headerCell := Cell as IHeaderCell;
       if ShowVertGrid and (Cell.Index <> 0) then
@@ -1502,8 +1499,7 @@ begin
     end
     else if ShowVertGrid then
     begin
-      var rect := ScrollableRowControl_DefaultRectangleClass.Create(Cell.Row.Control);
-      rect.Fill.Kind := TBrushKind.None;
+      var rect := DataControlClassFactory.CreateRowCellRect(Cell.Row.Control);
 
       if _index = 0 then
         rect.Sides := [TSide.Left, TSide.Right] else
@@ -2792,14 +2788,10 @@ end;
 
 procedure TDCHeaderRow.CreateHeaderControls(const Owner: IColumnsControl);
 begin
-  _contentControl := ScrollableRowControl_DefaultRectangleClass.Create(Owner.Control);
+  _contentControl := DataControlClassFactory.CreateHeaderRect(Owner.Control);
   _contentControl.Stored := False;
   _contentControl.Align := TAlignLayout.Top;
   _contentControl.Height := Owner.HeaderHeight;
-  _contentControl.HitTest := True;
-  _contentControl.Fill.Color := DEFAULT_HEADER_BACKGROUND;
-  _contentControl.Stroke.Color := DEFAULT_HEADER_STROKE;
-  _contentControl.Sides := [TSide.Bottom];
   Owner.Control.AddObject(_contentControl);
 
   var headerRect := TLayout.Create(_contentControl);

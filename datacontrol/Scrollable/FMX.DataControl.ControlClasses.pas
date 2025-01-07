@@ -40,8 +40,29 @@ type
 //  function GetCellInfoControl(CellControl: TControl; IsCheckBox: Boolean): IControl; //TText; or TLabel
 //  function CreateDefaultTextClassControl(AOwner: TComponent): TControl;
 
+  IDataControlClassFactory = interface
+    ['{08ADE46F-92EA-4A14-9208-51FD5347C754}']
+    function CreateHeaderRect(const Owner: TComponent): TRectangle;
+    function CreateRowRect(const Owner: TComponent): TRectangle;
 
-var  // see Initialization section
+    function CreateHeaderCellRect(const Owner: TComponent): TRectangle;
+    function CreateRowCellRect(const Owner: TComponent): TRectangle;
+  end;
+
+  TDataControlClassFactory = class(TInterfacedObject, IDataControlClassFactory)
+  public
+    function CreateHeaderRect(const Owner: TComponent): TRectangle; virtual;
+    function CreateRowRect(const Owner: TComponent): TRectangle; virtual;
+
+    function CreateHeaderCellRect(const Owner: TComponent): TRectangle; virtual;
+    function CreateRowCellRect(const Owner: TComponent): TRectangle; virtual;
+  end;
+
+
+var
+  // see Initialization section
+  DataControlClassFactory: IDataControlClassFactory;
+
   ScrollableRowControl_DefaultTextClass: TTextClass;
   ScrollableRowControl_DefaultCheckboxClass: TCheckBoxClass;
   ScrollableRowControl_DefaultRadioButtonClass: TRadioButtonClass;
@@ -125,7 +146,43 @@ begin
   inherited;
 end;
 
+{ TDataControlClassFactory }
+
+function TDataControlClassFactory.CreateHeaderRect(const Owner: TComponent): TRectangle;
+begin
+  Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
+
+  Result.HitTest := True;
+  Result.Fill.Color := DEFAULT_HEADER_BACKGROUND;
+  Result.Stroke.Color := DEFAULT_HEADER_STROKE;
+  Result.Sides := [TSide.Bottom];
+end;
+
+function TDataControlClassFactory.CreateHeaderCellRect(const Owner: TComponent): TRectangle;
+begin
+  Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
+
+  Result.Fill.Kind := TBrushKind.None;
+  Result.Fill.Color := TAlphaColors.Null;
+  Result.Stroke.Color := DEFAULT_HEADER_STROKE;
+end;
+
+function TDataControlClassFactory.CreateRowCellRect(const Owner: TComponent): TRectangle;
+begin
+  Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
+  Result.Fill.Kind := TBrushKind.None;
+end;
+
+function TDataControlClassFactory.CreateRowRect(const Owner: TComponent): TRectangle;
+begin
+  Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
+
+  Result.Fill.Color := DEFAULT_WHITE_COLOR;
+end;
+
 initialization
+  DataControlClassFactory := TDataControlClassFactory.Create;
+
   ScrollableRowControl_DefaultTextClass := TText;
   ScrollableRowControl_DefaultCheckboxClass := TCheckBox;
   ScrollableRowControl_DefaultRadioButtonClass := TRadioButton;
@@ -145,6 +202,9 @@ initialization
   DEFAULT_ROW_HOVER_COLOR := TAlphaColor($335B8BCD);
 
   DEFAULT_HEADER_BACKGROUND := TAlphaColors.White;
-  DEFAULT_HEADER_STROKE := TAlphaColors.Lightgrey;
+  DEFAULT_HEADER_STROKE := TAlphaColors.Grey;
+
+finalization
+  DataControlClassFactory := nil;
 
 end.

@@ -226,6 +226,11 @@ end;
 destructor TDCScrollableControl.Destroy;
 begin
   _safeObj := nil;
+
+  FreeAndNil(_mouseRollingBoostTimer);
+  FreeAndNil(_mouseWheelSmoothScrollTimer);
+  FreeAndNil(_checkWaitForRealignTimer);
+
   inherited;
 end;
 
@@ -394,6 +399,8 @@ begin
 
   SetBasicHorzScrollBarValues;
   SetBasicVertScrollBarValues;
+
+  RefreshControl;
 end;
 
 procedure TDCScrollableControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);

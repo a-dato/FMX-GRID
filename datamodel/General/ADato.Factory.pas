@@ -32,6 +32,7 @@ type
 
   public
     class constructor Create;
+    class destructor Destroy;
     constructor Create;
 
     procedure RegisterType<T>(const Func: TCreatorFunc<T>); overload;
@@ -51,11 +52,19 @@ type
 
 implementation
 
+uses
+  System.SysUtils;
+
 { CFactory }
 
 class constructor CFactory.Create;
 begin
   CFactory._Instance := CFactory.Create;
+end;
+
+class destructor CFactory.Destroy;
+begin
+  FreeAndNil(CFactory._Instance);
 end;
 
 constructor CFactory.Create;

@@ -1209,11 +1209,10 @@ begin
   var oldRowHeight := _view.GetRowHeight(Row.ViewListIndex);
   if Row.Control = nil then
   begin
-    var rect := ScrollableRowControl_DefaultRectangleClass.Create(_content);
+    var rect := DataControlClassFactory.CreateRowRect(_content);
     rect.ClipChildren := True;
     rect.HitTest := False;
     rect.Align := TAlignLayout.None;
-    rect.Fill.Color := DEFAULT_WHITE_COLOR;
 
     Row.Control := rect;
 
