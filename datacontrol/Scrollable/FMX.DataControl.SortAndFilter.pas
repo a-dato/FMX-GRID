@@ -13,7 +13,7 @@ uses
   System.Generics.Defaults, FMX.DataControl.Static;
 
 type
-  TTreeSortDescription = class(CListSortDescription)
+  TTreeSortDescription = class(CListSortDescription, ITreeSortDescription)
   private
     _flatColumn: IDCTreeLayoutColumn;
 
@@ -30,7 +30,7 @@ type
     function  GetSortableValue(const AObject: CObject): CObject; override;
   end;
 
-  TTreeSortDescriptionWithComparer = class(TTreeSortDescription, IListSortDescriptionWithComparer)
+  TTreeSortDescriptionWithComparer = class(TTreeSortDescription, IListSortDescriptionWithComparer, ITreeSortDescription)
   private
     _comparer: IComparer<CObject>;
 

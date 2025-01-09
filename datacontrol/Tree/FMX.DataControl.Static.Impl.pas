@@ -1122,7 +1122,9 @@ begin
         data := _cachedSubProp.GetValue(dataItem, []);
       end;
     end;
-  end;
+  end
+  else if Cell.Column.InfoControlClass = TInfoControlClass.CheckBox then
+    data := (Cell.InfoControl as IISChecked).IsChecked;
 
   if not IsSubProp then
     Cell.Data := data else
@@ -1436,7 +1438,7 @@ begin
 
       Result := check as TControl;
       Result.Align := TAlignLayout.None;
-      Result.HitTest := False;
+      Result.HitTest := not Cell.Column.IsCheckBoxColumn;
     end;
 
     Button: begin
