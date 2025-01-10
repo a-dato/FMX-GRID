@@ -115,7 +115,6 @@ type
 //    property ReturnSortComparer: Boolean read _ReturnSortComparer;
   end;
 
-
   DCRowEventArgs = class(EventArgs)
   protected
     _row: IDCRow;
@@ -206,6 +205,13 @@ type
     property Cell: IDCTreeCell read  _Cell;
   end;
 
+  DCCheckChangedEventArgs = class(DCCellEventArgs)
+  public
+    DoFollowCheckThroughChildren: Boolean;
+
+    function CheckControl: TControl;
+  end;
+
   ColumnChangedByUserEventArgs = class(EventArgs)
   protected
 //    _Accept: Boolean;
@@ -241,6 +247,7 @@ type
   StartEditEvent  = procedure(const Sender: TObject; e: DCStartEditEventArgs) of object;
   EndEditEvent  = procedure(const Sender: TObject; e: DCEndEditEventArgs) of object;
   CellParsingEvent = procedure(const Sender: TObject; e: DCCellParsingEventArgs) of object;
+  CellCheckChangeEvent = procedure(const Sender: TObject; e: DCCheckChangedEventArgs) of object;
 
   ColumnChangedByUserEvent = procedure (const Sender: TObject; e: ColumnChangedByUserEventArgs) of object;
 
@@ -415,6 +422,13 @@ constructor DCDeletingEventArgs.Create(const ADataItem: CObject);
 begin
   inherited Create;
   DataItem := ADataItem;
+end;
+
+{ DCCheckChangedEventArgs }
+
+function DCCheckChangedEventArgs.CheckControl: TControl;
+begin
+  Result := _cell.InfoControl;
 end;
 
 end.

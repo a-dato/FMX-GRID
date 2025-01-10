@@ -1438,7 +1438,7 @@ begin
 
       Result := check as TControl;
       Result.Align := TAlignLayout.None;
-      Result.HitTest := not Cell.Column.IsCheckBoxColumn;
+      Result.HitTest := False;
     end;
 
     Button: begin

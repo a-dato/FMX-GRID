@@ -133,7 +133,7 @@ type
     procedure RequestRealignContent;
 
     procedure Painting; override;
-
+    function IsUpdating: Boolean; override;
     procedure RefreshControl(const DataChanged: Boolean = False); virtual;
 
     function  TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
@@ -383,6 +383,11 @@ end;
 function TDCScrollableControl.IsInitialized: Boolean;
 begin
   Result := _realignState <> TRealignState.Waiting;
+end;
+
+function TDCScrollableControl.IsUpdating: Boolean;
+begin
+  Result := inherited or ((_content <> nil) and _content.IsUpdating);
 end;
 
 procedure TDCScrollableControl.Log(const Message: CString);

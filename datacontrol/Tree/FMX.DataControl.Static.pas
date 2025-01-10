@@ -1502,6 +1502,8 @@ begin
   begin
     // nothing special to do
     ScrollSelectedIntoView(RequestedSelectionInfo);
+    currentSelection.SelectedLayoutColumn := requestedSelection.SelectedLayoutColumn;
+
     DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionEventTrigger);
     Exit;
   end;
@@ -1526,7 +1528,10 @@ begin
   _selectionInfo.BeginUpdate;
   try
     if SelectionType <> TSelectionType.CellSelection then
-      InternalDoSelectRow(dummyNewRow, Shift)
+    begin
+      InternalDoSelectRow(dummyNewRow, Shift);
+      currentSelection.SelectedLayoutColumn := requestedSelection.SelectedLayoutColumn;
+    end
     else begin
       if not rowAlreadySelected then
         InternalDoSelectRow(dummyNewRow, customShift)
