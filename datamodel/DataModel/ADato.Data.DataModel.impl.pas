@@ -150,6 +150,7 @@ type
 
   public
     constructor Create(AFlags: RowFlags); overload; virtual;
+    destructor Destroy; override;
 
     function &Equals(const Other: IBaseInterface): Boolean; reintroduce; overload;
     function &Equals(const Other: IRowProperties): Boolean; reintroduce; overload;
@@ -4072,9 +4073,7 @@ begin
 //        ResetRows;
 //      {$ENDIF}
 
-      defaultProperties := _defaultRowProperties;
-
-      if defaultProperties.Equals(Value) then
+      if _defaultRowProperties.Equals(Value) then
         _rowProperties.Remove(Row) else
         _rowProperties[Row] := Value;
 
@@ -4535,6 +4534,12 @@ begin
   Result := &Equals(Other as IRowProperties);
 end;
 
+destructor TRowProperties.Destroy;
+begin
+
+  inherited;
+end;
+
 function TRowProperties.Equals(const Other: IRowProperties): Boolean;
 begin
   Result := (_flags = Other.Flags);
@@ -4878,7 +4883,7 @@ begin
   Result := _dataSource;
 end;
 
-function DataLink.get_DefaultRowProperties: IRowProperties; 
+function DataLink.get_DefaultRowProperties: IRowProperties;
 begin
   Result := _defaultRowProperties;
 end;

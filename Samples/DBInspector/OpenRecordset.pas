@@ -47,7 +47,9 @@ type
     DataGrid: TDataControl;
     lyCellEditor: TLayout;
     lyExecutionLog: TLayout;
+    acExecute: TAction;
     procedure acAbortExecute(Sender: TObject);
+    procedure acExecuteExecute(Sender: TObject);
     procedure acNextRecordSetExecute(Sender: TObject);
     procedure ActionList1Update(Action: TBasicAction; var Handled: Boolean);
     procedure DataEditorChangeTracking(Sender: TObject);
@@ -55,6 +57,7 @@ type
         WideChar; Shift: TShiftState);
     procedure DataGridCellChanged(const Sender: TObject; e: DCCellChangedEventArgs);
     procedure DataGridEditStart(const Sender: TObject; e: StartEditEventArgs);
+    procedure TheQueryAfterCancel(DataSet: TDataSet);
 
   private
     FStopWatch: TStopWatch;
@@ -73,7 +76,7 @@ type
 
   public
     { Public declarations }
-    procedure ExecuteQuery;
+    procedure ExecuteQuery(OpenNextRecordSet: Boolean);
     property ConnectionName: string read get_ConnectionName write set_ConnectionName;
     property CommandText: string read get_CommandText write set_CommandText;
     property SqlSourceText: string read get_CommandText write set_SqlSourceText;
@@ -91,10 +94,14 @@ begin
   TheQuery.AbortJob;
 end;
 
+procedure TOpenRecordSetFrame.acExecuteExecute(Sender: TObject);
+begin
+  ExecuteQuery(False);
+end;
+
 procedure TOpenRecordSetFrame.acNextRecordSetExecute(Sender: TObject);
 begin
-  if TheQuery.Active then
-    TheQuery.NextRecordSet;
+  ExecuteQuery(True {Open next record set});
 end;
 
 procedure TOpenRecordSetFrame.ActionList1Update(Action: TBasicAction; var
@@ -103,6 +110,9 @@ begin
   Handled := True;
   lblCellEditor.Visible := not DataEditor.IsFocused;
   lblExecutionLog.Visible := not Logging.IsFocused;
+
+  acExecute.Enabled := not (TheQuery.Command.State in [csExecuting, csFetching]);
+  acAbort.Enabled := TheQuery.Command.State in [csExecuting, csFetching];
 end;
 
 procedure TOpenRecordSetFrame.AddMessage(AMessage: string);
@@ -177,7 +187,7 @@ begin
   e.MultilineEdit := True;
 end;
 
-procedure TOpenRecordSetFrame.ExecuteQuery;
+procedure TOpenRecordSetFrame.ExecuteQuery(OpenNextRecordSet: Boolean);
 begin
   FStopWatch := TStopwatch.StartNew;
 
@@ -195,15 +205,21 @@ begin
 
   // DataGrid.DataList := nil;
   DatasetDataModel1.Close;
-  TheQuery.FetchOptions.AutoClose := False;
-  TheQuery.Close;
 
-  if SqlQuery.Visible then
-    TheQuery.SQL.Text := SqlQuery.Lines.Text;
+  if not OpenNextRecordSet then
+  begin
+    TheQuery.FetchOptions.AutoClose := False;
+    TheQuery.Close;
+
+    if SqlQuery.Visible then
+      TheQuery.SQL.Text := SqlQuery.Lines.Text;
+  end;
 
   TThread.CreateAnonymousThread(procedure begin
     try
-      TheQuery.Open;
+      if OpenNextRecordSet then
+        TheQuery.NextRecordSet else
+        TheQuery.Open;
     except
       on E: Exception do
         AddMessage(E.Message);
@@ -256,6 +272,11 @@ procedure TOpenRecordSetFrame.set_SqlSourceText(const Value: string);
 begin
   UpdateDialogControls(True);
   SqlQuery.Text := Value;
+end;
+
+procedure TOpenRecordSetFrame.TheQueryAfterCancel(DataSet: TDataSet);
+begin
+  AddMessage('Canceled');
 end;
 
 procedure TOpenRecordSetFrame.UpdateDialogControls(IsSqlSourceWindow: Boolean);

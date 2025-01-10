@@ -124,8 +124,6 @@ type
 
     procedure SetBasicVertScrollBarValues; override;
 
-    procedure DoResized; override;
-
     function  DoCreateNewRow: IDCRow; virtual;
     procedure InnerInitRow(const Row: IDCRow); virtual;
     procedure InitRow(const Row: IDCRow; const IsAboveRefRow: Boolean = False);
@@ -375,12 +373,6 @@ begin
   finally
     dec(_rowHeightSynchronizer._scrollUpdateCount);
   end;
-end;
-
-procedure TDCScrollableRowControl.DoResized;
-begin
-  inherited;
-  RefreshControl;
 end;
 
 procedure TDCScrollableRowControl.DoRowLoaded(const ARow: IDCRow);
@@ -811,6 +803,8 @@ begin
   var l: List<CObject> := CList<CObject>.Create(Length(_selectionInfo.NotSelectableDataIndexes));
   for var dataIndex in _selectionInfo.NotSelectableDataIndexes do
     l.Add(_view.OriginalData[dataIndex]);
+
+  Result := l as IList;
 end;
 
 function TDCScrollableRowControl.get_rowHeightDefault: Single;
@@ -828,7 +822,10 @@ end;
 procedure TDCScrollableRowControl.set_DataList(const Value: IList);
 begin
   if GetDataModelView <> nil then
+  begin
     GetDataModelView.CurrencyManager.CurrentRowChanged.Remove(DataModelViewRowChanged);
+    GetDataModelView.RowPropertiesChanged.Remove(DataModelViewRowPropertiesChanged);
+  end;
 
   _view := nil;
 
@@ -1207,11 +1204,10 @@ begin
   var oldRowHeight := _view.GetRowHeight(Row.ViewListIndex);
   if Row.Control = nil then
   begin
-    var rect := ScrollableRowControl_DefaultRectangleClass.Create(_content);
+    var rect := DataControlClassFactory.CreateRowRect(_content);
     rect.ClipChildren := True;
     rect.HitTest := False;
     rect.Align := TAlignLayout.None;
-    rect.Fill.Color := DEFAULT_WHITE_COLOR;
 
     Row.Control := rect;
 
@@ -1235,7 +1231,7 @@ begin
       rr.Fill.Color := DEFAULT_GREY_COLOR else
       rr.Fill.Color := DEFAULT_WHITE_COLOR;
   end else
-    rr.Fill.Kind := TBrushKind.None;
+    rr.Fill.Color := TAlphaColors.Null;
 
   Row.Control.Position.X := 0;
   Row.Control.Width := _content.Width;
@@ -1424,7 +1420,13 @@ begin
   AtomicIncrement(_internalSelectCount);
   try
     if (_model <> nil) then
-      _model.ObjectContext := ValidDataItem(Self.DataItem)
+    begin
+      if SelectionCount > 1 then
+        _model.MultiSelectionContext := SelectedItems else
+        _model.MultiSelectionContext := nil;
+
+      _model.ObjectContext := ValidDataItem(Self.DataItem);
+    end
     else if (GetDataModelView <> nil) and (Self.DataItem <> nil) and (Self.DataItem.IsOfType<IDataRowView>) then
       GetDataModelView.CurrencyManager.Current := Self.DataItem.AsType<IDataRowView>.ViewIndex;
   finally

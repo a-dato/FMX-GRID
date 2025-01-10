@@ -30,10 +30,6 @@ uses
   FMX.StdCtrls,
   FMX.Objects,
 
-//  ADato.FMX.Controls.ScrollableControl.Impl,
-//  ADato.FMX.Controls.ScrollableRowControl.Impl,
-//  ADato.Controls.FMX.Tree.Intf,
-
   FMX.DataControl.Static.Intf,
   FMX.DataControl.ScrollableControl,
   FMX.DataControl.ScrollableRowControl,

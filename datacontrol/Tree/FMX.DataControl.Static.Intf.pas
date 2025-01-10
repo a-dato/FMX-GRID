@@ -296,6 +296,10 @@ type
     property HeaderTextBottomMargin: Single read get_headerTextBottomMargin write set_headerTextBottomMargin;
   end;
 
+  ITreeSortDescription = interface
+    ['{DABA6714-B9EB-43B8-B2D5-8B8E081D8F43}']
+  end;
+
   ITreeFilterDescription = interface(IListFilterDescription)
     ['{D676B9AB-6BAE-45F1-A27E-D046E6C004AA}']
     function  get_filterText: CString;
@@ -537,7 +541,7 @@ type
 
 const
   CELL_CONTENT_MARGIN = 3;
-  CELL_MIN_INDENT = 8;
+  CELL_MIN_INDENT = 10;
 
 resourcestring
   COLUMN_SHOW_DEFAULT_OBJECT_TEXT = '[object]';

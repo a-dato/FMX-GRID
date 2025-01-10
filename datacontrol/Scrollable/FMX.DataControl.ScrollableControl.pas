@@ -21,7 +21,7 @@ type
   TRealignState = (Waiting, BeforeRealign, Realigning, AfterRealign, RealignDone);
 
   TCustomSmallScrollBar = class(TSmallScrollBar)
-  protected
+  public
     function IsTracking: Boolean;
   end;
 
@@ -40,7 +40,7 @@ type
 
     procedure DoViewPortPositionChanged;
 
-    function  VertScrollbarIsTracking: Boolean;
+//    function  VertScrollbarIsTracking: Boolean;
 
   protected
     procedure OnHorzScrollBarChange(Sender: TObject); virtual;
@@ -101,6 +101,7 @@ type
 
     _scrollingType: TScrollingType;
     _onViewPortPositionChanged: TOnViewportPositionChange;
+    _lastContentBottomRight: TPointF;
 
     {$IFDEF DEBUG}
     _stopwatch2, _stopwatch3: TStopwatch;
@@ -120,10 +121,12 @@ type
     procedure ScrollManualInstant(YChange: Integer);
     procedure ScrollManualAnimated(YChange: Integer);
 
-    procedure DoResized; override;
     procedure UpdateScrollbarMargins;
 
     procedure Log(const Message: CString);
+
+    procedure OnContentResized(Sender: TObject);
+    procedure DoContentResized(WidthChanged, HeightChanged: Boolean); virtual;
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -133,7 +136,7 @@ type
     procedure RequestRealignContent;
 
     procedure Painting; override;
-
+    function IsUpdating: Boolean; override;
     procedure RefreshControl(const DataChanged: Boolean = False); virtual;
 
     function  TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
@@ -196,6 +199,7 @@ begin
   _content.Stored := False;
   _content.Align := TAlignLayout.Client;
   _content.ClipChildren := True;
+  _content.OnResized := OnContentResized;
   Self.AddObject(_content);
 
   _mouseRollingBoostTimer := TTimer.Create(Self);
@@ -226,6 +230,11 @@ end;
 destructor TDCScrollableControl.Destroy;
 begin
   _safeObj := nil;
+
+  FreeAndNil(_mouseRollingBoostTimer);
+  FreeAndNil(_mouseWheelSmoothScrollTimer);
+  FreeAndNil(_checkWaitForRealignTimer);
+
   inherited;
 end;
 
@@ -297,6 +306,22 @@ begin
 
   if restartAgain then
     RestartWaitForRealignTimer(0, True);
+end;
+
+procedure TDCScrollableControl.DoContentResized(WidthChanged, HeightChanged: Boolean);
+begin
+  if WidthChanged then
+    SetBasicHorzScrollBarValues;
+
+  if HeightChanged then
+    SetBasicVertScrollBarValues;
+
+  // the method AfterRealign must be executed
+  // but if not painted yet it will get there on it's own..
+  if (WidthChanged or HeightChanged) and (_realignState in [TRealignState.AfterRealign, TRealignState.RealignDone]) then
+    RefreshControl;
+
+  _lastContentBottomRight := PointF(_content.Width, _content.Height);
 end;
 
 procedure TDCScrollableControl.DoHorzScrollBarChanged;
@@ -380,20 +405,17 @@ begin
   Result := _realignState <> TRealignState.Waiting;
 end;
 
+function TDCScrollableControl.IsUpdating: Boolean;
+begin
+  Result := inherited or ((_content <> nil) and _content.IsUpdating);
+end;
+
 procedure TDCScrollableControl.Log(const Message: CString);
 begin
   {$IFDEF DEBUG}
   if Assigned(_onLog) then
     _onLog(Self.Name + ': ' + Message);
   {$ENDIF}
-end;
-
-procedure TDCScrollableControl.DoResized;
-begin
-  inherited;
-
-  SetBasicHorzScrollBarValues;
-  SetBasicVertScrollBarValues;
 end;
 
 procedure TDCScrollableControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
@@ -556,6 +578,14 @@ begin
   end;
 end;
 
+procedure TDCScrollableControl.OnContentResized(Sender: TObject);
+begin
+  var widthChanged := not SameValue(_lastContentBottomRight.X, _content.Width);
+  var heightChanged := not SameValue(_lastContentBottomRight.Y, _content.Height);
+
+  DoContentResized(widthChanged, heightChanged);
+end;
+
 procedure TDCScrollableControl.OnHorzScrollBarChange(Sender: TObject);
 begin
   if _scrollUpdateCount <> 0 then
@@ -681,10 +711,10 @@ begin
   _mouseWheelSmoothScrollTimer.Enabled := True;
 end;
 
-function TDCScrollableControl.VertScrollbarIsTracking: Boolean;
-begin
-  (_vertScrollBar as TCustomSmallScrollBar).IsTracking;
-end;
+//function TDCScrollableControl.VertScrollbarIsTracking: Boolean;
+//begin
+//  Result := (_vertScrollBar as TCustomSmallScrollBar).IsTracking;
+//end;
 
 procedure TDCScrollableControl.SetBasicHorzScrollBarValues;
 begin

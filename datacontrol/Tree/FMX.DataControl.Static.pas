@@ -26,7 +26,6 @@ type
   TStaticDataControl = class(TDCScrollableRowControl, IRowAndCellCompare, IColumnsControl)
   private
     _headerRow: IDCHeaderRow;
-
     _treeLayout: IDCTreeLayout;
 
     _frozenRectLine: TRectangle;
@@ -120,8 +119,6 @@ type
     function  SelectionCheckBoxColumn: IDCTreeLayoutColumn;
 
   protected
-    procedure DoResized; override;
-
     function  DoCreateNewRow: IDCRow; override;
     procedure BeforeRealignContent; override;
     procedure AfterRealignContent; override;
@@ -169,6 +166,8 @@ type
 
     function  GetActiveCell: IDCTreeCell;
     function  GetCellByControl(const Control: TControl): IDCTreeCell;
+
+    procedure DoContentResized(WidthChanged, HeightChanged: Boolean); override;
 
     // IColumnsControl
     procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
@@ -236,6 +235,8 @@ begin
   if not _autoFitColumns and not _treeLayout.RecalcRequired {in case column is hidden by user} then
     Exit;
 
+  var currentClmns := _treeLayout.FlatColumns;
+
   if _autoFitColumns then
     _treeLayout.RecalcColumnWidthsAutoFit;
 
@@ -256,6 +257,10 @@ begin
         if treeRow.Cells.TryGetValue(layoutColumn.Index, cell) and cell.LayoutColumn.HideColumnInView then
           cell.HideCellInView := True;
     end;
+
+  for var clmn in _treeLayout.FlatColumns do
+    if not currentClmns.Contains(clmn) then
+      RefreshColumn(clmn.Column);
 end;
 
 procedure TStaticDataControl.RealignFinished;
@@ -311,9 +316,14 @@ begin
       for var row in fullRowList do
       begin
         var treeRow := row as IDCTreeRow;
-        var w := treeRow.ContentCellSizes[flatClmn.Index];
-        if w > maxCellWidth then
-          maxCellWidth := w;
+        try
+          var w := treeRow.ContentCellSizes[flatClmn.Index];
+          if w > maxCellWidth then
+            maxCellWidth := w;
+        except
+          maxCellWidth := 5;
+          Continue;
+        end;
       end;
 
       _treeLayout.UpdateColumnWidth(flatClmn.Index, maxCellWidth);
@@ -438,6 +448,7 @@ begin
       ly2.HitTest := False;
       ly2.ClipChildren := True;
       ly2.Parent := Row.Control;
+
       treeRow.NonFrozenColumnRowControl := ly2;
     end;
 
@@ -893,8 +904,24 @@ begin
 
     TfrmFMXPopupMenuDataControl.TPopupResult.ptClearSortAndFilter:
     begin
-      GetInitializedWaitForRefreshInfo.SortDescriptions := nil;
-      GetInitializedWaitForRefreshInfo.FilterDescriptions := nil;
+      var sorts := _view.GetSortDescriptions;
+      if (sorts <> nil) and (sorts.Count > 0) then
+      begin
+        for var sortIx := sorts.Count - 1 downto 0 do
+          if Interfaces.Supports<ITreeSortDescription>(sorts[sortIx])  then
+            sorts.RemoveAt(sortIx);
+      end;
+
+      var filters := _view.GetFilterDescriptions;
+      if (filters <> nil) and (filters.Count > 0) then
+      begin
+        for var filterIx := filters.Count - 1 downto 0 do
+          if Interfaces.Supports<ITreeFilterDescription>(filters[filterIx])  then
+            filters.RemoveAt(filterIx);
+      end;
+
+      GetInitializedWaitForRefreshInfo.SortDescriptions := sorts;
+      GetInitializedWaitForRefreshInfo.FilterDescriptions := filters;
 
       for var cell in _headerRow.Cells.Values do
         cell.LayoutColumn.UpdateCellControlsByRow(cell);
@@ -1254,6 +1281,18 @@ end;
 destructor TStaticDataControl.Destroy;
 begin
   _headerRow := nil;
+//  _treeLayout := nil;
+
+  _treeLayout := nil;
+
+//  for var clmnIx := _columns.Count - 1 downto 0 do
+//  begin
+//    var clmn := TDCTreeColumn(_columns[clmnIx]);
+//    clmn.Free;
+//  end;
+//
+//  _columns := nil;
+
   inherited;
 end;
 
@@ -1421,19 +1460,6 @@ begin
   _frozenRectLine.Visible := (_horzScrollBar.Value > _horzScrollBar.Min) and _treeLayout.HasFrozenColumns;
 end;
 
-procedure TStaticDataControl.DoResized;
-begin
-  inherited;
-
-  if _treeLayout <> nil then
-    _treeLayout.ForceRecalc;
-
-  _frozenRectLine.Height := _content.Height;
-
-  if _autoFitColumns and (_view <> nil) then
-    _view.ClearViewRecInfo;
-end;
-
 function TStaticDataControl.CreateDummyRowForChanging(const FromSelectionInfo: IRowSelectionInfo): IDCRow;
 begin
   var treeRow := inherited as IDCTreeRow;
@@ -1474,6 +1500,8 @@ begin
   begin
     // nothing special to do
     ScrollSelectedIntoView(RequestedSelectionInfo);
+    currentSelection.SelectedLayoutColumn := requestedSelection.SelectedLayoutColumn;
+
     DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionEventTrigger);
     Exit;
   end;
@@ -1498,7 +1526,10 @@ begin
   _selectionInfo.BeginUpdate;
   try
     if SelectionType <> TSelectionType.CellSelection then
-      InternalDoSelectRow(dummyNewRow, Shift)
+    begin
+      InternalDoSelectRow(dummyNewRow, Shift);
+      currentSelection.SelectedLayoutColumn := requestedSelection.SelectedLayoutColumn;
+    end
     else begin
       if not rowAlreadySelected then
         InternalDoSelectRow(dummyNewRow, customShift)
@@ -1589,8 +1620,15 @@ begin
   var headerWasVisible := _headerRow <> nil;
   if _headerRow <> nil then
   begin
-    _headerRow.Control.Visible := False;
-    _headerRow := nil;
+    // make sure that the content does not execute a Resized
+    // see method DoContentResized
+    _content.BeginUpdate;
+    try
+      _headerRow.Control.Visible := False;
+      _headerRow := nil;
+    finally
+      _content.EndUpdate;
+    end;
   end;
 
   if (TDCTreeOption.ShowHeaders in _options) then
@@ -1759,6 +1797,8 @@ end;
 
 function TStaticDataControl.CalculateCellWidth(const LayoutColumn: IDCTreeLayoutColumn; const Cell: IDCTreeCell): Single;
 begin
+  Result := 0;
+
   if not Cell.IsHeaderCell and (LayoutColumn.Column.InfoControlClass <> TInfoControlClass.Text) and (LayoutColumn.Column.SubInfoControlClass <> TInfoControlClass.Text) then
   begin
     Result := 30;
@@ -1907,6 +1947,22 @@ begin
   end;
 end;
 
+procedure TStaticDataControl.DoContentResized(WidthChanged, HeightChanged: Boolean);
+begin
+  inherited;
+
+  if WidthChanged then
+  begin
+    if _treeLayout <> nil then
+      _treeLayout.ForceRecalc;
+    if _autoFitColumns and (_view <> nil) then
+      _view.ClearViewRecInfo;
+  end;
+
+  if HeightChanged then
+    _frozenRectLine.Height := _content.Height;
+end;
+
 procedure TStaticDataControl.OnExpandCollapseHierarchy(Sender: TObject);
 begin
   var viewListIndex := (Sender as TControl).Tag;
@@ -1916,6 +1972,25 @@ begin
     Exit;
 
   var setExpanded := not drv.DataView.IsExpanded[drv.Row];
+
+  var row := _view.GetActiveRowIfExists(viewListIndex) as IDCTreeRow;
+  var selInfo := _selectionInfo as ITreeSelectionInfo;
+
+  for var ix := 0 to _treeLayout.FlatColumns.Count - 1 do
+  begin
+    var flatColumn := _treeLayout.FlatColumns[ix];
+    if row.Cells[flatColumn.Index].ExpandButton = Sender then
+    begin
+      selInfo.BeginUpdate;
+      try
+        selInfo.SelectedLayoutColumn := _treeLayout.FlatColumns[ix].Index;
+      finally
+        selInfo.EndUpdate(True);
+      end;
+
+      Break;
+    end;
+  end;
 
   Self.Current := viewListIndex;
   DoCollapseOrExpandRow(viewListIndex, setExpanded);

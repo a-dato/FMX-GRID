@@ -159,7 +159,7 @@ type
 
   TDCTreeColumn = class(TObservableObject, IDCTreeColumn)
   private
-    _treeControl: IColumnsControl;
+    [unsafe] _treeControl: IColumnsControl;
 
 //    _index: Integer;
     _caption: CString;
@@ -226,7 +226,6 @@ type
     function  get_FormatProvider: IFormatProvider;
     procedure set_FormatProvider(const Value: IFormatProvider);
 
-
     function  get_SortAndFilter: IDCColumnSortAndFilter;
     procedure set_SortAndFilter(const Value: IDCColumnSortAndFilter);
     function  get_WidthSettings: IDCColumnWidthSettings;
@@ -241,6 +240,7 @@ type
     function  CreateInstance: IDCTreeColumn; virtual;
   public
     constructor Create; override;
+    destructor Destroy; override;
 
     function  Clone: IDCTreeColumn;
     function  IsCheckBoxColumn: Boolean; virtual;
@@ -299,7 +299,7 @@ type
 
   TDCTreeColumnList = class(CObservableCollectionEx<IDCTreeColumn>, IDCTreeColumnList)
   protected
-    _treeControl: IColumnsControl;
+    [unsafe] _treeControl: IColumnsControl;
 
     function  get_TreeControl: IColumnsControl;
 //    procedure OnCollectionChanged(e: NotifyCollectionChangedEventArgs); override;
@@ -317,6 +317,7 @@ type
   public
     constructor Create(const Owner: IColumnsControl); overload; virtual;
     constructor Create(const Owner: IColumnsControl; const col: IEnumerable<IDCTreeColumn>); overload; virtual;
+    destructor Destroy; override;
 
     property TreeControl: IColumnsControl read get_TreeControl;
   end;
@@ -354,6 +355,7 @@ type
 
   public
     constructor Create(const AColumn: IDCTreeColumn; const ColumnControl: IColumnsControl);
+    destructor Destroy; override;
 
     function  CreateInfoControl(const Cell: IDCTreeCell; const ControlClassType: TInfoControlClass): TControl;
 
@@ -395,6 +397,7 @@ type
 
   public
     constructor Create(const ColumnControl: IColumnsControl); reintroduce;
+    destructor Destroy; override;
 
     procedure UpdateColumnWidth(const FlatColumnIndex: Integer; const Width: Single);
     procedure RecalcColumnWidthsBasic;
@@ -620,6 +623,12 @@ begin
   _treeControl := Owner;
 end;
 
+destructor TDCTreeColumnList.Destroy;
+begin
+
+  inherited;
+end;
+
 function TDCTreeColumnList.FindColumnByCaption(const Caption: CString): IDCTreeColumn;
 var
   i: Integer;
@@ -760,7 +769,6 @@ var
   propertyname, subPropertyname: string;
   customHidden: Boolean;
   customWidth: Single;
-  w: Integer;
   readonly: Boolean;
   infoCtrlClass, subinfoCtrlClass: Integer;
 
@@ -886,6 +894,12 @@ end;
 function TDCTreeColumn.CreateInstance: IDCTreeColumn;
 begin
   Result := TDCTreeColumn.Create;
+end;
+
+destructor TDCTreeColumn.Destroy;
+begin
+
+  inherited;
 end;
 
 function TDCTreeColumn.get_AllowHide: Boolean;
@@ -1108,7 +1122,9 @@ begin
         data := _cachedSubProp.GetValue(dataItem, []);
       end;
     end;
-  end;
+  end
+  else if Cell.Column.InfoControlClass = TInfoControlClass.CheckBox then
+    data := (Cell.InfoControl as IISChecked).IsChecked;
 
   if not IsSubProp then
     Cell.Data := data else
@@ -1356,7 +1372,7 @@ begin
     if Cell.ExpandButton <> nil then
     begin
       cell.ExpandButton.Position.Y := CELL_CONTENT_MARGIN;
-      cell.ExpandButton.Position.X := 0;
+      cell.ExpandButton.Position.X := CELL_CONTENT_MARGIN;
       spaceUsed := indentPerLevel * (cell.Row.ParentCount {can be 0} + 1);
     end
     else if Cell.Column.ShowHierarchy then
@@ -1439,6 +1455,12 @@ begin
   end;
 end;
 
+destructor TTreeLayoutColumn.Destroy;
+begin
+
+  inherited;
+end;
+
 procedure TTreeLayoutColumn.CreateCellBase(const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
 begin
   // in case user assigns cell control in CellLoading the tree allows that
@@ -1448,10 +1470,7 @@ begin
     // otherwise the TText can be the baseControl
     if Cell.IsHeaderCell then
     begin
-      var rect := ScrollableRowControl_DefaultRectangleClass.Create(Cell.Row.Control);
-      rect.Fill.Kind := TBrushKind.None;
-      rect.Fill.Color := TAlphaColors.Null;
-      rect.Stroke.Color := DEFAULT_HEADER_STROKE;
+      var rect := DataControlClassFactory.CreateHeaderCellRect(Cell.Row.Control);
 
       var headerCell := Cell as IHeaderCell;
       if ShowVertGrid and (Cell.Index <> 0) then
@@ -1473,7 +1492,7 @@ begin
         splitterLy.Cursor := crSizeWE;
         splitterLy.HitTest := True;
         splitterLy.Width := 1;
-        splitterLy.TouchTargetExpansion := TBounds.Create(RectF(3, 0, 3, 0));
+        splitterLy.TouchTargetExpansion.Rect := RectF(3, 0, 3, 0);
 
         rect.AddObject(splitterLy);
         headerCell.ResizeControl := splitterLy;
@@ -1481,8 +1500,7 @@ begin
     end
     else if ShowVertGrid then
     begin
-      var rect := ScrollableRowControl_DefaultRectangleClass.Create(Cell.Row.Control);
-      rect.Fill.Kind := TBrushKind.None;
+      var rect := DataControlClassFactory.CreateRowCellRect(Cell.Row.Control);
 
       if _index = 0 then
         rect.Sides := [TSide.Left, TSide.Right] else
@@ -1651,6 +1669,14 @@ begin
   _recalcRequired := True;
 end;
 
+destructor TDCTreeLayout.Destroy;
+begin
+  _layoutColumns := nil;
+  _flatColumns := nil;
+
+  inherited;
+end;
+
 function TDCTreeLayout.FrozenColumnWidth: Single;
 begin
   RecalcColumnWidthsBasic;
@@ -1674,7 +1700,7 @@ begin
     // we need to sort, check and update these indexes because AutoFitColumns/ UserHide can change the order/visibility of columns
 
     // BEGIN sort columns
-    var lyCLmnsCopy := CList<IDCTreeLayoutColumn>.Create(_layoutColumns);
+    var lyCLmnsCopy: List<IDCTreeLayoutColumn> := CList<IDCTreeLayoutColumn>.Create(_layoutColumns);
 
     _layoutColumns.Sort(
       function(const X, Y: IDCTreeLayoutColumn): Integer
@@ -2763,14 +2789,10 @@ end;
 
 procedure TDCHeaderRow.CreateHeaderControls(const Owner: IColumnsControl);
 begin
-  _contentControl := ScrollableRowControl_DefaultRectangleClass.Create(Owner.Control);
+  _contentControl := DataControlClassFactory.CreateHeaderRect(Owner.Control);
   _contentControl.Stored := False;
   _contentControl.Align := TAlignLayout.Top;
   _contentControl.Height := Owner.HeaderHeight;
-  _contentControl.HitTest := True;
-  _contentControl.Fill.Color := DEFAULT_HEADER_BACKGROUND;
-  _contentControl.Stroke.Color := DEFAULT_HEADER_STROKE;
-  _contentControl.Sides := [TSide.Bottom];
   Owner.Control.AddObject(_contentControl);
 
   var headerRect := TLayout.Create(_contentControl);
