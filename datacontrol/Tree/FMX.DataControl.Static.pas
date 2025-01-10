@@ -119,8 +119,6 @@ type
     function  SelectionCheckBoxColumn: IDCTreeLayoutColumn;
 
   protected
-    procedure DoResized; override;
-
     function  DoCreateNewRow: IDCRow; override;
     procedure BeforeRealignContent; override;
     procedure AfterRealignContent; override;
@@ -168,6 +166,8 @@ type
 
     function  GetActiveCell: IDCTreeCell;
     function  GetCellByControl(const Control: TControl): IDCTreeCell;
+
+    procedure DoContentResized(WidthChanged, HeightChanged: Boolean); override;
 
     // IColumnsControl
     procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
@@ -235,6 +235,8 @@ begin
   if not _autoFitColumns and not _treeLayout.RecalcRequired {in case column is hidden by user} then
     Exit;
 
+  var currentClmns := _treeLayout.FlatColumns;
+
   if _autoFitColumns then
     _treeLayout.RecalcColumnWidthsAutoFit;
 
@@ -255,6 +257,10 @@ begin
         if treeRow.Cells.TryGetValue(layoutColumn.Index, cell) and cell.LayoutColumn.HideColumnInView then
           cell.HideCellInView := True;
     end;
+
+  for var clmn in _treeLayout.FlatColumns do
+    if not currentClmns.Contains(clmn) then
+      RefreshColumn(clmn.Column);
 end;
 
 procedure TStaticDataControl.RealignFinished;
@@ -310,9 +316,14 @@ begin
       for var row in fullRowList do
       begin
         var treeRow := row as IDCTreeRow;
-        var w := treeRow.ContentCellSizes[flatClmn.Index];
-        if w > maxCellWidth then
-          maxCellWidth := w;
+        try
+          var w := treeRow.ContentCellSizes[flatClmn.Index];
+          if w > maxCellWidth then
+            maxCellWidth := w;
+        except
+          maxCellWidth := 5;
+          Continue;
+        end;
       end;
 
       _treeLayout.UpdateColumnWidth(flatClmn.Index, maxCellWidth);
@@ -1449,19 +1460,6 @@ begin
   _frozenRectLine.Visible := (_horzScrollBar.Value > _horzScrollBar.Min) and _treeLayout.HasFrozenColumns;
 end;
 
-procedure TStaticDataControl.DoResized;
-begin
-  inherited;
-
-  if _treeLayout <> nil then
-    _treeLayout.ForceRecalc;
-
-  _frozenRectLine.Height := _content.Height;
-
-  if _autoFitColumns and (_view <> nil) then
-    _view.ClearViewRecInfo;
-end;
-
 function TStaticDataControl.CreateDummyRowForChanging(const FromSelectionInfo: IRowSelectionInfo): IDCRow;
 begin
   var treeRow := inherited as IDCTreeRow;
@@ -1622,8 +1620,15 @@ begin
   var headerWasVisible := _headerRow <> nil;
   if _headerRow <> nil then
   begin
-    _headerRow.Control.Visible := False;
-    _headerRow := nil;
+    // make sure that the content does not execute a Resized
+    // see method DoContentResized
+    _content.BeginUpdate;
+    try
+      _headerRow.Control.Visible := False;
+      _headerRow := nil;
+    finally
+      _content.EndUpdate;
+    end;
   end;
 
   if (TDCTreeOption.ShowHeaders in _options) then
@@ -1940,6 +1945,22 @@ begin
     col.PropertyName := COLUMN_SHOW_DEFAULT_OBJECT_TEXT;
     col.Caption := 'item';
   end;
+end;
+
+procedure TStaticDataControl.DoContentResized(WidthChanged, HeightChanged: Boolean);
+begin
+  inherited;
+
+  if WidthChanged then
+  begin
+    if _treeLayout <> nil then
+      _treeLayout.ForceRecalc;
+    if _autoFitColumns and (_view <> nil) then
+      _view.ClearViewRecInfo;
+  end;
+
+  if HeightChanged then
+    _frozenRectLine.Height := _content.Height;
 end;
 
 procedure TStaticDataControl.OnExpandCollapseHierarchy(Sender: TObject);

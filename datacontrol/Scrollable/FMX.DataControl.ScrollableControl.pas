@@ -101,6 +101,7 @@ type
 
     _scrollingType: TScrollingType;
     _onViewPortPositionChanged: TOnViewportPositionChange;
+    _lastContentBottomRight: TPointF;
 
     {$IFDEF DEBUG}
     _stopwatch2, _stopwatch3: TStopwatch;
@@ -120,10 +121,12 @@ type
     procedure ScrollManualInstant(YChange: Integer);
     procedure ScrollManualAnimated(YChange: Integer);
 
-    procedure DoResized; override;
     procedure UpdateScrollbarMargins;
 
     procedure Log(const Message: CString);
+
+    procedure OnContentResized(Sender: TObject);
+    procedure DoContentResized(WidthChanged, HeightChanged: Boolean); virtual;
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -196,6 +199,7 @@ begin
   _content.Stored := False;
   _content.Align := TAlignLayout.Client;
   _content.ClipChildren := True;
+  _content.OnResized := OnContentResized;
   Self.AddObject(_content);
 
   _mouseRollingBoostTimer := TTimer.Create(Self);
@@ -304,6 +308,22 @@ begin
     RestartWaitForRealignTimer(0, True);
 end;
 
+procedure TDCScrollableControl.DoContentResized(WidthChanged, HeightChanged: Boolean);
+begin
+  if WidthChanged then
+    SetBasicHorzScrollBarValues;
+
+  if HeightChanged then
+    SetBasicVertScrollBarValues;
+
+  // the method AfterRealign must be executed
+  // but if not painted yet it will get there on it's own..
+  if (WidthChanged or HeightChanged) and (_realignState in [TRealignState.AfterRealign, TRealignState.RealignDone]) then
+    RefreshControl;
+
+  _lastContentBottomRight := PointF(_content.Width, _content.Height);
+end;
+
 procedure TDCScrollableControl.DoHorzScrollBarChanged;
 begin
 
@@ -396,16 +416,6 @@ begin
   if Assigned(_onLog) then
     _onLog(Self.Name + ': ' + Message);
   {$ENDIF}
-end;
-
-procedure TDCScrollableControl.DoResized;
-begin
-  inherited;
-
-  SetBasicHorzScrollBarValues;
-  SetBasicVertScrollBarValues;
-
-  RefreshControl;
 end;
 
 procedure TDCScrollableControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
@@ -566,6 +576,14 @@ begin
     ScrollManualInstant(_mouseWheelDistanceToGo);
     _mouseWheelSmoothScrollTimer.Enabled := False;
   end;
+end;
+
+procedure TDCScrollableControl.OnContentResized(Sender: TObject);
+begin
+  var widthChanged := not SameValue(_lastContentBottomRight.X, _content.Width);
+  var heightChanged := not SameValue(_lastContentBottomRight.Y, _content.Height);
+
+  DoContentResized(widthChanged, heightChanged);
 end;
 
 procedure TDCScrollableControl.OnHorzScrollBarChange(Sender: TObject);

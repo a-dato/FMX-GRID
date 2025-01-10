@@ -124,8 +124,6 @@ type
 
     procedure SetBasicVertScrollBarValues; override;
 
-    procedure DoResized; override;
-
     function  DoCreateNewRow: IDCRow; virtual;
     procedure InnerInitRow(const Row: IDCRow); virtual;
     procedure InitRow(const Row: IDCRow; const IsAboveRefRow: Boolean = False);
@@ -375,11 +373,6 @@ begin
   finally
     dec(_rowHeightSynchronizer._scrollUpdateCount);
   end;
-end;
-
-procedure TDCScrollableRowControl.DoResized;
-begin
-  inherited;
 end;
 
 procedure TDCScrollableRowControl.DoRowLoaded(const ARow: IDCRow);
@@ -1427,7 +1420,13 @@ begin
   AtomicIncrement(_internalSelectCount);
   try
     if (_model <> nil) then
-      _model.ObjectContext := ValidDataItem(Self.DataItem)
+    begin
+      if SelectionCount > 1 then
+        _model.MultiSelectionContext := SelectedItems else
+        _model.MultiSelectionContext := nil;
+
+      _model.ObjectContext := ValidDataItem(Self.DataItem);
+    end
     else if (GetDataModelView <> nil) and (Self.DataItem <> nil) and (Self.DataItem.IsOfType<IDataRowView>) then
       GetDataModelView.CurrencyManager.Current := Self.DataItem.AsType<IDataRowView>.ViewIndex;
   finally
