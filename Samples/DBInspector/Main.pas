@@ -24,7 +24,8 @@ uses
   FMX.DataControl.Editable,
   FMX.DataControl.Impl,
   FMX.DataControl.Events, FireDAC.Phys.MSSQL, FireDAC.Stan.ExprFuncs,
-  FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Phys.SQLiteDef, FireDAC.Phys.SQLite;
+  FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Phys.SQLiteDef, FireDAC.Phys.SQLite,
+  FireDAC.Phys.PGDef, FireDAC.Phys.PG;
 
 type
   {$M+} // Load RTTI information for IDBItem interface
@@ -80,6 +81,7 @@ type
     DBIndexColumns: TDataControl;
     fdMsSqlGetIncludeColumns: TFDQuery;
     fdMsSqlFilterExpression: TFDQuery;
+    FDPhysPgDriverLink1: TFDPhysPgDriverLink;
 
     procedure FormDestroy(Sender: TObject);
     procedure acAddConnectionExecute(Sender: TObject);
@@ -143,7 +145,7 @@ type
     { Public declarations }
   end;
 
-  TDBItemType = (Table, View, &Procedure, &Function, Column, Index, Parameter, Include, Filter);
+  TDBItemType = (Table, View, &Procedure, &Function, Column, UniqueIndex, Index, Parameter, Include, Filter);
 
   IDBItem = interface(IBaseInterface)
 
@@ -250,7 +252,7 @@ procedure TfrmInspector.acExecuteQueryExecute(Sender: TObject);
 begin
   var tab := tcRecordSets.ActiveTab;
   if tab.TagObject is TOpenRecordSetFrame then
-    (tab.TagObject as TOpenRecordSetFrame).ExecuteQuery;
+    (tab.TagObject as TOpenRecordSetFrame).ExecuteQuery(False);
 end;
 
 procedure TfrmInspector.acMoveDataExecute(Sender: TObject);
@@ -834,10 +836,13 @@ begin
         begin
           var index_name := fdMetaInfoQuery['INDEX_NAME'];
           var index_type := TFDPhysIndexKind(fdMetaInfoQuery['INDEX_TYPE']);
-          if index_type = ikUnique then
-            index_name := '*' + index_name;
 
-          var item: IDBItem := TDBItem.Create(index_name, TDBItemType.Index);
+          var item: IDBItem;
+
+          if index_type = ikUnique then
+            item := TDBItem.Create(index_name, TDBItemType.UniqueIndex) else
+            item := TDBItem.Create(index_name, TDBItemType.Index);
+
           indexes.Add(item);
 
           fdMetaInfoQuery.Next;

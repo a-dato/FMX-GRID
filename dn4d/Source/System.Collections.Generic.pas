@@ -2747,17 +2747,10 @@ begin
 end;
 
 function CList<T>.ToArray: TArray<T>;
-//var
-//  i: Integer;
 begin
   if IsManagedType(T) then
-    FListHelper.InternalToArrayManaged(Pointer(Result))
-  else
+    FListHelper.InternalToArrayManaged(Pointer(Result)) else
     FListHelper.InternalToArray(Pointer(Result));
-
-//  SetLength(Result, count);
-//  for i := 0 to count - 1 do
-//    Result[i] := self._items[i];
 end;
 
 function CList<T>.InnerArray: TArray<T>;
