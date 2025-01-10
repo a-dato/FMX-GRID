@@ -64,6 +64,7 @@ object frmInspector: TfrmInspector
           TabOrder = 0
           Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid, TreeOption_MultiSelect]
           RowHeightDefault = 30.000000000000000000
+          HeaderHeight = 24.000000000000000000
           OnCopyToClipBoard = DBColumns_CopyToClipboard
           Columns_ = 
             '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
@@ -126,6 +127,7 @@ object frmInspector: TfrmInspector
           TabOrder = 0
           Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid]
           RowHeightDefault = 30.000000000000000000
+          HeaderHeight = 24.000000000000000000
           CellChanged = DBIndexesCellChanged
           OnCopyToClipBoard = DBIndexesCopyToClipBoard
           Columns_ = 
@@ -178,6 +180,7 @@ object frmInspector: TfrmInspector
           TabOrder = 0
           Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid]
           RowHeightDefault = 30.000000000000000000
+          HeaderHeight = 24.000000000000000000
           OnCopyToClipBoard = DBIndexColumnsCopyToClipBoard
           Columns_ = 
             '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
@@ -291,6 +294,7 @@ object frmInspector: TfrmInspector
         TabOrder = 0
         Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid, TreeOption_MultiSelect]
         RowHeightDefault = 30.000000000000000000
+        HeaderHeight = 24.000000000000000000
         CellChanged = DBTablesCellChanged
         OnCopyToClipBoard = DBTables_CopyToClipboard
         Columns_ = 
@@ -759,7 +763,7 @@ object frmInspector: TfrmInspector
         Position.Y = -17.000000000000000000
         TextSettings.Trimming = None
         Text = 'Saved Connections'
-        TabOrder = 86
+        TabOrder = 85
       end
     end
     object cbDataBases: TComboBox
@@ -778,7 +782,7 @@ object frmInspector: TfrmInspector
         Position.Y = -18.000000000000000000
         TextSettings.Trimming = None
         Text = 'Database'
-        TabOrder = 86
+        TabOrder = 85
       end
     end
     object SpeedButton4: TSpeedButton
@@ -960,5 +964,10 @@ object frmInspector: TfrmInspector
         Name = 'INDEXNAME'
         ParamType = ptInput
       end>
+  end
+  object FDPhysPgDriverLink1: TFDPhysPgDriverLink
+    VendorLib = 'C:\Program Files\PostgreSQL\16\bin\libpq.dll'
+    Left = 600
+    Top = 256
   end
 end

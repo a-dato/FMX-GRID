@@ -902,6 +902,8 @@ type
     function get_Ticks: CInt64;
     function get_TotalDays: Double;
     function get_TotalHours: Double;
+    function get_TotalMinutes: Double;
+    function get_TotalSeconds: Double;
     function get_TotalMilliseconds: Double;
 
     class function TimeToTicks(hour: Integer; minute: Integer; second: Integer): Int64; static;
@@ -941,6 +943,7 @@ type
     class operator Negative(const Value: CTimeSpan) : CTimeSpan;
     class operator Subtract(const Value1, Value2: CTimeSpan) : CTimeSpan;
     class operator Explicit(const AValue: CObject): CTimeSpan;
+    class operator Implicit(const AValue: Int64): CTimeSpan;
     class operator Implicit(const AValue: CTimeSpan): CObject;
     class operator Implicit(const AValue: CTimeSpan): TTime;
     class operator Implicit(AValue: TTime): CTimeSpan;
@@ -969,6 +972,8 @@ type
 
     property TotalDays: Double read get_TotalDays;
     property TotalHours: Double read get_TotalHours;
+    property TotalMinutes: Double read get_TotalMinutes;
+    property TotalSeconds: Double read get_TotalSeconds;
     property TotalMilliseconds: Double read get_TotalMilliseconds;
 
     property Ticks: CInt64 read get_Ticks;
@@ -2131,6 +2136,7 @@ type
     {$ENDIF}
 
   public
+    class function HasElapsed(StartTicks, Duraton: Integer) : Boolean;
     class function TickCount: Integer;
     class function GetFolderPath(folder: SpecialFolder): CString;
     {$IFDEF MSWINDOWS}
@@ -5370,6 +5376,11 @@ end;
 {$ENDIF}
 
 { Environment }
+class function Environment.HasElapsed(StartTicks, Duraton: Integer) : Boolean;
+begin
+  Result := (Int64(TickCount) - Int64(StartTicks)) >= Duraton;
+end;
+
 class function Environment.TickCount: Integer;
 begin
   Result := Integer(TThread.GetTickCount());
@@ -11502,6 +11513,16 @@ begin
   Exit(_ticks / CTimeSpan.TicksPerHour);
 end;
 
+function CTimeSpan.get_TotalMinutes: Double;
+begin
+  Exit(_ticks / CTimeSpan.TicksPerMinute);
+end;
+
+function CTimeSpan.get_TotalSeconds: Double;
+begin
+  Exit(_ticks / CTimeSpan.TicksPerSecond);
+end;
+
 function CTimeSpan.get_TotalMilliseconds: Double;
 begin
   Exit(_ticks / CTimeSpan.TicksPerMillisecond);
@@ -11633,6 +11654,11 @@ end;
 class function CTimeSpan.Equals(const Value1, Value2: CTimeSpan): Boolean;
 begin
   Result := Value1.Ticks = Value2.Ticks;
+end;
+
+class operator CTimeSpan.Implicit(const AValue: Int64): CTimeSpan;
+begin
+  Result := CTimeSpan.Create(AValue);
 end;
 
 class operator CTimeSpan.Implicit(const AValue: CTimeSpan): CObject;
