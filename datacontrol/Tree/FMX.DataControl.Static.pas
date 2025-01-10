@@ -437,6 +437,7 @@ begin
       ly2.HitTest := False;
       ly2.ClipChildren := True;
       ly2.Parent := Row.Control;
+
       treeRow.NonFrozenColumnRowControl := ly2;
     end;
 
@@ -892,8 +893,24 @@ begin
 
     TfrmFMXPopupMenuDataControl.TPopupResult.ptClearSortAndFilter:
     begin
-      GetInitializedWaitForRefreshInfo.SortDescriptions := nil;
-      GetInitializedWaitForRefreshInfo.FilterDescriptions := nil;
+      var sorts := _view.GetSortDescriptions;
+      if (sorts <> nil) and (sorts.Count > 0) then
+      begin
+        for var sortIx := sorts.Count - 1 downto 0 do
+          if Interfaces.Supports<ITreeSortDescription>(sorts[sortIx])  then
+            sorts.RemoveAt(sortIx);
+      end;
+
+      var filters := _view.GetFilterDescriptions;
+      if (filters <> nil) and (filters.Count > 0) then
+      begin
+        for var filterIx := filters.Count - 1 downto 0 do
+          if Interfaces.Supports<ITreeFilterDescription>(filters[filterIx])  then
+            filters.RemoveAt(filterIx);
+      end;
+
+      GetInitializedWaitForRefreshInfo.SortDescriptions := sorts;
+      GetInitializedWaitForRefreshInfo.FilterDescriptions := filters;
 
       for var cell in _headerRow.Cells.Values do
         cell.LayoutColumn.UpdateCellControlsByRow(cell);
@@ -1485,6 +1502,8 @@ begin
   begin
     // nothing special to do
     ScrollSelectedIntoView(RequestedSelectionInfo);
+    currentSelection.SelectedLayoutColumn := requestedSelection.SelectedLayoutColumn;
+
     DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionEventTrigger);
     Exit;
   end;
@@ -1509,7 +1528,10 @@ begin
   _selectionInfo.BeginUpdate;
   try
     if SelectionType <> TSelectionType.CellSelection then
-      InternalDoSelectRow(dummyNewRow, Shift)
+    begin
+      InternalDoSelectRow(dummyNewRow, Shift);
+      currentSelection.SelectedLayoutColumn := requestedSelection.SelectedLayoutColumn;
+    end
     else begin
       if not rowAlreadySelected then
         InternalDoSelectRow(dummyNewRow, customShift)

@@ -810,6 +810,8 @@ begin
   var l: List<CObject> := CList<CObject>.Create(Length(_selectionInfo.NotSelectableDataIndexes));
   for var dataIndex in _selectionInfo.NotSelectableDataIndexes do
     l.Add(_view.OriginalData[dataIndex]);
+
+  Result := l as IList;
 end;
 
 function TDCScrollableRowControl.get_rowHeightDefault: Single;
@@ -1236,7 +1238,7 @@ begin
       rr.Fill.Color := DEFAULT_GREY_COLOR else
       rr.Fill.Color := DEFAULT_WHITE_COLOR;
   end else
-    rr.Fill.Kind := TBrushKind.None;
+    rr.Fill.Color := TAlphaColors.Null;
 
   Row.Control.Position.X := 0;
   Row.Control.Width := _content.Width;
