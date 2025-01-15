@@ -882,7 +882,7 @@ begin
     _model.OnContextChanging.Remove(ModelListContextChanging);
     _model.OnContextChanged.Remove(ModelListContextChanged);
 
-    if _model.ListHoldsObjectType then
+    if _model.ListHoldsObjectType or (_model.ObjectModelContext <> nil) then
     begin
       _model.ObjectModelContext.OnPropertyChanged.Remove(ModelContextPropertyChanged);
       _model.ObjectModelContext.OnContextChanged.Remove(ModelContextChanged);
@@ -896,7 +896,7 @@ begin
     _model.OnContextChanging.Add(ModelListContextChanging);
     _model.OnContextChanged.Add(ModelListContextChanged);
 
-    if _model.ListHoldsObjectType then
+    if _model.ListHoldsObjectType or (_model.ObjectModelContext <> nil) then
     begin
       _model.ObjectModelContext.OnPropertyChanged.Add(ModelContextPropertyChanged);
       _model.ObjectModelContext.OnContextChanged.Add(ModelContextChanged);
@@ -1000,7 +1000,8 @@ end;
 
 procedure TDCScrollableRowControl.ModelContextPropertyChanged(const Sender: IObjectModelContext; const Context: CObject; const AProperty: _PropertyInfo);
 begin
-
+  if not Self.IsUpdating then
+    DoDataItemChanged(Context);
 end;
 
 procedure TDCScrollableRowControl.ModelListContextChanged(const Sender: IObjectListModel; const Context: IList);
@@ -1212,26 +1213,26 @@ begin
     Row.Control := rect;
 
     _content.AddObject(Row.Control);
+
+    var rr := Row.Control as TRectangle;
+    if (TreeOption_ShowHorzGrid in _options) then
+    begin
+  //    if Row.ViewPortIndex = 0 then
+  //      rr.Sides := [TSide.Bottom] else
+      rr.Sides := [TSide.Bottom];
+    end else
+      rr.Sides := [];
+
+    if (TreeOption_AlternatingRowBackground in _options) then
+    begin
+      rr.Fill.Kind := TBrushKind.Solid;
+
+      if Row.IsOddRow then
+        rr.Fill.Color := DEFAULT_GREY_COLOR else
+        rr.Fill.Color := DEFAULT_WHITE_COLOR;
+    end else
+      rr.Fill.Color := TAlphaColors.Null;
   end;
-
-  var rr := Row.Control as TRectangle;
-  if (TreeOption_ShowHorzGrid in _options) then
-  begin
-//    if Row.ViewPortIndex = 0 then
-//      rr.Sides := [TSide.Bottom] else
-    rr.Sides := [TSide.Bottom];
-  end else
-    rr.Sides := [];
-
-  if (TreeOption_AlternatingRowBackground in _options) then
-  begin
-    rr.Fill.Kind := TBrushKind.Solid;
-
-    if Row.IsOddRow then
-      rr.Fill.Color := DEFAULT_GREY_COLOR else
-      rr.Fill.Color := DEFAULT_WHITE_COLOR;
-  end else
-    rr.Fill.Color := TAlphaColors.Null;
 
   Row.Control.Position.X := 0;
   Row.Control.Width := _content.Width;
@@ -1411,12 +1412,6 @@ procedure TDCScrollableRowControl.OnSelectionInfoChanged;
 begin
   ScrollSelectedIntoView(_selectionInfo);
 
-  if (_realignState in [TRealignState.Waiting, TRealignState.BeforeRealign]) then
-    Exit;
-
-  for var row in _view.ActiveViewRows do
-    VisualizeRowSelection(row);
-
   AtomicIncrement(_internalSelectCount);
   try
     if (_model <> nil) then
@@ -1432,6 +1427,12 @@ begin
   finally
     AtomicDecrement(_internalSelectCount);
   end;
+
+  if (_realignState in [TRealignState.Waiting, TRealignState.BeforeRealign]) then
+    Exit;
+
+  for var row in _view.ActiveViewRows do
+    VisualizeRowSelection(row);
 end;
 
 function TDCScrollableRowControl.ValidDataItem(const Item: CObject): CObject;

@@ -152,6 +152,7 @@ begin
   _editingInfo := TTreeEditingInfo.Create;
   _tempCachedEditingColumnCustomWidth := -1;
 end;
+
 function TEditableDataControl.CheckedItemsInColumn(const Column: IDCTreeColumn): List<CObject>;
 begin
   if not _checkedItems.TryGetValue(Column, Result) then
@@ -267,13 +268,15 @@ begin
     (not IsSubProp and (Cell.Column.InfoControlClass = TInfoControlClass.CheckBox)) or
     (IsSubProp and (Cell.Column.SubInfoControlClass = TInfoControlClass.CheckBox));
 
-  if not isCheckBox or Cell.Column.IsCheckBoxColumn then
+  if not isCheckBox or Cell.Column.IsSelectionColumn then
     Exit;
 
-  var ctrl: TControl;
-  if not IsSubProp then
-    ctrl := Cell.InfoControl else
-    ctrl := Cell.SubInfoControl;
+  var ctrl := Cell.InfoControl;
+  var chkCtrl := (ctrl as IISChecked);
+
+  var item := cell.Row.DataItem; // _view.OriginalData[cell.Row.DataIndex];
+  if not CString.IsNullOrEmpty(Cell.Column.PropertyName) then
+    UpdateColumnCheck(item, Cell.Column, chkCtrl.IsChecked);
 
   ctrl.Tag := Cell.Row.ViewListIndex;
 
@@ -281,8 +284,7 @@ begin
     (ctrl as TCheckBox).OnChange := OnPropertyCheckBoxChange else
     (ctrl as TRadioButton).OnChange := OnPropertyCheckBoxChange;
 
-  var item := _view.OriginalData[cell.Row.DataIndex];
-  (ctrl as IIsChecked).IsChecked := _checkedItems.ContainsKey(Cell.Column) and _checkedItems[Cell.Column].Contains(item);
+  chkCtrl.IsChecked := _checkedItems.ContainsKey(Cell.Column) and _checkedItems[Cell.Column].Contains(item);
 end;
 
 procedure TEditableDataControl.CacheCheckboxValue(const Cell: IDCTreeCell);
@@ -290,7 +292,8 @@ begin
   if Cell = nil then
     Exit;
 
-  var item := _view.OriginalData[cell.Row.DataIndex];
+  var item := cell.Row.DataItem; // _view.OriginalData[cell.Row.DataIndex];
+
   var checkBox := Cell.InfoControl as IIsChecked;
   UpdateColumnCheck(item, Cell.Column, checkBox.IsChecked);
 
@@ -303,7 +306,6 @@ begin
     Exit;
 
   var cell := GetCellByControl(Sender as TControl);
-  CacheCheckboxValue(cell);
 
   _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.Internal;
 
@@ -311,16 +313,24 @@ begin
   requestedSelection.UpdateLastSelection(cell.Row.DataIndex, cell.Row.ViewListIndex, cell.Row.DataItem);
   requestedSelection.SelectedLayoutColumn := FlatColumnByColumn(cell.Column).Index;
 
-  // wait for click to be over
-  TThread.ForceQueue(nil, procedure
+  if TrySelectItem(requestedSelection, []) then
   begin
-    if TrySelectItem(requestedSelection, []) then
+    cell := GetActiveCell;
+    if not _editingInfo.RowIsEditing then
     begin
-      var cell := GetActiveCell;
-      StartEditCell(cell);
-      Self.SetFocus;
+      var dataItem := Cell.Row.DataItem;
+      if not DoStartRowEdit(Cell.Row as IDCTreeRow, {var} dataItem, False) then
+      begin
+        Self.SetFocus;
+        Exit;
+      end;
     end;
-  end);
+
+    SetCellData(cell, (cell.InfoControl as IISChecked).IsChecked);
+    CacheCheckboxValue(cell);
+
+    Self.SetFocus;
+  end;
 end;
 
 procedure TEditableDataControl.OnEditorExit;
@@ -430,13 +440,18 @@ begin
 
   if ssDouble in Shift then
     StartEditCell(cell)
-
-  else if not cell.Column.IsCheckBoxColumn and (cell.Column.InfoControlClass = TInfoControlClass.CheckBox) then
+  else if not cell.Column.IsSelectionColumn and (cell.Column.InfoControlClass = TInfoControlClass.CheckBox) then
   begin
     if (ssShift in Shift) or (ssCtrl in Shift) then
       Exit; // do nothing
 
-    (cell.InfoControl as IIsChecked).IsChecked := not (cell.InfoControl as IIsChecked).IsChecked;
+    // wait for user to finish the click
+    TThread.ForceQueue(nil, procedure
+    begin
+      (cell.InfoControl as IIsChecked).IsChecked := not (cell.InfoControl as IIsChecked).IsChecked;
+    end);
+
+    Exit;
   end;
 end;
 
@@ -450,7 +465,7 @@ begin
 
   if not _editingInfo.RowIsEditing then
   begin
-    _selectionInfo.ClearMultiSelections;    
+    _selectionInfo.ClearMultiSelections;
 
     var dataItem := Self.DataItem;
     var isNew := False;
@@ -603,11 +618,11 @@ end;
 function TEditableDataControl.TrySelectCheckBoxes: Boolean;
 begin
   var cell := GetActiveCell;
-  if (cell = nil) or cell.Column.IsCheckBoxColumn or (cell.Column.InfoControlClass <> TInfoControlClass.CheckBox) then
+  if (cell = nil) or cell.Column.IsSelectionColumn or (cell.Column.InfoControlClass <> TInfoControlClass.CheckBox) then
   begin
     var valid := False;
     for var flatClmn in Self.Layout.FlatColumns do
-      if not flatClmn.Column.IsCheckBoxColumn and (flatClmn.Column.InfoControlClass = TInfoControlClass.CheckBox) then
+      if not flatClmn.Column.IsSelectionColumn and (flatClmn.Column.InfoControlClass = TInfoControlClass.CheckBox) then
       begin
         cell := (cell.Row as IDCTReeRow).Cells[flatClmn.Index];
         valid := True;
@@ -938,13 +953,20 @@ begin
       try
         u.BeginUpdate;
         notify.BeginEdit(ARow.ViewListIndex);
+
+        // can be cloned
+        if DataItem.IsOfType<IDataRowView> then
+          DataItem.AsType<IDataRowView>.Row.Data := _model.ObjectContext else
+          DataItem := _model.ObjectContext;
       finally
         u.EndUpdate
       end else
         notify.BeginEdit(ARow.ViewListIndex);
     end
     else if ViewIsDataModelView then
+    begin
       GetDataModelView.DataModel.BeginEdit(ARow.DataItem.AsType<IDataRowView>.Row);
+    end;
 
     _editingInfo.StartRowEdit(ARow.DataIndex, DataItem, IsNew);
 
@@ -1108,39 +1130,26 @@ var
   s: string;
   msg: string;
   propInfo: _PropertyInfo;
-//  propName: CString;
-//  t: &Type;
 
 begin
-//  if (_ColumnPropertyInfos = nil) then
-//  begin
-//    propName := cell.Column.PropertyName;
-//    if not CString.IsNullorEmpty(propname) then
-//      t := _EditItem.GetType;
-//  end
-//  else // _ColumnPropertyInfos <> nil
   try
-//    propInfo := _ColumnPropertyInfos[cell.Column.Index];
-//    if (propInfo <> nil) and (propInfo.PropInfo <> nil) then
-//      propInfo.SetValue(_EditItem, Data, [])
-//    else if _listHoldsOrdinalType then
-//      _EditItem := Data;
-
-    if CString.Equals(Cell.Column.PropertyName, COLUMN_SHOW_DEFAULT_OBJECT_TEXT) then
-      _editingInfo.EditItem := Data
-    else if not CString.IsNullOrEmpty(Cell.Column.PropertyName) then
-    begin
-      if ViewIsDataModelView then
-        GetDataModelView.DataModel.SetPropertyValue(Cell.Column.PropertyName, Cell.Row.DataItem.GetValue<IDataRowView>.Row, Data)
-      else begin
-        var prop := _editingInfo.EditItem.GetType.PropertyByName(Cell.Column.PropertyName);
-        prop.SetValue(_editingInfo.EditItem, Data, []);
+    Self.BeginUpdate;
+    try
+      if CString.Equals(Cell.Column.PropertyName, COLUMN_SHOW_DEFAULT_OBJECT_TEXT) then
+        _editingInfo.EditItem := Data
+      else if not CString.IsNullOrEmpty(Cell.Column.PropertyName) then
+      begin
+        if ViewIsDataModelView then
+          GetDataModelView.DataModel.SetPropertyValue(Cell.Column.PropertyName, Cell.Row.DataItem.GetValue<IDataRowView>.Row, Data)
+        else begin
+          var prop := _editingInfo.EditItem.GetType.PropertyByName(Cell.Column.PropertyName);
+          prop.SetValue(_editingInfo.EditItem, Data, []);
+        end;
       end;
+    finally
+      Self.EndUpdate;
     end;
 
-//    {$IFDEF DEBUG}
-//    var x := _EditItem.ToString.ToString;
-//    {$ENDIF}
   except
     // Catch exception and translate into a 'nice' exception
     on E: Exception do
@@ -1151,15 +1160,12 @@ begin
           s := Data.ToString else
           s := '<empty>';
 
-      //{$IFDEF OBSOLETE}
         if (propInfo.PropInfo <> nil) and (propInfo.PropInfo.PropType <> nil) then
           msg := CString.Format('Invalid value: ''{0}'' (field expects a {1})', s, propInfo.PropInfo.PropType^.NameFld.ToString) else
           msg := CString.Format('Invalid value: ''{0}''', s);
-      //{$ENDIF}
       except
         raise EConvertError.Create(msg);
       end;
-
       raise EConvertError.Create(msg);
     end;
   end;
