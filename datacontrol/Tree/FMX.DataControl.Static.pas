@@ -629,7 +629,7 @@ begin
       flatColumn := _treeLayout.LayoutColumns[flatIx] else
       flatColumn := _treeLayout.FlatColumns[0];
   end
-  else if flatColumn.Column.IsCheckBoxColumn then
+  else if flatColumn.Column.IsSelectionColumn then
   begin
     var treeRow := clickedRow as IDCTreeRow;
     var treeCell := treeRow.Cells[flatColumn.Index];
@@ -1003,7 +1003,7 @@ begin
     Exit;
 
   for var lyClmn in _treeLayout.FlatColumns do
-    if lyClmn.Column.IsCheckBoxColumn then
+    if lyClmn.Column.IsSelectionColumn then
       Exit(lyClmn);
 end;
 
@@ -1503,7 +1503,7 @@ begin
     currentSelection.SelectedLayoutColumn := requestedSelection.SelectedLayoutColumn;
 
     DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionEventTrigger);
-    Exit;
+    Exit(True);
   end;
 
   var customShift := Shift;
@@ -1679,7 +1679,7 @@ end;
 
 procedure TStaticDataControl.LoadDefaultDataIntoControl(const Cell: IDCTreeCell; const FlatColumn: IDCTreeLayoutColumn; const IsSubProp: Boolean);
 begin
-  if Cell.Column.IsCheckBoxColumn then
+  if Cell.Column.IsSelectionColumn then
   begin
     Cell.InfoControl.Visible := _selectionInfo.CanSelect(Cell.Row.DataIndex);
     Exit;

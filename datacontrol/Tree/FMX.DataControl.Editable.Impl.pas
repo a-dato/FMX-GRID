@@ -711,7 +711,7 @@ constructor TDCCheckBoxCellEditor.Create(const EditorHandler: IDataControlEditor
 begin
   inherited;
 
-//  _standAloneCheckbox := not Cell.Column.IsCheckBoxColumn and CString.IsNullOrEmpty(Cell.Column.PropertyName);
+//  _standAloneCheckbox := not Cell.Column.IsSelectionColumn and CString.IsNullOrEmpty(Cell.Column.PropertyName);
 end;
 
 destructor TDCCheckBoxCellEditor.Destroy;
