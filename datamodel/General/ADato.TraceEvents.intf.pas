@@ -28,6 +28,7 @@ type
     function  GetHasException: Boolean;
     procedure SetHasException(const Value: Boolean);
     function  GetFilename: string;
+    function  GetPath: string;
     function  GetGroups: TStringList;
     function  GetLevel: TLevel;
     procedure SetLevel(const Value: TLevel);
@@ -55,6 +56,7 @@ type
     property UseCsvFormatting: Boolean read get_UseCsvFormatting write set_UseCsvFormatting;
     property HasException: Boolean read GetHasException write SetHasException;
     property Filename: string read GetFilename;
+    property Path: string read GetPath;
     property Groups: TStringList read GetGroups;
     property Level: TLevel read GetLevel write SetLevel;
     property WriteToStdOut: Boolean read GetWriteToStdOut write SetWriteToStdOut;
@@ -77,6 +79,7 @@ type
     function  GetHasException: Boolean; virtual;
     procedure SetHasException(const Value: Boolean); virtual;
     function  GetFilename: string; virtual;
+    function  GetPath: string; virtual;
     function  GetGroups: TStringList;  virtual;
     function  GetLevel: TLevel; virtual;
     procedure SetLevel(const Value: TLevel); virtual;
@@ -141,6 +144,11 @@ begin
 end;
 
 function TEmptyEventTracer.GetFilename: string;
+begin
+
+end;
+
+function TEmptyEventTracer.GetPath: string;
 begin
 
 end;
