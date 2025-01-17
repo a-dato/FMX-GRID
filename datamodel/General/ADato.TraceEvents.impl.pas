@@ -27,7 +27,7 @@ type
 
   protected
     class var FileTicks: Integer;
-    class var Path: string;
+    class var FPath: string;
 
   protected
     FDefaultTraceItem: TFileTraceItem;
@@ -38,6 +38,7 @@ type
 
     function  FindTraceItem(const AFilename: string) : TFileTraceItem;
     function  GetFilename: string; override;
+    function  GetPath: string; override;
     function  GetGroups: TStringList; override;
     function  GetLevel: TLevel; override;
     procedure SetLevel(const Value: TLevel); override;
@@ -112,7 +113,7 @@ begin
         // Rename file to 'Filename.THREAD_ID.txt'
         fullName := TPath.ChangeExtension(fullName, TThread.CurrentThread.ThreadID.ToString + TPath.GetExtension(fullName));
 
-      item := TFileTraceItem.Create(AFileName, TPath.Combine(Path, fullName));
+      item := TFileTraceItem.Create(AFileName, TPath.Combine(FPath, fullName));
       items.Add(item);
     end;
 
@@ -126,25 +127,25 @@ begin
   var f := '';
   if FileName = string.Empty then
   begin
-    path := TPath.GetTempPath;
+    FPath := TPath.GetTempPath;
     f := 'lynx_' + IntToStr(Environment.TickCount) + '.log';
   end
   else begin
-    path := ExtractFilePath(FileName);
+    FPath := ExtractFilePath(FileName);
     var name := ExtractFileName(FileName);
     var ext := ExtractFileExt(FileName);
 
     if ext = '' then // FileName looks like c:\Temp\Log (only a path without a file name)
     begin
-      path := FileName;
+      FPath := FileName;
       name := '';
     end;
 
-    if not TDirectory.Exists(path) then
-      path := '';
+    if not TDirectory.Exists(FPath) then
+      FPath := '';
 
-    if path = '' then
-      path := TPath.GetTempPath;
+    if FPath = '' then
+      FPath := TPath.GetTempPath;
 
     if name = '' then
       name := 'lynx_' + IntToStr(Environment.TickCount);
@@ -152,7 +153,7 @@ begin
     f := ChangeFileExt(name, '.log');
   end;
 
-  FDefaultTraceItem := TFileTraceItem.Create(f, TPath.Combine(Path, f));
+  FDefaultTraceItem := TFileTraceItem.Create(f, TPath.Combine(FPath, f));
 
   TraceMessage('General', 'Log started', TLevel.Normal);
   FTraceFilenames := CDictionary<TThreadID, List<TFileTraceItem>>.Create;
@@ -216,6 +217,11 @@ end;
 function TEventTraceToFile.GetFilename: string;
 begin
   Result := FDefaultTraceItem.Filename;
+end;
+
+function TEventTraceToFile.GetPath: string;
+begin
+  Result := FPath;
 end;
 
 function TEventTraceToFile.GetGroups: TStringList;
