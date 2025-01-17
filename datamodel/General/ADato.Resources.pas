@@ -278,7 +278,7 @@ Resourcestring
   STasksScheduledAfterProjectEnd = 'Project is scheduled after the project end date: {1:D}';
   STasksScheduledBeforeProjectStart = 'Project is scheduled before the project start date: {1:D}';
   SThe = 'the 	Mind the space after ''the''';
-  SUnitsMayNotExceed_1 = 'Value of ''units'' cannot exceed ''1''. Requirement ''{0}'' will be scheduled at 100% resource allocation.';
+  SUnitsMayNotExceed_1 = 'Value of ''units'' cannot exceed 100%. Requirement ''{0}'' will be scheduled at 100% resource allocation.';
   SUnitsMustBeSet = 'Value of ''units'' must be greater than 0 for requirement ''{0}'', hence this requirement will be ingored.';
   SWorkingHourText = 'Resources are normally working between {0} and {1}';
   SWorkingText = 'working';
