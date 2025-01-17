@@ -122,7 +122,9 @@ type
     function  DoCreateNewRow: IDCRow; override;
     procedure BeforeRealignContent; override;
     procedure AfterRealignContent; override;
+
     procedure InnerInitRow(const Row: IDCRow); override;
+    procedure DoRowLoaded(const ARow: IDCRow); override;
 
     function  CreateSelectioninfoInstance: IRowSelectionInfo; override;
     procedure OnSelectionInfoChanged; override;
@@ -1028,14 +1030,11 @@ end;
 
 procedure TStaticDataControl.SetSingleSelectionIfNotExists;
 begin
-  if _selectionType <> TSelectionType.CellSelection then
+  if (_selectionType <> TSelectionType.CellSelection) or _allowNoneSelected or (_view.ViewCount = 0) then
   begin
     inherited;
     Exit;
   end;
-
-  if _allowNoneSelected or (_view.ViewCount = 0) then
-    Exit;
 
   _selectionInfo.BeginUpdate;
   Try
@@ -1447,6 +1446,22 @@ begin
     Result := 0;
 end;
 
+procedure TStaticDataControl.DoRowLoaded(const ARow: IDCRow);
+begin
+  inherited;
+
+  if not ARow.IsHeaderRow and not ARow.Enabled then
+  begin
+    for var cell in (ARow as IDCTreeRow).Cells.Values do
+    begin
+      if cell.InfoControl <> nil then
+        cell.InfoControl.Enabled := False;
+      if cell.SubInfoControl <> nil then
+        cell.SubInfoControl.Enabled := False;
+    end;
+  end;
+end;
+
 function TStaticDataControl.DoCreateNewRow: IDCRow;
 begin
   Result := TDCTreeRow.Create;
@@ -1518,6 +1533,7 @@ begin
   var dummyNewRow := CreateDummyRowForChanging(requestedSelection) as IDCTreeRow;
   var newCell := dummyNewRow.Cells[requestedSelection.SelectedLayoutColumn];
 
+  var ignoreSelectionChanges := not CanRealignNow;
   if not DoCellCanChange(oldCell, newCell) then
     Exit;
 
@@ -1540,7 +1556,7 @@ begin
         InternalDoSelectColumn(requestedSelection.SelectedLayoutColumn, customShift);
     end;
   finally
-    _selectionInfo.EndUpdate;
+    _selectionInfo.EndUpdate(ignoreSelectionChanges);
   end;
 
   DoCellChanged(oldCell, newCell);

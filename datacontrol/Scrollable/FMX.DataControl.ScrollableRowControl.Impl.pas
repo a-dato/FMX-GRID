@@ -17,6 +17,7 @@ type
     _virtualYPosition: Single;
 
     _control: TControl;
+    _enabled: Boolean;
 
     _ownerIsScrolling: Boolean;
 
@@ -33,6 +34,8 @@ type
     function  get_Control: TControl;
     procedure set_Control(const Value: TControl); virtual;
     function  get_IsHeaderRow: Boolean; virtual;
+    function  get_Enabled: Boolean;
+    procedure set_Enabled(const Value: Boolean);
     function  get_OwnerIsScrolling: Boolean;
     procedure set_OwnerIsScrolling(const Value: Boolean); virtual;
 
@@ -132,6 +135,7 @@ type
     _sortDescriptions: List<IListSortDescription>;
     _filterDescriptions: List<IListFilterDescription>;
 
+
     function  get_RowStateFlags: TTreeRowStateFlags;
     procedure set_RowStateFlags(const Value: TTreeRowStateFlags);
     function  get_Current: Integer;
@@ -206,6 +210,7 @@ begin
   _dataItem := nil;
   _viewPortIndex := -1;
   _virtualYPosition := -1;
+  _enabled := True;
   UpdateControlVisibility;
 end;
 
@@ -213,6 +218,7 @@ constructor TDCRow.Create;
 begin
   inherited Create;
   _virtualYPosition := -1;
+  _enabled := True;
 end;
 
 destructor TDCRow.Destroy;
@@ -240,6 +246,11 @@ end;
 function TDCRow.get_DataItem: CObject;
 begin
   Result := _dataItem;
+end;
+
+function TDCRow.get_Enabled: Boolean;
+begin
+  Result := _enabled;
 end;
 
 function TDCRow.get_IsHeaderRow: Boolean;
@@ -330,6 +341,11 @@ end;
 procedure TDCRow.set_DataItem(const Value: CObject);
 begin
   _dataItem := Value;
+end;
+
+procedure TDCRow.set_Enabled(const Value: Boolean);
+begin
+  _enabled := Value;
 end;
 
 procedure TDCRow.set_OwnerIsScrolling(const Value: Boolean);

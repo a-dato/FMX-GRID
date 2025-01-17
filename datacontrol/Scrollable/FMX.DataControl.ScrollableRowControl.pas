@@ -112,6 +112,8 @@ type
     _isMasterSynchronizer: Boolean;
 
     _hoverRect: TRectangle;
+    _viewChangedIndex: Integer;
+    _resetViewRec: TResetViewRec;
 
     procedure DoEnter; override;
     procedure DoExit; override;
@@ -135,7 +137,7 @@ type
     procedure OnSelectionInfoChanged; virtual;
     function  CreateSelectioninfoInstance: IRowSelectionInfo; virtual;
     procedure SetSingleSelectionIfNotExists; virtual;
-    procedure InternalSetCurrent(const Index: Integer; const EventTrigger: TSelectionEventTrigger; Shift: TShiftState; SortOrFilterChanged: Boolean = False);
+    procedure InternalSetCurrent(const Index: Integer; const EventTrigger: TSelectionEventTrigger; Shift: TShiftState; SortOrFilterChanged: Boolean = False); virtual;
     function  TrySelectItem(const RequestedSelectionInfo: IRowSelectionInfo; Shift: TShiftState): Boolean; virtual;
     procedure ScrollSelectedIntoView(const RequestedSelectionInfo: IRowSelectionInfo);
     function  CreateDummyRowForChanging(const FromSelectionInfo: IRowSelectionInfo): IDCRow; virtual;
@@ -168,7 +170,7 @@ type
     procedure DoCollapseOrExpandRow(const ViewListIndex: Integer; DoExpand: Boolean);
     function  RowIsExpanded(const ViewListIndex: Integer): Boolean;
 
-    procedure ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
+    procedure ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False); virtual;
 
     function  GetSelectableViewIndex(const FromViewListIndex: Integer; const Increase: Boolean; const FirstRound: Boolean = True): Integer;
 
@@ -191,7 +193,8 @@ type
     procedure AddFilterDescription(const Filter: IListFilterDescription; const ClearOtherFlters: Boolean);
     function  ViewIsDataModelView: Boolean;
 
-    procedure DoDataItemChanged(const DataItem: CObject);
+    procedure DoDataItemChangedInternal(const DataItem: CObject);
+    procedure DoDataItemChanged(const DataItem: CObject; const DataIndex: Integer);
 
     function  VisibleRows: List<IDCRow>;
 
@@ -274,6 +277,7 @@ end;
 
 destructor TDCScrollableRowControl.Destroy;
 begin
+  AtomicIncrement(_viewChangedIndex);
   _view := nil;
   inherited;
 end;
@@ -283,17 +287,30 @@ begin
   Result := TDCRow.Create;
 end;
 
-procedure TDCScrollableRowControl.DoDataItemChanged(const DataItem: CObject);
+procedure TDCScrollableRowControl.DoDataItemChanged(const DataItem: CObject; const DataIndex: Integer);
 begin
+  var dataIndexActive := _view.FastPerformanceDataIndexIsActive(DataIndex);
+
   var viewListindex := _view.GetViewListIndex(DataItem);
-  if viewListIndex = -1 then
+  if (viewListIndex = -1) and not dataIndexActive then
     Exit;
 
   // clear all from this point,
   // because as well row height as cell widths can be changed
 
+  DoDataItemChangedInternal(DataItem);
   ResetView(viewListindex, True);
-  RefreshControl;
+end;
+
+procedure TDCScrollableRowControl.DoDataItemChangedInternal(const DataItem: CObject);
+begin
+  var ix := _view.GetViewListIndex(DataItem);
+  var row := _view.GetActiveRowIfExists(ix);
+  if row = nil then Exit;
+
+  InnerInitRow(row);
+  DoRowLoaded(row);
+  DoRowAligned(row);
 end;
 
 procedure TDCScrollableRowControl.DoEnter;
@@ -1001,7 +1018,7 @@ end;
 procedure TDCScrollableRowControl.ModelContextPropertyChanged(const Sender: IObjectModelContext; const Context: CObject; const AProperty: _PropertyInfo);
 begin
   if not Self.IsUpdating then
-    DoDataItemChanged(Context);
+    DoDataItemChangedInternal(Context);
 end;
 
 procedure TDCScrollableRowControl.ModelListContextChanged(const Sender: IObjectListModel; const Context: IList);
@@ -1071,6 +1088,11 @@ begin
         InternalSetCurrent(newViewListIndex, TSelectionEventTrigger.External, [], sortChanged or filterChanged);
     end;
   end;
+
+  // if not in edit mode, the view will be reset
+  // otherwise nothing is done till the endedit is called
+  if _resetViewRec.DoResetView then
+    ResetView(_resetViewRec.FromIndex, _resetViewRec.OneRowOnly);
 end;
 
 procedure TDCScrollableRowControl.AlignRowsFromReferenceToBottom(const TopReferenceRow: IDCRow);
@@ -1404,8 +1426,6 @@ begin
 
     ScrollManualAnimated(-Trunc(virtualYPos - _vertScrollBar.Value))
   end;
-
-  RefreshControl;
 end;
 
 procedure TDCScrollableRowControl.OnSelectionInfoChanged;
@@ -1456,36 +1476,46 @@ end;
 
 procedure TDCScrollableRowControl.OnViewChanged;
 begin
-  // when sort is applied in RealignContent it is done before other calculations
-  if not (_realignState in [TRealignState.Waiting, TRealignState.RealignDone]) then
+  if _updateCount > 0 then
     Exit;
 
-  ResetView;
+  AtomicIncrement(_viewChangedIndex);
+  var ix := _viewChangedIndex;
 
-  if _selectionInfo.DataItem <> nil then
+  TThread.ForceQueue(nil, procedure
   begin
-    var newViewListIndex := _view.GetViewListIndex(_selectionInfo.DataItem);
+    if ix <> _viewChangedIndex then
+      Exit;
 
-    // in case of sorting/filtering this is always the same
-    // in case of deleting/adding this can vary
-    var dataIndex: Integer;
+    // when sort is applied in RealignContent it is done before other calculations
+    if not (_realignState in [TRealignState.Waiting, TRealignState.RealignDone]) then
+      Exit;
 
-    if newViewListIndex <> -1 then
-      dataIndex := _view.GetDataIndex(_selectionInfo.DataItem) else
-      dataIndex := -1;
+    ResetView;
 
-    _selectionInfo.BeginUpdate;
-    try
-      if dataIndex <> -1 then
-        _selectionInfo.UpdateSingleSelection(dataIndex {not changed}, newViewListIndex, _selectionInfo.DataItem {not changed}) else
-        _selectionInfo.ClearAllSelections;  // when all items are deleted
+    if _selectionInfo.DataItem <> nil then
+    begin
+      var newViewListIndex := _view.GetViewListIndex(_selectionInfo.DataItem);
 
-    finally
-      _selectionInfo.EndUpdate(True {ignore change event});
+      // in case of sorting/filtering this is always the same
+      // in case of deleting/adding this can vary
+      var dataIndex: Integer;
+
+      if newViewListIndex <> -1 then
+        dataIndex := _view.GetDataIndex(_selectionInfo.DataItem) else
+        dataIndex := -1;
+
+      _selectionInfo.BeginUpdate;
+      try
+        if dataIndex <> -1 then
+          _selectionInfo.UpdateSingleSelection(dataIndex {not changed}, newViewListIndex, _selectionInfo.DataItem {not changed}) else
+          _selectionInfo.ClearAllSelections;  // when all items are deleted
+
+      finally
+        _selectionInfo.EndUpdate(True {ignore change event});
+      end;
     end;
-  end;
-
-  RefreshControl;
+  end);
 end;
 
 function TDCScrollableRowControl.ProvideReferenceRow: IDCRow;
@@ -1712,6 +1742,8 @@ begin
   if _view = nil then
     Exit;
 
+  AtomicIncrement(_viewChangedIndex);
+
   _content.BeginUpdate;
   try
     inherited;
@@ -1731,7 +1763,6 @@ begin
     SetSingleSelectionIfNotExists;
   finally
     _content.EndUpdate;
-
     _alignDirection := TAlignDirection.Undetermined;
     _waitForRepaintInfo := nil;
   end;
@@ -1763,11 +1794,29 @@ end;
 procedure TDCScrollableRowControl.ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
 begin
   if _view = nil then
+  begin
+    _resetViewRec := TResetViewRec.CreateNull;
      Exit;
+  end;
 
   _view.ResetView(FromViewListIndex, ClearOneRowOnly);
   if _isMasterSynchronizer and (_rowHeightSynchronizer.View <> nil) then
     _rowHeightSynchronizer.View.ResetView(FromViewListIndex, ClearOneRowOnly);
+
+  if _resetViewRec.RecalcSortedRows then
+  begin
+    inc(_updateCount);
+    try
+      _view.RecalcSortedRows;
+    finally
+      dec(_updateCount);
+    end;
+  end;
+
+  if (_realignState = TRealignState.RealignDone) or (_resetViewRec.RecalcSortedRows) then
+    RefreshControl;
+
+  _resetViewRec := TResetViewRec.CreateNull;
 end;
 
 function TDCScrollableRowControl.RowIsExpanded(const ViewListIndex: Integer): Boolean;
@@ -1790,6 +1839,9 @@ end;
 
 procedure TDCScrollableRowControl.ScrollSelectedIntoView(const RequestedSelectionInfo: IRowSelectionInfo);
 begin
+  if _view.GetViewListIndex(RequestedSelectionInfo.DataIndex) = -1 then
+    Exit;
+
   // scroll last selection change into view if not (fully) visible yet
   if RequestedSelectionInfo.DataItem <> nil then
   begin
