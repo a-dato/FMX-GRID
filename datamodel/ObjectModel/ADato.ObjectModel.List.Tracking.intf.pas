@@ -21,8 +21,6 @@ type
     function  get_ChangedItems: Dictionary<CObject, TObjectListChangeType>;
     procedure set_StoreChangedItems(const Value: Boolean);
 
-    function RetrieveUpdatedItems: Dictionary<CObject, TObjectListChangeType>;
-
     property HasChangedItems: Boolean read get_HasChangedItems;
     property ChangedItems: Dictionary<CObject, TObjectListChangeType> read get_ChangedItems;
     property StoreChangedItems: Boolean write set_StoreChangedItems;

@@ -113,6 +113,7 @@ type
 
     _hoverRect: TRectangle;
     _viewChangedIndex: Integer;
+    _waitingForViewChange: Boolean;
     _resetViewRec: TResetViewRec;
 
     procedure DoEnter; override;
@@ -177,7 +178,7 @@ type
     function  GetRowByMouseY(const Y: Single): IDCRow;
     function  GetRowViewListIndexByKey(const Key: Word; Shift: TShiftState): Integer;
     function  GetActiveRow: IDCRow;
-    function  ValidDataItem(const Item: CObject): CObject;
+    function  ConvertToDataItem(const Item: CObject): CObject;
 
   protected
     _itemType: &Type;
@@ -188,12 +189,13 @@ type
     destructor Destroy; override;
 
     procedure ExecuteKeyFromExternal(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+    function  ConvertedDataItem: CObject;
 
     procedure AddSortDescription(const Sort: IListSortDescription; const ClearOtherSort: Boolean);
     procedure AddFilterDescription(const Filter: IListFilterDescription; const ClearOtherFlters: Boolean);
     function  ViewIsDataModelView: Boolean;
 
-    procedure DoDataItemChangedInternal(const DataItem: CObject);
+    procedure DoDataItemChangedInternal(const DataItem: CObject); virtual;
     procedure DoDataItemChanged(const DataItem: CObject; const DataIndex: Integer);
 
     function  VisibleRows: List<IDCRow>;
@@ -299,18 +301,27 @@ begin
   // because as well row height as cell widths can be changed
 
   DoDataItemChangedInternal(DataItem);
-  ResetView(viewListindex, True);
+  ResetView(viewListindex, viewListindex <> -1 {only if still exists});
 end;
 
 procedure TDCScrollableRowControl.DoDataItemChangedInternal(const DataItem: CObject);
 begin
-  var ix := _view.GetViewListIndex(DataItem);
-  var row := _view.GetActiveRowIfExists(ix);
-  if row = nil then Exit;
+  // DO NOT ask the view for the correct index
+  // a item can be fitlered out, and therefor for example the DataModelView gives back another index
+  // this is problematic when we want to keep the filtered out item in the view for niceness purpose
+//  var ix := _view.GetViewListIndex(DataItem);
 
-  InnerInitRow(row);
-  DoRowLoaded(row);
-  DoRowAligned(row);
+  var current: IDCRow := nil;
+  for var row in _view.ActiveViewRows do
+    if CObject.Equals(ConvertToDataItem(row.DataItem), DataItem) then
+      current := row;
+
+  if current = nil then
+    Exit; // nothing to do
+
+  InnerInitRow(current);
+  DoRowLoaded(current);
+  DoRowAligned(current);
 end;
 
 procedure TDCScrollableRowControl.DoEnter;
@@ -838,6 +849,9 @@ end;
 
 procedure TDCScrollableRowControl.set_DataList(const Value: IList);
 begin
+//  if CObject.ReferenceEquals(_dataList, Value) then
+//    Exit;
+
   if GetDataModelView <> nil then
   begin
     GetDataModelView.CurrencyManager.CurrentRowChanged.Remove(DataModelViewRowChanged);
@@ -1440,7 +1454,7 @@ begin
         _model.MultiSelectionContext := SelectedItems else
         _model.MultiSelectionContext := nil;
 
-      _model.ObjectContext := ValidDataItem(Self.DataItem);
+      _model.ObjectContext := ConvertToDataItem(Self.DataItem);
     end
     else if (GetDataModelView <> nil) and (Self.DataItem <> nil) and (Self.DataItem.IsOfType<IDataRowView>) then
       GetDataModelView.CurrencyManager.Current := Self.DataItem.AsType<IDataRowView>.ViewIndex;
@@ -1455,7 +1469,12 @@ begin
     VisualizeRowSelection(row);
 end;
 
-function TDCScrollableRowControl.ValidDataItem(const Item: CObject): CObject;
+function TDCScrollableRowControl.ConvertedDataItem: CObject;
+begin
+  Result := ConvertToDataItem(get_DataItem);
+end;
+
+function TDCScrollableRowControl.ConvertToDataItem(const Item: CObject): CObject;
 begin
   var drv: IDataRowView;
   if ViewIsDataModelView and Item.TryAsType<IDataRowView>(drv) then
@@ -1481,6 +1500,8 @@ begin
 
   AtomicIncrement(_viewChangedIndex);
   var ix := _viewChangedIndex;
+
+  _waitingForViewChange := True;
 
   TThread.ForceQueue(nil, procedure
   begin
@@ -1743,6 +1764,8 @@ begin
     Exit;
 
   AtomicIncrement(_viewChangedIndex);
+  if _waitingForViewChange then
+    ResetView;
 
   _content.BeginUpdate;
   try
@@ -1793,6 +1816,8 @@ end;
 
 procedure TDCScrollableRowControl.ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
 begin
+  _waitingForViewChange := False;
+
   if _view = nil then
   begin
     _resetViewRec := TResetViewRec.CreateNull;
@@ -2068,7 +2093,8 @@ begin
     filters := CList<IListFilterDescription>.Create else
     filters := _view.GetFilterDescriptions;
 
-  filters.Add(Filter);
+  if Filter <> nil then
+    filters.Add(Filter);
 
   GetInitializedWaitForRefreshInfo.FilterDescriptions := filters;
 
@@ -2084,7 +2110,8 @@ begin
     sorts := CList<IListSortDescription>.Create else
     sorts := _view.GetSortDescriptions;
 
-  sorts.Insert(0, Sort);  // make it the most important sort
+  if Sort <> nil then
+    sorts.Insert(0, Sort);  // make it the most important sort
 
   GetInitializedWaitForRefreshInfo.SortDescriptions := sorts;
 

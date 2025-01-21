@@ -685,8 +685,8 @@ end;
 
 procedure TObjectListModelItemChangedDelegate.EndEdit(const Item: CObject);
 begin
-  if _UpdateCount = 0 then
-    _Owner.EndEditFromExternal(Item);
+  if (_UpdateCount = 0) and CObject.Equals(_Owner.ConvertedDataItem, Item) then
+    _Owner.EndEditFromExternal;
 
 //  if _UpdateCount = 0 then
 //    _Owner.RefreshControl([TreeState.DataChanged]);

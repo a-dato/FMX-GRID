@@ -1533,7 +1533,7 @@ begin
   var dummyNewRow := CreateDummyRowForChanging(requestedSelection) as IDCTreeRow;
   var newCell := dummyNewRow.Cells[requestedSelection.SelectedLayoutColumn];
 
-  var ignoreSelectionChanges := not CanRealignNow;
+  var ignoreSelectionChanges := not CanRealignContent;
   if not DoCellCanChange(oldCell, newCell) then
     Exit;
 

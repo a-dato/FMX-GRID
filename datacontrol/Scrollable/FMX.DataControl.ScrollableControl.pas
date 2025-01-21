@@ -40,8 +40,6 @@ type
 
     procedure DoViewPortPositionChanged;
 
-//    function  VertScrollbarIsTracking: Boolean;
-
   protected
     procedure OnHorzScrollBarChange(Sender: TObject); virtual;
     procedure OnScrollBarChange(Sender: TObject);
@@ -78,7 +76,7 @@ type
     procedure MouseRollingBoostTimer(Sender: TObject);
 
     procedure PerformanceSafeRealign(ScrollingType: TScrollingType = TScrollingType.None);
-    function  CanRealignNow: Boolean;
+    function  CanRealignScrollCheck: Boolean;
     function  RealignContentTime: Integer;
 
     procedure WaitForRealignEndedWithoutAnotherScrollTimer(Sender: TObject);
@@ -260,7 +258,7 @@ begin
   Result := True;
 end;
 
-function TDCScrollableControl.CanRealignNow: Boolean;
+function TDCScrollableControl.CanRealignScrollCheck: Boolean;
 begin
   Result := not _scrollStopWatch_scrollbar.IsRunning or (_scrollStopWatch_scrollbar.ElapsedMilliseconds > RealignContentTime);
 end;
@@ -277,7 +275,7 @@ begin
 
     if _scrollStopWatch_scrollbar.IsRunning then
     begin
-      if not CanRealignNow then
+      if not CanRealignScrollCheck then
       begin
         _scrollingType := ScrollingType;
         RestartWaitForRealignTimer(0);
@@ -350,6 +348,12 @@ procedure TDCScrollableControl.DoRealignContent;
 begin
   if not (_realignState in [TRealignState.Waiting, TRealignState.RealignDone]) then
     Exit;
+
+  if not CanRealignContent then
+  begin
+    _realignContentRequested := True;
+    Exit;
+  end;
 
   Log('DoRealignContent');
   _realignContentRequested := False;
@@ -613,7 +617,7 @@ begin
   // only get's here when scrolling with scrollbar!
   // otherwise _scrollUpdateCount > 0
 
-  if (_scrollingType = TScrollingType.None) and CanRealignNow then
+  if (_scrollingType = TScrollingType.None) and CanRealignScrollCheck then
   begin
     _scrollingType := TScrollingType.WithScrollBar;
 
@@ -680,7 +684,7 @@ begin
     end;
   end;
 
-  if CanRealignNow then
+  if CanRealignScrollCheck then
   begin
     _scrollingType := TScrollingType.Other;
     DoRealignContent;

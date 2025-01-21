@@ -52,8 +52,6 @@ type
     procedure UpdateViewIndexFromIndex(const Index: Integer);
     procedure UpdatePerformanceIndexIndicators;
 
-    procedure TempCheckBecauseItIsFridayAndINeedToFixThisButAlsoWantToGoHome;
-
   public
     constructor Create(const DataList: IList; DoCreateNewRow: TDoCreateNewRow; OnViewChanged: TProc); reintroduce; overload;
     constructor Create(const DataModelView: IDataModelView; DoCreateNewRow: TDoCreateNewRow; OnViewChanged: TProc); reintroduce; overload;
@@ -581,8 +579,6 @@ end;
 
 function TDataViewList.CachedRowHeight(const RowViewListIndex: Integer): Single;
 begin
-  TempCheckBecauseItIsFridayAndINeedToFixThisButAlsoWantToGoHome;
-
   var rowInfo := _viewRowHeights[RowViewListIndex];
   if not rowInfo.ControlNeedsResize then
     Result := rowInfo.GetCalculatedHeight else
@@ -635,7 +631,7 @@ end;
 
 procedure TDataViewList.ClearViewRecInfo(const FromViewListIndex: Integer; ClearOneRowOnly: Boolean);
 begin
-  if ClearOneRowOnly then
+  if ClearOneRowOnly and (FromViewListIndex >= 0) then
     _viewRowHeights[FromViewListIndex] := TRowInfoRecord.Null
   else begin
     var startClearIndex := CMath.Max(0, FromViewListIndex);
@@ -648,15 +644,11 @@ end;
 
 procedure TDataViewList.RowLoaded(const Row: IDCRow; const NeedsResize: Boolean);
 begin
-  TempCheckBecauseItIsFridayAndINeedToFixThisButAlsoWantToGoHome;
-
   _viewRowHeights[Row.ViewListIndex] := _viewRowHeights[Row.ViewListIndex].AfterCellsApplies(Row.Control.Height, NeedsResize);
 end;
 
 function TDataViewList.RowLoadedInfo(const ViewListIndex: Integer): TRowInfoRecord;
 begin
-  TempCheckBecauseItIsFridayAndINeedToFixThisButAlsoWantToGoHome;
-
   Result := _viewRowHeights[ViewListIndex];
 end;
 
@@ -696,8 +688,6 @@ begin
       RemoveRowFromActiveView(row);
   end;
 
-  TempCheckBecauseItIsFridayAndINeedToFixThisButAlsoWantToGoHome;
-
   for var ix2 := 0 to _activeRows.Count - 1 do
   begin
     var viewListIndex := _activeRows[ix2].ViewListIndex;
@@ -718,8 +708,6 @@ begin
       RemoveRowFromActiveView(row);
   end;
 
-  TempCheckBecauseItIsFridayAndINeedToFixThisButAlsoWantToGoHome;
-
   for var ix2 := 0 to _activeRows.Count - 1 do
   begin
     var viewListIndex := _activeRows[ix2].ViewListIndex;
@@ -731,8 +719,6 @@ end;
 
 procedure TDataViewList.ViewLoadingRemoveNonUsedRows(const TillSpecifiedViewIndex: Integer = -1; const FromTop: Boolean = True);
 begin
-  TempCheckBecauseItIsFridayAndINeedToFixThisButAlsoWantToGoHome;
-
   // if not all existing rows fit in the current view
   for var index := _activeRows.Count - 1 downto 0 do
   begin
@@ -752,8 +738,6 @@ end;
 
 procedure TDataViewList.RemoveRowFromActiveView(const Row: IDCRow);
 begin
-  TempCheckBecauseItIsFridayAndINeedToFixThisButAlsoWantToGoHome;
-
   var ix := Row.ViewPortIndex;
 
   _activeRows.RemoveAt(Row.ViewPortIndex);
@@ -764,18 +748,10 @@ begin
   UpdateViewIndexFromIndex(ix);
 end;
 
-procedure TDataViewList.TempCheckBecauseItIsFridayAndINeedToFixThisButAlsoWantToGoHome;
-begin
-  if (Length(_viewRowHeights) = 0) and (ViewCount > 0) then
-    ClearViewRecInfo;
-end;
-
 function TDataViewList.TotalDataHeight(DefaultRowHeight: Single): Single;
 begin
   var rowsWithValidHeights: Integer := 0;
   var totalAbsoluteHeight := 0.0;
-
-  TempCheckBecauseItIsFridayAndINeedToFixThisButAlsoWantToGoHome;
 
   for var value in _viewRowHeights do
     if not value.ControlNeedsResize then
