@@ -243,7 +243,7 @@ type
     destructor Destroy; override;
 
     function  Clone: IDCTreeColumn;
-    function  IsCheckBoxColumn: Boolean; virtual;
+    function  IsSelectionColumn: Boolean; virtual;
 
     function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; IsSubProp: Boolean = False): CObject;
     function  GetDefaultCellData(const Cell: IDCTreeCell; const CellValue: CObject; FormatApplied: Boolean): CObject; virtual;
@@ -293,7 +293,7 @@ type
   public
     constructor Create; override;
 
-    function  IsCheckBoxColumn: Boolean; override;
+    function  IsSelectionColumn: Boolean; override;
     function  GetDefaultCellData(const Cell: IDCTreeCell; const CellValue: CObject; FormatApplied: Boolean): CObject; override;
   end;
 
@@ -1062,7 +1062,7 @@ begin
   Result := _widthSettings.WidthType;
 end;
 
-function TDCTreeColumn.IsCheckBoxColumn: Boolean;
+function TDCTreeColumn.IsSelectionColumn: Boolean;
 begin
   Result := False;
 end;
@@ -1432,9 +1432,9 @@ begin
 
     CheckBox: begin
       var check: IIsChecked;
-      if _treeControl.MultiSelectAllowed then
-        check := ScrollableRowControl_DefaultCheckboxClass.Create(Cell.Control) else
-        check := ScrollableRowControl_DefaultRadioButtonClass.Create(Cell.Control);
+      if Cell.Column.IsSelectionColumn and not _treeControl.MultiSelectAllowed  then
+        check := ScrollableRowControl_DefaultRadioButtonClass.Create(Cell.Control) else
+        check := ScrollableRowControl_DefaultCheckboxClass.Create(Cell.Control);
 
       Result := check as TControl;
       Result.Align := TAlignLayout.None;
@@ -2296,8 +2296,11 @@ end;
 
 procedure TTreeSelectionInfo.set_SelectedLayoutColumn(const Value: Integer);
 begin
-  _lastSelectedLayoutColumn := Value;
-  DoSelectionInfoChanged;
+  if _lastSelectedLayoutColumn <> Value then
+  begin
+    _lastSelectedLayoutColumn := Value;
+    DoSelectionInfoChanged;
+  end;
 end;
 
 { TDCTreeCheckboxColumn }
@@ -2328,7 +2331,7 @@ begin
   Result := False;
 end;
 
-function TDCTreeCheckboxColumn.IsCheckBoxColumn: Boolean;
+function TDCTreeCheckboxColumn.IsSelectionColumn: Boolean;
 begin
   Result := True;
 end;

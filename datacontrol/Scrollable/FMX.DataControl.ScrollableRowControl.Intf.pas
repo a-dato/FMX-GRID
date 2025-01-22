@@ -115,6 +115,8 @@ type
     function  get_Control: TControl;
     procedure set_Control(const Value: TControl);
     function  get_IsHeaderRow: Boolean;
+    function  get_Enabled: Boolean;
+    procedure set_Enabled(const Value: Boolean);
 
     function  get_OwnerIsScrolling: Boolean;
     procedure set_OwnerIsScrolling(const Value: Boolean);
@@ -137,11 +139,30 @@ type
     property VirtualYPosition: Single read get_VirtualYPosition write set_VirtualYPosition;
     property Control: TControl read get_Control write set_Control;
     property IsHeaderRow: Boolean read get_IsHeaderRow;
+    property Enabled: Boolean read get_Enabled write set_Enabled;
 
     property OwnerIsScrolling: Boolean read get_OwnerIsScrolling write set_OwnerIsScrolling;
   end;
 
   TDoCreateNewRow = reference to function: IDCRow;
+
+  TResetViewRec = record
+  private
+    _doResetView: Boolean;
+    _resetViewIndex: Integer;
+    _resetViewOneRowOnly: Boolean;
+    _doRecalcSortedRows: Boolean;
+
+  public
+    function DoResetView: Boolean;
+    function FromIndex: Integer;
+    function OneRowOnly: Boolean;
+    function RecalcSortedRows: Boolean;
+
+    class function CreateNull: TResetViewRec; static;
+    class function CreateNew(const Index: Integer; const OneRowOnly, RecalcSortedRows: Boolean): TResetViewRec; static;
+    class function CreateFrom(const Index: Integer; const OneRowOnly, RecalcSortedRows: Boolean; const Existing: TResetViewRec): TResetViewRec; static;
+  end;
 
   IWaitForRepaintInfo = interface
     ['{BA3C974D-09FF-42BD-887F-0D4523D8BDF1}']
@@ -265,6 +286,55 @@ end;
 class operator TSelectionEventTrigger.Implicit(const AValue: TSelectionEventTrigger): Integer;
 begin
   Result := AValue.value;
+end;
+
+{ TResetViewRec }
+
+class function TResetViewRec.CreateFrom(const Index: Integer; const OneRowOnly, RecalcSortedRows: Boolean; const Existing: TResetViewRec): TResetViewRec;
+begin
+  if not Existing._doResetView then
+    Result := TResetViewRec.CreateNew(Index, OneRowOnly, RecalcSortedRows)
+  else begin
+    var ixMin := CMath.Min(Existing._resetViewIndex, Index);
+    var resetOnlyOneRow := Existing._resetViewOneRowOnly and OneRowOnly and (Existing._resetViewIndex = Index);
+    var recalcSorting := Existing._doRecalcSortedRows or RecalcSortedRows;
+
+    Result := TResetViewRec.CreateNew(ixMin, resetOnlyOneRow, recalcSorting);
+  end;
+end;
+
+class function TResetViewRec.CreateNew(const Index: Integer; const OneRowOnly, RecalcSortedRows: Boolean): TResetViewRec;
+begin
+  Result._doResetView := True;
+  Result._resetViewIndex := Index;
+  Result._resetViewOneRowOnly := OneRowOnly;
+end;
+
+class function TResetViewRec.CreateNull: TResetViewRec;
+begin
+  Result._doResetView := False;
+  Result._resetViewIndex := -1;
+  Result._resetViewOneRowOnly := True;
+end;
+
+function TResetViewRec.DoResetView: Boolean;
+begin
+  Result := _doResetView;
+end;
+
+function TResetViewRec.FromIndex: Integer;
+begin
+  Result := _resetViewIndex;
+end;
+
+function TResetViewRec.OneRowOnly: Boolean;
+begin
+  Result := _resetViewOneRowOnly;
+end;
+
+function TResetViewRec.RecalcSortedRows: Boolean;
+begin
+  Result := _doRecalcSortedRows;
 end;
 
 end.

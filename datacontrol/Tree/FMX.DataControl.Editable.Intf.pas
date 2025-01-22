@@ -13,6 +13,7 @@ type
     ['{8E62DCA3-F014-4442-A00B-1A812C4A81B4}']
     function  get_EditItem: CObject;
     procedure set_EditItem(const Value: CObject);
+    function  get_EditItemDataIndex: Integer;
 
     function  RowIsEditing: Boolean;
     function  CellIsEditing: Boolean;
@@ -25,6 +26,7 @@ type
     procedure CellEditingFinished;
     procedure RowEditingFinished;
 
+    property  EditItemDataIndex: Integer read get_EditItemDataIndex;
     property  EditItem: CObject read get_EditItem write set_EditItem;
   end;
 

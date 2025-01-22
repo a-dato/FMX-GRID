@@ -95,6 +95,8 @@ type
     _horzScrollBar: TSmallScrollBar;
 
     _content: TControl;
+    _updateCount: Integer;
+
     _realignContentTime: Int64;
 
     _realignContentRequested: Boolean;
@@ -127,6 +129,8 @@ type
 
     procedure OnContentResized(Sender: TObject);
     procedure DoContentResized(WidthChanged, HeightChanged: Boolean); virtual;
+
+    function  CanRealignContent: Boolean; virtual;
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -249,6 +253,11 @@ begin
 
   CalculateScrollBarMax;
   UpdateScrollbarMargins;
+end;
+
+function TDCScrollableControl.CanRealignContent: Boolean;
+begin
+  Result := True;
 end;
 
 function TDCScrollableControl.CanRealignNow: Boolean;
@@ -407,7 +416,7 @@ end;
 
 function TDCScrollableControl.IsUpdating: Boolean;
 begin
-  Result := inherited or ((_content <> nil) and _content.IsUpdating);
+  Result := inherited or ((_content <> nil) and _content.IsUpdating) or (_updateCount > 0);
 end;
 
 procedure TDCScrollableControl.Log(const Message: CString);
@@ -619,7 +628,7 @@ end;
 
 procedure TDCScrollableControl.Painting;
 begin
-  if _realignContentRequested then
+  if _realignContentRequested and CanRealignContent then
   begin
     SetBasicVertScrollBarValues;
     Log('Painting');
@@ -646,7 +655,9 @@ end;
 
 procedure TDCScrollableControl.RefreshControl(const DataChanged: Boolean = False);
 begin
-  _realignState := TRealignState.Waiting;
+  if CanRealignContent then
+    _realignState := TRealignState.Waiting;
+
   RequestRealignContent;
 end;
 
@@ -738,7 +749,9 @@ end;
 procedure TDCScrollableControl.RequestRealignContent;
 begin
   _realignContentRequested := True;
-  Self.Repaint;
+
+  if CanRealignContent then
+    Self.Repaint;
 end;
 
 procedure TDCScrollableControl.RestartWaitForRealignTimer(const AdditionalContentTime: Integer; OnlyForRealignWhenScrollingStopped: Boolean = False);

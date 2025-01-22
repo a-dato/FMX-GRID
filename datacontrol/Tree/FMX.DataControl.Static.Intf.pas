@@ -180,7 +180,7 @@ type
     procedure set_FormatProvider(const Value: IFormatProvider);
 
     function  Clone: IDCTreeColumn;
-    function  IsCheckBoxColumn: Boolean;
+    function  IsSelectionColumn: Boolean;
 
     function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; IsSubProp: Boolean = False): CObject;
     function  GetDefaultCellData(const Cell: IDCTreeCell; const CellValue: CObject; FormatApplied: Boolean): CObject;

@@ -1267,7 +1267,7 @@ begin
         for o in items do
         begin
           if o = nil then continue;
-          if not o.IsNumeric then
+          if not o.IsNumeric and not o.IsTimeSpan then
             r := GenericMath.AsDouble(o) else
             r := o;
 
@@ -3395,16 +3395,11 @@ class function GenericMath.Sgn(const Value: CObject): CObject;
 begin
   {$IFDEF DELPHI}
     if Value.IsNumeric then
-    begin
-      Result := Double(Value) > 0;
-      Exit;
-    end;
-
+      Exit(Double(Value) > 0);
     if Value.IsDateTime then
-    begin
-      Result := CDateTime(Value).Ticks > 0;
-      Exit;
-    end;
+      Exit(CDateTime(Value).Ticks > 0);
+    if Value.IsTimeSpan then
+      Exit(CTimeSpan(Value).Ticks > 0);
     {$ENDIF}
 end;
 
@@ -3498,6 +3493,14 @@ begin
         Result := Value2;
       Exit;
     end;
+
+    if Value1.IsTimeSpan then
+    begin
+      if CTimeSpan(Value1) > CTimeSpan(Value2) then
+        Result := Value1 else
+        Result := Value2;
+      Exit;
+    end;
     {$ENDIF}
 end;
 
@@ -3520,6 +3523,14 @@ begin
     if Value1.IsDateTime then
     begin
       if CDateTime(Value1) < CDateTime(Value2) then
+        Result := Value1 else
+        Result := Value2;
+      Exit;
+    end;
+
+    if Value1.IsTimeSpan then
+    begin
+      if CTimeSpan(Value1) < CTimeSpan(Value2) then
         Result := Value1 else
         Result := Value2;
       Exit;

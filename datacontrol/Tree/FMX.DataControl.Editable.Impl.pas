@@ -21,6 +21,7 @@ type
 
     function  get_EditItem: CObject;
     procedure set_EditItem(const Value: CObject);
+    function  get_EditItemDataIndex: Integer;
 
   public
     constructor Create;
@@ -190,6 +191,11 @@ end;
 function TTreeEditingInfo.get_EditItem: CObject;
 begin
   Result := _editItem;
+end;
+
+function TTreeEditingInfo.get_EditItemDataIndex: Integer;
+begin
+  Result := _dataIndex;
 end;
 
 procedure TTreeEditingInfo.CellEditingFinished;
@@ -711,7 +717,7 @@ constructor TDCCheckBoxCellEditor.Create(const EditorHandler: IDataControlEditor
 begin
   inherited;
 
-//  _standAloneCheckbox := not Cell.Column.IsCheckBoxColumn and CString.IsNullOrEmpty(Cell.Column.PropertyName);
+//  _standAloneCheckbox := not Cell.Column.IsSelectionColumn and CString.IsNullOrEmpty(Cell.Column.PropertyName);
 end;
 
 destructor TDCCheckBoxCellEditor.Destroy;
