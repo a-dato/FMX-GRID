@@ -123,6 +123,7 @@ type
 
     function  Height: Single;
     function  HasChildren: Boolean;
+    function  HasVisibleChildren: Boolean;
     function  ParentCount: Integer;
     function  IsOddRow: Boolean;
 

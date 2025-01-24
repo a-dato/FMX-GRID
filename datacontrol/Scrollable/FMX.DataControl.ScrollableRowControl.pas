@@ -1107,8 +1107,11 @@ begin
         newViewListIndex := _view.GetViewListIndex(_waitForRepaintInfo.DataItem) else
         newViewListIndex := _waitForRepaintInfo.Current;
 
-      if newViewListIndex <> -1 then
-        InternalSetCurrent(newViewListIndex, TSelectionEventTrigger.External, [], sortChanged or filterChanged);
+      if (newViewListIndex <> -1) then
+      begin
+        if (_view.GetActiveRowIfExists(newViewListIndex) <> nil) then
+          InternalSetCurrent(newViewListIndex, TSelectionEventTrigger.External, [], sortChanged or filterChanged);
+      end;
     end;
   end;
 

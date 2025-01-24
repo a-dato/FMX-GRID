@@ -1318,7 +1318,7 @@ begin
     if headerCell.SortControl <> nil then
       headerCell.SortControl.Tag := Cell.Row.ViewListIndex;
   end
-  else if Cell.Column.ShowHierarchy and Cell.Row.HasChildren then
+  else if Cell.Column.ShowHierarchy and Cell.Row.HasVisibleChildren then
   begin
     if Cell.ExpandButton = nil then
     begin
