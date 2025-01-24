@@ -40,6 +40,8 @@ type
 
     procedure DoViewPortPositionChanged;
 
+//    function GetNamePath: string; override;
+
   protected
     procedure OnHorzScrollBarChange(Sender: TObject); virtual;
     procedure OnScrollBarChange(Sender: TObject);

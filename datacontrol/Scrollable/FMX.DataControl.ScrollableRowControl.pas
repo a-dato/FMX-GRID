@@ -50,7 +50,6 @@ type
     procedure DataModelViewRowPropertiesChanged(Sender: TObject; Args: RowPropertiesChangedEventArgs); virtual;
 
     procedure GenerateView; virtual;
-    function  GetDataModelView: IDataModelView;
 
   // published property variables
   protected
@@ -178,7 +177,6 @@ type
     function  GetRowByMouseY(const Y: Single): IDCRow;
     function  GetRowViewListIndexByKey(const Key: Word; Shift: TShiftState): Integer;
     function  GetActiveRow: IDCRow;
-    function  ConvertToDataItem(const Item: CObject): CObject;
 
   protected
     _itemType: &Type;
@@ -189,6 +187,8 @@ type
     destructor Destroy; override;
 
     procedure ExecuteKeyFromExternal(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+
+    function  ConvertToDataItem(const Item: CObject): CObject;
     function  ConvertedDataItem: CObject;
 
     procedure AddSortDescription(const Sort: IListSortDescription; const ClearOtherSort: Boolean);
@@ -199,6 +199,7 @@ type
     procedure DoDataItemChanged(const DataItem: CObject; const DataIndex: Integer);
 
     function  VisibleRows: List<IDCRow>;
+    function  GetDataModelView: IDataModelView;
 
     // start public selection
     procedure SelectAll; virtual;
@@ -314,7 +315,15 @@ begin
   var current: IDCRow := nil;
   for var row in _view.ActiveViewRows do
     if CObject.Equals(ConvertToDataItem(row.DataItem), DataItem) then
+    begin
       current := row;
+
+//      // Changed item is a clone..
+//      var drv: IDataRowView;
+//      if interfaces.Supports<IDataRowView>(current.DataItem, drv) then
+//        drv.Row.Data := DataItem else
+//        current.DataItem := DataItem;
+    end;
 
   if current = nil then
     Exit; // nothing to do

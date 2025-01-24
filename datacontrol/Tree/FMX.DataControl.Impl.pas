@@ -15,7 +15,7 @@ uses
 
 type
   [ComponentPlatformsAttribute(pidAllPlatforms)]
-  TDataControl = class(TEditableDataControl, IDataControl)
+  TDataControl = class(TEditableDataControl)
   protected
     procedure DefineProperties(Filer: TFiler); override;
   public

@@ -164,8 +164,8 @@ end;
 function TEditableDataControl.CheckedItemsInColumn(const Column: IDCTreeColumn): List<CObject>;
 begin
   var checkedItems: List<Integer>;
-  if not _checkedItems.TryGetValue(Column, checkedItems) then
-    Result := nil;
+  if not _checkedItems.TryGetValue(Column, checkedItems) or (checkedItems = nil) then
+    Exit(nil);
 
   var orgData := _view.OriginalData;
 
@@ -296,7 +296,7 @@ begin
     var ctrl := Cell.InfoControl;
     var chkCtrl := (ctrl as IISChecked);
 
-    if not CString.IsNullOrEmpty(Cell.Column.PropertyName) then
+    if Cell.Column.HasPropertyAttached then
       UpdateColumnCheck(cell.Row.DataIndex, Cell.Column, chkCtrl.IsChecked);
 
     ctrl.Tag := Cell.Row.ViewListIndex;
@@ -522,7 +522,7 @@ begin
 
   // check if row change came through if it was needed
   var newCell := GetActiveCell;
-  if (newCell <> nil) and (newCell.Row = clickedRow) then
+  if (newCell <> nil) and (newCell.Row = clickedRow) and not newCell.Column.ReadOnly then
   begin
     if ssDouble in Shift then
       StartEditCell(newCell)

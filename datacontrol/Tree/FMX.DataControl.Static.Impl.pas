@@ -244,6 +244,7 @@ type
 
     function  Clone: IDCTreeColumn;
     function  IsSelectionColumn: Boolean; virtual;
+    function  HasPropertyAttached: Boolean;
 
     function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; IsSubProp: Boolean = False): CObject;
     function  GetDefaultCellData(const Cell: IDCTreeCell; const CellValue: CObject; FormatApplied: Boolean): CObject; virtual;
@@ -1062,6 +1063,12 @@ begin
   Result := _widthSettings.WidthType;
 end;
 
+function TDCTreeColumn.HasPropertyAttached: Boolean;
+begin
+  Result := not CString.IsNullOrEmpty(_propertyName) or
+    ((_tag <> nil) and _tag.IsInterface and interfaces.Supports<_PropertyInfo>(_tag));
+end;
+
 function TDCTreeColumn.IsSelectionColumn: Boolean;
 begin
   Result := False;
@@ -1123,7 +1130,7 @@ begin
       end;
     end;
   end
-  else if Cell.Column.InfoControlClass = TInfoControlClass.CheckBox then
+  else if not Cell.Column.HasPropertyAttached and (Cell.Column.InfoControlClass = TInfoControlClass.CheckBox) then
     data := (Cell.InfoControl as IISChecked).IsChecked;
 
   if not IsSubProp then
@@ -1432,7 +1439,7 @@ begin
 
     CheckBox: begin
       var check: IIsChecked;
-      if Cell.Column.IsSelectionColumn and not _treeControl.MultiSelectAllowed  then
+      if Cell.Column.IsSelectionColumn and _treeControl.RadioInsteadOfCheck  then
         check := ScrollableRowControl_DefaultRadioButtonClass.Create(Cell.Control) else
         check := ScrollableRowControl_DefaultCheckboxClass.Create(Cell.Control);
 

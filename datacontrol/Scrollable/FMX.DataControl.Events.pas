@@ -14,6 +14,11 @@ uses
   FMX.DataControl.ScrollableRowControl.Intf;
 
 type
+  TDataControlEventRegistration = class
+  public
+    class procedure DoRegister;
+  end;
+
   BasicEventArgs = class(EventArgs)
   protected
     _cell: IDCTreeCell;
@@ -255,6 +260,11 @@ type
   RowDeletingEvent = procedure(const Sender: TObject; e: DCDeletingEventArgs) of object;
 
 implementation
+
+class procedure TDataControlEventRegistration.DoRegister;
+begin
+  // this procedure makes this file included as required uses
+end;
 
 { DCCellEventArgs }
 
