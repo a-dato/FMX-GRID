@@ -344,7 +344,7 @@ object frmInspector: TfrmInspector
         583s
         816s
         583s)
-      object FirstTab: TTabItem
+      object DefaultTab: TTabItem
         AutoSize = False
         CustomIcon = <
           item
@@ -763,7 +763,7 @@ object frmInspector: TfrmInspector
         Position.Y = -17.000000000000000000
         TextSettings.Trimming = None
         Text = 'Saved Connections'
-        TabOrder = 85
+        TabOrder = 86
       end
     end
     object cbDataBases: TComboBox
@@ -782,7 +782,7 @@ object frmInspector: TfrmInspector
         Position.Y = -18.000000000000000000
         TextSettings.Trimming = None
         Text = 'Database'
-        TabOrder = 85
+        TabOrder = 86
       end
     end
     object SpeedButton4: TSpeedButton

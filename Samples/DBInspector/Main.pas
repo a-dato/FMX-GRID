@@ -49,7 +49,7 @@ type
     Layout2: TLayout;
     tcRecordSets: TTabControl;
     Splitter2: TSplitter;
-    FirstTab: TTabItem;
+    DefaultTab: TTabItem;
     Layout4: TLayout;
     edSearch: TEdit;
     Timer1: TTimer;
@@ -214,7 +214,7 @@ implementation
 
 uses Login, FireDAC.VCLUI.ConnEdit, System.Rtti, System.Math, CopyData,
   FMX.Clipboard, FMX.Platform, FMX.Platform.Win, Winapi.Windows,
-  Winapi.Messages, FMX.Memo, System.Collections;
+  Winapi.Messages, FMX.Memo, System.Collections, FMX.DialogService;
 
 procedure TfrmInspector.FormDestroy(Sender: TObject);
 begin
@@ -281,7 +281,7 @@ procedure TfrmInspector.FormCreate(Sender: TObject);
 begin
   tcColumns.TabIndex := 0;
   tcRecordSets.TabIndex := 0;
-  InitializeFrameForTab(FirstTab);
+  InitializeFrameForTab(DefaultTab);
   LoadInspectorIniFile;
 end;
 
@@ -340,6 +340,13 @@ begin
 
 end;
 
+procedure ShowLoginException(s: string);
+begin
+  TThread.Queue(nil, procedure begin
+    TDialogService.ShowMessage('Failed to connect to the server:' + #13#10 + s);
+  end);
+end;
+
 procedure TfrmInspector.Connect(ConnectionName: string; DataBaseName: string = '');
 begin
   fdConnection.Connected := False;
@@ -362,14 +369,18 @@ begin
     try
       fdConnection.Connected := True;
     except
-      // Retry connecting, this time with a Login prompt
-      if not fdConnection.LoginPrompt then
-        fdConnection.LoginPrompt := True
-      else
+      on E: Exception do
       begin
-        if passwords <> nil then
-          passwords.Values[fdConnection.Params.UserName] := '';
-        raise;
+        // Retry connecting, this time with a Login prompt
+        if not fdConnection.LoginPrompt then
+          fdConnection.LoginPrompt := True
+        else
+        begin
+          if passwords <> nil then
+            passwords.Values[fdConnection.Params.UserName] := '';
+          ShowLoginException(E.Message);
+          Exit;
+        end;
       end;
     end;
 
@@ -378,7 +389,13 @@ begin
       // miExport.Enabled := fdConnection.Connected;
 
       if fdConnection.Connected then
-        UpdateConnectionForTab(FirstTab, True);
+      begin
+        if tcRecordSets.TabCount > 0 then
+        begin
+          var firstTab := tcRecordSets.Tabs[0];
+          UpdateConnectionForTab(firstTab, True);
+        end;
+      end;
 
       LoadDataBases;
     end);
@@ -679,7 +696,7 @@ end;
 procedure TfrmInspector.UpdateConnectionForTab(Tab: TTabItem; OverrideExistingConnection: Boolean);
 begin
   var frame := Tab.TagObject as TOpenRecordSetFrame;
-  if OverrideExistingConnection or not Assigned(frame.fdConnection.OnLogin) then
+  if (frame <> nil) and (OverrideExistingConnection or not Assigned(frame.fdConnection.OnLogin)) then
   begin
     frame.fdConnection.Assign(fdConnection);
     frame.fdConnection.OnLogin := fdConnectionLogin;

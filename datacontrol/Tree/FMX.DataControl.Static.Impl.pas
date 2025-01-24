@@ -1404,7 +1404,8 @@ begin
     begin
       Cell.InfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
       Cell.InfoControl.Height := textCtrlHeight;
-      Cell.InfoControl.Position.Y := (Cell.Control.Height - Cell.InfoControl.Height) / 2;
+      // KV: 24/01/2025 Line is not used
+      // Cell.InfoControl.Position.Y := (Cell.Control.Height - Cell.InfoControl.Height) / 2;
       Cell.InfoControl.Position.Y := IfThen(Cell.IsHeaderCell, 0, CELL_CONTENT_MARGIN);
       Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
     end else

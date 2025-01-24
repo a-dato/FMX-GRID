@@ -53,9 +53,9 @@ type
     function  StartTimer(const Group: string; const TimerID: string; const Level: TLevel = TLevel.Normal) : Boolean; override;
     procedure StopTimer(const Group: string; const TimerID: string); override;
   public
-    constructor Create(const FileName: string = string.Empty);
+    constructor Create(const AppName: string; const FileName: string = string.Empty);
 
-    class procedure StartTrace(const FileName: string = string.Empty; SupportBeginEndTrace: Boolean = True; WriteToStdOut: Boolean = False);
+    class procedure StartTrace(const AppName: string; const FileName: string; SupportBeginEndTrace: Boolean = True; WriteToStdOut: Boolean = False);
     class procedure StopTrace(CleanupTempFile: Boolean = False);
   end;
 
@@ -122,13 +122,13 @@ begin
     Result := False;
 end;
 
-constructor TEventTraceToFile.Create(const FileName: string = string.Empty);
+constructor TEventTraceToFile.Create(const AppName: string; const FileName: string = string.Empty);
 begin
   var f := '';
   if FileName = string.Empty then
   begin
     FPath := TPath.GetTempPath;
-    f := 'lynx_' + IntToStr(Environment.TickCount) + '.log';
+    f := AppName + IntToStr(Environment.TickCount) + '.log';
   end
   else begin
     FPath := ExtractFilePath(FileName);
@@ -148,7 +148,7 @@ begin
       FPath := TPath.GetTempPath;
 
     if name = '' then
-      name := 'lynx_' + IntToStr(Environment.TickCount);
+      name := AppName + IntToStr(Environment.TickCount);
 
     f := ChangeFileExt(name, '.log');
   end;
@@ -245,9 +245,9 @@ begin
 
 end;
 
-class procedure TEventTraceToFile.StartTrace(const FileName: string = string.Empty; SupportBeginEndTrace: Boolean = True; WriteToStdOut: Boolean = False);
+class procedure TEventTraceToFile.StartTrace(const AppName: string; const FileName: string; SupportBeginEndTrace: Boolean = True; WriteToStdOut: Boolean = False);
 begin
-  EventTracer := TEventTraceToFile.Create(FileName);
+  EventTracer := TEventTraceToFile.Create(AppName, FileName);
   EventTracer.SupportBeginEndTrace := SupportBeginEndTrace;
   EventTracer.WriteToStdOut := WriteToStdOut;
 end;

@@ -1677,17 +1677,18 @@ procedure TDCScrollableRowControl.InternalSetCurrent(const Index: Integer; const
 
   function TryDetermineDirectionBeforeRealigning: TAlignDirection;
   begin
-    if get_Current = -1 then
+    var currentIndex := get_Current;
+
+    if currentIndex = -1 then
       Exit(TAlignDirection.TopToBottom);
 
     if SortOrFilterChanged then
       Exit(TAlignDirection.Undetermined);
 
-    var orgIndex := get_Current;
-    if orgIndex = Index then
+    if currentIndex = Index then
       Exit(TAlignDirection.Undetermined);
 
-    if get_Current < Index then
+    if currentIndex < Index then
       Result := TAlignDirection.BottomToTop else
       Result := TAlignDirection.TopToBottom;
 
@@ -1877,10 +1878,17 @@ begin
     begin
       if (_vertScrollBar.Value + _vertScrollBar.ViewportSize < rowStopY) then
       begin
-        var selectedIsViewBottom := virtualYPos > (_vertScrollBar.Max - _vertScrollBar.ViewportSize);
-        if selectedIsViewBottom then
-          yChange := _vertScrollBar.Value - _vertScrollBar.Max else
-          yChange := _vertScrollBar.Value - (rowStopY - _vertScrollBar.ViewportSize);
+        // KV: 24/01/2025
+        // Code dissabled, when scrolling down from the last line inside current view
+        // the control should move to the next visible line.
+        // The old code would make the tree 'jump' to the last line inside the current view
+        yChange := _vertScrollBar.Value - (rowStopY - _vertScrollBar.ViewportSize);
+
+        // Old code:
+        //        var selectedIsViewBottom := virtualYPos > (_vertScrollBar.Max - _vertScrollBar.ViewportSize);
+        //        if selectedIsViewBottom then
+        //          yChange := _vertScrollBar.Value - _vertScrollBar.Max else
+        //          yChange := _vertScrollBar.Value - (rowStopY - _vertScrollBar.ViewportSize);
       end;
     end;
 

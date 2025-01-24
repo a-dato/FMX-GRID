@@ -1150,6 +1150,10 @@ begin
   begin
     SetCellData(_cellEditor.Cell, _cellEditor.Value);
 
+    // KV: 24/01/2025
+    // Update the actual contents of the cell after the data in the cell has changed
+    LoadDefaultDataIntoControl(_cellEditor.Cell, _cellEditor.Cell.LayoutColumn, False);
+
     _editingInfo.CellEditingFinished;
     HideEditor;
   end;
