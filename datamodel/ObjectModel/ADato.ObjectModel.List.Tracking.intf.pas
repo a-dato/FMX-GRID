@@ -20,12 +20,12 @@ type
     function  get_HasChangedItems: Boolean;
     function  get_ChangedItems: Dictionary<CObject, TObjectListChangeType>;
     procedure set_StoreChangedItems(const Value: Boolean);
-
-    function RetrieveUpdatedItems: Dictionary<CObject, TObjectListChangeType>;
+    procedure set_MultiObjectContextSupport(const Value: Boolean);
 
     property HasChangedItems: Boolean read get_HasChangedItems;
     property ChangedItems: Dictionary<CObject, TObjectListChangeType> read get_ChangedItems;
     property StoreChangedItems: Boolean write set_StoreChangedItems;
+    property MultiObjectContextSupport: Boolean write set_MultiObjectContextSupport;
   end;
 
 implementation

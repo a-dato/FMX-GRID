@@ -185,6 +185,8 @@ type
     function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; IsSubProp: Boolean = False): CObject;
     function  GetDefaultCellData(const Cell: IDCTreeCell; const CellValue: CObject; FormatApplied: Boolean): CObject;
 
+    function  HasPropertyAttached: Boolean;
+
     property TreeControl: IColumnsControl read get_TreeControl write set_TreeControl;
     property FormatProvider: IFormatProvider read get_FormatProvider write set_FormatProvider;
 
@@ -287,7 +289,7 @@ type
     function  Content: TControl;
     function  ColumnList: IDCTreeColumnList;
 
-    function  MultiSelectAllowed: Boolean;
+    function  RadioInsteadOfCheck: Boolean;
 
     procedure GetSortAndFilterImages(out ImageList: TCustomImageList; out FilterIndex, SortAscIndex, SortDescIndex: Integer);
 

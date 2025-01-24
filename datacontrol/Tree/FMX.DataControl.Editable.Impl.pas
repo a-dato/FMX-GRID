@@ -166,6 +166,8 @@ type
     procedure CancelEdit(const Item: CObject);
     procedure EndEdit(const Item: CObject);
 
+    procedure SetItemInCurrentView(const DataItem: CObject);
+
   public
     constructor Create(const AOwner: TEditableDataControl);
 
@@ -178,7 +180,8 @@ implementation
 uses
   FMX.Edit, FMX.DataControl.ControlClasses, FMX.DateTimeCtrls, FMX.ComboEdit,
   System.Math, FMX.Memo, FMX.DataControl.ScrollableRowControl.Intf,
-  FMX.StdCtrls, FMX.Graphics, System.UITypes, FMX.ActnList;
+  FMX.StdCtrls, FMX.Graphics, System.UITypes, FMX.ActnList,
+  ADato.Data.DataModel.intf;
 
 { TTreeEditingInfo }
 
@@ -665,8 +668,28 @@ begin
   _Owner.View.RecalcSortedRows;
 end;
 
+procedure TObjectListModelItemChangedDelegate.SetItemInCurrentView(const DataItem: CObject);
+begin
+  if (_UpdateCount <> 0) then
+    Exit;
+
+  var current: IDCRow := nil;
+  for var row in _Owner.View.ActiveViewRows do
+    if CObject.Equals(_Owner.ConvertToDataItem(row.DataItem), DataItem) then
+    begin
+      // Changed item is a clone..
+      var drv: IDataRowView;
+      if interfaces.Supports<IDataRowView>(row.DataItem, drv) then
+        drv.Row.Data := DataItem else
+        row.DataItem := DataItem;
+
+      Exit;
+    end;
+end;
+
 procedure TObjectListModelItemChangedDelegate.BeginEdit(const Item: CObject);
 begin
+  SetItemInCurrentView(Item);
 end;
 
 procedure TObjectListModelItemChangedDelegate.BeginUpdate;
@@ -676,6 +699,7 @@ end;
 
 procedure TObjectListModelItemChangedDelegate.CancelEdit(const Item: CObject);
 begin
+  SetItemInCurrentView(Item);
 end;
 
 constructor TObjectListModelItemChangedDelegate.Create(const AOwner: TEditableDataControl);
@@ -685,8 +709,9 @@ end;
 
 procedure TObjectListModelItemChangedDelegate.EndEdit(const Item: CObject);
 begin
-  if _UpdateCount = 0 then
-    _Owner.EndEditFromExternal(Item);
+  SetItemInCurrentView(Item);
+  if (_UpdateCount = 0) and CObject.Equals(_Owner.ConvertedDataItem, Item) then
+    _Owner.EndEditFromExternal;
 
 //  if _UpdateCount = 0 then
 //    _Owner.RefreshControl([TreeState.DataChanged]);

@@ -13,6 +13,8 @@ uses
 type
   TDataControlEditor = class(TComponentEditor)
   public
+    constructor Create(AComponent: TComponent; ADesigner: IDesigner); override;
+
     procedure ExecuteVerb(Index: Integer); override;
     function GetVerb(Index: Integer): string; override;
     function GetVerbCount: Integer; override;
@@ -28,7 +30,7 @@ type
 
 implementation
 
-uses FMXDataControlDsgn, FMX.DataControl.Static.Intf;
+uses FMXDataControlDsgn, FMX.DataControl.Static.Intf, FMX.DataControl.Events;
 
 procedure Register;
 begin
@@ -49,6 +51,13 @@ begin
 end;
 
 { TDataControlEditor }
+
+constructor TDataControlEditor.Create(AComponent: TComponent; ADesigner: IDesigner);
+begin
+  inherited;
+
+  TDataControlEventRegistration.DoRegister;
+end;
 
 procedure TDataControlEditor.ExecuteVerb(Index: Integer);
 begin

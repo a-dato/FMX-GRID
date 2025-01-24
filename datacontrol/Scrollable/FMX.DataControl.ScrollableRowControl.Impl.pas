@@ -58,6 +58,7 @@ type
 
     function  Height: Single;
     function  HasChildren: Boolean;
+    function  HasVisibleChildren: Boolean;
     function  ParentCount: Integer;
     function  IsOddRow: Boolean;
   end;
@@ -279,6 +280,26 @@ begin
   if _dataItem.TryAsType<IDataRowView>(drv) then
     Result := drv.DataView.DataModel.HasChildren(drv.Row) else
     Result := False;
+end;
+
+function TDCRow.HasVisibleChildren: Boolean;
+begin
+  var drv: IDataRowView;
+  if _dataItem.TryAsType<IDataRowView>(drv) then
+  begin
+    var childs := drv.DataView.DataModel.Children(drv.Row, TChildren.IncludeParentRows);
+    if childs <> nil then
+      for var dr in childs do
+        if (dr.Level = drv.Row.Level + 1) then
+        begin
+          // FindVisibleRow apparently goes up untill it finds a visible row
+          var firstVisibRow := drv.DataView.FindVisibleRow(dr);
+          if (firstVisibRow.Row.Level = drv.Row.Level + 1) then
+            Exit(True);
+        end;
+  end;
+
+  Result := False;
 end;
 
 function TDCRow.ParentCount: Integer;

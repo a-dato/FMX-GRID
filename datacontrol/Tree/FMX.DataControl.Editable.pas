@@ -118,7 +118,7 @@ type
     function  IsNew: Boolean;
     function  IsEditOrNew: Boolean;
 
-    procedure EndEditFromExternal(const Item: CObject);
+    procedure EndEditFromExternal;
 
     function  CopyToClipBoard: Boolean; virtual;
     function  PasteFromClipBoard: Boolean; virtual;
@@ -164,8 +164,8 @@ end;
 function TEditableDataControl.CheckedItemsInColumn(const Column: IDCTreeColumn): List<CObject>;
 begin
   var checkedItems: List<Integer>;
-  if not _checkedItems.TryGetValue(Column, checkedItems) then
-    Result := nil;
+  if not _checkedItems.TryGetValue(Column, checkedItems) or (checkedItems = nil) then
+    Exit(nil);
 
   var orgData := _view.OriginalData;
 
@@ -187,7 +187,7 @@ end;
 
 function TEditableDataControl.CanRealignContent: Boolean;
 begin
-  Result := not IsEditOrNew;
+  Result := inherited and not IsEditOrNew;
 end;
 
 function TEditableDataControl.CheckCanChangeRow: Boolean;
@@ -282,28 +282,33 @@ end;
 
 procedure TEditableDataControl.LoadDefaultDataIntoControl(const Cell: IDCTreeCell; const FlatColumn: IDCTreeLayoutColumn; const IsSubProp: Boolean);
 begin
-  inherited;
+  inc(_updateCount);
+  try
+    inherited;
 
-  var isCheckBox :=
-    (not IsSubProp and (Cell.Column.InfoControlClass = TInfoControlClass.CheckBox)) or
-    (IsSubProp and (Cell.Column.SubInfoControlClass = TInfoControlClass.CheckBox));
+    var isCheckBox :=
+      (not IsSubProp and (Cell.Column.InfoControlClass = TInfoControlClass.CheckBox)) or
+      (IsSubProp and (Cell.Column.SubInfoControlClass = TInfoControlClass.CheckBox));
 
-  if not isCheckBox or Cell.Column.IsSelectionColumn then
-    Exit;
+    if not isCheckBox or Cell.Column.IsSelectionColumn then
+      Exit;
 
-  var ctrl := Cell.InfoControl;
-  var chkCtrl := (ctrl as IISChecked);
+    var ctrl := Cell.InfoControl;
+    var chkCtrl := (ctrl as IISChecked);
 
-  if not CString.IsNullOrEmpty(Cell.Column.PropertyName) then
-    UpdateColumnCheck(cell.Row.DataIndex, Cell.Column, chkCtrl.IsChecked);
+    if Cell.Column.HasPropertyAttached then
+      UpdateColumnCheck(cell.Row.DataIndex, Cell.Column, chkCtrl.IsChecked);
 
-  ctrl.Tag := Cell.Row.ViewListIndex;
+    ctrl.Tag := Cell.Row.ViewListIndex;
 
-  if ctrl is TCheckBox then
-    (ctrl as TCheckBox).OnChange := OnPropertyCheckBoxChange else
-    (ctrl as TRadioButton).OnChange := OnPropertyCheckBoxChange;
+    if ctrl is TCheckBox then
+      (ctrl as TCheckBox).OnChange := OnPropertyCheckBoxChange else
+      (ctrl as TRadioButton).OnChange := OnPropertyCheckBoxChange;
 
-  chkCtrl.IsChecked := _checkedItems.ContainsKey(Cell.Column) and _checkedItems[Cell.Column].Contains(cell.Row.DataIndex);
+    chkCtrl.IsChecked := _checkedItems.ContainsKey(Cell.Column) and _checkedItems[Cell.Column].Contains(cell.Row.DataIndex);
+  finally
+    dec(_updateCount);
+  end;
 end;
 
 procedure TEditableDataControl.DoCellCheckChangedByUser(const Cell: IDCTreeCell);
@@ -352,20 +357,24 @@ begin
 
   if TrySelectItem(requestedSelection, []) then
   begin
+    var IHadFocus := Self.IsFocused;
+
     cell := GetActiveCell;
-    if not _editingInfo.RowIsEditing then
+    if not CString.IsNullOrEmpty(cell.Column.PropertyName) and not _editingInfo.RowIsEditing then
     begin
       var dataItem := Cell.Row.DataItem;
       if not DoStartRowEdit(Cell.Row as IDCTreeRow, {var} dataItem, False) then
       begin
-        Self.SetFocus;
+        if IHadFocus then
+          Self.SetFocus;
         Exit;
       end;
     end;
 
     DoCellCheckChangedByUser(cell);
 
-    Self.SetFocus;
+    if IHadFocus then
+      Self.SetFocus;
   end;
 end;
 
@@ -484,19 +493,36 @@ end;
 procedure TEditableDataControl.UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single);
 begin
   var clickedRow := GetRowByMouseY(Y);
+  if clickedRow = nil then Exit;
 
   var crrntCell := GetActiveCell;
   if IsEditOrNew then
   begin
-    if not CheckCanChangeRow then
-      Exit;
+    var clickedRowDataItem := clickedRow.DataIndex;
+
+    if CheckCanChangeRow then
+    begin
+      if _realignContentRequested then
+        DoRealignContent;
+
+      var findClickedRowBackViewIndex := _view.GetViewListIndex(clickedRowDataItem);
+      if findClickedRowBackViewIndex = -1 then Exit;
+
+      var findClickedRowBack := _view.GetActiveRowIfExists(findClickedRowBackViewIndex);
+      if findClickedRowBack = nil then Exit;
+
+      // click again with correct Y values in case a row has filtered out
+      UserClicked(Button, Shift, X, findClickedRowBack.VirtualYPosition + 1 - _vertScrollBar.Value);
+    end;
+
+    Exit;
   end;
 
   inherited;
 
   // check if row change came through if it was needed
   var newCell := GetActiveCell;
-  if (newCell <> nil) and (newCell.Row = clickedRow) then
+  if (newCell <> nil) and (newCell.Row = clickedRow) and not newCell.Column.ReadOnly then
   begin
     if ssDouble in Shift then
       StartEditCell(newCell)
@@ -808,7 +834,7 @@ begin
   Result := True;
 end;
 
-procedure TEditableDataControl.EndEditFromExternal(const Item: CObject);
+procedure TEditableDataControl.EndEditFromExternal;
 begin
   if _internalSelectCount > 0 then
     Exit;
@@ -931,6 +957,7 @@ end;
 
 procedure TEditableDataControl.InternalSetCurrent(const Index: Integer; const EventTrigger: TSelectionEventTrigger; Shift: TShiftState; SortOrFilterChanged: Boolean);
 begin
+  Assert(not IsEditOrNew);
 //  if IsEditOrNew then
 //    Exit;
 
@@ -1093,17 +1120,15 @@ begin
     var editItem := _editingInfo.EditItem;
     var dataIndex := _editingInfo.EditItemDataIndex;
 
-    ResetView(_view.GetViewListIndex(dataIndex), True);
-
     _view.EndEdit;
     _editingInfo.RowEditingFinished;
 
     // it can be that the StartRowEdit is activated by user event that triggers this EndRowEdit
     // therefor we have to wait a little
-    TThread.ForceQueue(nil, procedure
-    begin
+//    TThread.ForceQueue(nil, procedure
+//    begin
       DoDataItemChanged(editItem, dataIndex);
-    end);
+//    end);
   end;
 end;
 
@@ -1240,8 +1265,7 @@ end;
 
 procedure TEditableDataControl.SetSingleSelectionIfNotExists;
 begin
-//  if Self.IsEditOrNew then
-//    Exit;
+  Assert(not IsEditOrNew);
 
   inherited;
 end;

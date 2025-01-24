@@ -31,6 +31,7 @@ type
     _frozenRectLine: TRectangle;
 
     _defaultColumnsGenerated: Boolean;
+    _isSortingOrFiltering: Integer;
 
     _headerColumnResizeControl: IHeaderColumnResizeControl;
     _frmHeaderPopupMenu: TForm;
@@ -183,13 +184,15 @@ type
     destructor Destroy; override;
 
     function  OnGetCellDataForSorting(const Cell: IDCTreeCell): CObject;
+    function  IsSortingOrFiltering: Boolean;
+
     procedure RefreshColumn(const Column: IDCTreeColumn);
 
     procedure UpdateColumnSort(const Column: IDCTreeColumn; SortDirection: ListSortDirection; ClearOtherSort: Boolean);
     procedure UpdateColumnFilter(const Column: IDCTreeColumn; const FilterText: CString; const FilterValues: List<CObject>);
 
     procedure SelectAll; override;
-    function  MultiSelectAllowed: Boolean;
+    function  RadioInsteadOfCheck: Boolean;
 
     property  Layout: IDCTreeLayout read get_Layout;
     property  HeaderRow: IDCHeaderRow read _headerRow;
@@ -790,9 +793,20 @@ begin
     if obj = nil then
       Continue;
 
-    var hash := obj.GetHashCode;
-    if not dict.ContainsKey(hash) then
-      dict.Add(hash, obj);
+    if obj.IsOfType<IList> then
+    begin
+      for var o in obj.AsType<IList> do
+      begin
+        var hash := o.GetHashCode;
+        if not dict.ContainsKey(hash) then
+          dict.Add(hash, o);
+      end;
+    end else
+    begin
+      var hash := obj.GetHashCode;
+      if not dict.ContainsKey(hash) then
+        dict.Add(hash, obj);
+    end;
   end;
 
   Result := CDictionary<CObject, CString>.Create;
@@ -1533,7 +1547,7 @@ begin
   var dummyNewRow := CreateDummyRowForChanging(requestedSelection) as IDCTreeRow;
   var newCell := dummyNewRow.Cells[requestedSelection.SelectedLayoutColumn];
 
-  var ignoreSelectionChanges := not CanRealignNow;
+  var ignoreSelectionChanges := not CanRealignContent;
   if not DoCellCanChange(oldCell, newCell) then
     Exit;
 
@@ -1629,6 +1643,11 @@ begin
     treeSelectionInfo.SelectedLayoutColumns.Add(LayoutColumnIndex);
     treeSelectionInfo.SelectedLayoutColumn := LayoutColumnIndex;
   end;
+end;
+
+function TStaticDataControl.IsSortingOrFiltering: Boolean;
+begin
+  Result := _isSortingOrFiltering > 0;
 end;
 
 procedure TStaticDataControl.InitHeader;
@@ -1747,9 +1766,9 @@ begin
   end;
 end;
 
-function TStaticDataControl.MultiSelectAllowed: Boolean;
+function TStaticDataControl.RadioInsteadOfCheck: Boolean;
 begin
-  Result := TDCTreeOption.MultiSelect in  _options;
+  Result := not (TDCTreeOption.MultiSelect in  _options) and not AllowNoneSelected;
 end;
 
 procedure TStaticDataControl.InnerInitRow(const Row: IDCRow);
@@ -2014,38 +2033,43 @@ end;
 
 function TStaticDataControl.OnGetCellDataForSorting(const Cell: IDCTreeCell): CObject;
 begin
-  if Cell.Column.SortType = TSortType.PropertyValue then
-    Exit(Cell.Column.ProvideCellData(cell, cell.Column.PropertyName))
-  else if Cell.Column.SortType = TSortType.RowComparer then
-    Exit(Cell.Row.DataItem);
+  AtomicIncrement(_isSortingOrFiltering);
+  try
+    if Cell.Column.SortType = TSortType.PropertyValue then
+      Exit(Cell.Column.ProvideCellData(cell, cell.Column.PropertyName))
+    else if Cell.Column.SortType = TSortType.RowComparer then
+      Exit(Cell.Row.DataItem);
 
-  var dummyHeightVar: Single;
-  var loadDefaultData := DoCellLoading(Cell, True, dummyHeightVar);
-  var cellValue: CObject := nil;
-  if loadDefaultData then
-  begin
-    var formatApplied: Boolean;
-    cellValue := Cell.Column.ProvideCellData(cell, cell.Column.PropertyName);
-    DoCellFormatting(cell, True, {var} cellValue, {out} formatApplied);
-    Result := Cell.Column.GetDefaultCellData(cell, cellValue, formatApplied);
-  end else
-  begin
-    DoCellLoaded(Cell, True, dummyHeightVar);
-    Result := (Cell.InfoControl as ScrollableRowControl_DefaultTextClass).Text;
-  end;
+    var dummyHeightVar: Single;
+    var loadDefaultData := DoCellLoading(Cell, True, dummyHeightVar);
+    var cellValue: CObject := nil;
+    if loadDefaultData then
+    begin
+      var formatApplied: Boolean;
+      cellValue := Cell.Column.ProvideCellData(cell, cell.Column.PropertyName);
+      DoCellFormatting(cell, True, {var} cellValue, {out} formatApplied);
+      Result := Cell.Column.GetDefaultCellData(cell, cellValue, formatApplied);
+    end else
+    begin
+      DoCellLoaded(Cell, True, dummyHeightVar);
+      Result := (Cell.InfoControl as ScrollableRowControl_DefaultTextClass).Text;
+    end;
 
-  if Cell.Column.SortType = TSortType.Displaytext then
-    Exit(Result)
-  else if Cell.Column.SortType = TSortType.CellData then
-    Exit(cell.Data)
-  else if Cell.Column.SortType = TSortType.ColumnCellComparer then
-  begin
-    if cell.Data <> nil then
+    if Cell.Column.SortType = TSortType.Displaytext then
+      Exit(Result)
+    else if Cell.Column.SortType = TSortType.CellData then
       Exit(cell.Data)
-    else if cellValue <> nil then
-      Exit(cellValue)
-    else
-      Exit(Result);
+    else if Cell.Column.SortType = TSortType.ColumnCellComparer then
+    begin
+      if cell.Data <> nil then
+        Exit(cell.Data)
+      else if cellValue <> nil then
+        Exit(cellValue)
+      else
+        Exit(Result);
+    end;
+  finally
+    AtomicDecrement(_isSortingOrFiltering);
   end;
 end;
 

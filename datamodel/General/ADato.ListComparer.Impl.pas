@@ -372,7 +372,16 @@ begin
         for i := 0 to _sorts.Count - 1 do
         begin
           if not _sorts[i].HasFilterItem then
-            valueArr[i] := _sorts[i].Sort.GetSortableValue(o);
+          begin
+            var sortObj := _sorts[i].Sort.GetSortableValue(o);
+            var l: IList;
+            if not sortObj.IsInterface or not sortObj.TryAsType<IList>(l) then
+              valueArr[i] := sortObj
+            else if (l.Count > 0) then
+              valueArr[i] := l[0]
+            else
+              valueArr[i] := nil;
+          end;
         end;
 
         if Length(valueArr) = 1 then
