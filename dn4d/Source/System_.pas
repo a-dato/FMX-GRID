@@ -11117,11 +11117,18 @@ var
   p: CString;
 
 begin
-  if (format <> nil) and (format.Length >= 2) and (CChar(format[0]).Equals('D')) then
+  if not CString.IsNullOrEmpty(format) then
   begin
-    p := format.Substring(1, format.Length - 1);
     try
-      Result := SysUtils.Format('%.*d', [CInteger.Parse(p), value]);
+      var decimals: Integer;
+      if CChar(format[0]).Equals('0') then
+        decimals := format.Length
+      else if (format.Length >= 2) and (CChar(format[0]).Equals('D')) then
+        decimals := CInteger.Parse(format.Substring(1, format.Length - 1))
+      else
+        Exit(IntToStr(Value));
+
+      Result := SysUtils.Format('%.*d', [decimals, value]);
     except
       Result := IntToStr(value);
     end;

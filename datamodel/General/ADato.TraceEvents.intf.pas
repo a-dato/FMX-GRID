@@ -39,6 +39,9 @@ type
     function  GetWriteToStdOut: Boolean;
     procedure SetWriteToStdOut(const Value: Boolean);
 
+    function  StartGroup(const AGroup: string; PerThreadLogging: Boolean = False) : Boolean;
+    function  StopGroup(const AGroup: string) : Boolean;
+
     function  BeginTrace(const AGroup: string; const AFilename: string) : Boolean;
     procedure TraceToFile(const AMessage: string); overload;
     procedure TraceToFile(const Func: TFunc<string>); overload;
@@ -46,7 +49,6 @@ type
 
     procedure TraceMessage(const Group: string; const AMessage: string; const Level: TLevel = TLevel.Normal); overload;
     procedure TraceMessage(const Group: string; const Func: TFunc<string>; const Level: TLevel = TLevel.Normal); overload;
-    procedure TraceMessageParts(const Group: string; const MessagesFunc: TFunc<CObject.ObjectArray>; const Level: TLevel = TLevel.Normal);
     procedure TraceException(const Group: string; const Func: TFunc<string>; const Level: TLevel = TLevel.Normal); overload;
     procedure StopTracing(CleanupTempFile: Boolean);
 
@@ -90,14 +92,17 @@ type
     function  GetWriteToStdOut: Boolean;
     procedure SetWriteToStdOut(const Value: Boolean);
 
+    function  StartGroup(const AGroup: string; PerThreadLogging: Boolean = False) : Boolean; virtual;
+    function  StopGroup(const AGroup: string) : Boolean; virtual;
+
     function  BeginTrace(const AGroup: string; const AFilename: string) : Boolean; virtual;
     procedure TraceToFile(const AMessage: string); overload; virtual;
     procedure TraceToFile(const Func: TFunc<string>); overload; virtual;
-    procedure EndTrace(const AFilename: string); virtual;
+    procedure EndTrace(const AGroup: string); virtual;
 
     procedure TraceMessage(const Group: string; const AMessage: string; const Level: TLevel); overload;
     procedure TraceMessage(const Group: string; const Func: TFunc<string>; const Level: TLevel = TLevel.Normal); overload;
-    procedure TraceMessageParts(const Group: string; const MessagesFunc: TFunc<CObject.ObjectArray>; const Level: TLevel = TLevel.Normal);
+    // procedure TraceMessageParts(const Group: string; const MessagesFunc: TFunc<CObject.ObjectArray>; const Level: TLevel = TLevel.Normal);
     procedure TraceException(const Group: string; const Func: TFunc<string>; const Level: TLevel = TLevel.Normal); overload;
 
     procedure StopTracing(CleanupTempFile: Boolean); virtual;
@@ -113,23 +118,26 @@ var
 
 implementation
 
+uses
+  System.JSON;
+
 
 function PointerToString(P: Pointer) : string;
 begin
   Result := string.Format('$%p', [P]);
 end;
 
-{ TEmptyEventTracer }
-
-function TEmptyEventTracer.BeginTrace(const AGroup: string; const AFilename: string) : Boolean;
+function TEmptyEventTracer.BeginTrace(const AGroup, AFilename: string): Boolean;
 begin
   Result := False;
 end;
 
-procedure TEmptyEventTracer.EndTrace(const AFilename: string);
+procedure TEmptyEventTracer.EndTrace(const AGroup: string);
 begin
 
 end;
+
+{ TEmptyEventTracer }
 
 function TEmptyEventTracer.FormatTraceMessage(const Group, AMessage: string): string;
 begin
@@ -139,8 +147,16 @@ begin
   //{1}    -> Message
 
   if _UseCsvFormatting then
-    Result := CString.Format('{0},{1},{2}', [CDateTime.Now.ToString('HH:mm:ss.fff').ToString, Group, AMessage]) else
-    Result := CString.Format('{0,-12} {1,-25}:{2}', [CDateTime.Now.ToString('HH:mm:ss.fff').ToString, Group, AMessage]);
+    Result := CString.Format('{0},{1},{2}', [CDateTime.Now.ToString('HH:mm:ss.fff').ToString, Group, AMessage])
+  else
+  begin
+    var js := TJsonString.Create(AMessage);
+    try
+      Result := CString.Format('{{"when":"{0:s}","group":"{1,-20}","message":{2}}}', CDateTime.Now, group, js.ToJSON);
+    finally
+      js.Free;
+    end;
+  end;
 end;
 
 function TEmptyEventTracer.GetFilename: string;
@@ -225,17 +241,14 @@ begin
     TraceMessageInternal(Group, AMessage, Level);
 end;
 
-procedure TEmptyEventTracer.TraceMessageParts(const Group: string; const MessagesFunc: TFunc<CObject.ObjectArray>; const Level: TLevel);
+procedure TEmptyEventTracer.TraceToFile(const AMessage: string);
 begin
-  var Messages := MessagesFunc();
-  var AMessage := '';
-  var i: Integer;
-  for i := Low(Messages) to High(Messages) do
-  begin
-    AMessage := AMessage.PadRight(i*25) + Messages[i].ToString();
-  end;
 
-  TraceMessage(Group, AMessage, Level);
+end;
+
+procedure TEmptyEventTracer.TraceToFile(const Func: TFunc<string>);
+begin
+
 end;
 
 procedure TEmptyEventTracer.TraceMessage(const Group: string; const Func: TFunc<string>; const Level: TLevel);
@@ -251,22 +264,22 @@ begin
     TraceMessageInternal(Group, Func(), Level);
 end;
 
-procedure TEmptyEventTracer.TraceToFile(const AMessage: string);
-begin
-
-end;
-
-procedure TEmptyEventTracer.TraceToFile(const Func: TFunc<string>);
-begin
-
-end;
-
 procedure TEmptyEventTracer.StopTracing(CleanupTempFile: Boolean);
 begin
 
 end;
 
+function TEmptyEventTracer.StartGroup(const AGroup: string; PerThreadLogging: Boolean): Boolean;
+begin
+  Result := False;
+end;
+
 function TEmptyEventTracer.StartTimer(const Group: string; const TimerID: string; const Level: TLevel = TLevel.Normal) : Boolean;
+begin
+  Result := False;
+end;
+
+function TEmptyEventTracer.StopGroup(const AGroup: string): Boolean;
 begin
   Result := False;
 end;

@@ -10,42 +10,68 @@ uses
   System.Types, System.Diagnostics;
 
 type
+  IFileTraceItem = interface
+    function get_GroupName: string;
+    function get_ThreadID: TThreadID;
+    function get_FullName: string;
+
+    procedure Close(DoDeleteFile: Boolean);
+    procedure WriteLine(const Value: string);
+
+    property GroupName: string read get_GroupName;
+    property ThreadID: TThreadID read get_ThreadID;
+    property FullName: string read get_FullName;
+  end;
+
+  TFileTraceItem = class(TInterfacedObject, IFileTraceItem)
+  protected
+    _GroupName: string;
+    _ThreadID: TThreadID;
+    _FullName: string;
+    _FileStream: TFileStream;
+    _StreamWriter: TStreamWriter;
+
+    function get_GroupName: string;
+    function get_ThreadID: TThreadID;
+    function get_FullName: string;
+
+    procedure Close(DoDeleteFile: Boolean);
+    procedure WriteLine(const Value: string);
+
+  public
+    constructor Create(const Group: string; const AFullName: string; const ThreadID: TThreadID);
+  end;
+
+
   TEventTraceToFile = class(TEmptyEventTracer)
-  type
-    TFileTraceItem = record
-      FileName: string;
-      FullName: string;
-      FileStream: TFileStream;
-      StreamWriter: TStreamWriter;
-
-    public
-      constructor Create(const AFileName: string; const AFullName: string);
-      procedure Close(DoDeleteFile: Boolean);
-
-      procedure WriteLine(const Value: string);
-    end;
+  const
+    NO_THREAD_ID = 9999;
 
   protected
-    class var FileTicks: Integer;
+    class var FAppName: string;
     class var FPath: string;
 
+  private
+//    function BeginTrace(const AGroup, AFilename: string): Boolean;
+//    procedure EndTrace(const AGroup: string);
+
   protected
-    FDefaultTraceItem: TFileTraceItem;
-    FTraceFilenames: Dictionary<TThreadID, List<TFileTraceItem>>;
+    FDefaultTraceItem: IFileTraceItem;
+    FTraceFilenames: Dictionary<string {Group name}, List<IFileTraceItem>>;
     FTimers: Dictionary<string, TStopWatch>;
 
     function  IsActive(const AGroup: string; const ALevel: TLevel = TLevel.Normal): Boolean; override;
 
-    function  FindTraceItem(const AFilename: string) : TFileTraceItem;
-    function  GetFilename: string; override;
+    function  GetTraceItem(const AGroup: string; CreateIfNotExists: Boolean = False; PerThreadLogging: Boolean = False) : IFileTraceItem;
+
+    // function  GetFilename: string; override;
     function  GetPath: string; override;
     function  GetGroups: TStringList; override;
     function  GetLevel: TLevel; override;
     procedure SetLevel(const Value: TLevel); override;
-    function  BeginTrace(const AGroup: string; const AFilename: string) : Boolean; override;
-    procedure TraceToFile(const AMessage: string); overload; override;
-    procedure TraceToFile(const Func: TFunc<string>); overload; override;
-    procedure EndTrace(const AFilename: string); override;
+
+    function  StartGroup(const AGroup: string; PerThreadLogging: Boolean = False) : Boolean; override;
+    function  StopGroup(const AGroup: string) : Boolean; override;
 
     procedure TraceMessageInternal(const Group: string; const AMessage: string; const Level: TLevel); override;
 
@@ -65,58 +91,74 @@ uses
   System_, System_.Threading, System.IOUtils;
 
 { TEventTraceToFile }
-function TEventTraceToFile.FindTraceItem(const AFilename: string) : TFileTraceItem;
-var
-  items: List<TFileTraceItem>;
-
+function TEventTraceToFile.GetTraceItem(const AGroup: string; CreateIfNotExists: Boolean; PerThreadLogging: Boolean) : IFileTraceItem;
 begin
-  if FTraceFilenames.TryGetValue(TThread.CurrentThread.ThreadID, items) then
-    Result := items.Find(function(const Item: TFileTraceItem) : Boolean
-                              begin
-                                Result := Item.FileName = AFileName;
-                              end)
+  Lock(FTraceFilenames);
+
+  var items: List<IFileTraceItem>;
+  if not FTraceFilenames.TryGetValue(AGroup, items) then
+  begin
+    if CreateIfNotExists then
+    begin
+      items := CList<IFileTraceItem>.Create(1);
+      FTraceFilenames.Add(AGroup, items);
+    end else
+      Exit(FDefaultTraceItem)
+  end;
+
+  var threadID: TThreadID;
+
+  if items.Count > 0 then
+  begin
+    if items[0].ThreadID = NO_THREAD_ID then
+      Exit(items[0]);
+
+    threadID := TThread.CurrentThread.ThreadID;
+  end
+  else if PerThreadLogging then
+    threadID := TThread.CurrentThread.ThreadID
   else
-    Result := Default(TFileTraceItem);
+    threadID := NO_THREAD_ID;
+
+  Result := items.Find(function(const Item: IFileTraceItem) : Boolean
+                            begin
+                              Result := Item.ThreadID = threadID;
+                            end);
+
+  if Result = nil then
+  begin
+    var fullName := FAppName + '_' + AGroup;
+
+    if PerThreadLogging then
+    begin
+      if threadID = MainThreadID then
+        fullName := fullname + '_main' else
+        fullName := fullName + '_' + threadID.ToString;
+    end;
+
+    fullName := fullName + '.log';
+
+    Result := TFileTraceItem.Create(AGroup, TPath.Combine(FPath, fullName), threadID);
+    items.Add(Result);
+  end;
 end;
 
-function TEventTraceToFile.BeginTrace(const AGroup: string; const AFilename: string) : Boolean;
-var
-  items: List<TFileTraceItem>;
-  item: TFileTraceItem;
-
+function TEventTraceToFile.StartGroup(const AGroup: string; PerThreadLogging: Boolean = False): Boolean;
 begin
   if _SupportBeginEndTrace and IsActive(AGroup) then
   begin
-    {$IF defined(DEBUG) and defined(LYNXX)}
-    if not AFilename.ToLower.Contains('lynx') then
-      Exit(False);
-    {$ENDIF}
+    GetTraceItem(AGroup, True, PerThreadLogging);
+    Result := True;
+  end else
+    Result := False;
+end;
 
-    if FileTicks = 0 then
-      FileTicks := Environment.TickCount;
-
+function TEventTraceToFile.StopGroup(const AGroup: string): Boolean;
+begin
+  if _SupportBeginEndTrace and IsActive(AGroup) then
+  begin
     Lock(FTraceFilenames);
-
-    if not FTraceFilenames.TryGetValue(TThread.CurrentThread.ThreadID, items) then
-    begin
-      items := CList<TFileTraceItem>.Create;
-      FTraceFilenames.Add(TThread.CurrentThread.ThreadID, items);
-    end;
-
-    item := FindTraceItem(AFilename);
-    if item.FileName = '' then // New item
-    begin
-      // File may have {0} in it's name, all files will have the same Tick value
-      var fullName: string := CString.Format(AFileName.Replace('/', '_'), FileTicks);
-
-      if TThread.CurrentThread.ThreadID <> MainThreadID then
-        // Rename file to 'Filename.THREAD_ID.txt'
-        fullName := TPath.ChangeExtension(fullName, TThread.CurrentThread.ThreadID.ToString + TPath.GetExtension(fullName));
-
-      item := TFileTraceItem.Create(AFileName, TPath.Combine(FPath, fullName));
-      items.Add(item);
-    end;
-
+    FTraceFilenames.Remove(AGroup);
     Result := True;
   end else
     Result := False;
@@ -124,6 +166,8 @@ end;
 
 constructor TEventTraceToFile.Create(const AppName: string; const FileName: string = string.Empty);
 begin
+  FAppName := AppName + '_' + TGUID.NewGuid.ToString.SubString(1, 4).ToLower;
+
   var f := '';
   if FileName = string.Empty then
   begin
@@ -148,15 +192,15 @@ begin
       FPath := TPath.GetTempPath;
 
     if name = '' then
-      name := AppName + IntToStr(Environment.TickCount);
+      name := FAppName;
 
     f := ChangeFileExt(name, '.log');
   end;
 
-  FDefaultTraceItem := TFileTraceItem.Create(f, TPath.Combine(FPath, f));
+  FDefaultTraceItem := TFileTraceItem.Create(f, TPath.Combine(FPath, f), NO_THREAD_ID);
+  FTraceFilenames := CDictionary<string {Group name}, List<IFileTraceItem>>.Create;
 
   TraceMessage('General', 'Log started', TLevel.Normal);
-  FTraceFilenames := CDictionary<TThreadID, List<TFileTraceItem>>.Create;
   FTimers := CDictionary<string, TStopWatch>.Create;
 end;
 
@@ -183,40 +227,6 @@ begin
     TraceMessageInternal(Group, Format('Timer stopped: %s, elapsed time: %d', [TimerID, s.ElapsedMilliseconds]), TLevel.Normal);
     FTimers.Remove(TimerID)
   end;
-end;
-
-procedure TEventTraceToFile.EndTrace(const AFilename: string);
-var
-  items: List<TFileTraceItem>;
-  item: TFileTraceItem;
-  i: Integer;
-
-begin
-  if not _SupportBeginEndTrace then Exit;
-
-  Lock(FTraceFilenames);
-
-  if FTraceFilenames.TryGetValue(TThread.CurrentThread.ThreadID, items) then
-  begin
-    i := items.FindIndex(function(const Item: TFileTraceItem) : Boolean
-                              begin
-                                Result := Item.FileName = AFilename;
-                              end);
-
-    if i <> -1 then
-    begin
-      item := items[i];
-      item.Close(False {Do not delete file});
-      items.RemoveAt(i);
-      if items.Count = 0 then
-        FTraceFilenames.Remove(TThread.CurrentThread.ThreadID);
-    end;
-  end;
-end;
-
-function TEventTraceToFile.GetFilename: string;
-begin
-  Result := FDefaultTraceItem.Filename;
 end;
 
 function TEventTraceToFile.GetPath: string;
@@ -264,73 +274,56 @@ begin
 
   {$IF defined(DEBUG) and defined(LYNXX)}
   if (Group = 'LOADDATA') or (Group = 'SERVERCOMMUNICATION') or (Group = 'WAITCURSOR') then
-    FDefaultTraceItem.WriteLine(FormatTraceMessage(group, AMessage));
+      GetTraceItem(Group).WriteLine(FormatTraceMessage(group, AMessage));
   {$ELSE}
-  FDefaultTraceItem.WriteLine(FormatTraceMessage(group, AMessage));
+  GetTraceItem(Group).WriteLine(FormatTraceMessage(group, AMessage));
   {$ENDIF}
-end;
-
-procedure TEventTraceToFile.TraceToFile(const AMessage: string);
-var
-  items: List<TFileTraceItem>;
-  item: TFileTraceItem;
-
-begin
-  if not _SupportBeginEndTrace then Exit;
-
-  Lock(FTraceFilenames);
-
-  if FTraceFilenames.TryGetValue(TThread.CurrentThread.ThreadID, items) and (items.Count > 0) then
-  begin
-    item := items[items.Count - 1];
-    item.WriteLine(AMessage);
-  end;
-end;
-
-procedure TEventTraceToFile.TraceToFile(const Func: TFunc<string>);
-var
-  items: List<TFileTraceItem>;
-  item: TFileTraceItem;
-
-begin
-  if not _SupportBeginEndTrace then Exit;
-
-  Lock(FTraceFilenames);
-
-  if FTraceFilenames.TryGetValue(TThread.CurrentThread.ThreadID, items) and (items.Count > 0) then
-  begin
-    item := items[items.Count - 1];
-    item.WriteLine(Func());
-  end;
 end;
 
 { TEventTraceToFile.TFileTraceItem }
 
-constructor TEventTraceToFile.TFileTraceItem.Create(const AFileName: string; const AFullName: string);
+constructor TFileTraceItem.Create(const Group: string; const AFullName: string; const ThreadID: TThreadID);
 begin
   // File may have {0} in it's name, all files will have the same Tick value
-  FileName := AFileName;
-  FullName := AFullName;
-  FileStream := TFileStream.Create(FullName, fmCreate or fmShareDenyWrite);
-  StreamWriter := TStreamWriter.Create(FileStream);
+  _GroupName := Group;
+  _FullName := AFullName;
+  _ThreadID := ThreadID;
+  _FileStream := TFileStream.Create(AFullName, fmCreate or fmShareDenyWrite);
+  _StreamWriter := TStreamWriter.Create(_FileStream);
 end;
 
-procedure TEventTraceToFile.TFileTraceItem.WriteLine(const Value: string);
+function TFileTraceItem.get_FullName: string;
 begin
-  if StreamWriter <> nil then
+  Result := _FullName;
+end;
+
+function TFileTraceItem.get_GroupName: string;
+begin
+  Result := _GroupName;
+end;
+
+function TFileTraceItem.get_ThreadID: TThreadID;
+begin
+  Result := _ThreadID;
+end;
+
+procedure TFileTraceItem.WriteLine(const Value: string);
+begin
+  if _StreamWriter <> nil then
   begin
-    Lock(StreamWriter);
-    StreamWriter.WriteLine(Value);
-    StreamWriter.Flush;
+    Lock(_StreamWriter);
+    _StreamWriter.WriteLine(Value);
+    _StreamWriter.Flush;
   end;
 end;
 
-procedure TEventTraceToFile.TFileTraceItem.Close(DoDeleteFile: Boolean);
+procedure TFileTraceItem.Close(DoDeleteFile: Boolean);
 begin
-  StreamWriter.Free;
-  FileStream.Free;
+  Lock(_StreamWriter);
+  _StreamWriter.Free;
+  _FileStream.Free;
   if DoDeleteFile then
-    DeleteFile(FullName);
+    DeleteFile(_FullName);
 end;
 
 end.
