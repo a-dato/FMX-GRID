@@ -140,7 +140,7 @@ type
     procedure RequestRealignContent;
 
     procedure Painting; override;
-    function IsUpdating: Boolean; override;
+    function  IsUpdating: Boolean; override;
     procedure RefreshControl(const DataChanged: Boolean = False); virtual;
 
     function  TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;
