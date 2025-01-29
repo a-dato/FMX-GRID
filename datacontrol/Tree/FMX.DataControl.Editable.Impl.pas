@@ -460,7 +460,8 @@ begin
 
   inherited;
 
-  ce.ItemIndex := ce.Items.IndexOf(_originalValue.ToString(True));
+  var val := CStringToString(_originalValue.ToString(True));
+  ce.ItemIndex := ce.Items.IndexOf(val);
 
   Dropdown;
 end;
@@ -475,7 +476,7 @@ begin
   var ce := TComboEdit(_editor);
   var index := ce.ItemIndex;
   if index <> -1 then
-    Result := _PickList[index];
+    _Value := _PickList[index];
 
   if _Value <> nil then
     Result := _Value;
@@ -604,12 +605,12 @@ begin
   for var o in _PickList do
     ce.Items.Add(o.ToString);
 
-  var val2 := val.ToString;
+  var val2 := CStringToString(val.ToString(True));
   var ix := ce.Items.IndexOf(val2);
 
   if ix <> -1 then
     ce.ItemIndex := ix else
-    ce.Text := val.ToString;
+    ce.Text := val2;
 end;
 
 { TDCTextCellMultilineEditor }
