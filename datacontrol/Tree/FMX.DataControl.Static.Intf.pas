@@ -429,6 +429,8 @@ type
     procedure set_SubData(const Value: CObject);
     function  get_Row: IDCRow;
     function  get_Index: Integer;
+    function  get_CustomTag: CObject;
+    procedure set_CustomTag(const Value: CObject);
 
     function  IsHeaderCell: Boolean;
     procedure UpdateSelectionVisibility(const RowIsSelected: Boolean; const SelectionInfo: ITreeSelectionInfo; OwnerIsFocused: Boolean);
@@ -441,6 +443,10 @@ type
     property CustomInfoControlBounds: TRectF read get_CustomInfoControlBounds write set_CustomInfoControlBounds;
     property SubInfoControl: TControl read get_SubInfoControl write set_SubInfoControl;
     property CustomSubInfoControlBounds: TRectF read get_CustomSubInfoControlBounds write set_CustomSubInfoControlBounds;
+
+    // control below can be used to insert custom controls and recycle them if needed.
+    property CustomTag: CObject read get_CustomTag write set_CustomTag;
+
     property ExpandButton: TLayout read get_ExpandButton write set_ExpandButton;
     property HideCellInView: Boolean read get_HideCellInView write set_HideCellInView;
 

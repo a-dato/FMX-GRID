@@ -117,6 +117,8 @@ type
     function  get_IsHeaderRow: Boolean;
     function  get_Enabled: Boolean;
     procedure set_Enabled(const Value: Boolean);
+    function  get_CustomTag: CObject;
+    procedure set_CustomTag(const Value: CObject);
 
     function  get_OwnerIsScrolling: Boolean;
     procedure set_OwnerIsScrolling(const Value: Boolean);
@@ -141,6 +143,9 @@ type
     property Control: TControl read get_Control write set_Control;
     property IsHeaderRow: Boolean read get_IsHeaderRow;
     property Enabled: Boolean read get_Enabled write set_Enabled;
+
+    // control below can be used to insert custom controls and recycle them if needed.
+    property CustomTag: CObject read get_CustomTag write set_CustomTag;
 
     property OwnerIsScrolling: Boolean read get_OwnerIsScrolling write set_OwnerIsScrolling;
   end;

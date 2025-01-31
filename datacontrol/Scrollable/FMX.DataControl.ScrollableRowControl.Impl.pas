@@ -21,6 +21,8 @@ type
 
     _ownerIsScrolling: Boolean;
 
+    _customTag: CObject;
+
     function  get_DataIndex: Integer;
     procedure set_DataIndex(const Value: Integer);
     function  get_DataItem: CObject;
@@ -38,8 +40,11 @@ type
     procedure set_Enabled(const Value: Boolean);
     function  get_OwnerIsScrolling: Boolean;
     procedure set_OwnerIsScrolling(const Value: Boolean); virtual;
+    function  get_CustomTag: CObject;
+    procedure set_CustomTag(const Value: CObject);
 
     procedure UpdateControlVisibility;
+
 
   protected
     _selectionRect: TRectangle;
@@ -234,6 +239,11 @@ begin
   Result := _control;
 end;
 
+function TDCRow.get_CustomTag: CObject;
+begin
+  Result := _customTag;
+end;
+
 function TDCRow.get_ViewListIndex: Integer;
 begin
   Result := _viewListIndex;
@@ -347,6 +357,11 @@ begin
     UpdateSelectionRect(wasFocused);
 
   UpdateControlVisibility;
+end;
+
+procedure TDCRow.set_CustomTag(const Value: CObject);
+begin
+  _customTag := Value;
 end;
 
 procedure TDCRow.set_ViewListIndex(const Value: Integer);

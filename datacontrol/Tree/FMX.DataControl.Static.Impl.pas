@@ -420,6 +420,7 @@ type
     _expandButton: TLayout;
     _customInfoControlBounds: TRectF;
     _customSubInfoControlBounds: TRectF;
+    _customTag: CObject;
 
     [unsafe] _row     : IDCRow;
 
@@ -454,6 +455,8 @@ type
     procedure set_SubData(const Value: CObject);
     function  get_Row: IDCRow;
     function  get_Index: Integer;
+    function  get_CustomTag: CObject;
+    procedure set_CustomTag(const Value: CObject);
 
   protected
     _selectionRect: TControl;
@@ -1999,6 +2002,11 @@ begin
   Result := _customSubInfoControlBounds;
 end;
 
+function TDCTreeCell.get_CustomTag: CObject;
+begin
+  Result := _customTag;
+end;
+
 function TDCTreeCell.get_Data: CObject;
 begin
   Result := _data;
@@ -2070,6 +2078,11 @@ end;
 procedure TDCTreeCell.set_CustomSubInfoControlBounds(const Value: TRectF);
 begin
   _customSubInfoControlBounds := Value;
+end;
+
+procedure TDCTreeCell.set_CustomTag(const Value: CObject);
+begin
+  _customTag := Value;
 end;
 
 procedure TDCTreeCell.set_Data(const Value: CObject);
