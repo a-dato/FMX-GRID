@@ -118,6 +118,7 @@ type
 //    procedure OnSelectionCheckBoxChange(Sender: TObject);
     procedure UpdateSelectionCheckboxes(const Row: IDCRow);
     function  SelectionCheckBoxColumn: IDCTreeLayoutColumn;
+    procedure ExternalColumnsChanged;
 
   protected
     function  DoCreateNewRow: IDCRow; override;
@@ -187,6 +188,7 @@ type
     function  IsSortingOrFiltering: Boolean;
 
     procedure RefreshColumn(const Column: IDCTreeColumn);
+    procedure ColumnsChangedFromExternal;
 
     procedure UpdateColumnSort(const Column: IDCTreeColumn; SortDirection: ListSortDirection; ClearOtherSort: Boolean);
     procedure UpdateColumnFilter(const Column: IDCTreeColumn; const FilterText: CString; const FilterValues: List<CObject>);
@@ -1111,6 +1113,23 @@ begin
     DoColumnsChanged(column);
 end;
 
+procedure TStaticDataControl.ColumnsChangedFromExternal;
+begin
+  if (_treeLayout = nil) or (_treeLayout.FlatColumns = nil) or (_treeLayout.FlatColumns.Count = 0) then
+    Exit;
+
+  var ix := (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn;
+  if (ix >= 0) and (ix <= _treeLayout.LayoutColumns.Count - 1) and _treeLayout.FlatColumns.Contains(_treeLayout.LayoutColumns[ix]) then
+    Exit;
+
+  _selectionInfo.BeginUpdate;
+  try
+    (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn := _treeLayout.FlatColumns[0].Index;
+  finally
+    _selectionInfo.EndUpdate(False);
+  end;
+end;
+
 procedure TStaticDataControl.ColumnVisibilityChanged(const Column: IDCTreeColumn);
 begin
   if _treeLayout = nil then
@@ -1435,6 +1454,11 @@ begin
     Result := args.Comparer;
   end else
     Result := SortDescription.Comparer;
+end;
+
+procedure TStaticDataControl.ExternalColumnsChanged;
+begin
+
 end;
 
 function TStaticDataControl.FlatColumnByColumn(const Column: IDCTreeColumn): IDCTreeLayoutColumn;
@@ -1843,13 +1867,23 @@ begin
   if Cell.IsHeaderCell or (LayoutColumn.Column.InfoControlClass = TInfoControlClass.Text) then
   begin
     var ctrl := Cell.InfoControl as TText;
-    Result := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*CELL_CONTENT_MARGIN) + 6;
+
+    var customMargins := 6.0;
+    if (ctrl.Margins.Left > 0) or (ctrl.Margins.Right > 0) then
+      customMargins := ctrl.Margins.Left + ctrl.Margins.Right;
+
+    Result := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*CELL_CONTENT_MARGIN) + customMargins;
   end;
 
   if not Cell.IsHeaderCell and (Cell.Column.SubInfoControlClass = TInfoControlClass.Text) then
   begin
     var subCtrl := Cell.SubInfoControl as TText;
-    var subWidth := TextControlWidth(subCtrl, subCtrl.TextSettings, subCtrl.Text) + (2*CELL_CONTENT_MARGIN) + 6;
+
+    var customMargins := 6.0;
+    if (subCtrl.Margins.Left > 0) or (subCtrl.Margins.Right > 0) then
+      customMargins := subCtrl.Margins.Left + subCtrl.Margins.Right;
+
+    var subWidth := TextControlWidth(subCtrl, subCtrl.TextSettings, subCtrl.Text) + (2*CELL_CONTENT_MARGIN) + customMargins;
 
     Result := CMath.Max(Result, subWidth);
   end;

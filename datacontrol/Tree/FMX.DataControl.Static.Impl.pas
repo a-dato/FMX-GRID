@@ -396,6 +396,8 @@ type
     function  get_LayoutColumns: List<IDCTreeLayoutColumn>;
     function  get_FlatColumns: List<IDCTreeLayoutColumn>;
 
+    function  ColumnCanAddWidth(const LayoutColumn: IDCTreeLayoutColumn): Boolean;
+
   public
     constructor Create(const ColumnControl: IColumnsControl); reintroduce;
     destructor Destroy; override;
@@ -1402,8 +1404,8 @@ begin
     begin
       Cell.SubInfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
       Cell.SubInfoControl.Height := textCtrlHeight;
-      Cell.SubInfoControl.Position.Y := CELL_CONTENT_MARGIN + textCtrlHeight;
-      Cell.SubInfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
+      Cell.SubInfoControl.Position.Y := CELL_CONTENT_MARGIN + textCtrlHeight + Cell.SubInfoControl.Margins.Top;
+      Cell.SubInfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN + Cell.SubInfoControl.Margins.Left;
     end else
       Cell.SubInfoControl.BoundsRect := Cell.CustomSubInfoControlBounds;
   end;
@@ -1416,8 +1418,8 @@ begin
       Cell.InfoControl.Height := textCtrlHeight;
       // KV: 24/01/2025 Line is not used
       // Cell.InfoControl.Position.Y := (Cell.Control.Height - Cell.InfoControl.Height) / 2;
-      Cell.InfoControl.Position.Y := IfThen(Cell.IsHeaderCell, 0, CELL_CONTENT_MARGIN);
-      Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
+      Cell.InfoControl.Position.Y := IfThen(Cell.IsHeaderCell, 0, CELL_CONTENT_MARGIN) + Cell.InfoControl.Margins.Top;
+      Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN + Cell.InfoControl.Margins.Left;
     end else
       Cell.InfoControl.BoundsRect := Cell.CustomInfoControlBounds;
   end;
@@ -1766,6 +1768,12 @@ begin
     Result := 0;
 end;
 
+function TDCTreeLayout.ColumnCanAddWidth(const LayoutColumn: IDCTreeLayoutColumn): Boolean;
+begin
+  Result := SameValue(LayoutColumn.Column.CustomWidth, -1) and
+    ((LayoutColumn.Column.WidthMax = 0) or (LayoutColumn.Column.WidthMax > LayoutColumn.Width));
+end;
+
 procedure TDCTreeLayout.RecalcColumnWidthsBasic;
 var
   layoutClmn: IDCTreeLayoutColumn;
@@ -1904,7 +1912,7 @@ begin
   var autoFitWidthType := TDCColumnWidthType.Pixel;
   for layoutClmn in get_FlatColumns do
   begin
-    if not SameValue(layoutClmn.Column.CustomWidth, -1) then
+    if not ColumnCanAddWidth(layoutClmn) then
       Continue;
 
     case layoutClmn.Column.WidthType of
@@ -1918,9 +1926,34 @@ begin
 
   var addableColumns: List<IDCTreeLayoutColumn> := CList<IDCTreeLayoutColumn>.Create;
   for layoutClmn in get_FlatColumns do
-    if (layoutClmn.Column.WidthType = autoFitWidthType) and SameValue(layoutClmn.Column.CustomWidth, -1) then
+    if (layoutClmn.Column.WidthType = autoFitWidthType) and ColumnCanAddWidth(layoutClmn) then
       addableColumns.Add(layoutClmn);
 
+  // add width to max size columns
+  if addableColumns.Count > 0 then
+    for var ix := addableColumns.Count - 1 downto 0 do
+    begin
+      var flatClmn := addableColumns[ix];
+      if flatClmn.Column.WidthMax = 0 then
+        Continue;
+
+      var extraWidthPerColumn := widthLeft / addableColumns.Count;
+
+      var newWidth: Single;
+      // percentageColumns are set back to minimum width
+      if autoFitWidthType = TDCColumnWidthType.Percentage then
+        newWidth := flatClmn.Column.WidthMin + extraWidthPerColumn else
+        newWidth := flatClmn.Width + extraWidthPerColumn;
+
+      if newWidth > flatClmn.Column.WidthMax then
+      begin
+        widthLeft := widthLeft - (flatClmn.Column.WidthMax - flatClmn.Width);
+        flatClmn.Width := flatClmn.Column.WidthMax;
+        addableColumns.RemoveAt(ix);
+      end;
+    end;
+
+  // add width to all remaining columns
   if addableColumns.Count > 0 then
     for var ix := addableColumns.Count - 1 downto 0 do
     begin
