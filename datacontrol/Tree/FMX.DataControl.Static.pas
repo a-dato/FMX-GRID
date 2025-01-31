@@ -1115,19 +1115,21 @@ end;
 
 procedure TStaticDataControl.ColumnsChangedFromExternal;
 begin
-  if (_treeLayout = nil) or (_treeLayout.FlatColumns = nil) or (_treeLayout.FlatColumns.Count = 0) then
-    Exit;
+//  if (_treeLayout = nil) or (_treeLayout.FlatColumns = nil) or (_treeLayout.FlatColumns.Count = 0) then
+//    Exit;
+//
+//  _treeLayout.ForceRecalc;
+//
+//  var ix := (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn;
+//  if (ix >= 0) and (ix <= _treeLayout.LayoutColumns.Count - 1) and _treeLayout.FlatColumns.Contains(_treeLayout.LayoutColumns[ix]) then
+//    Exit;
 
-  var ix := (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn;
-  if (ix >= 0) and (ix <= _treeLayout.LayoutColumns.Count - 1) and _treeLayout.FlatColumns.Contains(_treeLayout.LayoutColumns[ix]) then
-    Exit;
-
-  _selectionInfo.BeginUpdate;
-  try
-    (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn := _treeLayout.FlatColumns[0].Index;
-  finally
-    _selectionInfo.EndUpdate(False);
-  end;
+//  _selectionInfo.BeginUpdate;
+//  try
+//    (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn := _treeLayout.FlatColumns[0].Index;
+//  finally
+//    _selectionInfo.EndUpdate(False);
+//  end;
 end;
 
 procedure TStaticDataControl.ColumnVisibilityChanged(const Column: IDCTreeColumn);
