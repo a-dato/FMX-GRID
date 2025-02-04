@@ -386,7 +386,7 @@ type
 
   TDCTreeLayout = class(TBaseInterfacedObject, IDCTreeLayout)
   protected
-    _content: TControl;
+    [unsafe] _columnsControl: IColumnsControl;
     _recalcRequired: Boolean;
 
     _layoutColumns: List<IDCTreeLayoutColumn>;
@@ -1155,7 +1155,7 @@ begin
   if _customHidden <> Value then
   begin
     _customHidden := Value;
-    _treeControl.ColumnVisibilityChanged(Self);
+    _treeControl.ColumnVisibilityChanged(Self, True);
   end;
 end;
 
@@ -1323,7 +1323,7 @@ begin
     if headerCell.SortControl <> nil then
       headerCell.SortControl.Tag := Cell.Row.ViewListIndex;
   end
-  else if Cell.Column.ShowHierarchy and Cell.Row.HasVisibleChildren then
+  else if Cell.Column.ShowHierarchy and Cell.Row.HasChildren then
   begin
     if Cell.ExpandButton = nil then
     begin
@@ -1671,7 +1671,7 @@ constructor TDCTreeLayout.Create(const ColumnControl: IColumnsControl);
 begin
   inherited Create;
 
-  _content := ColumnControl.Content;
+  _columnsControl := ColumnControl;
   _layoutColumns := CList<IDCTreeLayoutColumn>.Create;
   for var clmn in ColumnControl.ColumnList do
   begin
@@ -1763,8 +1763,8 @@ begin
   for var layoutClmn in _flatColumns do
     totalWidth := totalWidth + layoutClmn.Width;
 
-  if _content.Width < totalWidth then
-    Result := Round(totalWidth - _content.Width) else
+  if _columnsControl.Control.Width < totalWidth then
+    Result := Round(totalWidth - _columnsControl.Control.Width) else
     Result := 0;
 end;
 
@@ -1785,7 +1785,13 @@ begin
 
   // make sure we get all layout columns, even in case of AutoFitColumns (because they can become visible again)
   for var lyColumn in _layoutColumns do
-    lyColumn.HideColumnInView := not lyColumn.Column.Visible or lyColumn.Column.CustomHidden;
+  begin
+    if lyColumn.HideColumnInView <> (not lyColumn.Column.Visible or lyColumn.Column.CustomHidden) then
+    begin
+      lyColumn.HideColumnInView := not lyColumn.HideColumnInView;
+      _columnsControl.ColumnVisibilityChanged(lyColumn.Column, False);
+    end;
+  end;
 
   // reset _flatColumns and update indexes
   _flatColumns := nil;
@@ -1798,7 +1804,7 @@ begin
   for layoutClmn in get_FlatColumns do
     columnsToCalculate.Add(layoutClmn.Index);
 
-  var totalWidth := _content.Width;
+  var totalWidth := _columnsControl.Control.Width;
   var widthLeft := totalWidth;
 
   for var round := 1 to 3 do
@@ -1892,7 +1898,7 @@ begin
         minColumnWidth := layoutClmn.Width;
     end;
 
-    if minimumTotalWidth + minColumnWidth > _content.Width then
+    if minimumTotalWidth + minColumnWidth > _columnsControl.Control.Width then
     begin
       layoutClmn.HideColumnInView := True;
       Continue;
@@ -1901,7 +1907,7 @@ begin
     minimumTotalWidth := minimumTotalWidth + minColumnWidth;
   end;
 
-  var widthLeft := _content.Width - minimumTotalWidth;
+  var widthLeft := _columnsControl.Control.Width - minimumTotalWidth;
   Assert(widthLeft >= 0);
 
   // reset _flatColumns and update indexes

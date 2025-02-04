@@ -282,7 +282,7 @@ type
     function  get_headerTextBottomMargin: Single;
     procedure set_headerTextBottomMargin(const Value: Single);
 
-    procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
+    procedure ColumnVisibilityChanged(const Column: IDCTreeColumn; IsUserChange: Boolean);
     procedure ColumnWidthChanged(const Column: IDCTreeColumn);
 
     function  Control: TControl;

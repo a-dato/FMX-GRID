@@ -120,6 +120,8 @@ type
     function  SelectionCheckBoxColumn: IDCTreeLayoutColumn;
     procedure ExternalColumnsChanged;
 
+    procedure SetColumnSelectionIfNoneExists;
+
   protected
     function  DoCreateNewRow: IDCRow; override;
     procedure BeforeRealignContent; override;
@@ -174,7 +176,7 @@ type
     procedure DoContentResized(WidthChanged, HeightChanged: Boolean); override;
 
     // IColumnsControl
-    procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
+    procedure ColumnVisibilityChanged(const Column: IDCTreeColumn; IsUserChange: Boolean);
     procedure ColumnWidthChanged(const Column: IDCTreeColumn);
     function  Control: TControl;
     function  Content: TControl;
@@ -1044,6 +1046,17 @@ begin
   end;
 end;
 
+procedure TStaticDataControl.SetColumnSelectionIfNoneExists;
+begin
+  _selectionInfo.BeginUpdate;
+  Try
+    var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
+    treeSelectionInfo.SelectedLayoutColumn := GetFlatColumnByKey(vkHome, []).Index; // get first valid column
+  finally
+    _selectionInfo.EndUpdate(True {ignore events});
+  end;
+end;
+
 procedure TStaticDataControl.SetSingleSelectionIfNotExists;
 begin
   if (_selectionType <> TSelectionType.CellSelection) or _allowNoneSelected or (_view.ViewCount = 0) then
@@ -1052,12 +1065,12 @@ begin
     Exit;
   end;
 
+  var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
+  if (treeSelectionInfo.SelectedLayoutColumn = 0) then
+    SetColumnSelectionIfNoneExists;
+
   _selectionInfo.BeginUpdate;
   Try
-    var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-    if (treeSelectionInfo.SelectedLayoutColumn = 0) then
-      treeSelectionInfo.SelectedLayoutColumn := GetFlatColumnByKey(vkHome, []).Index; // get first valid column
-
     inherited;
   finally
     _selectionInfo.EndUpdate;
@@ -1132,13 +1145,22 @@ begin
 //  end;
 end;
 
-procedure TStaticDataControl.ColumnVisibilityChanged(const Column: IDCTreeColumn);
+procedure TStaticDataControl.ColumnVisibilityChanged(const Column: IDCTreeColumn; IsUserChange: Boolean);
 begin
   if _treeLayout = nil then
     Exit;
 
-  (GetInitializedWaitForRefreshInfo as IDataControlWaitForRepaintInfo).ColumnsChanged;
-  DoColumnsChanged(Column);
+  if IsUserChange then
+  begin
+    (GetInitializedWaitForRefreshInfo as IDataControlWaitForRepaintInfo).ColumnsChanged;
+    DoColumnsChanged(Column);
+  end;
+
+  // selectedcolumn is not valid anymore, select another one
+  var flatColumn := FlatColumnByColumn(Column);
+  if (flatColumn <> nil) and flatColumn.HideColumnInView then
+    if (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn = flatColumn.Index then
+      SetColumnSelectionIfNoneExists;
 end;
 
 procedure TStaticDataControl.ColumnWidthChanged(const Column: IDCTreeColumn);

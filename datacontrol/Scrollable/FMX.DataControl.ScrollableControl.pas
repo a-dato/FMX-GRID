@@ -380,6 +380,8 @@ begin
     _scrollingType := TScrollingType.None;
   end;
 
+  inc(_threadIndex);
+
   stopwatch.Stop;
   _realignContentTime := stopwatch.ElapsedMilliseconds;
 
