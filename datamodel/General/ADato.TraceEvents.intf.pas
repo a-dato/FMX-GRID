@@ -148,11 +148,13 @@ begin
 
   if _UseCsvFormatting then
     Result := CString.Format('{0},{1},{2}', [CDateTime.Now.ToString('HH:mm:ss.fff').ToString, Group, AMessage])
+  else if AMessage.Chars[0] = '{' then // Json?
+    Result := CString.Format('{{"when":"{0:s}","group":"{1}","message":{2}}}', CDateTime.Now, group, AMessage)
   else
   begin
     var js := TJsonString.Create(AMessage);
     try
-      Result := CString.Format('{{"when":"{0:s}","group":"{1,-20}","message":{2}}}', CDateTime.Now, group, js.ToJSON);
+      Result := CString.Format('{{"when":"{0:s}","group":"{1}","message":{2}}}', CDateTime.Now, group, js.ToJSON);
     finally
       js.Free;
     end;
