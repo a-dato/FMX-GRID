@@ -989,13 +989,23 @@ begin
         if Temp.TryAsType<IList>(results) then
         begin
           for i := 0 to results.Count - 1 do
-            if CObject.Equals(results[i], S2) then
+          begin
+            if results[i] = nil then
+              continue;
+
+            if S2.IsString then
+            begin
+              var s := results[i].ToString;
+              Result := not CString.IsNullOrEmpty(s) and s.Contains(S2.ToString);
+            end
+            else if CObject.Equals(results[i], S2) then
             begin
               if (FuncName = 'CONTAINS') then
                 Result := True else
                 Result := i;
               Exit;
             end;
+          end;
         end
         else
         begin

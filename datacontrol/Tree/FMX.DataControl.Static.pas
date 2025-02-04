@@ -118,6 +118,9 @@ type
 //    procedure OnSelectionCheckBoxChange(Sender: TObject);
     procedure UpdateSelectionCheckboxes(const Row: IDCRow);
     function  SelectionCheckBoxColumn: IDCTreeLayoutColumn;
+    procedure ExternalColumnsChanged;
+
+    procedure SetColumnSelectionIfNoneExists;
 
   protected
     function  DoCreateNewRow: IDCRow; override;
@@ -173,7 +176,7 @@ type
     procedure DoContentResized(WidthChanged, HeightChanged: Boolean); override;
 
     // IColumnsControl
-    procedure ColumnVisibilityChanged(const Column: IDCTreeColumn);
+    procedure ColumnVisibilityChanged(const Column: IDCTreeColumn; IsUserChange: Boolean);
     procedure ColumnWidthChanged(const Column: IDCTreeColumn);
     function  Control: TControl;
     function  Content: TControl;
@@ -187,6 +190,7 @@ type
     function  IsSortingOrFiltering: Boolean;
 
     procedure RefreshColumn(const Column: IDCTreeColumn);
+    procedure ColumnsChangedFromExternal;
 
     procedure UpdateColumnSort(const Column: IDCTreeColumn; SortDirection: ListSortDirection; ClearOtherSort: Boolean);
     procedure UpdateColumnFilter(const Column: IDCTreeColumn; const FilterText: CString; const FilterValues: List<CObject>);
@@ -1057,6 +1061,17 @@ begin
   end;
 end;
 
+procedure TStaticDataControl.SetColumnSelectionIfNoneExists;
+begin
+  _selectionInfo.BeginUpdate;
+  Try
+    var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
+    treeSelectionInfo.SelectedLayoutColumn := GetFlatColumnByKey(vkHome, []).Index; // get first valid column
+  finally
+    _selectionInfo.EndUpdate(True {ignore events});
+  end;
+end;
+
 procedure TStaticDataControl.SetSingleSelectionIfNotExists;
 begin
   if (_selectionType <> TSelectionType.CellSelection) or _allowNoneSelected or (_view.ViewCount = 0) then
@@ -1065,12 +1080,12 @@ begin
     Exit;
   end;
 
+  var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
+  if (treeSelectionInfo.SelectedLayoutColumn = 0) then
+    SetColumnSelectionIfNoneExists;
+
   _selectionInfo.BeginUpdate;
   Try
-    var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-    if (treeSelectionInfo.SelectedLayoutColumn = 0) then
-      treeSelectionInfo.SelectedLayoutColumn := GetFlatColumnByKey(vkHome, []).Index; // get first valid column
-
     inherited;
   finally
     _selectionInfo.EndUpdate;
@@ -1126,13 +1141,41 @@ begin
     DoColumnsChanged(column);
 end;
 
-procedure TStaticDataControl.ColumnVisibilityChanged(const Column: IDCTreeColumn);
+procedure TStaticDataControl.ColumnsChangedFromExternal;
+begin
+//  if (_treeLayout = nil) or (_treeLayout.FlatColumns = nil) or (_treeLayout.FlatColumns.Count = 0) then
+//    Exit;
+//
+//  _treeLayout.ForceRecalc;
+//
+//  var ix := (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn;
+//  if (ix >= 0) and (ix <= _treeLayout.LayoutColumns.Count - 1) and _treeLayout.FlatColumns.Contains(_treeLayout.LayoutColumns[ix]) then
+//    Exit;
+
+//  _selectionInfo.BeginUpdate;
+//  try
+//    (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn := _treeLayout.FlatColumns[0].Index;
+//  finally
+//    _selectionInfo.EndUpdate(False);
+//  end;
+end;
+
+procedure TStaticDataControl.ColumnVisibilityChanged(const Column: IDCTreeColumn; IsUserChange: Boolean);
 begin
   if _treeLayout = nil then
     Exit;
 
-  (GetInitializedWaitForRefreshInfo as IDataControlWaitForRepaintInfo).ColumnsChanged;
-  DoColumnsChanged(Column);
+  if IsUserChange then
+  begin
+    (GetInitializedWaitForRefreshInfo as IDataControlWaitForRepaintInfo).ColumnsChanged;
+    DoColumnsChanged(Column);
+  end;
+
+  // selectedcolumn is not valid anymore, select another one
+  var flatColumn := FlatColumnByColumn(Column);
+  if (flatColumn <> nil) and flatColumn.HideColumnInView then
+    if (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn = flatColumn.Index then
+      SetColumnSelectionIfNoneExists;
 end;
 
 procedure TStaticDataControl.ColumnWidthChanged(const Column: IDCTreeColumn);
@@ -1450,6 +1493,11 @@ begin
     Result := args.Comparer;
   end else
     Result := SortDescription.Comparer;
+end;
+
+procedure TStaticDataControl.ExternalColumnsChanged;
+begin
+
 end;
 
 function TStaticDataControl.FlatColumnByColumn(const Column: IDCTreeColumn): IDCTreeLayoutColumn;
@@ -1858,13 +1906,23 @@ begin
   if Cell.IsHeaderCell or (LayoutColumn.Column.InfoControlClass = TInfoControlClass.Text) then
   begin
     var ctrl := Cell.InfoControl as TText;
-    Result := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*CELL_CONTENT_MARGIN) + 6;
+
+    var customMargins := 6.0;
+    if (ctrl.Margins.Left > 0) or (ctrl.Margins.Right > 0) then
+      customMargins := ctrl.Margins.Left + ctrl.Margins.Right;
+
+    Result := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*CELL_CONTENT_MARGIN) + customMargins;
   end;
 
   if not Cell.IsHeaderCell and (Cell.Column.SubInfoControlClass = TInfoControlClass.Text) then
   begin
     var subCtrl := Cell.SubInfoControl as TText;
-    var subWidth := TextControlWidth(subCtrl, subCtrl.TextSettings, subCtrl.Text) + (2*CELL_CONTENT_MARGIN) + 6;
+
+    var customMargins := 6.0;
+    if (subCtrl.Margins.Left > 0) or (subCtrl.Margins.Right > 0) then
+      customMargins := subCtrl.Margins.Left + subCtrl.Margins.Right;
+
+    var subWidth := TextControlWidth(subCtrl, subCtrl.TextSettings, subCtrl.Text) + (2*CELL_CONTENT_MARGIN) + customMargins;
 
     Result := CMath.Max(Result, subWidth);
   end;

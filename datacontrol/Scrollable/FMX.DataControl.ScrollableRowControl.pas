@@ -115,6 +115,8 @@ type
     _waitingForViewChange: Boolean;
     _resetViewRec: TResetViewRec;
 
+    _tryFindNewSelectionInDataModel: Boolean;
+
     procedure DoEnter; override;
     procedure DoExit; override;
 
@@ -1109,8 +1111,9 @@ begin
 
       if (newViewListIndex <> -1) then
       begin
-        if (_view.GetActiveRowIfExists(newViewListIndex) <> nil) then
-          InternalSetCurrent(newViewListIndex, TSelectionEventTrigger.External, [], sortChanged or filterChanged);
+//        if (_view.GetActiveRowIfExists(newViewListIndex) <> nil) then
+          InternalSetCurrent(newViewListIndex, TSelectionEventTrigger.External, [], sortChanged or filterChanged);// else
+//          _tryFindNewSelectionInDataModel := True;
       end;
     end;
   end;
@@ -1506,49 +1509,58 @@ begin
 end;
 
 procedure TDCScrollableRowControl.OnViewChanged;
+
+  procedure OnViewChangeExecute(const IX: Integer);
+  begin
+    TThread.ForceQueue(nil, procedure
+    begin
+      if (IX <> _viewChangedIndex) or not _waitingForViewChange then
+        Exit;
+
+      // when sort is applied in RealignContent it is done before other calculations
+      if not (_realignState in [TRealignState.Waiting, TRealignState.RealignDone]) then
+        Exit;
+
+      ResetView;
+      AtomicIncrement(_viewChangedIndex);
+
+      if _selectionInfo.DataItem <> nil then
+      begin
+        var newViewListIndex := _view.GetViewListIndex(_selectionInfo.DataItem);
+
+        // in case of sorting/filtering this is always the same
+        // in case of deleting/adding this can vary
+        var dataIndex: Integer;
+
+        if newViewListIndex <> -1 then
+          dataIndex := _view.GetDataIndex(_selectionInfo.DataItem) else
+          dataIndex := -1;
+
+        _selectionInfo.BeginUpdate;
+        try
+          if dataIndex <> -1 then
+            _selectionInfo.UpdateSingleSelection(dataIndex {not changed}, newViewListIndex, _selectionInfo.DataItem {not changed}) else
+            _selectionInfo.ClearAllSelections;  // when all items are deleted
+
+        finally
+          _selectionInfo.EndUpdate(True {ignore change event});
+        end;
+      end;
+    end);
+  end;
+
 begin
   if _updateCount > 0 then
     Exit;
 
+  if (_rowHeightSynchronizer <> nil) and not _isMasterSynchronizer then
+    Exit;
+
   AtomicIncrement(_viewChangedIndex);
+
   var ix := _viewChangedIndex;
-
   _waitingForViewChange := True;
-
-  TThread.ForceQueue(nil, procedure
-  begin
-    if ix <> _viewChangedIndex then
-      Exit;
-
-    // when sort is applied in RealignContent it is done before other calculations
-    if not (_realignState in [TRealignState.Waiting, TRealignState.RealignDone]) then
-      Exit;
-
-    ResetView;
-
-    if _selectionInfo.DataItem <> nil then
-    begin
-      var newViewListIndex := _view.GetViewListIndex(_selectionInfo.DataItem);
-
-      // in case of sorting/filtering this is always the same
-      // in case of deleting/adding this can vary
-      var dataIndex: Integer;
-
-      if newViewListIndex <> -1 then
-        dataIndex := _view.GetDataIndex(_selectionInfo.DataItem) else
-        dataIndex := -1;
-
-      _selectionInfo.BeginUpdate;
-      try
-        if dataIndex <> -1 then
-          _selectionInfo.UpdateSingleSelection(dataIndex {not changed}, newViewListIndex, _selectionInfo.DataItem {not changed}) else
-          _selectionInfo.ClearAllSelections;  // when all items are deleted
-
-      finally
-        _selectionInfo.EndUpdate(True {ignore change event});
-      end;
-    end;
-  end);
+  OnViewChangeExecute(ix);
 end;
 
 function TDCScrollableRowControl.ProvideReferenceRow: IDCRow;
@@ -1829,8 +1841,6 @@ end;
 
 procedure TDCScrollableRowControl.ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
 begin
-  _waitingForViewChange := False;
-
   if _view = nil then
   begin
     _resetViewRec := TResetViewRec.CreateNull;
@@ -1855,6 +1865,7 @@ begin
     RefreshControl;
 
   _resetViewRec := TResetViewRec.CreateNull;
+  _waitingForViewChange := False;
 end;
 
 function TDCScrollableRowControl.RowIsExpanded(const ViewListIndex: Integer): Boolean;

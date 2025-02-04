@@ -386,7 +386,7 @@ type
 
   TDCTreeLayout = class(TBaseInterfacedObject, IDCTreeLayout)
   protected
-    _content: TControl;
+    [unsafe] _columnsControl: IColumnsControl;
     _recalcRequired: Boolean;
 
     _layoutColumns: List<IDCTreeLayoutColumn>;
@@ -395,6 +395,8 @@ type
 
     function  get_LayoutColumns: List<IDCTreeLayoutColumn>;
     function  get_FlatColumns: List<IDCTreeLayoutColumn>;
+
+    function  ColumnCanAddWidth(const LayoutColumn: IDCTreeLayoutColumn): Boolean;
 
   public
     constructor Create(const ColumnControl: IColumnsControl); reintroduce;
@@ -420,6 +422,7 @@ type
     _expandButton: TLayout;
     _customInfoControlBounds: TRectF;
     _customSubInfoControlBounds: TRectF;
+    _customTag: CObject;
 
     [unsafe] _row     : IDCRow;
 
@@ -454,6 +457,8 @@ type
     procedure set_SubData(const Value: CObject);
     function  get_Row: IDCRow;
     function  get_Index: Integer;
+    function  get_CustomTag: CObject;
+    procedure set_CustomTag(const Value: CObject);
 
   protected
     _selectionRect: TControl;
@@ -1150,7 +1155,7 @@ begin
   if _customHidden <> Value then
   begin
     _customHidden := Value;
-    _treeControl.ColumnVisibilityChanged(Self);
+    _treeControl.ColumnVisibilityChanged(Self, True);
   end;
 end;
 
@@ -1318,7 +1323,7 @@ begin
     if headerCell.SortControl <> nil then
       headerCell.SortControl.Tag := Cell.Row.ViewListIndex;
   end
-  else if Cell.Column.ShowHierarchy and Cell.Row.HasVisibleChildren then
+  else if Cell.Column.ShowHierarchy and Cell.Row.HasChildren then
   begin
     if Cell.ExpandButton = nil then
     begin
@@ -1399,8 +1404,8 @@ begin
     begin
       Cell.SubInfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
       Cell.SubInfoControl.Height := textCtrlHeight;
-      Cell.SubInfoControl.Position.Y := CELL_CONTENT_MARGIN + textCtrlHeight;
-      Cell.SubInfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
+      Cell.SubInfoControl.Position.Y := CELL_CONTENT_MARGIN + textCtrlHeight + Cell.SubInfoControl.Margins.Top;
+      Cell.SubInfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN + Cell.SubInfoControl.Margins.Left;
     end else
       Cell.SubInfoControl.BoundsRect := Cell.CustomSubInfoControlBounds;
   end;
@@ -1413,8 +1418,8 @@ begin
       Cell.InfoControl.Height := textCtrlHeight;
       // KV: 24/01/2025 Line is not used
       // Cell.InfoControl.Position.Y := (Cell.Control.Height - Cell.InfoControl.Height) / 2;
-      Cell.InfoControl.Position.Y := IfThen(Cell.IsHeaderCell, 0, CELL_CONTENT_MARGIN);
-      Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN;
+      Cell.InfoControl.Position.Y := IfThen(Cell.IsHeaderCell, 0, CELL_CONTENT_MARGIN) + Cell.InfoControl.Margins.Top;
+      Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN + Cell.InfoControl.Margins.Left;
     end else
       Cell.InfoControl.BoundsRect := Cell.CustomInfoControlBounds;
   end;
@@ -1666,7 +1671,7 @@ constructor TDCTreeLayout.Create(const ColumnControl: IColumnsControl);
 begin
   inherited Create;
 
-  _content := ColumnControl.Content;
+  _columnsControl := ColumnControl;
   _layoutColumns := CList<IDCTreeLayoutColumn>.Create;
   for var clmn in ColumnControl.ColumnList do
   begin
@@ -1758,9 +1763,15 @@ begin
   for var layoutClmn in _flatColumns do
     totalWidth := totalWidth + layoutClmn.Width;
 
-  if _content.Width < totalWidth then
-    Result := Round(totalWidth - _content.Width) else
+  if _columnsControl.Control.Width < totalWidth then
+    Result := Round(totalWidth - _columnsControl.Control.Width) else
     Result := 0;
+end;
+
+function TDCTreeLayout.ColumnCanAddWidth(const LayoutColumn: IDCTreeLayoutColumn): Boolean;
+begin
+  Result := SameValue(LayoutColumn.Column.CustomWidth, -1) and
+    ((LayoutColumn.Column.WidthMax = 0) or (LayoutColumn.Column.WidthMax > LayoutColumn.Width));
 end;
 
 procedure TDCTreeLayout.RecalcColumnWidthsBasic;
@@ -1774,7 +1785,13 @@ begin
 
   // make sure we get all layout columns, even in case of AutoFitColumns (because they can become visible again)
   for var lyColumn in _layoutColumns do
-    lyColumn.HideColumnInView := not lyColumn.Column.Visible or lyColumn.Column.CustomHidden;
+  begin
+    if lyColumn.HideColumnInView <> (not lyColumn.Column.Visible or lyColumn.Column.CustomHidden) then
+    begin
+      lyColumn.HideColumnInView := not lyColumn.HideColumnInView;
+      _columnsControl.ColumnVisibilityChanged(lyColumn.Column, False);
+    end;
+  end;
 
   // reset _flatColumns and update indexes
   _flatColumns := nil;
@@ -1787,7 +1804,7 @@ begin
   for layoutClmn in get_FlatColumns do
     columnsToCalculate.Add(layoutClmn.Index);
 
-  var totalWidth := _content.Width;
+  var totalWidth := _columnsControl.Control.Width;
   var widthLeft := totalWidth;
 
   for var round := 1 to 3 do
@@ -1881,7 +1898,7 @@ begin
         minColumnWidth := layoutClmn.Width;
     end;
 
-    if minimumTotalWidth + minColumnWidth > _content.Width then
+    if minimumTotalWidth + minColumnWidth > _columnsControl.Control.Width then
     begin
       layoutClmn.HideColumnInView := True;
       Continue;
@@ -1890,7 +1907,7 @@ begin
     minimumTotalWidth := minimumTotalWidth + minColumnWidth;
   end;
 
-  var widthLeft := _content.Width - minimumTotalWidth;
+  var widthLeft := _columnsControl.Control.Width - minimumTotalWidth;
   Assert(widthLeft >= 0);
 
   // reset _flatColumns and update indexes
@@ -1901,7 +1918,7 @@ begin
   var autoFitWidthType := TDCColumnWidthType.Pixel;
   for layoutClmn in get_FlatColumns do
   begin
-    if not SameValue(layoutClmn.Column.CustomWidth, -1) then
+    if not ColumnCanAddWidth(layoutClmn) then
       Continue;
 
     case layoutClmn.Column.WidthType of
@@ -1915,9 +1932,34 @@ begin
 
   var addableColumns: List<IDCTreeLayoutColumn> := CList<IDCTreeLayoutColumn>.Create;
   for layoutClmn in get_FlatColumns do
-    if (layoutClmn.Column.WidthType = autoFitWidthType) and SameValue(layoutClmn.Column.CustomWidth, -1) then
+    if (layoutClmn.Column.WidthType = autoFitWidthType) and ColumnCanAddWidth(layoutClmn) then
       addableColumns.Add(layoutClmn);
 
+  // add width to max size columns
+  if addableColumns.Count > 0 then
+    for var ix := addableColumns.Count - 1 downto 0 do
+    begin
+      var flatClmn := addableColumns[ix];
+      if flatClmn.Column.WidthMax = 0 then
+        Continue;
+
+      var extraWidthPerColumn := widthLeft / addableColumns.Count;
+
+      var newWidth: Single;
+      // percentageColumns are set back to minimum width
+      if autoFitWidthType = TDCColumnWidthType.Percentage then
+        newWidth := flatClmn.Column.WidthMin + extraWidthPerColumn else
+        newWidth := flatClmn.Width + extraWidthPerColumn;
+
+      if newWidth > flatClmn.Column.WidthMax then
+      begin
+        widthLeft := widthLeft - (flatClmn.Column.WidthMax - flatClmn.Width);
+        flatClmn.Width := flatClmn.Column.WidthMax;
+        addableColumns.RemoveAt(ix);
+      end;
+    end;
+
+  // add width to all remaining columns
   if addableColumns.Count > 0 then
     for var ix := addableColumns.Count - 1 downto 0 do
     begin
@@ -1999,6 +2041,11 @@ begin
   Result := _customSubInfoControlBounds;
 end;
 
+function TDCTreeCell.get_CustomTag: CObject;
+begin
+  Result := _customTag;
+end;
+
 function TDCTreeCell.get_Data: CObject;
 begin
   Result := _data;
@@ -2070,6 +2117,11 @@ end;
 procedure TDCTreeCell.set_CustomSubInfoControlBounds(const Value: TRectF);
 begin
   _customSubInfoControlBounds := Value;
+end;
+
+procedure TDCTreeCell.set_CustomTag(const Value: CObject);
+begin
+  _customTag := Value;
 end;
 
 procedure TDCTreeCell.set_Data(const Value: CObject);
