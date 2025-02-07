@@ -328,7 +328,7 @@ begin
   // the method AfterRealign must be executed
   // but if not painted yet it will get there on it's own..
   if (WidthChanged or HeightChanged) and (_realignState in [TRealignState.AfterRealign, TRealignState.RealignDone]) then
-    RefreshControl;
+    PerformanceSafeRealign(TScrollingType.Other);
 
   _lastContentBottomRight := PointF(_content.Width, _content.Height);
 end;
@@ -597,6 +597,9 @@ end;
 
 procedure TDCScrollableControl.OnContentResized(Sender: TObject);
 begin
+  if _updateCount > 0 then
+    Exit;
+
   var widthChanged := not SameValue(_lastContentBottomRight.X, _content.Width);
   var heightChanged := not SameValue(_lastContentBottomRight.Y, _content.Height);
 

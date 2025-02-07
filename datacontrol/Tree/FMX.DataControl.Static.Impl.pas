@@ -1488,13 +1488,13 @@ begin
       var headerCell := Cell as IHeaderCell;
       if ShowVertGrid and (Cell.Index <> 0) then
       begin
-        rect.Sides := [TSide.Left];
+        rect.Sides := [TSide.Left, TSide.Bottom];
 
         if Cell.Column.AllowResize then
           rect.Stroke.Dash := TStrokeDash.Dot else
           rect.Stroke.Dash := TStrokeDash.Solid;
       end else
-        rect.Sides := [];
+        rect.Sides := [TSide.Bottom];
 
       Cell.Control := rect;
 
@@ -1910,6 +1910,11 @@ begin
   var widthLeft := _columnsControl.Control.Width - minimumTotalWidth;
   Assert(widthLeft >= 0);
 
+  var potentialCount := 0;
+  for var lyClmn in _layoutColumns do
+    if (lyClmn.Column.Visible and not lyClmn.Column.CustomHidden) then
+      inc(potentialCount);
+
   // reset _flatColumns and update indexes
   _flatColumns := nil;
   get_FlatColumns;
@@ -1934,6 +1939,10 @@ begin
   for layoutClmn in get_FlatColumns do
     if (layoutClmn.Column.WidthType = autoFitWidthType) and ColumnCanAddWidth(layoutClmn) then
       addableColumns.Add(layoutClmn);
+
+//  var extraWidthPerColumnOng := widthLeft / addableColumns.Count;
+//  if (_flatColumns.Count = potentialCount) and (extraWidthPerColumnOng > 20) then
+//    Exit;
 
   // add width to max size columns
   if addableColumns.Count > 0 then
@@ -1965,6 +1974,8 @@ begin
     begin
       var flatClmn := addableColumns[ix];
       var extraWidthPerColumn := widthLeft / addableColumns.Count;
+      if (_flatColumns.Count = potentialCount) and (_columnsControl.AutoExtraColumnSizeMax >= 0) then
+        extraWidthPerColumn := CMath.Min(extraWidthPerColumn, _columnsControl.AutoExtraColumnSizeMax);
 
       // percentageColumns are set back to minimum width
       if autoFitWidthType = TDCColumnWidthType.Percentage then

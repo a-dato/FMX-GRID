@@ -383,6 +383,7 @@ begin
     _rowHeightSynchronizer._waitForRepaintInfo := nil;
     _rowHeightSynchronizer._realignContentRequested := False;
     _rowHeightSynchronizer._scrollingType := _scrollingType;
+    inc(_rowHeightSynchronizer._threadIndex);
   end;
 
   inherited;
@@ -1296,6 +1297,8 @@ begin
 
   var rowNeedsReload := Row.IsScrollingIntoView or not rowInfo.InnerCellsAreApplied or (rowInfo.ControlNeedsResize and (_scrollingType <> TScrollingType.WithScrollBar));
 
+  Row.OwnerIsScrolling := _scrollingType <> TScrollingType.None;
+
   if rowNeedsReload then
   begin
     InnerInitRow(Row);
@@ -1303,8 +1306,6 @@ begin
   end;
 
   CreateAndSynchronizeSynchronizerRow(Row);
-
-  Row.OwnerIsScrolling := _scrollingType <> TScrollingType.None;
 
   var rowHeightChanged := not SameValue(oldRowHeight, Row.Control.Height);
   if rowHeightChanged and (_scrollingType = TScrollingType.WithScrollBar) then
@@ -1354,7 +1355,7 @@ begin
     Exit;
 
   _hoverRect.Position.Y := row.Control.Position.Y;
-  _hoverRect.Position.X := 0;
+  _hoverRect.Position.X := row.Control.Position.X;
   _hoverRect.Height := row.Height;
   _hoverRect.Width := row.Control.Width;
   _hoverRect.BringToFront;

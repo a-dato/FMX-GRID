@@ -67,6 +67,8 @@ type
   protected
     _columns: IDCTreeColumnList;
     _autoFitColumns: Boolean;
+    _autoCenterTree: Boolean;
+    _autoExtraColumnSizeMax: Single;
     _reloadForSpecificColumn: IDCTreeLayoutColumn;
     _headerHeight: Single;
     _headerTextTopMargin: Single;
@@ -121,6 +123,9 @@ type
     procedure ExternalColumnsChanged;
 
     procedure SetColumnSelectionIfNoneExists;
+    procedure set_AutoCenterTree(const Value: Boolean);
+    function  get_AutoExtraColumnSizeMax: Single;
+    procedure set_AutoExtraColumnSizeMax(const Value: Single);
 
   protected
     function  DoCreateNewRow: IDCRow; override;
@@ -205,9 +210,11 @@ type
   published
     property Columns: IDCTreeColumnList read _columns write _columns;  // stored DoStoreColumns;
     property AutoFitColumns: Boolean read _autoFitColumns write set_AutoFitColumns default False;
+    property AutoCenterTree: Boolean read _autoCenterTree write set_AutoCenterTree default False;
     property HeaderHeight: Single read get_headerHeight write set_HeaderHeight;
     property HeaderTextTopMargin: Single read get_headerTextTopMargin write set_headerTextTopMargin;
     property HeaderTextBottomMargin: Single read get_headerTextBottomMargin write set_headerTextBottomMargin;
+    property AutoExtraColumnSizeMax: Single read get_AutoExtraColumnSizeMax write set_AutoExtraColumnSizeMax;
 
     // events
     property CellLoading: CellLoadingEvent read _cellLoading write _cellLoading;
@@ -307,7 +314,6 @@ begin
   AssignWidthsToAlignColumns;
 
   ProcessColumnVisibilityRules;
-
   UpdatePositionAndWidthCells;
 
   UpdateHorzScrollbar;
@@ -412,8 +418,18 @@ procedure TStaticDataControl.UpdatePositionAndWidthCells;
 begin
   // this will only be done if columns or their sizes changed
   _treeLayout.RecalcColumnWidthsBasic;
-//  if _autoFitColumns then
-//    _treeLayout.RecalcColumnWidthsAutoFit;
+
+  var startFromX := 0.0;
+  // start update center
+  if _autoCenterTree then
+  begin
+    var widthLeft := Self.Width;
+    for var clmn in _treeLayout.FlatColumns do
+      widthLeft := widthLeft - clmn.Width;
+
+    startFromX := widthLeft/2;
+  end;
+  // end update center
 
   var frozenColumnWidth := _treeLayout.FrozenColumnWidth;
   var hasFrozenColumns := frozenColumnWidth > 0;
@@ -429,6 +445,7 @@ begin
   begin
     var treeRow := row as IDCTreeRow;
     treeRow.Control.Width := rowWidth;
+    treeRow.Control.Position.X := startFromX;
 
     if hasFrozenColumns then
     begin
@@ -1203,6 +1220,7 @@ begin
   _headerHeight := 24;
   _headerTextTopMargin := 0;
   _headerTextBottomMargin := 0;
+  _autoExtraColumnSizeMax := -1;
 
 //  _hoverCellRect := TRectangle.Create(_hoverRect);
 //  _hoverCellRect.Stored := False;
@@ -1252,6 +1270,11 @@ end;
 function TStaticDataControl.get_Layout: IDCTreeLayout;
 begin
   Result := _treeLayout;
+end;
+
+function TStaticDataControl.get_AutoExtraColumnSizeMax: Single;
+begin
+  Result := _autoExtraColumnSizeMax;
 end;
 
 function TStaticDataControl.get_SelectedColumn: IDCTreeLayoutColumn;
@@ -2131,11 +2154,29 @@ begin
   end;
 end;
 
+procedure TStaticDataControl.set_AutoCenterTree(const Value: Boolean);
+begin
+  if _autoCenterTree <> Value then
+  begin
+    _autoCenterTree := Value;
+
+    if _realignState = TRealignState.RealignDone then
+      AfterRealignContent;
+  end;
+end;
+
 procedure TStaticDataControl.set_AutoFitColumns(const Value: Boolean);
 begin
-  _autoFitColumns := Value;
-  if _treeLayout <> nil then
-    AfterRealignContent;
+  if _autoFitColumns <> Value then
+  begin
+    _autoFitColumns := Value;
+
+    if not Value then
+      _autoExtraColumnSizeMax := -1;
+
+    if _treeLayout <> nil then
+      AfterRealignContent;
+  end;
 end;
 
 procedure TStaticDataControl.set_HeaderHeight(const Value: Single);
@@ -2169,6 +2210,24 @@ begin
   if not SameValue(_headerTextTopMargin, Value) then
   begin
     _headerTextTopMargin := Value;
+
+    if _treeLayout <> nil then
+      _treeLayout.ForceRecalc;
+
+    RefreshControl;
+  end;
+end;
+
+procedure TStaticDataControl.set_AutoExtraColumnSizeMax(const Value: Single);
+begin
+  if not SameValue(_autoExtraColumnSizeMax, Value) then
+  begin
+    _autoExtraColumnSizeMax := Value;
+
+    if _autoExtraColumnSizeMax < 0 then
+      _autoExtraColumnSizeMax := -1;
+
+    _autoFitColumns := _autoExtraColumnSizeMax >= 0;
 
     if _treeLayout <> nil then
       _treeLayout.ForceRecalc;
