@@ -472,9 +472,9 @@ end;
 
 function TDCScrollableRowControl.GetRowViewListIndexByKey(const Key: Word; Shift: TShiftState): Integer;
 begin
-  if ((ssCtrl in Shift) and (Key = vkUp)) or (Key = vkHome) then
+  if (ssCtrl in Shift) and (Key in [vkUp, vkHome]) then
     Exit(GetSelectableViewIndex(0, True))
-  else if ((ssCtrl in Shift) and (Key = vkDown)) or (Key = vkEnd) then
+  else if (ssCtrl in Shift) and (Key in [vkDown, vkEnd]) then
     Exit(GetSelectableViewIndex(_view.ViewCount - 1, False))
   else if (Key = vkUp) then
     Exit(GetSelectableViewIndex(CMath.Max(_selectionInfo.ViewListIndex-1, 0), False))

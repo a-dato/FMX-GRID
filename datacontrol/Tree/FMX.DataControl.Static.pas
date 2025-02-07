@@ -615,29 +615,44 @@ end;
 
 function TStaticDataControl.GetHorzScroll(const Key: Word; Shift: TShiftState): TRightLeftScroll;
 begin
-  Result := TRightLeftScroll.None;
-  if not Key in [vkHome, vkEnd, vkLeft, vkRight, vkTab] then
-    Exit;
-
-  if (key = vkLeft) or ((ssShift in Shift) and (key = vkTab)) then
-  begin
-    if ssCtrl in Shift then
-      Exit(TRightLeftScroll.FullLeft) else
-      Exit(TRightLeftScroll.Left)
-  end
-  else if (key = vkRight) or (key = vkTab) then
-  begin
-    if ssCtrl in Shift then
-      Exit(TRightLeftScroll.FullRight) else
-      Exit(TRightLeftScroll.Right);
-  end
-  else if not (ssCtrl in Shift) then
-  begin
-    if Key = vkHome then
-      Exit(TRightLeftScroll.FullLeft)
-    else if Key = vkEnd then
-      Exit(TRightLeftScroll.FullRight);
+  case Key of
+    vkHome:   Result := TRightLeftScroll.FullLeft;
+    vkEnd:    Result := TRightLeftScroll.FullRight;
+    vkLeft:   Result := TRightLeftScroll.Left;
+    vkRight:  Result := TRightLeftScroll.Right;
+    vkTab:
+    begin
+      if ssShift in Shift then
+        Result := TRightLeftScroll.Left else
+        Result := TRightLeftScroll.Right;
+    end
+  else
+    Result := TRightLeftScroll.None;
   end;
+
+//  Result := TRightLeftScroll.None;
+//  if not Key in [vkHome, vkEnd, vkLeft, vkRight, vkTab] then
+//    Exit;
+//
+//  if (key = vkLeft) or ((ssShift in Shift) and (key = vkTab)) then
+//  begin
+//    if ssCtrl in Shift then
+//      Exit(TRightLeftScroll.FullLeft) else
+//      Exit(TRightLeftScroll.Left)
+//  end
+//  else if (key = vkRight) or (key = vkTab) then
+//  begin
+//    if ssCtrl in Shift then
+//      Exit(TRightLeftScroll.FullRight) else
+//      Exit(TRightLeftScroll.Right);
+//  end
+//  else if not (ssCtrl in Shift) then
+//  begin
+//    if Key = vkHome then
+//      Exit(TRightLeftScroll.FullLeft)
+//    else if Key = vkEnd then
+//      Exit(TRightLeftScroll.FullRight);
+//  end;
 end;
 
 procedure TStaticDataControl.UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single);

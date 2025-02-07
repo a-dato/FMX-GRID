@@ -9393,6 +9393,7 @@ begin
 
       TypeCode.String:
         case ATypeInfo.Kind of
+          // CString -> Integer
           tkInteger:
           begin
             if CInteger.TryParse(CString(FValue.GetReferenceToRawData^), i) then
@@ -9401,6 +9402,7 @@ begin
               Result := value_t.TryCast(ATypeInfo, Value);
             end;
           end;
+          // CString -> Float
           tkFloat:
           begin
             if CDouble.TryParse(CString(FValue.GetReferenceToRawData^), d) then
@@ -9469,13 +9471,17 @@ begin
               Result := value_t.TryCast(ATypeInfo, Value);
             end;
           end;
-
-        else
-          if CString(FValue.GetReferenceToRawData^)._intf = nil then
-          begin
-            Value := TValue.Empty;
-            Result := True;
-          end;
+          // KV 31-01-2025 Cannot convert CString to anything else....
+          // Code below is invalid, with this code
+          //
+          //    CObject('abc').IsOfType<IList> returns True (which is wrong)
+          //
+          //          else
+          //          if CString(FValue.GetReferenceToRawData^)._intf = nil then
+          //          begin
+          //            Value := TValue.Empty;
+          //            Result := True;
+          //          end;
         end;
 
       TypeCode.DateTime:
