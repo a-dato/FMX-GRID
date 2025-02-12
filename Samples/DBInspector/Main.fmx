@@ -4,6 +4,10 @@ object frmInspector: TfrmInspector
   Caption = 'Database inspector'
   ClientHeight = 658
   ClientWidth = 1081
+  Fill.Color = xFFF8F8F8
+  Fill.Kind = Solid
+  Padding.Left = 10.000000000000000000
+  Padding.Right = 10.000000000000000000
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
@@ -12,176 +16,128 @@ object frmInspector: TfrmInspector
   DesignerMasterStyle = 0
   object Layout1: TLayout
     Align = MostLeft
-    Position.Y = 49.000000000000000000
+    Position.X = 10.000000000000000000
+    Position.Y = 73.000000000000000000
     Size.Width = 257.000000000000000000
-    Size.Height = 609.000000000000000000
+    Size.Height = 585.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 6
     object Splitter1: TSplitter
       Align = Top
       Cursor = crVSplit
       MinSize = 20.000000000000000000
-      Position.Y = 217.000000000000000000
+      Position.Y = 258.000000000000000000
+      ShowGrip = False
       Size.Width = 257.000000000000000000
-      Size.Height = 7.000000000000000000
+      Size.Height = 10.000000000000000000
       Size.PlatformDefault = False
     end
-    object tcColumns: TTabControl
-      Align = Client
+    object Rectangle1: TRectangle
+      Align = Top
+      Fill.Color = claWhite
+      Padding.Left = 3.000000000000000000
+      Padding.Top = 3.000000000000000000
+      Padding.Right = 3.000000000000000000
+      Padding.Bottom = 3.000000000000000000
       Size.Width = 257.000000000000000000
-      Size.Height = 385.000000000000000000
+      Size.Height = 258.000000000000000000
       Size.PlatformDefault = False
-      TabIndex = 2
-      TabOrder = 1
-      TabPosition = PlatformDefault
-      Sizes = (
-        257s
-        359s
-        257s
-        359s
-        257s
-        359s)
-      object tbFields: TTabItem
-        CustomIcon = <
-          item
-          end>
-        TextSettings.Trimming = None
-        IsSelected = False
-        Size.Width = 51.000000000000000000
-        Size.Height = 26.000000000000000000
+      Stroke.Color = xFF535A89
+      XRadius = 3.000000000000000000
+      YRadius = 3.000000000000000000
+      object Layout3: TLayout
+        Align = MostTop
+        Margins.Left = 5.000000000000000000
+        Margins.Top = 5.000000000000000000
+        Margins.Right = 5.000000000000000000
+        Margins.Bottom = 5.000000000000000000
+        Position.X = 8.000000000000000000
+        Position.Y = 8.000000000000000000
+        Size.Width = 241.000000000000000000
+        Size.Height = 58.000000000000000000
         Size.PlatformDefault = False
-        StyleLookup = ''
-        TabOrder = 0
-        Text = 'Fields'
-        ExplicitSize.cx = 51.000000000000000000
-        ExplicitSize.cy = 26.000000000000000000
-        object DBColumns: TDataControl
+        TabOrder = 2
+        object edSearch: TEdit
+          Touch.InteractiveGestures = [LongTap, DoubleTap]
+          Align = Client
+          TabOrder = 3
+          Size.Width = 241.000000000000000000
+          Size.Height = 27.000000000000000000
+          Size.PlatformDefault = False
+          TextPrompt = 'Search'
+          OnChangeTracking = edSearchChangeTracking
+        end
+        object lyButtons: TLayout
+          Align = Top
+          Margins.Bottom = 6.000000000000000000
+          Size.Width = 241.000000000000000000
+          Size.Height = 25.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 2
+          object SpeedButton1: TSpeedButton
+            Action = acOpenObject
+            Align = Left
+            ImageIndex = -1
+            Size.Width = 41.000000000000000000
+            Size.Height = 25.000000000000000000
+            Size.PlatformDefault = False
+            StyleLookup = 'nexttoolbutton'
+            TextSettings.Trimming = None
+          end
+          object SpeedButton2: TSpeedButton
+            Action = acViewSource
+            Align = Left
+            ImageIndex = -1
+            Position.X = 41.000000000000000000
+            Size.Width = 41.000000000000000000
+            Size.Height = 25.000000000000000000
+            Size.PlatformDefault = False
+            StyleLookup = 'pagecurltoolbutton'
+            TextSettings.Trimming = None
+          end
+          object SpeedButton3: TSpeedButton
+            Action = acRefresh
+            Align = Left
+            ImageIndex = -1
+            Position.X = 82.000000000000000000
+            Size.Width = 41.000000000000000000
+            Size.Height = 25.000000000000000000
+            Size.PlatformDefault = False
+            StyleLookup = 'refreshtoolbutton'
+            TextSettings.Trimming = None
+          end
+          object SpeedButton5: TSpeedButton
+            Action = acMoveData
+            Align = Left
+            ImageIndex = -1
+            Position.X = 123.000000000000000000
+            Size.Width = 41.000000000000000000
+            Size.Height = 25.000000000000000000
+            Size.PlatformDefault = False
+            StyleLookup = 'cameratoolbuttonbordered'
+            TextSettings.Trimming = None
+          end
+        end
+      end
+      object lyTables: TLayout
+        Align = Client
+        Size.Width = 251.000000000000000000
+        Size.Height = 184.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 3
+        object DBTables: TDataControl
           Align = Client
           HitTest = True
-          Size.Width = 257.000000000000000000
-          Size.Height = 359.000000000000000000
+          Size.Width = 251.000000000000000000
+          Size.Height = 184.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 0
           Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid, TreeOption_MultiSelect]
           RowHeightDefault = 30.000000000000000000
           HeaderHeight = 24.000000000000000000
-          OnCopyToClipBoard = DBColumns_CopyToClipboard
-          Columns_ = 
-            '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
-            'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
-            'lass><WidthSettings><WidthType>Percentage</WidthType><Width>60</' +
-            'Width><WidthMin>0</WidthMin><WidthMax>0</WidthMax></WidthSetting' +
-            's><Visualisation><Visible>True</Visible><Frozen>False</Frozen><R' +
-            'eadOnly>True</ReadOnly><Selectable>True</Selectable><AllowResize' +
-            '>False</AllowResize><AllowHide>False</AllowHide></Visualisation>' +
-            '<SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortMen' +
-            'u><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubCont' +
-            'rolSettings><SubInfoControlClass>Custom</SubInfoControlClass></S' +
-            'ubControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarchy' +
-            '><Indent>0</Indent></Hierarchy></Item><Item type="TDCTreeColumn"' +
-            '><Caption>TypeName</Caption><PropertyName>TypeName</PropertyName' +
-            '><InfoControlClass>Text</InfoControlClass><WidthSettings><WidthT' +
-            'ype>Percentage</WidthType><Width>25</Width><WidthMin>0</WidthMin' +
-            '><WidthMax>0</WidthMax></WidthSettings><Visualisation><Visible>T' +
-            'rue</Visible><Frozen>False</Frozen><ReadOnly>True</ReadOnly><Sel' +
-            'ectable>True</Selectable><AllowResize>False</AllowResize><AllowH' +
-            'ide>False</AllowHide></Visualisation><SortAndFilter><Sort>None</' +
-            'Sort><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>False</Sh' +
-            'owFilterMenu></SortAndFilter><SubControlSettings><SubInfoControl' +
-            'Class>Custom</SubInfoControlClass></SubControlSettings><Hierarch' +
-            'y><ShowHierarchy>False</ShowHierarchy><Indent>0</Indent></Hierar' +
-            'chy></Item><Item type="TDCTreeColumn"><Caption>Size</Caption><Pr' +
-            'opertyName>Size</PropertyName><InfoControlClass>Text</InfoContro' +
-            'lClass><WidthSettings><WidthType>Percentage</WidthType><Width>15' +
-            '</Width><WidthMin>0</WidthMin><WidthMax>0</WidthMax></WidthSetti' +
-            'ngs><Visualisation><Visible>True</Visible><Frozen>False</Frozen>' +
-            '<ReadOnly>True</ReadOnly><Selectable>True</Selectable><AllowResi' +
-            'ze>False</AllowResize><AllowHide>False</AllowHide></Visualisatio' +
-            'n><SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortM' +
-            'enu><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubCo' +
-            'ntrolSettings><SubInfoControlClass>Custom</SubInfoControlClass><' +
-            '/SubControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarc' +
-            'hy><Indent>0</Indent></Hierarchy></Item></Columns>'#13#10
-        end
-      end
-      object tbIndexes: TTabItem
-        CustomIcon = <
-          item
-          end>
-        TextSettings.Trimming = None
-        IsSelected = False
-        Size.Width = 61.000000000000000000
-        Size.Height = 26.000000000000000000
-        Size.PlatformDefault = False
-        StyleLookup = ''
-        TabOrder = 0
-        Text = 'Indexes'
-        ExplicitSize.cx = 61.000000000000000000
-        ExplicitSize.cy = 26.000000000000000000
-        object DBIndexes: TDataControl
-          Align = Client
-          HitTest = True
-          Size.Width = 257.000000000000000000
-          Size.Height = 359.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 0
-          Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid]
-          RowHeightDefault = 30.000000000000000000
-          HeaderHeight = 24.000000000000000000
-          CellChanged = DBIndexesCellChanged
-          OnCopyToClipBoard = DBIndexesCopyToClipBoard
-          Columns_ = 
-            '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
-            'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
-            'lass><WidthSettings><WidthType>Percentage</WidthType><Width>70</' +
-            'Width><WidthMin>0</WidthMin><WidthMax>0</WidthMax></WidthSetting' +
-            's><Visualisation><Visible>True</Visible><Frozen>False</Frozen><R' +
-            'eadOnly>True</ReadOnly><Selectable>True</Selectable><AllowResize' +
-            '>False</AllowResize><AllowHide>False</AllowHide></Visualisation>' +
-            '<SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortMen' +
-            'u><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubCont' +
-            'rolSettings><SubInfoControlClass>Custom</SubInfoControlClass></S' +
-            'ubControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarchy' +
-            '><Indent>0</Indent></Hierarchy></Item><Item type="TDCTreeColumn"' +
-            '><Caption>ItemType</Caption><PropertyName>ItemType</PropertyName' +
-            '><InfoControlClass>Text</InfoControlClass><WidthSettings><WidthT' +
-            'ype>Percentage</WidthType><Width>30</Width><WidthMin>0</WidthMin' +
-            '><WidthMax>0</WidthMax></WidthSettings><Visualisation><Visible>T' +
-            'rue</Visible><Frozen>False</Frozen><ReadOnly>True</ReadOnly><Sel' +
-            'ectable>True</Selectable><AllowResize>False</AllowResize><AllowH' +
-            'ide>False</AllowHide></Visualisation><SortAndFilter><Sort>None</' +
-            'Sort><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>False</Sh' +
-            'owFilterMenu></SortAndFilter><SubControlSettings><SubInfoControl' +
-            'Class>Custom</SubInfoControlClass></SubControlSettings><Hierarch' +
-            'y><ShowHierarchy>False</ShowHierarchy><Indent>0</Indent></Hierar' +
-            'chy></Item></Columns>'#13#10
-        end
-      end
-      object tbIndexFields: TTabItem
-        CustomIcon = <
-          item
-          end>
-        TextSettings.Trimming = None
-        IsSelected = True
-        Size.Width = 79.000000000000000000
-        Size.Height = 26.000000000000000000
-        Size.PlatformDefault = False
-        StyleLookup = ''
-        TabOrder = 0
-        Text = 'IndexFields'
-        ExplicitSize.cx = 79.000000000000000000
-        ExplicitSize.cy = 26.000000000000000000
-        object DBIndexColumns: TDataControl
-          Align = Client
-          HitTest = True
-          Size.Width = 257.000000000000000000
-          Size.Height = 359.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 0
-          Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid]
-          RowHeightDefault = 30.000000000000000000
-          HeaderHeight = 24.000000000000000000
-          OnCopyToClipBoard = DBIndexColumnsCopyToClipBoard
+          AutoExtraColumnSizeMax = -1.000000000000000000
+          CellChanged = DBTablesCellChanged
+          OnCopyToClipBoard = DBTables_CopyToClipboard
           Columns_ = 
             '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
             'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
@@ -210,140 +166,258 @@ object frmInspector: TfrmInspector
         end
       end
     end
-    object Layout3: TLayout
-      Align = MostTop
+    object Rectangle2: TRectangle
+      Align = Client
+      Fill.Color = claWhite
+      Padding.Left = 3.000000000000000000
+      Padding.Top = 3.000000000000000000
+      Padding.Right = 3.000000000000000000
+      Padding.Bottom = 3.000000000000000000
       Size.Width = 257.000000000000000000
-      Size.Height = 58.000000000000000000
+      Size.Height = 317.000000000000000000
       Size.PlatformDefault = False
-      TabOrder = 2
-      object edSearch: TEdit
-        Touch.InteractiveGestures = [LongTap, DoubleTap]
+      Stroke.Color = xFF4860A0
+      XRadius = 3.000000000000000000
+      YRadius = 3.000000000000000000
+      object tcColumns: TTabControl
         Align = Client
-        TabOrder = 3
-        Size.Width = 257.000000000000000000
-        Size.Height = 27.000000000000000000
+        Size.Width = 251.000000000000000000
+        Size.Height = 311.000000000000000000
         Size.PlatformDefault = False
-        TextPrompt = 'Search'
-        OnChangeTracking = edSearchChangeTracking
-      end
-      object lyButtons: TLayout
-        Align = Top
-        Margins.Bottom = 6.000000000000000000
-        Size.Width = 257.000000000000000000
-        Size.Height = 25.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 2
-        object SpeedButton1: TSpeedButton
-          Action = acOpenObject
-          Align = Left
-          ImageIndex = -1
-          Size.Width = 41.000000000000000000
-          Size.Height = 25.000000000000000000
-          Size.PlatformDefault = False
-          StyleLookup = 'nexttoolbutton'
+        TabIndex = 1
+        TabOrder = 1
+        TabPosition = PlatformDefault
+        Sizes = (
+          251s
+          285s
+          251s
+          285s
+          251s
+          285s)
+        object tbFields: TTabItem
+          CustomIcon = <
+            item
+            end>
           TextSettings.Trimming = None
-        end
-        object SpeedButton2: TSpeedButton
-          Action = acViewSource
-          Align = Left
-          ImageIndex = -1
-          Position.X = 41.000000000000000000
-          Size.Width = 41.000000000000000000
-          Size.Height = 25.000000000000000000
+          IsSelected = False
+          Size.Width = 51.000000000000000000
+          Size.Height = 26.000000000000000000
           Size.PlatformDefault = False
-          StyleLookup = 'pagecurltoolbutton'
-          TextSettings.Trimming = None
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Fields'
+          ExplicitSize.cx = 51.000000000000000000
+          ExplicitSize.cy = 26.000000000000000000
+          object Rectangle5: TRectangle
+            Align = Contents
+            Fill.Color = claWhite
+            Size.Width = 251.000000000000000000
+            Size.Height = 285.000000000000000000
+            Size.PlatformDefault = False
+            Stroke.Kind = None
+          end
+          object DBColumns: TDataControl
+            Align = Client
+            HitTest = True
+            Size.Width = 251.000000000000000000
+            Size.Height = 285.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 0
+            Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid, TreeOption_MultiSelect]
+            RowHeightDefault = 30.000000000000000000
+            HeaderHeight = 24.000000000000000000
+            AutoExtraColumnSizeMax = -1.000000000000000000
+            OnCopyToClipBoard = DBColumns_CopyToClipboard
+            Columns_ = 
+              '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
+              'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
+              'lass><WidthSettings><WidthType>Percentage</WidthType><Width>60</' +
+              'Width><WidthMin>0</WidthMin><WidthMax>0</WidthMax></WidthSetting' +
+              's><Visualisation><Visible>True</Visible><Frozen>False</Frozen><R' +
+              'eadOnly>True</ReadOnly><Selectable>True</Selectable><AllowResize' +
+              '>False</AllowResize><AllowHide>False</AllowHide></Visualisation>' +
+              '<SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortMen' +
+              'u><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubCont' +
+              'rolSettings><SubInfoControlClass>Custom</SubInfoControlClass></S' +
+              'ubControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarchy' +
+              '><Indent>0</Indent></Hierarchy></Item><Item type="TDCTreeColumn"' +
+              '><Caption>TypeName</Caption><PropertyName>TypeName</PropertyName' +
+              '><InfoControlClass>Text</InfoControlClass><WidthSettings><WidthT' +
+              'ype>Percentage</WidthType><Width>25</Width><WidthMin>0</WidthMin' +
+              '><WidthMax>0</WidthMax></WidthSettings><Visualisation><Visible>T' +
+              'rue</Visible><Frozen>False</Frozen><ReadOnly>True</ReadOnly><Sel' +
+              'ectable>True</Selectable><AllowResize>False</AllowResize><AllowH' +
+              'ide>False</AllowHide></Visualisation><SortAndFilter><Sort>None</' +
+              'Sort><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>False</Sh' +
+              'owFilterMenu></SortAndFilter><SubControlSettings><SubInfoControl' +
+              'Class>Custom</SubInfoControlClass></SubControlSettings><Hierarch' +
+              'y><ShowHierarchy>False</ShowHierarchy><Indent>0</Indent></Hierar' +
+              'chy></Item><Item type="TDCTreeColumn"><Caption>Size</Caption><Pr' +
+              'opertyName>Size</PropertyName><InfoControlClass>Text</InfoContro' +
+              'lClass><WidthSettings><WidthType>Percentage</WidthType><Width>15' +
+              '</Width><WidthMin>0</WidthMin><WidthMax>0</WidthMax></WidthSetti' +
+              'ngs><Visualisation><Visible>True</Visible><Frozen>False</Frozen>' +
+              '<ReadOnly>True</ReadOnly><Selectable>True</Selectable><AllowResi' +
+              'ze>False</AllowResize><AllowHide>False</AllowHide></Visualisatio' +
+              'n><SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortM' +
+              'enu><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubCo' +
+              'ntrolSettings><SubInfoControlClass>Custom</SubInfoControlClass><' +
+              '/SubControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarc' +
+              'hy><Indent>0</Indent></Hierarchy></Item></Columns>'#13#10
+          end
         end
-        object SpeedButton3: TSpeedButton
-          Action = acRefresh
-          Align = Left
-          ImageIndex = -1
-          Position.X = 82.000000000000000000
-          Size.Width = 41.000000000000000000
-          Size.Height = 25.000000000000000000
+        object tbIndexes: TTabItem
+          CustomIcon = <
+            item
+            end>
+          TextSettings.Trimming = None
+          IsSelected = True
+          Size.Width = 61.000000000000000000
+          Size.Height = 26.000000000000000000
           Size.PlatformDefault = False
-          StyleLookup = 'refreshtoolbutton'
-          TextSettings.Trimming = None
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Indexes'
+          ExplicitSize.cx = 61.000000000000000000
+          ExplicitSize.cy = 26.000000000000000000
+          object Rectangle4: TRectangle
+            Align = Contents
+            Fill.Color = claWhite
+            Size.Width = 251.000000000000000000
+            Size.Height = 285.000000000000000000
+            Size.PlatformDefault = False
+            Stroke.Kind = None
+          end
+          object DBIndexes: TDataControl
+            Align = Client
+            HitTest = True
+            Size.Width = 251.000000000000000000
+            Size.Height = 285.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 0
+            Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid]
+            RowHeightDefault = 30.000000000000000000
+            HeaderHeight = 24.000000000000000000
+            AutoExtraColumnSizeMax = -1.000000000000000000
+            CellChanged = DBIndexesCellChanged
+            OnCopyToClipBoard = DBIndexesCopyToClipBoard
+            Columns_ = 
+              '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
+              'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
+              'lass><WidthSettings><WidthType>Percentage</WidthType><Width>70</' +
+              'Width><WidthMin>0</WidthMin><WidthMax>0</WidthMax></WidthSetting' +
+              's><Visualisation><Visible>True</Visible><Frozen>False</Frozen><R' +
+              'eadOnly>True</ReadOnly><Selectable>True</Selectable><AllowResize' +
+              '>False</AllowResize><AllowHide>False</AllowHide></Visualisation>' +
+              '<SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortMen' +
+              'u><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubCont' +
+              'rolSettings><SubInfoControlClass>Custom</SubInfoControlClass></S' +
+              'ubControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarchy' +
+              '><Indent>0</Indent></Hierarchy></Item><Item type="TDCTreeColumn"' +
+              '><Caption>ItemType</Caption><PropertyName>ItemType</PropertyName' +
+              '><InfoControlClass>Text</InfoControlClass><WidthSettings><WidthT' +
+              'ype>Percentage</WidthType><Width>30</Width><WidthMin>0</WidthMin' +
+              '><WidthMax>0</WidthMax></WidthSettings><Visualisation><Visible>T' +
+              'rue</Visible><Frozen>False</Frozen><ReadOnly>True</ReadOnly><Sel' +
+              'ectable>True</Selectable><AllowResize>False</AllowResize><AllowH' +
+              'ide>False</AllowHide></Visualisation><SortAndFilter><Sort>None</' +
+              'Sort><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>False</Sh' +
+              'owFilterMenu></SortAndFilter><SubControlSettings><SubInfoControl' +
+              'Class>Custom</SubInfoControlClass></SubControlSettings><Hierarch' +
+              'y><ShowHierarchy>False</ShowHierarchy><Indent>0</Indent></Hierar' +
+              'chy></Item></Columns>'#13#10
+          end
         end
-        object SpeedButton5: TSpeedButton
-          Action = acMoveData
-          Align = Left
-          ImageIndex = -1
-          Position.X = 123.000000000000000000
-          Size.Width = 41.000000000000000000
-          Size.Height = 25.000000000000000000
+        object tbIndexFields: TTabItem
+          CustomIcon = <
+            item
+            end>
+          TextSettings.Trimming = None
+          IsSelected = False
+          Size.Width = 79.000000000000000000
+          Size.Height = 26.000000000000000000
           Size.PlatformDefault = False
-          StyleLookup = 'cameratoolbuttonbordered'
-          TextSettings.Trimming = None
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'IndexFields'
+          ExplicitSize.cx = 79.000000000000000000
+          ExplicitSize.cy = 26.000000000000000000
+          object Rectangle3: TRectangle
+            Align = Contents
+            Fill.Color = claWhite
+            Size.Width = 251.000000000000000000
+            Size.Height = 285.000000000000000000
+            Size.PlatformDefault = False
+            Stroke.Kind = None
+          end
+          object DBIndexColumns: TDataControl
+            Align = Client
+            HitTest = True
+            Size.Width = 251.000000000000000000
+            Size.Height = 285.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 0
+            Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid]
+            RowHeightDefault = 30.000000000000000000
+            HeaderHeight = 24.000000000000000000
+            AutoExtraColumnSizeMax = -1.000000000000000000
+            OnCopyToClipBoard = DBIndexColumnsCopyToClipBoard
+            Columns_ = 
+              '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
+              'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
+              'lass><WidthSettings><WidthType>Percentage</WidthType><Width>70</' +
+              'Width><WidthMin>0</WidthMin><WidthMax>0</WidthMax></WidthSetting' +
+              's><Visualisation><Visible>True</Visible><Frozen>False</Frozen><R' +
+              'eadOnly>True</ReadOnly><Selectable>True</Selectable><AllowResize' +
+              '>False</AllowResize><AllowHide>False</AllowHide></Visualisation>' +
+              '<SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortMen' +
+              'u><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubCont' +
+              'rolSettings><SubInfoControlClass>Custom</SubInfoControlClass></S' +
+              'ubControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarchy' +
+              '><Indent>0</Indent></Hierarchy></Item><Item type="TDCTreeColumn"' +
+              '><Caption>ItemType</Caption><PropertyName>ItemType</PropertyName' +
+              '><InfoControlClass>Text</InfoControlClass><WidthSettings><WidthT' +
+              'ype>Percentage</WidthType><Width>30</Width><WidthMin>0</WidthMin' +
+              '><WidthMax>0</WidthMax></WidthSettings><Visualisation><Visible>T' +
+              'rue</Visible><Frozen>False</Frozen><ReadOnly>True</ReadOnly><Sel' +
+              'ectable>True</Selectable><AllowResize>False</AllowResize><AllowH' +
+              'ide>False</AllowHide></Visualisation><SortAndFilter><Sort>None</' +
+              'Sort><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>False</Sh' +
+              'owFilterMenu></SortAndFilter><SubControlSettings><SubInfoControl' +
+              'Class>Custom</SubInfoControlClass></SubControlSettings><Hierarch' +
+              'y><ShowHierarchy>False</ShowHierarchy><Indent>0</Indent></Hierar' +
+              'chy></Item></Columns>'#13#10
+          end
         end
-      end
-    end
-    object lyTables: TLayout
-      Align = Top
-      Position.Y = 58.000000000000000000
-      Size.Width = 257.000000000000000000
-      Size.Height = 159.000000000000000000
-      Size.PlatformDefault = False
-      TabOrder = 3
-      object DBTables: TDataControl
-        Align = Client
-        HitTest = True
-        Size.Width = 257.000000000000000000
-        Size.Height = 159.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 0
-        Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid, TreeOption_MultiSelect]
-        RowHeightDefault = 30.000000000000000000
-        HeaderHeight = 24.000000000000000000
-        CellChanged = DBTablesCellChanged
-        OnCopyToClipBoard = DBTables_CopyToClipboard
-        Columns_ = 
-          '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
-          'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
-          'lass><WidthSettings><WidthType>Percentage</WidthType><Width>70</' +
-          'Width><WidthMin>0</WidthMin><WidthMax>0</WidthMax></WidthSetting' +
-          's><Visualisation><Visible>True</Visible><Frozen>False</Frozen><R' +
-          'eadOnly>True</ReadOnly><Selectable>True</Selectable><AllowResize' +
-          '>False</AllowResize><AllowHide>False</AllowHide></Visualisation>' +
-          '<SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortMen' +
-          'u><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubCont' +
-          'rolSettings><SubInfoControlClass>Custom</SubInfoControlClass></S' +
-          'ubControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarchy' +
-          '><Indent>0</Indent></Hierarchy></Item><Item type="TDCTreeColumn"' +
-          '><Caption>ItemType</Caption><PropertyName>ItemType</PropertyName' +
-          '><InfoControlClass>Text</InfoControlClass><WidthSettings><WidthT' +
-          'ype>Percentage</WidthType><Width>30</Width><WidthMin>0</WidthMin' +
-          '><WidthMax>0</WidthMax></WidthSettings><Visualisation><Visible>T' +
-          'rue</Visible><Frozen>False</Frozen><ReadOnly>True</ReadOnly><Sel' +
-          'ectable>True</Selectable><AllowResize>False</AllowResize><AllowH' +
-          'ide>False</AllowHide></Visualisation><SortAndFilter><Sort>None</' +
-          'Sort><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>False</Sh' +
-          'owFilterMenu></SortAndFilter><SubControlSettings><SubInfoControl' +
-          'Class>Custom</SubInfoControlClass></SubControlSettings><Hierarch' +
-          'y><ShowHierarchy>False</ShowHierarchy><Indent>0</Indent></Hierar' +
-          'chy></Item></Columns>'#13#10
       end
     end
   end
-  object Layout2: TLayout
+  object Layout2: TRectangle
     Align = Client
-    Size.Width = 816.000000000000000000
-    Size.Height = 609.000000000000000000
+    Fill.Color = claWhite
+    Padding.Left = 3.000000000000000000
+    Padding.Top = 3.000000000000000000
+    Padding.Right = 3.000000000000000000
+    Padding.Bottom = 3.000000000000000000
+    Size.Width = 794.000000000000000000
+    Size.Height = 585.000000000000000000
     Size.PlatformDefault = False
-    TabOrder = 7
+    Stroke.Color = xFF696A93
+    XRadius = 3.000000000000000000
+    YRadius = 3.000000000000000000
     object tcRecordSets: TTabControl
       Align = Client
-      Size.Width = 816.000000000000000000
-      Size.Height = 609.000000000000000000
+      Size.Width = 788.000000000000000000
+      Size.Height = 579.000000000000000000
       Size.PlatformDefault = False
       TabIndex = 0
       TabOrder = 0
       TabPosition = PlatformDefault
       Sizes = (
-        816s
-        583s
-        816s
-        583s)
+        788s
+        553s
+        788s
+        553s)
       object DefaultTab: TTabItem
         AutoSize = False
         CustomIcon = <
@@ -735,16 +809,20 @@ object frmInspector: TfrmInspector
     Align = Left
     Cursor = crHSplit
     MinSize = 20.000000000000000000
-    Position.X = 257.000000000000000000
-    Position.Y = 49.000000000000000000
-    Size.Width = 8.000000000000000000
-    Size.Height = 609.000000000000000000
+    Position.X = 267.000000000000000000
+    Position.Y = 73.000000000000000000
+    ShowGrip = False
+    Size.Width = 10.000000000000000000
+    Size.Height = 585.000000000000000000
     Size.PlatformDefault = False
   end
   object Layout4: TLayout
     Align = MostTop
-    Margins.Bottom = 6.000000000000000000
-    Size.Width = 1081.000000000000000000
+    Margins.Top = 15.000000000000000000
+    Margins.Bottom = 15.000000000000000000
+    Position.X = 10.000000000000000000
+    Position.Y = 15.000000000000000000
+    Size.Width = 1061.000000000000000000
     Size.Height = 43.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 14
@@ -763,7 +841,7 @@ object frmInspector: TfrmInspector
         Position.Y = -17.000000000000000000
         TextSettings.Trimming = None
         Text = 'Saved Connections'
-        TabOrder = 86
+        TabOrder = 85
       end
     end
     object cbDataBases: TComboBox
@@ -782,7 +860,7 @@ object frmInspector: TfrmInspector
         Position.Y = -18.000000000000000000
         TextSettings.Trimming = None
         Text = 'Database'
-        TabOrder = 86
+        TabOrder = 85
       end
     end
     object SpeedButton4: TSpeedButton

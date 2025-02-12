@@ -80,10 +80,10 @@ type
     _copyToClipboard: TNotifyEvent;
     _pasteFromClipboard: TNotifyEvent;
 
-    _startRowEdit: RowEditEvent;
-    _endRowEdit: RowEditEvent;
-    _startCellEdit: StartEditEvent;
-    _endCellEdit: EndEditEvent;
+    _editRowStart: RowEditEvent;
+    _editRowEnd: RowEditEvent;
+    _editCellStart: StartEditEvent;
+    _editCellEnd: EndEditEvent;
     _cellParsing: CellParsingEvent;
     _cellCheckChanged: CellCheckChangeEvent;
 
@@ -99,8 +99,8 @@ type
     procedure StartEditCell(const Cell: IDCTreeCell; const UserValue: string = '');
     function  EndEditCell: Boolean;
 
-    function  DoStartRowEdit(const ARow: IDCTreeRow; var DataItem: CObject; IsNew: Boolean) : Boolean;
-    function  DoEndRowEdit(const ARow: IDCTreeRow): Boolean;
+    function  DoEditRowStart(const ARow: IDCTreeRow; var DataItem: CObject; IsNew: Boolean) : Boolean;
+    function  DoEditRowEnd(const ARow: IDCTreeRow): Boolean;
     function  DoCellParsing(const Cell: IDCTreeCell; var AValue: CObject): Boolean;
 
     function  DoAddingNew(out NewObject: CObject) : Boolean;
@@ -129,10 +129,10 @@ type
     function  TrySelectCheckBoxes: Boolean; virtual;
 
   published
-    property StartRowEdit: RowEditEvent read _startRowEdit write _startRowEdit;
-    property EndRowEdit: RowEditEvent read _endRowEdit write _endRowEdit;
-    property StartCellEdit: StartEditEvent read _startCellEdit write _startCellEdit;
-    property EndCellEdit: EndEditEvent read _endCellEdit write _endCellEdit;
+    property EditRowStart: RowEditEvent read _editRowStart write _editRowStart;
+    property EditRowEnd: RowEditEvent read _editRowEnd write _editRowEnd;
+    property EditCellStart: StartEditEvent read _editCellStart write _editCellStart;
+    property EditCellEnd: EndEditEvent read _editCellEnd write _editCellEnd;
     property CellParsing: CellParsingEvent read _cellParsing write _cellParsing;
     property CellCheckChanged: CellCheckChangeEvent read _cellCheckChanged write _cellCheckChanged;
 
@@ -373,7 +373,7 @@ begin
     if not CString.IsNullOrEmpty(cell.Column.PropertyName) and not _editingInfo.RowIsEditing then
     begin
       var dataItem := Cell.Row.DataItem;
-      if not DoStartRowEdit(Cell.Row as IDCTreeRow, {var} dataItem, False) then
+      if not DoEditRowStart(Cell.Row as IDCTreeRow, {var} dataItem, False) then
       begin
         if IHadFocus then
           Self.SetFocus;
@@ -562,7 +562,7 @@ begin
 
     var dataItem := Self.DataItem;
     var isNew := False;
-    if not DoStartRowEdit(Cell.Row as IDCTreeRow, {var} dataItem, isNew) then
+    if not DoEditRowStart(Cell.Row as IDCTreeRow, {var} dataItem, isNew) then
       Exit;
   end;
 
@@ -574,8 +574,8 @@ begin
   AutoObject.Guard(DCStartEditEventArgs.Create(Cell, cellValue), startEditArgs);
 
   startEditArgs.AllowEditing := True;
-  if Assigned(_startCellEdit) then
-    _startCellEdit(Self, startEditArgs);
+  if Assigned(_editCellStart) then
+    _editCellStart(Self, startEditArgs);
 
   if startEditArgs.AllowEditing then
   begin
@@ -613,7 +613,7 @@ begin
 
       else if (_view.OriginalData.Count > 0) then
       begin
-        var referenceItem := _view.OriginalData[0];
+        var referenceItem := ConvertToDataItem(_view.OriginalData[0]);
         var obj: CObject := Assembly.CreateInstanceFromObject(referenceItem);
         if obj = nil then
           raise NullReferenceException.Create(CString.Format('Failed to create instance of object {0}, implement event OnAddingNew', referenceItem.GetType));
@@ -622,9 +622,6 @@ begin
       end;
     end;
   end;
-
-  if newItem = nil then
-    Exit(False);
 
   var newDataItem: CObject;
   if ViewIsDataModelView then
@@ -637,7 +634,12 @@ begin
 
     if dataRow <> nil then
     begin
-      dataRow.Data := NewItem;
+      // dataModel can have it's own "OnAddNewRow" where the Data can be created
+      if dataRow.Data = nil then
+        dataRow.Data := NewItem;
+
+      if dataRow.Data = nil then
+        Exit(False);
 
       _view.RecalcSortedRows;
 
@@ -652,6 +654,9 @@ begin
   end
   else
   begin
+    if NewItem = nil then
+      Exit(False);
+
     var crrnt := Self.Current;
     if (crrnt = -1) or (Position = InsertPosition.After) then
       inc(crrnt);
@@ -863,20 +868,20 @@ begin
   // stop cell editing
   if _editingInfo.CellIsEditing then
   begin
-    var endRowEdit := False;
-    if Assigned(_endCellEdit) then
+    var EditRowEnd := False;
+    if Assigned(_editCellEnd) then
     begin
       var endEditArgs: DCEndEditEventArgs;
       AutoObject.Guard(DCEndEditEventArgs.Create(_cellEditor.Cell, _cellEditor.Value, _editingInfo.EditItem), endEditArgs);
       endEditArgs.EndRowEdit := False;
 
-      _endCellEdit(Self, endEditArgs);
+      _editCellEnd(Self, endEditArgs);
 
       if endEditArgs.Accept then
         _cellEditor.Value := endEditArgs.Value else
         Exit(False);
 
-      endRowEdit := endEditArgs.EndRowEdit;
+      EditRowEnd := endEditArgs.EndRowEdit;
     end;
 
     SetCellData(_cellEditor.Cell, _cellEditor.Value);
@@ -890,8 +895,8 @@ begin
     var row := _cellEditor.Cell.Row as IDCTreeRow;
     HideEditor;
 
-    if endRowEdit then
-      Exit(DoEndRowEdit(row));
+    if EditRowEnd then
+      Exit(DoEditRowEnd(row));
   end;
 
   Result := True;
@@ -909,7 +914,7 @@ begin
   end;
 
   if _editingInfo.RowIsEditing then
-    DoEndRowEdit(GetActiveCell.Row as IDCTreeRow);
+    DoEditRowEnd(GetActiveCell.Row as IDCTreeRow);
 end;
 
 procedure TEditableDataControl.FollowCheckThroughChildren(const Cell: IDCTreeCell);
@@ -1063,14 +1068,15 @@ begin
       Exit(False);
 
     // stop row editing
-    if ((NewCell = nil) or (OldCell.Row.DataIndex <> NewCell.Row.DataIndex)) and not DoEndRowEdit(OldCell.Row as IDCTreeRow) then
+    var goToNewRow := (NewCell = nil) or (OldCell.Row.DataIndex <> NewCell.Row.DataIndex);
+    if goToNewRow and not DoEditRowEnd(OldCell.Row as IDCTreeRow) then
       Exit(False);
   end;
 
   Result := inherited;
 end;
 
-function TEditableDataControl.DoStartRowEdit(const ARow: IDCTreeRow; var DataItem: CObject; IsNew: Boolean): Boolean;
+function TEditableDataControl.DoEditRowStart(const ARow: IDCTreeRow; var DataItem: CObject; IsNew: Boolean): Boolean;
 var
   rowEditArgs: DCRowEditEventArgs;
 
@@ -1079,10 +1085,10 @@ begin
     Exit(False);
 
   Result := True;
-  if Assigned(_startRowEdit) then
+  if Assigned(_editRowStart) then
   begin
     AutoObject.Guard(DCRowEditEventArgs.Create(ARow, DataItem, not IsNew),  rowEditArgs);
-    _startRowEdit(Self, rowEditArgs);
+    _editRowStart(Self, rowEditArgs);
     if rowEditArgs.Accept then
     begin
       DataItem := rowEditArgs.DataItem;
@@ -1140,19 +1146,19 @@ begin
     Result := True;
 end;
 
-function TEditableDataControl.DoEndRowEdit(const ARow: IDCTreeRow): Boolean;
+function TEditableDataControl.DoEditRowEnd(const ARow: IDCTreeRow): Boolean;
 var
   rowEditArgs: DCRowEditEventArgs;
 
 begin
   if not _editingInfo.RowIsEditing then
-    Exit(True); // already done in DoEndCellEdit
+    Exit(True); // already done in DoEditCellEnd
 
   Result := True;
-  if Assigned(_endRowEdit) then
+  if Assigned(_editRowEnd) then
   begin
     AutoObject.Guard(DCRowEditEventArgs.Create(ARow, _editingInfo.EditItem, not _editingInfo.IsNew), rowEditArgs);
-    _endRowEdit(Self, rowEditArgs);
+    _editRowEnd(Self, rowEditArgs);
     Result := rowEditArgs.Accept;
   end;
 
@@ -1189,7 +1195,7 @@ begin
     _view.EndEdit;
     _editingInfo.RowEditingFinished;
 
-    // it can be that the StartRowEdit is activated by user event that triggers this EndRowEdit
+    // it can be that the EditRowStart is activated by user event that triggers this EditRowEnd
     // therefor we have to wait a little
 //    TThread.ForceQueue(nil, procedure
 //    begin
@@ -1226,7 +1232,7 @@ begin
 
     _rowAdding(Self, args);
     NewObject := args.NewObject;
-    Result := NewObject <> nil;
+    Result := (NewObject <> nil) or args.AcceptIfNil;
   end else
     Result := True; // Continue with add new
 end;

@@ -18,7 +18,7 @@ uses
   System.Diagnostics, FMX.ListBox, System_, ADato.Controls.FMX.Tree.Intf,
   FMX.DataControl.ScrollableControl, FMX.DataControl.ScrollableRowControl,
   FMX.DataControl.Static, FMX.DataControl.Editable, FMX.DataControl.Impl,
-  FMX.DataControl.Events;
+  FMX.DataControl.Events, FMX.Objects;
 
 type
   TOpenRecordSetFrame = class(TFrame)
@@ -39,7 +39,6 @@ type
     acNextRecordSet: TAction;
     lblConnection: TLabel;
     lyDataPanel: TLayout;
-    Splitter2: TSplitter;
     cbRecordCount: TComboBox;
     Label1: TLabel;
     lblExecutionLog: TLabel;
@@ -48,6 +47,10 @@ type
     lyCellEditor: TLayout;
     lyExecutionLog: TLayout;
     acExecute: TAction;
+    Rectangle1: TRectangle;
+    Splitter1: TSplitter;
+    lblEditing: TLabel;
+    TimerIsEditing: TTimer;
     procedure acAbortExecute(Sender: TObject);
     procedure acExecuteExecute(Sender: TObject);
     procedure acNextRecordSetExecute(Sender: TObject);
@@ -56,8 +59,12 @@ type
     procedure DataEditorKeyDown(Sender: TObject; var Key: Word; var KeyChar:
         WideChar; Shift: TShiftState);
     procedure DataGridCellChanged(const Sender: TObject; e: DCCellChangedEventArgs);
+    procedure DataGridEditCellEnd(const Sender: TObject; e: DCEndEditEventArgs);
+    procedure DataGridEditRowEnd(const Sender: TObject; e: DCRowEditEventArgs);
     procedure DataGridEditStart(const Sender: TObject; e: StartEditEventArgs);
+    procedure DataGridRowDeleted(Sender: TObject);
     procedure TheQueryAfterCancel(DataSet: TDataSet);
+    procedure TimerIsEditingTimer(Sender: TObject);
 
   private
     FStopWatch: TStopWatch;
@@ -75,6 +82,9 @@ type
     procedure UpdateDialogControls(IsSqlSourceWindow: Boolean);
 
   public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+
     { Public declarations }
     procedure ExecuteQuery(OpenNextRecordSet: Boolean);
     property ConnectionName: string read get_ConnectionName write set_ConnectionName;
@@ -120,6 +130,18 @@ begin
   TThread.Queue(nil, procedure begin
     Logging.Lines.Add(AMessage);
   end);
+end;
+
+constructor TOpenRecordSetFrame.Create(AOwner: TComponent);
+begin
+  inherited;
+
+  lblEditing.Visible := False;
+end;
+
+destructor TOpenRecordSetFrame.Destroy;
+begin
+  inherited;
 end;
 
 procedure TOpenRecordSetFrame.DataEditorChangeTracking(Sender: TObject);
@@ -182,9 +204,32 @@ begin
   end;
 end;
 
+procedure TOpenRecordSetFrame.DataGridEditCellEnd(const Sender: TObject; e: DCEndEditEventArgs);
+begin
+  if not DatasetDatamodel1.Active then
+    Exit;
+
+  var s := DataGrid.SelectedColumn.Column.PropertyName;
+  if CString.IsNullOrEmpty(s) then
+    Exit;
+
+  DatasetDatamodel1.Edit;
+  DatasetDatamodel1.FieldByName(s).Value := Variant(e.Value);
+end;
+
+procedure TOpenRecordSetFrame.DataGridEditRowEnd(const Sender: TObject; e: DCRowEditEventArgs);
+begin
+  DatasetDatamodel1.Post;
+end;
+
 procedure TOpenRecordSetFrame.DataGridEditStart(const Sender: TObject; e: StartEditEventArgs);
 begin
   e.MultilineEdit := True;
+end;
+
+procedure TOpenRecordSetFrame.DataGridRowDeleted(Sender: TObject);
+begin
+//  FDBUpdater.Delete;
 end;
 
 procedure TOpenRecordSetFrame.ExecuteQuery(OpenNextRecordSet: Boolean);
@@ -277,6 +322,11 @@ end;
 procedure TOpenRecordSetFrame.TheQueryAfterCancel(DataSet: TDataSet);
 begin
   AddMessage('Canceled');
+end;
+
+procedure TOpenRecordSetFrame.TimerIsEditingTimer(Sender: TObject);
+begin
+  lblEditing.Visible := DataGrid.IsEditOrNew;
 end;
 
 procedure TOpenRecordSetFrame.UpdateDialogControls(IsSqlSourceWindow: Boolean);

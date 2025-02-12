@@ -1,5 +1,7 @@
 unit Main;
 
+{$DEFINE BASIC}
+
 interface
 
 uses
@@ -10,7 +12,12 @@ uses
   ADato.FMX.Controls.ScrollableRowControl.Impl, ADato.Controls.FMX.Tree.Impl,
   FireDAC.Stan.Intf, FireDAC.Stan.Option, FireDAC.Stan.Error, FireDAC.UI.Intf,
   FireDAC.Phys.Intf, FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async,
-  FireDAC.Phys, FireDAC.Phys.MSSQLDef, FireDAC.FMXUI.Wait,
+  FireDAC.Phys,
+  {$IFNDEF BASIC}
+  FireDAC.Phys.MSSQLDef,
+  FireDAC.Phys.MSSQL,
+  {$ENDIF}
+  FireDAC.FMXUI.Wait,
   FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf, FireDAC.DApt, FMX.Menus,
   Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client, FMX.ListBox,
   System.ImageList, FMX.ImgList, FMX.ExtCtrls,
@@ -23,9 +30,9 @@ uses
   FMX.DataControl.Static,
   FMX.DataControl.Editable,
   FMX.DataControl.Impl,
-  FMX.DataControl.Events, FireDAC.Phys.MSSQL, FireDAC.Stan.ExprFuncs,
+  FMX.DataControl.Events, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Phys.SQLiteDef, FireDAC.Phys.SQLite,
-  FireDAC.Phys.PGDef, FireDAC.Phys.PG;
+  FireDAC.Phys.PGDef, FireDAC.Phys.PG, FMX.Objects;
 
 type
   {$M+} // Load RTTI information for IDBItem interface
@@ -33,11 +40,7 @@ type
 
   TfrmInspector = class(TForm)
     ActionList1: TActionList;
-    tcColumns: TTabControl;
     Splitter1: TSplitter;
-    tbFields: TTabItem;
-    tbIndexes: TTabItem;
-    tbIndexFields: TTabItem;
     fdConnection: TFDConnection;
     fdMetaInfoQuery: TFDMetaInfoQuery;
     fdGetSourceQuery: TFDQuery;
@@ -46,7 +49,7 @@ type
     acDisconnect: TAction;
     cbConnections: TComboBox;
     Layout1: TLayout;
-    Layout2: TLayout;
+    Layout2: TRectangle;
     tcRecordSets: TTabControl;
     Splitter2: TSplitter;
     DefaultTab: TTabItem;
@@ -76,12 +79,21 @@ type
     FDPhysSQLiteDriverLink1: TFDPhysSQLiteDriverLink;
     lyTables: TLayout;
     DBTables: TDataControl;
-    DBColumns: TDataControl;
-    DBIndexes: TDataControl;
-    DBIndexColumns: TDataControl;
     fdMsSqlGetIncludeColumns: TFDQuery;
     fdMsSqlFilterExpression: TFDQuery;
     FDPhysPgDriverLink1: TFDPhysPgDriverLink;
+    Rectangle1: TRectangle;
+    Rectangle2: TRectangle;
+    tcColumns: TTabControl;
+    tbFields: TTabItem;
+    DBColumns: TDataControl;
+    tbIndexes: TTabItem;
+    DBIndexes: TDataControl;
+    tbIndexFields: TTabItem;
+    DBIndexColumns: TDataControl;
+    Rectangle3: TRectangle;
+    Rectangle4: TRectangle;
+    Rectangle5: TRectangle;
 
     procedure FormDestroy(Sender: TObject);
     procedure acAddConnectionExecute(Sender: TObject);
@@ -640,8 +652,10 @@ function TfrmInspector.GetConnectionText: string;
 begin
   if fdConnection.Connected then
   begin
+    {$IFNDEF BASIC}
     if fdConnection.Params is TFDPhysMSSQLConnectionDefParams then
       Result := (fdConnection.Params as TFDPhysMSSQLConnectionDefParams).Server + ' -> ' + GetCatalogName else
+    {$ENDIF}
       Result := GetCatalogName;
   end else
     Result := 'Not conected';

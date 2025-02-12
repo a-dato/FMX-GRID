@@ -294,6 +294,7 @@ end;
 
 procedure TDCScrollableRowControl.DoDataItemChanged(const DataItem: CObject; const DataIndex: Integer);
 begin
+  OnSelectionInfoChanged;
 //  var dataIndexActive := _view.FastPerformanceDataIndexIsActive(DataIndex);
 //
 //  var viewListindex := _view.GetViewListIndex(DataItem);

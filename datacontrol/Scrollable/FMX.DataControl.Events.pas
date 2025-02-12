@@ -149,6 +149,7 @@ type
   DCAddingNewEventArgs = class(EventArgs)
   public
     NewObject: CObject;
+    AcceptIfNil: Boolean;
   end;
 
   DCDeletingEventArgs = class(EventArgs)
