@@ -26,9 +26,10 @@ type
     _modelListItemChanged: IListItemChanged;
     procedure set_Model(const Value: IObjectListModel); override;
 
-  protected
+  public
     _editingInfo: ITreeEditingInfo;
     _cellEditor: IDCCellEditor;
+    _forceRealignAfterAdding: Boolean;
 
     _checkedItems: Dictionary<IDCTreeColumn, List<Integer>>;
 
@@ -43,10 +44,7 @@ type
 
     function  CanRealignContent: Boolean; override;
 
-    procedure StartEditCell(const Cell: IDCTreeCell);
-    function  EndEditCell: Boolean;
-
-    procedure ShowEditor(const Cell: IDCTreeCell; const StartEditArgs: DCStartEditEventArgs);
+    procedure ShowEditor(const Cell: IDCTreeCell; const StartEditArgs: DCStartEditEventArgs; const UserValue: string = '');
     procedure HideEditor;
 
     function  TryAddRow(const Position: InsertPosition): Boolean;
@@ -93,9 +91,15 @@ type
     _rowDeleting: RowDeletingEvent;
     _rowDeleted: TNotifyEvent;
 
-    procedure DoStartCellEdit(const Cell: IDCTreeCell);
+    // IDataControlEditorHandler
+    procedure OnEditorKeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+    procedure OnEditorExit;
+
+
+    procedure StartEditCell(const Cell: IDCTreeCell; const UserValue: string = '');
+    function  EndEditCell: Boolean;
+
     function  DoStartRowEdit(const ARow: IDCTreeRow; var DataItem: CObject; IsNew: Boolean) : Boolean;
-    function  DoEndCellEdit(var DoEndRowEdit: Boolean): Boolean;
     function  DoEndRowEdit(const ARow: IDCTreeRow): Boolean;
     function  DoCellParsing(const Cell: IDCTreeCell; var AValue: CObject): Boolean;
 
@@ -107,9 +111,11 @@ type
     procedure FollowCheckThroughChildren(const Cell: IDCTreeCell);
     procedure TryCheckParentIfAllSelected(const ParentDrv: IDataRowView; const ColumnCheckedItems: List<Integer>);
 
-    // IDataControlEditorHandler
-    procedure OnEditorKeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
-    procedure OnEditorExit;
+  public
+    procedure EndEditFromExternal;
+
+    procedure CancelEdit(CellOnly: Boolean = False); // canceling is difficult to only do the cell
+    function  EditActiveCell(SetFocus: Boolean): Boolean;
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -118,14 +124,9 @@ type
     function  IsNew: Boolean;
     function  IsEditOrNew: Boolean;
 
-    procedure EndEditFromExternal;
-
     function  CopyToClipBoard: Boolean; virtual;
     function  PasteFromClipBoard: Boolean; virtual;
     function  TrySelectCheckBoxes: Boolean; virtual;
-
-    procedure CancelEdit(CellOnly: Boolean = False); // canceling is difficult to only do the cell
-    function  EditActiveCell(SetFocus: Boolean): Boolean;
 
   published
     property StartRowEdit: RowEditEvent read _startRowEdit write _startRowEdit;
@@ -187,7 +188,7 @@ end;
 
 function TEditableDataControl.CanRealignContent: Boolean;
 begin
-  Result := inherited and not IsEditOrNew;
+  Result := inherited and (not IsEditOrNew or _forceRealignAfterAdding);
 end;
 
 function TEditableDataControl.CheckCanChangeRow: Boolean;
@@ -247,10 +248,13 @@ begin
   end
 
   // check cancel edit
-  else if (Key = vkEscape) and _editingInfo.CellIsEditing then
+  else if (Key = vkEscape) then
   begin
-    CancelEdit;
-    Key := 0;
+    if _editingInfo.RowIsEditing then
+    begin
+      CancelEdit;
+      Key := 0;
+    end;
   end
 
   // check insert new row
@@ -270,13 +274,19 @@ begin
   // else inherited
   else
   begin
-    inherited;
+    if Key <> 0 then
+    begin
+      if (Key in [vkUp, vkDown, vkPrior, vkEnd, vkTab]) and not CheckCanChangeRow then
+        Exit;
 
-    if Key = 0 then
-      Exit;
+      inherited;
+
+      if Key = 0 then
+        Exit;
+    end;
 
     if not (Key in [vkUp, vkDown, vkLeft, vkRight, vkPrior, vkEnd, vkHome, vkEnd, vkShift, vkControl, vkTab, vkReturn]) then
-      StartEditCell(GetActiveCell)
+      StartEditCell(GetActiveCell, KeyChar);
   end;
 end;
 
@@ -328,7 +338,7 @@ begin
     if (_model <> nil) and CObject.Equals(item, Cell.Row.DataItem) then
       _model.ObjectModelContext.UpdatePropertyBindingValues;
 
-    DoDataItemChangedInternal(item);
+//    DoDataItemChangedInternal(item);
   end;
 
   var checkChangeArgs: DCCheckChangedEventArgs;
@@ -538,7 +548,7 @@ begin
   end;
 end;
 
-procedure TEditableDataControl.StartEditCell(const Cell: IDCTreeCell);
+procedure TEditableDataControl.StartEditCell(const Cell: IDCTreeCell; const UserValue: string = '');
 begin
   // row can be in edit mode already, but cell should not be in edit mode yet
   if (Cell = nil) or Cell.Column.ReadOnly or (TDCTreeOption.ReadOnly in _options) then
@@ -556,7 +566,23 @@ begin
       Exit;
   end;
 
-  DoStartCellEdit(Cell);
+  var formatApplied: Boolean;
+  var cellValue := Cell.Column.ProvideCellData(cell, cell.Column.PropertyName);
+  DoCellFormatting(cell, True, {var} cellValue, {out} formatApplied);
+
+  var startEditArgs: DCStartEditEventArgs;
+  AutoObject.Guard(DCStartEditEventArgs.Create(Cell, cellValue), startEditArgs);
+
+  startEditArgs.AllowEditing := True;
+  if Assigned(_startCellEdit) then
+    _startCellEdit(Self, startEditArgs);
+
+  if startEditArgs.AllowEditing then
+  begin
+    _editingInfo.StartCellEdit(Cell.Row.DataIndex, FlatColumnByColumn(Cell.Column).Index);
+
+    ShowEditor(Cell, startEditArgs, UserValue);
+  end;
 end;
 
 function TEditableDataControl.TryAddRow(const Position: InsertPosition): Boolean;
@@ -597,6 +623,10 @@ begin
     end;
   end;
 
+  if newItem = nil then
+    Exit(False);
+
+  var newDataItem: CObject;
   if ViewIsDataModelView then
   begin
     var location: IDataRow := nil;
@@ -607,8 +637,7 @@ begin
 
     if dataRow <> nil then
     begin
-      if NewItem <> nil then
-        dataRow.Data := NewItem;
+      dataRow.Data := NewItem;
 
       _view.RecalcSortedRows;
 
@@ -617,10 +646,11 @@ begin
       begin
         _editingInfo.StartRowEdit(drv.Row.get_Index, drv, True);
         Current := drv.ViewIndex;
+        _view.ResetView(Current);
       end;
     end;
   end
-  else if newItem <> nil then
+  else
   begin
     var crrnt := Self.Current;
     if (crrnt = -1) or (Position = InsertPosition.After) then
@@ -635,7 +665,14 @@ begin
 
   Result := _editingInfo.IsNew;
   if Result then
-    RefreshControl;
+  begin
+    _forceRealignAfterAdding := True;
+    try
+      DoRealignContent;
+    finally
+      _forceRealignAfterAdding := False;
+    end;
+  end;
 end;
 
 procedure TEditableDataControl.TryCheckParentIfAllSelected(const ParentDrv: IDataRowView; const ColumnCheckedItems: List<Integer>);
@@ -758,8 +795,11 @@ end;
 
 procedure TEditableDataControl.CancelEdit(CellOnly: Boolean = False);
 begin
-  _editingInfo.CellEditingFinished;
-  HideEditor;
+  if _editingInfo.CellIsEditing then
+  begin
+    _editingInfo.CellEditingFinished;
+    HideEditor;
+  end;
 
   if CellOnly then
   begin
@@ -786,7 +826,7 @@ begin
   _view.EndEdit;
   _editingInfo.RowEditingFinished;
 
-  DoDataItemChanged(GetActiveRow.DataItem, GetActiveRow.DataIndex);
+  DoDataItemChangedInternal(GetActiveRow.DataItem); //, GetActiveRow.DataIndex);
 end;
 
 function TEditableDataControl.EditActiveCell(SetFocus: Boolean): Boolean;
@@ -824,11 +864,34 @@ begin
   if _editingInfo.CellIsEditing then
   begin
     var endRowEdit := False;
-    if not DoEndCellEdit({var} endRowEdit) then
-      Exit(False);
+    if Assigned(_endCellEdit) then
+    begin
+      var endEditArgs: DCEndEditEventArgs;
+      AutoObject.Guard(DCEndEditEventArgs.Create(_cellEditor.Cell, _cellEditor.Value, _editingInfo.EditItem), endEditArgs);
+      endEditArgs.EndRowEdit := False;
+
+      _endCellEdit(Self, endEditArgs);
+
+      if endEditArgs.Accept then
+        _cellEditor.Value := endEditArgs.Value else
+        Exit(False);
+
+      endRowEdit := endEditArgs.EndRowEdit;
+    end;
+
+    SetCellData(_cellEditor.Cell, _cellEditor.Value);
+
+    // KV: 24/01/2025
+    // Update the actual contents of the cell after the data in the cell has changed
+    LoadDefaultDataIntoControl(_cellEditor.Cell, _cellEditor.Cell.LayoutColumn, False);
+
+    _editingInfo.CellEditingFinished;
+
+    var row := _cellEditor.Cell.Row as IDCTreeRow;
+    HideEditor;
 
     if endRowEdit then
-      Exit(DoEndRowEdit(_cellEditor.Cell.Row as IDCTreeRow));
+      Exit(DoEndRowEdit(row));
   end;
 
   Result := True;
@@ -841,12 +904,12 @@ begin
 
   if _editingInfo.CellIsEditing then
   begin
-    var endRowEdit := False;
-    if not DoEndCellEdit({var} endRowEdit) then
+    if not EndEditCell then
       CancelEdit(True);
   end;
 
-  DoEndRowEdit(GetActiveCell.Row as IDCTreeRow);
+  if _editingInfo.RowIsEditing then
+    DoEndRowEdit(GetActiveCell.Row as IDCTreeRow);
 end;
 
 procedure TEditableDataControl.FollowCheckThroughChildren(const Cell: IDCTreeCell);
@@ -893,7 +956,7 @@ begin
   _checkedItems := CDictionary<IDCTreeColumn, List<Integer>>.Create;
 end;
 
-procedure TEditableDataControl.ShowEditor(const Cell: IDCTreeCell; const StartEditArgs: DCStartEditEventArgs);
+procedure TEditableDataControl.ShowEditor(const Cell: IDCTreeCell; const StartEditArgs: DCStartEditEventArgs; const UserValue: string = '');
 var
   pickList: IList;
   dataType: &Type;
@@ -925,21 +988,21 @@ begin
       if ViewIsDataModelView then
         dataType := GetDataModelView.DataModel.FindColumnByName(Cell.Column.PropertyName).DataType else
         dataType := GetItemType.PropertyByName(Cell.Column.PropertyName).GetType;
-    end
-    else
+    end else
       dataType := Global.StringType;
 
     if dataType.IsDateTime then
       _cellEditor := TDCCellDateTimeEditor.Create(self, Cell)
 
-    else
+    else begin
       if StartEditArgs.MultilineEdit then
-        _cellEditor := TDCTextCellMultilineEditor.Create(self, Cell)
-      else
+        _cellEditor := TDCTextCellMultilineEditor.Create(self, Cell) else
         _cellEditor := TDCTextCellEditor.Create(self, Cell);
+    end;
   end;
 
-  _cellEditor.BeginEdit(StartEditArgs.Value);
+  if not _CellEditor.TryBeginEditWithUserKey(UserValue) then
+    _cellEditor.BeginEdit(StartEditArgs.Value);
 end;
 
 procedure TEditableDataControl.HideEditor;
@@ -957,7 +1020,10 @@ end;
 
 procedure TEditableDataControl.InternalSetCurrent(const Index: Integer; const EventTrigger: TSelectionEventTrigger; Shift: TShiftState; SortOrFilterChanged: Boolean);
 begin
-  Assert(not IsEditOrNew);
+  if IsNew then
+    Exit;
+
+  Assert(not IsEdit);
 //  if IsEditOrNew then
 //    Exit;
 
@@ -1127,60 +1193,8 @@ begin
     // therefor we have to wait a little
 //    TThread.ForceQueue(nil, procedure
 //    begin
-      DoDataItemChanged(editItem, dataIndex);
+//      DoDataItemChanged(editItem, dataIndex);
 //    end);
-  end;
-end;
-
-procedure TEditableDataControl.DoStartCellEdit(const Cell: IDCTreeCell);
-begin
-  var formatApplied: Boolean;
-  var cellValue := Cell.Column.ProvideCellData(cell, cell.Column.PropertyName);
-  DoCellFormatting(cell, True, {var} cellValue, {out} formatApplied);
-
-  var startEditArgs: DCStartEditEventArgs;
-  AutoObject.Guard(DCStartEditEventArgs.Create(Cell, cellValue), startEditArgs);
-
-  startEditArgs.AllowEditing := True;
-  if Assigned(_startCellEdit) then
-    _startCellEdit(Self, startEditArgs);
-
-  if startEditArgs.AllowEditing then
-  begin
-    _editingInfo.StartCellEdit(Cell.Row.DataIndex, FlatColumnByColumn(Cell.Column).Index);
-
-    ShowEditor(Cell, startEditArgs);
-  end;
-end;
-
-function TEditableDataControl.DoEndCellEdit(var DoEndRowEdit: Boolean): Boolean;
-begin
-  Result := True;
-  if Assigned(_endCellEdit) then
-  begin
-    var endEditArgs: DCEndEditEventArgs;
-    AutoObject.Guard(DCEndEditEventArgs.Create(_cellEditor.Cell, _cellEditor.Value, _editingInfo.EditItem), endEditArgs);
-    endEditArgs.EndRowEdit := False;
-
-    _endCellEdit(Self, endEditArgs);
-
-    if endEditArgs.Accept then
-      _cellEditor.Value := endEditArgs.Value else
-      Result := False;
-
-    DoEndRowEdit := endEditArgs.EndRowEdit;
-  end;
-
-  if Result then
-  begin
-    SetCellData(_cellEditor.Cell, _cellEditor.Value);
-
-    // KV: 24/01/2025
-    // Update the actual contents of the cell after the data in the cell has changed
-    LoadDefaultDataIntoControl(_cellEditor.Cell, _cellEditor.Cell.LayoutColumn, False);
-
-    _editingInfo.CellEditingFinished;
-    HideEditor;
   end;
 end;
 
@@ -1265,7 +1279,10 @@ end;
 
 procedure TEditableDataControl.SetSingleSelectionIfNotExists;
 begin
-  Assert(not IsEditOrNew);
+  if IsNew then
+    Exit;
+
+  Assert(not IsEdit);
 
   inherited;
 end;

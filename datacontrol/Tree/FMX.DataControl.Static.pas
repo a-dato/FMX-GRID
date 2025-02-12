@@ -556,7 +556,7 @@ function TStaticDataControl.GetFlatColumnByKey(const Key: Word; Shift: TShiftSta
 
   function CanSelectLayoutColumn(const LyColumn: IDCTreeLayoutColumn): Boolean;
   begin
-    Result := (LyColumn.Width > 0) and LyColumn.Column.Selectable and _treeLayout.FlatColumns.Contains(LyColumn);
+    Result := (LyColumn.Column.CustomWidth <> 0) and LyColumn.Column.Selectable and _treeLayout.FlatColumns.Contains(LyColumn);
   end;
 
 begin
@@ -1653,7 +1653,13 @@ begin
         InternalDoSelectRow(dummyNewRow, customShift);
 
       if (ssShift in Shift) or (not (ssCtrl in Shift)) or (_selectionInfo.LastSelectionEventTrigger = TSelectionEventTrigger.Key) then
+      begin
         InternalDoSelectColumn(requestedSelection.SelectedLayoutColumn, customShift);
+
+        var row := GetActiveRow;
+        if row <> nil then // delete makes row = nil
+          VisualizeRowSelection(row);
+      end;
     end;
   finally
     _selectionInfo.EndUpdate(ignoreSelectionChanges);

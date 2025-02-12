@@ -65,6 +65,8 @@ type
 
     procedure BeginEdit(const EditValue: CObject); virtual;
     procedure EndEdit; virtual;
+
+    function TryBeginEditWithUserKey(UserKey: string): Boolean; virtual;
   end;
 
   TDCCheckBoxCellEditor = class(TDCCellEditor)
@@ -96,8 +98,11 @@ type
 
     procedure OnTextCellEditorChangeTracking(Sender: TObject);
 
+    procedure InternalBeginEdit(const EditValue: CObject);
+
   public
     procedure BeginEdit(const EditValue: CObject); override;
+    function  TryBeginEditWithUserKey(UserKey: string): Boolean; override;
   end;
 
   TDCTextCellMultilineEditor = class(TDCCellEditor)
@@ -108,8 +113,11 @@ type
     procedure set_Value(const Value: CObject); override;
 
     procedure OnTextCellEditorChangeTracking(Sender: TObject);
+
+    procedure InternalBeginEdit(const EditValue: CObject);
   public
     procedure BeginEdit(const EditValue: CObject); override;
+    function  TryBeginEditWithUserKey(UserKey: string): Boolean; override;
   end;
 
   TDCCellDateTimeEditor = class(TDCCellEditor)
@@ -249,6 +257,11 @@ end;
 
 { TDCCellEditor }
 
+function TDCCellEditor.TryBeginEditWithUserKey(UserKey: string): Boolean;
+begin
+  Result := False;
+end;
+
 constructor TDCCellEditor.Create(const EditorHandler: IDataControlEditorHandler; const Cell: IDCTreeCell);
 begin
   inherited Create;
@@ -351,15 +364,8 @@ end;
 
 procedure TDCTextCellEditor.BeginEdit(const EditValue: CObject);
 begin
-  // TODO: We say here that Owner is nil, but since we add _editor to control it means
-  // when parent control is freed _editor's lifetime is dependant on that control.
-  // So trying to free with _editor.Free fails in destroy.
-  _editor := ScrollableRowControl_DefaultEditClass.Create(nil);
-  _cell.Control.AddObject(_editor);
+  InternalBeginEdit(EditValue);
 
-  TEdit(_editor).OnChangeTracking := OnTextCellEditorChangeTracking;
-
-  inherited;
   TEdit(_editor).SelectAll;
 end;
 
@@ -368,6 +374,19 @@ begin
   if _Value <> nil then
     Result := _Value else
     Result := TEdit(_editor).Text;
+end;
+
+procedure TDCTextCellEditor.InternalBeginEdit(const EditValue: CObject);
+begin
+  // TODO: We say here that Owner is nil, but since we add _editor to control it means
+  // when parent control is freed _editor's lifetime is dependant on that control.
+  // So trying to free with _editor.Free fails in destroy.
+  _editor := ScrollableRowControl_DefaultEditClass.Create(nil);
+  _cell.Control.AddObject(_editor);
+
+  TEdit(_editor).OnChangeTracking := OnTextCellEditorChangeTracking;
+
+  inherited BeginEdit(EditValue);
 end;
 
 procedure TDCTextCellEditor.OnTextCellEditorChangeTracking(Sender: TObject);
@@ -387,6 +406,16 @@ begin
     val := _originalValue;
 
   TEdit(_editor).Text := CStringToString(val.ToString(True));
+end;
+
+function TDCTextCellEditor.TryBeginEditWithUserKey(UserKey: string): Boolean;
+begin
+  Result := UserKey <> '';
+  if Result then
+  begin
+    InternalBeginEdit(UserKey);
+    TEdit(_editor).GoToTextEnd;
+  end;
 end;
 
 { TDCCellDateTimeEditor }
@@ -617,12 +646,7 @@ end;
 
 procedure TDCTextCellMultilineEditor.BeginEdit(const EditValue: CObject);
 begin
-  _editor := ScrollableRowControl_DefaultMemoClass.Create(nil);
-  _cell.Control.AddObject(_editor);
-
-  TMemo(_editor).ShowScrollBars := false;
-  TMemo(_editor).OnChangeTracking := OnTextCellEditorChangeTracking;
-  inherited;
+  InternalBeginEdit(EditValue);
   TMemo(_editor).SelectAll;
 end;
 
@@ -632,6 +656,16 @@ begin
 
   if _Value <> nil then
     Result := _Value;
+end;
+
+procedure TDCTextCellMultilineEditor.InternalBeginEdit(const EditValue: CObject);
+begin
+  _editor := ScrollableRowControl_DefaultMemoClass.Create(nil);
+  _cell.Control.AddObject(_editor);
+
+  TMemo(_editor).ShowScrollBars := false;
+  TMemo(_editor).OnChangeTracking := OnTextCellEditorChangeTracking;
+  inherited BeginEdit(EditValue);
 end;
 
 procedure TDCTextCellMultilineEditor.OnTextCellEditorChangeTracking(Sender: TObject);
@@ -651,6 +685,16 @@ begin
     val := _originalValue;
 
   TMemo(_editor).Text := CStringToString(val.ToString(True));
+end;
+
+function TDCTextCellMultilineEditor.TryBeginEditWithUserKey(UserKey: string): Boolean;
+begin
+  Result := UserKey <> '';
+  if Result then
+  begin
+    InternalBeginEdit(UserKey);
+    TMemo(_editor).GoToTextEnd;
+  end;
 end;
 
 { TObjectListModelItemChangedDelegate }

@@ -294,17 +294,17 @@ end;
 
 procedure TDCScrollableRowControl.DoDataItemChanged(const DataItem: CObject; const DataIndex: Integer);
 begin
-  var dataIndexActive := _view.FastPerformanceDataIndexIsActive(DataIndex);
-
-  var viewListindex := _view.GetViewListIndex(DataItem);
-  if (viewListIndex = -1) and not dataIndexActive then
-    Exit;
-
-  // clear all from this point,
-  // because as well row height as cell widths can be changed
-
-  DoDataItemChangedInternal(DataItem);
-  ResetView(viewListindex, viewListindex <> -1 {only if still exists});
+//  var dataIndexActive := _view.FastPerformanceDataIndexIsActive(DataIndex);
+//
+//  var viewListindex := _view.GetViewListIndex(DataItem);
+//  if (viewListIndex = -1) and not dataIndexActive then
+//    Exit;
+//
+//  // clear all from this point,
+//  // because as well row height as cell widths can be changed
+//
+//  DoDataItemChangedInternal(DataItem);
+//  ResetView(viewListindex, viewListindex <> -1 {only if still exists});
 end;
 
 procedure TDCScrollableRowControl.DoDataItemChangedInternal(const DataItem: CObject);
@@ -314,9 +314,11 @@ begin
   // this is problematic when we want to keep the filtered out item in the view for niceness purpose
 //  var ix := _view.GetViewListIndex(DataItem);
 
+  var di := ConvertToDataItem(DataItem);
+
   var current: IDCRow := nil;
   for var row in _view.ActiveViewRows do
-    if CObject.Equals(ConvertToDataItem(row.DataItem), DataItem) then
+    if CObject.Equals(ConvertToDataItem(row.DataItem), di) then
     begin
       current := row;
 
