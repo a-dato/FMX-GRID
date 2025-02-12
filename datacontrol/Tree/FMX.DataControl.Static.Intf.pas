@@ -281,6 +281,8 @@ type
     procedure set_headerTextTopMargin(const Value: Single);
     function  get_headerTextBottomMargin: Single;
     procedure set_headerTextBottomMargin(const Value: Single);
+    function  get_AutoExtraColumnSizeMax: Single;
+    procedure set_AutoExtraColumnSizeMax(const Value: Single);
 
     procedure ColumnVisibilityChanged(const Column: IDCTreeColumn; IsUserChange: Boolean);
     procedure ColumnWidthChanged(const Column: IDCTreeColumn);
@@ -296,6 +298,7 @@ type
     property HeaderHeight: Single read get_headerHeight write set_HeaderHeight;
     property HeaderTextTopMargin: Single read get_headerTextTopMargin write set_headerTextTopMargin;
     property HeaderTextBottomMargin: Single read get_headerTextBottomMargin write set_headerTextBottomMargin;
+    property AutoExtraColumnSizeMax: Single read get_AutoExtraColumnSizeMax write set_AutoExtraColumnSizeMax;
   end;
 
   ITreeSortDescription = interface

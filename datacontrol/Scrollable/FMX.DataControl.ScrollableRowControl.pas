@@ -294,17 +294,17 @@ end;
 
 procedure TDCScrollableRowControl.DoDataItemChanged(const DataItem: CObject; const DataIndex: Integer);
 begin
-  var dataIndexActive := _view.FastPerformanceDataIndexIsActive(DataIndex);
-
-  var viewListindex := _view.GetViewListIndex(DataItem);
-  if (viewListIndex = -1) and not dataIndexActive then
-    Exit;
-
-  // clear all from this point,
-  // because as well row height as cell widths can be changed
-
-  DoDataItemChangedInternal(DataItem);
-  ResetView(viewListindex, viewListindex <> -1 {only if still exists});
+//  var dataIndexActive := _view.FastPerformanceDataIndexIsActive(DataIndex);
+//
+//  var viewListindex := _view.GetViewListIndex(DataItem);
+//  if (viewListIndex = -1) and not dataIndexActive then
+//    Exit;
+//
+//  // clear all from this point,
+//  // because as well row height as cell widths can be changed
+//
+//  DoDataItemChangedInternal(DataItem);
+//  ResetView(viewListindex, viewListindex <> -1 {only if still exists});
 end;
 
 procedure TDCScrollableRowControl.DoDataItemChangedInternal(const DataItem: CObject);
@@ -314,9 +314,11 @@ begin
   // this is problematic when we want to keep the filtered out item in the view for niceness purpose
 //  var ix := _view.GetViewListIndex(DataItem);
 
+  var di := ConvertToDataItem(DataItem);
+
   var current: IDCRow := nil;
   for var row in _view.ActiveViewRows do
-    if CObject.Equals(ConvertToDataItem(row.DataItem), DataItem) then
+    if CObject.Equals(ConvertToDataItem(row.DataItem), di) then
     begin
       current := row;
 
@@ -383,6 +385,7 @@ begin
     _rowHeightSynchronizer._waitForRepaintInfo := nil;
     _rowHeightSynchronizer._realignContentRequested := False;
     _rowHeightSynchronizer._scrollingType := _scrollingType;
+    inc(_rowHeightSynchronizer._threadIndex);
   end;
 
   inherited;
@@ -1296,6 +1299,8 @@ begin
 
   var rowNeedsReload := Row.IsScrollingIntoView or not rowInfo.InnerCellsAreApplied or (rowInfo.ControlNeedsResize and (_scrollingType <> TScrollingType.WithScrollBar));
 
+  Row.OwnerIsScrolling := _scrollingType <> TScrollingType.None;
+
   if rowNeedsReload then
   begin
     InnerInitRow(Row);
@@ -1303,8 +1308,6 @@ begin
   end;
 
   CreateAndSynchronizeSynchronizerRow(Row);
-
-  Row.OwnerIsScrolling := _scrollingType <> TScrollingType.None;
 
   var rowHeightChanged := not SameValue(oldRowHeight, Row.Control.Height);
   if rowHeightChanged and (_scrollingType = TScrollingType.WithScrollBar) then
@@ -1354,7 +1357,7 @@ begin
     Exit;
 
   _hoverRect.Position.Y := row.Control.Position.Y;
-  _hoverRect.Position.X := 0;
+  _hoverRect.Position.X := row.Control.Position.X;
   _hoverRect.Height := row.Height;
   _hoverRect.Width := row.Control.Width;
   _hoverRect.BringToFront;

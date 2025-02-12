@@ -154,8 +154,8 @@ begin
 
   Result.HitTest := True;
   Result.Fill.Color := DEFAULT_HEADER_BACKGROUND;
-  Result.Stroke.Color := DEFAULT_HEADER_STROKE;
-  Result.Sides := [TSide.Bottom];
+  Result.Stroke.Color := TAlphaColors.Null;
+  Result.Sides := [];
 end;
 
 function TDataControlClassFactory.CreateHeaderCellRect(const Owner: TComponent): TRectangle;
@@ -165,6 +165,7 @@ begin
   Result.Fill.Kind := TBrushKind.None;
   Result.Fill.Color := TAlphaColors.Null;
   Result.Stroke.Color := DEFAULT_HEADER_STROKE;
+  Result.Sides := [TSide.Bottom];
 end;
 
 function TDataControlClassFactory.CreateRowCellRect(const Owner: TComponent): TRectangle;
