@@ -39,13 +39,9 @@ type
     function  GetWriteToStdOut: Boolean;
     procedure SetWriteToStdOut(const Value: Boolean);
 
-    function  StartGroup(const AGroup: string; PerThreadLogging: Boolean = False) : Boolean;
+    function  StartGroup(const AGroup: string; FormatMessages: Boolean; PerThreadLogging: Boolean = False) : Boolean;
     function  StopGroup(const AGroup: string) : Boolean;
-
-    function  BeginTrace(const AGroup: string; const AFilename: string) : Boolean;
-    procedure TraceToFile(const AMessage: string); overload;
-    procedure TraceToFile(const Func: TFunc<string>); overload;
-    procedure EndTrace(const AFilename: string);
+    procedure EndGroupFile(const AGroup: string; const DeleteFile: Boolean = False);
 
     procedure TraceMessage(const Group: string; const AMessage: string; const Level: TLevel = TLevel.Normal); overload;
     procedure TraceMessage(const Group: string; const Func: TFunc<string>; const Level: TLevel = TLevel.Normal); overload;
@@ -92,13 +88,9 @@ type
     function  GetWriteToStdOut: Boolean;
     procedure SetWriteToStdOut(const Value: Boolean);
 
-    function  StartGroup(const AGroup: string; PerThreadLogging: Boolean = False) : Boolean; virtual;
+    function  StartGroup(const AGroup: string; FormatMessages: Boolean; PerThreadLogging: Boolean = False) : Boolean; virtual;
     function  StopGroup(const AGroup: string) : Boolean; virtual;
-
-    function  BeginTrace(const AGroup: string; const AFilename: string) : Boolean; virtual;
-    procedure TraceToFile(const AMessage: string); overload; virtual;
-    procedure TraceToFile(const Func: TFunc<string>); overload; virtual;
-    procedure EndTrace(const AGroup: string); virtual;
+    procedure EndGroupFile(const AGroup: string; const DeleteFile: Boolean = False); virtual;
 
     procedure TraceMessage(const Group: string; const AMessage: string; const Level: TLevel); overload;
     procedure TraceMessage(const Group: string; const Func: TFunc<string>; const Level: TLevel = TLevel.Normal); overload;
@@ -125,16 +117,6 @@ uses
 function PointerToString(P: Pointer) : string;
 begin
   Result := string.Format('$%p', [P]);
-end;
-
-function TEmptyEventTracer.BeginTrace(const AGroup, AFilename: string): Boolean;
-begin
-  Result := False;
-end;
-
-procedure TEmptyEventTracer.EndTrace(const AGroup: string);
-begin
-
 end;
 
 { TEmptyEventTracer }
@@ -243,16 +225,6 @@ begin
     TraceMessageInternal(Group, AMessage, Level);
 end;
 
-procedure TEmptyEventTracer.TraceToFile(const AMessage: string);
-begin
-
-end;
-
-procedure TEmptyEventTracer.TraceToFile(const Func: TFunc<string>);
-begin
-
-end;
-
 procedure TEmptyEventTracer.TraceMessage(const Group: string; const Func: TFunc<string>; const Level: TLevel);
 begin
   if IsActive(Group, Level) then
@@ -271,7 +243,7 @@ begin
 
 end;
 
-function TEmptyEventTracer.StartGroup(const AGroup: string; PerThreadLogging: Boolean): Boolean;
+function TEmptyEventTracer.StartGroup(const AGroup: string; FormatMessages: Boolean; PerThreadLogging: Boolean = False): Boolean;
 begin
   Result := False;
 end;
@@ -284,6 +256,11 @@ end;
 function TEmptyEventTracer.StopGroup(const AGroup: string): Boolean;
 begin
   Result := False;
+end;
+
+procedure TEmptyEventTracer.EndGroupFile(const AGroup: string; const DeleteFile: Boolean = False);
+begin
+
 end;
 
 procedure TEmptyEventTracer.StopTimer(const Group: string; const TimerID: string);
