@@ -2672,12 +2672,6 @@ begin
     _fontDpi := PPI;
   end;
 
-  {$IFDEF DEBUG}
-  if _font.Size = 4 then
-    Result := _font
-  else
-  {$ENDIF}
-
   Result := _font;
 end;
 
