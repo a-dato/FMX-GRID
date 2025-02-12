@@ -32,7 +32,8 @@ uses
   FMX.DataControl.Impl,
   FMX.DataControl.Events, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Phys.SQLiteDef, FireDAC.Phys.SQLite,
-  FireDAC.Phys.PGDef, FireDAC.Phys.PG, FMX.Objects;
+  FireDAC.Phys.PGDef, FireDAC.Phys.PG, FMX.Objects, FireDAC.Phys.MSSQL,
+  FireDAC.Phys.MSSQLDef;
 
 type
   {$M+} // Load RTTI information for IDBItem interface

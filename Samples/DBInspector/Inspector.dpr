@@ -1,7 +1,10 @@
 program Inspector;
 
 uses
-  System.StartUpCopy,
+   madExcept,
+  madLinkDisAsm,
+  madListModules,
+ System.StartUpCopy,
   FMX.Forms,
   Main in 'Main.pas' {frmInspector},
   Login in 'Login.pas' {frmLogin},

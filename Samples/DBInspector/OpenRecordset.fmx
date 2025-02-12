@@ -15,7 +15,7 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
       Size.Width = 856.000000000000000000
       Size.Height = 50.000000000000000000
       Size.PlatformDefault = False
-      TabOrder = 11
+      TabOrder = 9
       object Logging: TMemo
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
         DataDetectorTypes = []
@@ -58,7 +58,7 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
       Size.Width = 856.000000000000000000
       Size.Height = 379.000000000000000000
       Size.PlatformDefault = False
-      TabOrder = 9
+      TabOrder = 8
       object DataGrid: TDataControl
         Align = Client
         HitTest = True
@@ -235,6 +235,12 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
       Viewport.Height = 76.000000000000000000
     end
   end
+  object TimerIsEditing: TTimer
+    Interval = 250
+    OnTimer = TimerIsEditingTimer
+    Left = 416
+    Top = 256
+  end
   object fdConnection: TFDConnection
     Left = 88
     Top = 136
@@ -283,11 +289,5 @@ object OpenRecordSetFrame: TOpenRecordSetFrame
     Left = 376
     Top = 137
     DataModel = '<DataModel><Columns/></DataModel>'#13#10
-  end
-  object TimerIsEditing: TTimer
-    Interval = 250
-    OnTimer = TimerIsEditingTimer
-    Left = 416
-    Top = 256
   end
 end

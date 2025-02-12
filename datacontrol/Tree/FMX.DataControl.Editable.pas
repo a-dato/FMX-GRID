@@ -600,13 +600,13 @@ begin
   if not DoAddingNew({out} newItem) then
     Exit(False);
 
-  if (newItem = nil) then
+  if newItem = nil then
   begin
     var addIntf: IAddingNewSupport;
     if Interfaces.Supports<IAddingNewSupport>(_dataList, addIntf) then
       addIntf.AddingNew(nil, NewItem);
 
-    if (NewItem = nil) then
+    if not ViewIsDataModelView and (NewItem = nil) then
     begin
       if ListHoldsOrdinalType then
         NewItem := ''
@@ -635,11 +635,8 @@ begin
     if dataRow <> nil then
     begin
       // dataModel can have it's own "OnAddNewRow" where the Data can be created
-      if dataRow.Data = nil then
+      if NewItem <> nil then
         dataRow.Data := NewItem;
-
-      if dataRow.Data = nil then
-        Exit(False);
 
       _view.RecalcSortedRows;
 
