@@ -1,7 +1,5 @@
 unit Main;
 
-{$DEFINE BASIC}
-
 interface
 
 uses
@@ -32,8 +30,8 @@ uses
   FMX.DataControl.Impl,
   FMX.DataControl.Events, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Phys.SQLiteDef, FireDAC.Phys.SQLite,
-  FireDAC.Phys.PGDef, FireDAC.Phys.PG, FMX.Objects, FireDAC.Phys.MSSQL,
-  FireDAC.Phys.MSSQLDef;
+  FireDAC.Phys.PGDef, FireDAC.Phys.PG, FMX.Objects, FMX.Memo.Types,
+  FMX.ScrollBox, FMX.Memo;
 
 type
   {$M+} // Load RTTI information for IDBItem interface
@@ -227,7 +225,7 @@ implementation
 
 uses Login, FireDAC.VCLUI.ConnEdit, System.Rtti, System.Math, CopyData,
   FMX.Clipboard, FMX.Platform, FMX.Platform.Win, Winapi.Windows,
-  Winapi.Messages, FMX.Memo, System.Collections, FMX.DialogService;
+  Winapi.Messages, System.Collections, FMX.DialogService;
 
 procedure TfrmInspector.FormDestroy(Sender: TObject);
 begin

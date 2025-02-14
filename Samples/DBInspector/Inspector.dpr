@@ -1,9 +1,6 @@
 program Inspector;
 
 uses
-   madExcept,
-  madLinkDisAsm,
-  madListModules,
  System.StartUpCopy,
   FMX.Forms,
   Main in 'Main.pas' {frmInspector},

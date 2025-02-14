@@ -195,6 +195,7 @@ type
 
     constructor Create( const ACell: IDCTreeCell;
                         const AValue: CObject;
+                        const AEditor: TControl;
                         const AEditItem: CObject);
 
     property Cell: IDCTreeCell read _cell;
@@ -359,11 +360,13 @@ end;
 
 { DCEndEditEventArgs }
 
-constructor DCEndEditEventArgs.Create(const ACell: IDCTreeCell; const AValue, AEditItem: CObject);
+constructor DCEndEditEventArgs.Create(const ACell: IDCTreeCell; const AValue: CObject; const AEditor: TControl; const AEditItem: CObject);
 begin
   inherited Create(ACell);
 
   Value := AValue;
+  Editor := AEditor;
+
   _EditItem := AEditItem;
   Accept := True;
 end;

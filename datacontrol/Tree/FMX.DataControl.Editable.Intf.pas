@@ -46,7 +46,7 @@ type
     function  get_Value: CObject;
     procedure set_Value(const Value: CObject);
     function  get_OriginalValue: CObject;
-    function  get_editor: TStyledControl;
+    function  get_editor: TControl;
 
     procedure BeginEdit(const EditValue: CObject);
     procedure EndEdit;
@@ -59,7 +59,7 @@ type
     property Modified: Boolean read get_Modified;
     property Value: CObject read get_Value write set_Value;
     property OriginalValue: CObject read get_OriginalValue;
-    property Editor: TStyledControl read get_editor;
+    property Editor: TControl read get_editor;
   end;
 
   IPickListSupport = interface

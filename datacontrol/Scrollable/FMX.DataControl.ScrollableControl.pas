@@ -38,11 +38,10 @@ type
     _additionalTimerTime: Integer;
     _timerDoRealignWhenScrollingStopped: Boolean;
 
-    procedure DoViewPortPositionChanged;
-
 //    function GetNamePath: string; override;
 
   protected
+    procedure DoViewPortPositionChanged; virtual;
     procedure OnHorzScrollBarChange(Sender: TObject); virtual;
     procedure OnScrollBarChange(Sender: TObject);
 
@@ -608,6 +607,8 @@ end;
 
 procedure TDCScrollableControl.OnHorzScrollBarChange(Sender: TObject);
 begin
+  DoViewPortPositionChanged;
+
   if _scrollUpdateCount <> 0 then
     Exit;
 

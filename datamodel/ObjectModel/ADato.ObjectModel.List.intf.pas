@@ -91,6 +91,42 @@ type
     property ObjectModelContext: IObjectModelContext read get_ObjectModelContext write set_ObjectModelContext;
   end;
 
+  IObjectModelMultiSelect = interface(IBaseInterface)
+    ['{967FE37F-0910-4874-AD6A-4CF54F6AEE10}']
+    function  get_Context: List<CObject>;
+    procedure set_Context(const Value: List<CObject>);
+    function  get_IsActive: Boolean;
+    procedure set_IsActive(const Value: Boolean);
+
+    function  IsSelected(const Item: CObject): Boolean;
+    procedure AddToMultiSelection(const Item: CObject);
+
+    property  Context: List<CObject> read get_Context write set_Context;
+    property  IsActive: Boolean read get_IsActive write set_IsActive;
+  end;
+
+  TObjectModelMultiSelect = class(TBaseInterfacedObject, IObjectModelMultiSelect)
+  private
+    [unsafe] _objectModelContext: IObjectModelContext;
+
+    _Context: List<CObject>;
+    _isActive: Boolean;
+
+    function  get_Context: List<CObject>;
+    procedure set_Context(const Value: List<CObject>);
+    function  get_IsActive: Boolean;
+    procedure set_IsActive(const Value: Boolean);
+
+  public
+    constructor Create(const ObjectModelContext: IObjectModelContext);
+
+    function  IsSelected(const Item: CObject): Boolean;
+    procedure AddToMultiSelection(const Item: CObject);
+
+    property  Context: List<CObject> read get_Context write set_Context;
+    property  IsActive: Boolean read get_IsActive write set_IsActive;
+  end;
+
   IObjectListModel = interface(IBaseInterface)
     ['{A70DAED8-8BAE-4287-80AF-2559CC522561}']
     {$IFDEF DELPHI}
@@ -105,17 +141,15 @@ type
     function  get_ObjectModel: IObjectModel;
     procedure set_ObjectModel(const Value: IObjectModel);
 
-//    function  get_ObjectModelContextSupport: IObjectModelContextSupport;
     function  get_ObjectModelContext: IObjectModelContext;
-//    procedure set_ObjectModelContext(const Value: IObjectModelContext);
-    function  get_MultiSelectionContext: List<CObject>;
-    procedure set_MultiSelectionContext(const Value: List<CObject>);
+    function  get_MultiSelect: IObjectModelMultiSelect;
 
     function  ContextCanChange: Boolean;
     procedure ResetModelProperties;
     function  CreateObjectModelContext : IObjectModelContext;
 
     function ListHoldsObjectType: Boolean;
+
     property Context: IList read get_Context write set_Context;
     property ObjectContext: CObject read get_ObjectContext write set_ObjectContext;
     property ObjectModelContext: IObjectModelContext read get_ObjectModelContext; // write set_ObjectModelContext;
@@ -131,7 +165,7 @@ type
     event OnContextChanged: ListContextChangedEventHandler;
     {$ENDIF}
     property ObjectModel: IObjectModel read get_ObjectModel write set_ObjectModel;
-    property MultiSelectionContext: List<CObject> read get_MultiSelectionContext write set_MultiSelectionContext;
+    property MultiSelect: IObjectModelMultiSelect read get_MultiSelect;
   end;
 
   TValidatePosition = reference to function (
@@ -238,5 +272,65 @@ begin
   inherited Remove(TMethod(Value));
 end;
 {$ENDIF}
+
+{ TObjectModelMultiSelect }
+
+constructor TObjectModelMultiSelect.Create(const ObjectModelContext: IObjectModelContext);
+begin
+  inherited Create;
+  _objectModelContext := ObjectModelContext;
+end;
+
+procedure TObjectModelMultiSelect.AddToMultiSelection(const Item: CObject);
+begin
+  Assert(_isActive);
+
+  if not IsSelected(Item) then
+    get_Context.Add(Item);
+end;
+
+function TObjectModelMultiSelect.get_IsActive: Boolean;
+begin
+  Result := _isActive
+end;
+
+function TObjectModelMultiSelect.get_Context: List<CObject>;
+begin
+  Result := _Context;
+end;
+
+function TObjectModelMultiSelect.IsSelected(const Item: CObject): Boolean;
+begin
+  Result := CObject.Equals(_objectModelContext.Context, Item);
+  if not Result and _isActive and (get_Context <> nil) then
+    Result := get_Context.Contains(Item);
+end;
+
+procedure TObjectModelMultiSelect.set_IsActive(const Value: Boolean);
+begin
+  if _isActive = Value then
+    Exit;
+
+  _isActive := Value;
+
+  if _isActive then
+  begin
+    if (_Context = nil) then
+      _Context := CList<CObject>.Create;
+
+    var obj := _objectModelContext.Context;
+    if (obj <> nil) and not _Context.Contains(obj) then
+      _Context.Add(obj);
+  end;
+end;
+
+procedure TObjectModelMultiSelect.set_Context(const Value: List<CObject>);
+begin
+  if _Context = Value then
+    Exit;
+
+  _Context := Value;
+  _isActive := _context <> nil;
+end;
 
 end.

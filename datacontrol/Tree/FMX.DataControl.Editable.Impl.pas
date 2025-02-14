@@ -43,7 +43,7 @@ type
     _editorHandler: IDataControlEditorHandler;
 
     _cell: IDCTreeCell;
-    _editor: TStyledControl;
+    _editor: TControl;
     _originalValue: CObject;
 
     function  get_Cell: IDCTreeCell;
@@ -52,7 +52,7 @@ type
     function  get_Value: CObject; virtual; abstract;
     procedure set_Value(const Value: CObject); virtual; abstract;
     function  get_OriginalValue: CObject;
-    function  get_Editor: TStyledControl;
+    function  get_Editor: TControl;
 
     function  ParseValue(var AValue: CObject): Boolean;
 
@@ -69,6 +69,16 @@ type
     function TryBeginEditWithUserKey(UserKey: string): Boolean; virtual;
   end;
 
+  TDCCustomCellEditor = class(TDCCellEditor)
+  protected
+    _val: CObject;
+
+    function  get_Value: CObject; override;
+    procedure set_Value(const Value: CObject); override;
+  public
+    constructor Create(const EditorHandler: IDataControlEditorHandler; const Cell: IDCTreeCell; const Editor: TControl); reintroduce;
+  end;
+
   TDCCheckBoxCellEditor = class(TDCCellEditor)
   protected
     _Value: CObject;
@@ -82,7 +92,6 @@ type
     procedure OnCheckBoxCellEditorChangeTracking(Sender: TObject);
     procedure OnEditorKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
   public
-    constructor Create(const EditorHandler: IDataControlEditorHandler; const Cell: IDCTreeCell); reintroduce;
     destructor Destroy; override;
 
     procedure BeginEdit(const EditValue: CObject); override;
@@ -319,7 +328,7 @@ begin
   Result := False;
 end;
 
-function TDCCellEditor.get_Editor: TStyledControl;
+function TDCCellEditor.get_Editor: TControl;
 begin
   Result := _editor;
 end;
@@ -783,13 +792,6 @@ begin
 //  set_Value((_cell.InfoControl as TCheckBox).IsChecked);
 end;
 
-constructor TDCCheckBoxCellEditor.Create(const EditorHandler: IDataControlEditorHandler; const Cell: IDCTreeCell);
-begin
-  inherited;
-
-//  _standAloneCheckbox := not Cell.Column.IsSelectionColumn and CString.IsNullOrEmpty(Cell.Column.PropertyName);
-end;
-
 destructor TDCCheckBoxCellEditor.Destroy;
 begin
 //  if _standAloneCheckbox then
@@ -828,6 +830,24 @@ end;
 procedure TDCCheckBoxCellEditor.set_Value(const Value: CObject);
 begin
   (_editor as TCheckBox).IsChecked := (Value <> nil) and Value.AsType<Boolean>;
+end;
+
+{ TDCCustomCellEditor }
+
+constructor TDCCustomCellEditor.Create(const EditorHandler: IDataControlEditorHandler; const Cell: IDCTreeCell; const Editor: TControl);
+begin
+  inherited Create(EditorHandler, Cell);
+  _editor := Editor;
+end;
+
+function TDCCustomCellEditor.get_Value: CObject;
+begin
+  Result := _val;
+end;
+
+procedure TDCCustomCellEditor.set_Value(const Value: CObject);
+begin
+  _val := Value;
 end;
 
 end.

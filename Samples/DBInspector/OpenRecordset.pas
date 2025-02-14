@@ -44,25 +44,26 @@ type
     lblExecutionLog: TLabel;
     lblCellEditor: TLabel;
     DataGrid: TDataControl;
-    lyCellEditor: TLayout;
     lyExecutionLog: TLayout;
     acExecute: TAction;
     Rectangle1: TRectangle;
     Splitter1: TSplitter;
     lblEditing: TLabel;
     TimerIsEditing: TTimer;
+    Rectangle2: TRectangle;
+    Rectangle3: TRectangle;
+    btnCopy: TButton;
     procedure acAbortExecute(Sender: TObject);
     procedure acExecuteExecute(Sender: TObject);
     procedure acNextRecordSetExecute(Sender: TObject);
     procedure ActionList1Update(Action: TBasicAction; var Handled: Boolean);
-    procedure DataEditorChangeTracking(Sender: TObject);
-    procedure DataEditorKeyDown(Sender: TObject; var Key: Word; var KeyChar:
-        WideChar; Shift: TShiftState);
-    procedure DataGridCellChanged(const Sender: TObject; e: DCCellChangedEventArgs);
+    procedure btnCopyClick(Sender: TObject);
+    procedure DataGridCellSelected(const Sender: TObject; e:
+        DCCellSelectedEventArgs);
     procedure DataGridEditCellEnd(const Sender: TObject; e: DCEndEditEventArgs);
+    procedure DataGridEditCellStart(const Sender: TObject; e: DCStartEditEventArgs);
     procedure DataGridEditRowEnd(const Sender: TObject; e: DCRowEditEventArgs);
     procedure DataGridEditStart(const Sender: TObject; e: StartEditEventArgs);
-    procedure DataGridRowDeleted(Sender: TObject);
     procedure TheQueryAfterCancel(DataSet: TDataSet);
     procedure TimerIsEditingTimer(Sender: TObject);
 
@@ -95,7 +96,8 @@ type
 implementation
 
 uses
-  System.TypInfo, ADato.Data.DataModel.intf, System.Collections;
+  System.TypInfo, ADato.Data.DataModel.intf, System.Collections, FMX.Platform,
+  LynxX.Controls.Editors;
 
 {$R *.fmx}
 
@@ -118,7 +120,9 @@ procedure TOpenRecordSetFrame.ActionList1Update(Action: TBasicAction; var
     Handled: Boolean);
 begin
   Handled := True;
+
   lblCellEditor.Visible := not DataEditor.IsFocused;
+  btnCopy.Visible := (DataEditor.Text <> string.Empty) and DataEditor.IsFocused;
   lblExecutionLog.Visible := not Logging.IsFocused;
 
   acExecute.Enabled := not (TheQuery.Command.State in [csExecuting, csFetching]);
@@ -144,68 +148,37 @@ begin
   inherited;
 end;
 
-procedure TOpenRecordSetFrame.DataEditorChangeTracking(Sender: TObject);
+procedure TOpenRecordSetFrame.btnCopyClick(Sender: TObject);
+var
+  ClipboardService: IFMXClipboardService;
 begin
-//  DataGrid.BeginEdit;
-//  DataGrid.EditActiveCell(False);
-//  DataGrid.Editor.Value := DataEditor.Lines.Text;
+  if TPlatformServices.Current.SupportsPlatformService(IFMXClipboardService, ClipboardService) then
+    ClipboardService.SetClipboard(DataEditor.Text)
 end;
 
-procedure TOpenRecordSetFrame.DataEditorKeyDown(Sender: TObject; var Key: Word;
-    var KeyChar: WideChar; Shift: TShiftState);
-
-begin
-//  if Key = vkReturn then
-//  begin
-//    DataGrid.EndEdit(True);
-//    Key := 0;
-//  end;
-//
-//  if Key = vkEscape then
-//  begin
-//    DataGrid.CancelEdit;
-//    Key := 0;
-//  end;
-end;
-
-procedure TOpenRecordSetFrame.DataGridCellChanged(const Sender: TObject; e: DCCellChangedEventArgs);
+procedure TOpenRecordSetFrame.DataGridCellSelected(const Sender: TObject; e: DCCellSelectedEventArgs);
 begin
   var s: string := '';
 
-  DataEditor.OnChangeTracking := nil;
-  try
-    if e.NewCell <> nil then
+  if e.Cell <> nil then
+  begin
+    var p := e.Cell.Column.PropertyName;
+    if not CString.IsNullOrEmpty(p) then
     begin
-      var p := e.NewCell.Column.PropertyName;
-      if not CString.IsNullOrEmpty(p) then
-      begin
-        var f := DatasetDataModel1.FieldByName(p);
-        if f <> nil then
-        begin
-          s := f.AsString;
-
-          if f.CanModify then
-          begin
-            lblCellEditor.Text := 'Cell editor';
-            DataEditor.ReadOnly := False;
-          end
-          else
-          begin
-            lblCellEditor.Text := 'Cell editor (read only)';
-            DataEditor.ReadOnly := True;
-          end;
-        end;
-      end;
+      var f := DatasetDataModel1.FieldByName(p);
+      if f <> nil then
+        s := f.AsString;
     end;
-
-    DataEditor.Lines.Text := s;
-  finally
-    DataEditor.OnChangeTracking := DataEditorChangeTracking;
   end;
+
+  DataEditor.Text := s;
 end;
 
 procedure TOpenRecordSetFrame.DataGridEditCellEnd(const Sender: TObject; e: DCEndEditEventArgs);
 begin
+  if (e.Editor <> nil) and (e.Editor is TAdatoDateTimeEdit) then
+    e.Value := (e.Editor as TAdatoDateTimeEdit).DateTime;
+
   if not DatasetDatamodel1.Active then
     Exit;
 
@@ -217,6 +190,33 @@ begin
   DatasetDatamodel1.FieldByName(s).Value := Variant(e.Value);
 end;
 
+procedure TOpenRecordSetFrame.DataGridEditCellStart(const Sender: TObject; e: DCStartEditEventArgs);
+begin
+  var s := e.Cell.Column.PropertyName;
+  if CString.IsNullOrEmpty(s) then
+    Exit;
+
+  var field := DatasetDatamodel1.FieldByName(s);
+  if field.DataType in [TFieldType.ftDate, TFieldType.ftDateTime] then
+  begin
+    var dateTimeEditor := TAdatoDateTimeEdit.Create(e.Cell.Control);
+
+    if field.DataType = TFieldType.ftDate then
+    begin
+      dateTimeEditor.Kind := TDateTimeEditKind.Date;
+      e.MinEditorWidth := 150;
+    end
+    else
+    begin
+      dateTimeEditor.Kind := TDateTimeEditKind.DateTime;
+      e.MinEditorWidth := 200;
+    end;
+
+    dateTimeEditor.DateTime := e.Value.AsType<CDateTime>;
+    e.Editor := dateTimeEditor;
+  end;
+end;
+
 procedure TOpenRecordSetFrame.DataGridEditRowEnd(const Sender: TObject; e: DCRowEditEventArgs);
 begin
   DatasetDatamodel1.Post;
@@ -225,11 +225,6 @@ end;
 procedure TOpenRecordSetFrame.DataGridEditStart(const Sender: TObject; e: StartEditEventArgs);
 begin
   e.MultilineEdit := True;
-end;
-
-procedure TOpenRecordSetFrame.DataGridRowDeleted(Sender: TObject);
-begin
-//  FDBUpdater.Delete;
 end;
 
 procedure TOpenRecordSetFrame.ExecuteQuery(OpenNextRecordSet: Boolean);

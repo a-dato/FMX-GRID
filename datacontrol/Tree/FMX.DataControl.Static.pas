@@ -128,6 +128,8 @@ type
     procedure set_AutoExtraColumnSizeMax(const Value: Single);
 
   protected
+    procedure FastColumnAlignAfterColumnChange;
+
     function  DoCreateNewRow: IDCRow; override;
     procedure BeforeRealignContent; override;
     procedure AfterRealignContent; override;
@@ -164,6 +166,7 @@ type
 
     procedure UpdatePositionAndWidthCells;
     procedure LoadDefaultDataIntoControl(const Cell: IDCTreeCell; const FlatColumn: IDCTreeLayoutColumn; const IsSubProp: Boolean); virtual;
+    function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; const IsSubProp: Boolean): CObject; virtual;
 
     procedure UpdateScrollAndSelectionByKey(var Key: Word; Shift: TShiftState); override;
     procedure SetBasicHorzScrollBarValues; override;
@@ -277,6 +280,11 @@ begin
   for var clmn in _treeLayout.FlatColumns do
     if not currentClmns.Contains(clmn) then
       RefreshColumn(clmn.Column);
+end;
+
+function TStaticDataControl.ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; const IsSubProp: Boolean): CObject;
+begin
+  Result := Cell.Column.ProvideCellData(cell, propName, IsSubProp);
 end;
 
 procedure TStaticDataControl.RealignFinished;
@@ -945,8 +953,7 @@ begin
       if flatColumn.Column.IsCustomColumn then
         _columns.Remove(flatColumn.Column);
 
-      _treeLayout.ForceRecalc;
-      AfterRealignContent;
+      FastColumnAlignAfterColumnChange;
     end;
 
     TfrmFMXPopupMenuDataControl.TPopupResult.ptClearFilter:
@@ -979,6 +986,14 @@ begin
         cell.LayoutColumn.UpdateCellControlsByRow(cell);
     end;
   end;
+end;
+
+procedure TStaticDataControl.FastColumnAlignAfterColumnChange;
+begin
+  _treeLayout.ForceRecalc;
+
+  AfterRealignContent;
+  RealignFinished;
 end;
 
 //procedure TStaticDataControl.OnSelectionCheckBoxChange(Sender: TObject);
@@ -1201,6 +1216,7 @@ begin
 
   _treeLayout.ForceRecalc;
   AfterRealignContent;
+  RealignFinished;
 end;
 
 function TStaticDataControl.Content: TControl;
@@ -1830,7 +1846,7 @@ begin
     Exit;
 
   var formatApplied: Boolean;
-  var cellValue := FlatColumn.Column.ProvideCellData(cell, propName, IsSubProp);
+  var cellValue := ProvideCellData(cell, propName, IsSubProp);
   DoCellFormatting(cell, False, {var} cellValue, {out} formatApplied);
 
   var formattedValue := FlatColumn.Column.GetDefaultCellData(cell, cellValue, formatApplied);
@@ -2182,7 +2198,10 @@ begin
     _autoCenterTree := Value;
 
     if _realignState = TRealignState.RealignDone then
+    begin
       AfterRealignContent;
+      RealignFinished;
+    end;
   end;
 end;
 
@@ -2196,7 +2215,10 @@ begin
       _autoExtraColumnSizeMax := -1;
 
     if _treeLayout <> nil then
+    begin
       AfterRealignContent;
+      RealignFinished;
+    end;
   end;
 end;
 

@@ -85,6 +85,7 @@ var
 
   DEFAULT_HEADER_BACKGROUND: TAlphaColor;
   DEFAULT_HEADER_STROKE: TAlphaColor;
+  DEFAULT_CELL_STROKE: TAlphaColor;
 
 implementation
 
@@ -172,6 +173,7 @@ function TDataControlClassFactory.CreateRowCellRect(const Owner: TComponent): TR
 begin
   Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
   Result.Fill.Kind := TBrushKind.None;
+  Result.Stroke.Color := DEFAULT_CELL_STROKE;
 end;
 
 function TDataControlClassFactory.CreateRowRect(const Owner: TComponent): TRectangle;
@@ -179,6 +181,7 @@ begin
   Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
 
   Result.Fill.Color := DEFAULT_WHITE_COLOR;
+  Result.Stroke.Color := DEFAULT_CELL_STROKE;
 end;
 
 initialization
@@ -204,6 +207,7 @@ initialization
 
   DEFAULT_HEADER_BACKGROUND := TAlphaColors.White;
   DEFAULT_HEADER_STROKE := TAlphaColors.Grey;
+  DEFAULT_CELL_STROKE := TAlphaColors.Lightgray;
 
 finalization
   DataControlClassFactory := nil;

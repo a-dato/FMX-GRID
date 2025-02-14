@@ -79,6 +79,8 @@ type
     function  get_RowHeightSynchronizer: TDCScrollableRowControl;
     procedure set_RowHeightSynchronizer(const Value: TDCScrollableRowControl);
 
+    procedure DoViewPortPositionChanged; override;
+
   // public property variables
   private
     function  get_Current: Integer;
@@ -1470,8 +1472,8 @@ begin
     if (_model <> nil) then
     begin
       if SelectionCount > 1 then
-        _model.MultiSelectionContext := SelectedItems else
-        _model.MultiSelectionContext := nil;
+        _model.MultiSelect.Context := SelectedItems else
+        _model.MultiSelect.Context := nil;
 
       _model.ObjectContext := ConvertToDataItem(Self.DataItem);
     end
@@ -1777,6 +1779,12 @@ begin
     _rowHeightSynchronizer._realignState := TRealignState.Realigning;
     _rowHeightSynchronizer.View.ViewLoadingStart(_view);
   end;
+end;
+
+procedure TDCScrollableRowControl.DoViewPortPositionChanged;
+begin
+  if _hoverRect <> nil then
+    _hoverRect.Visible := False;
 end;
 
 procedure TDCScrollableRowControl.DoViewLoadingFinished;
@@ -2158,6 +2166,9 @@ end;
 procedure TDCScrollableRowControl.AfterRealignContent;
 begin
   inherited;
+
+  if _hoverRect <> nil then
+    _hoverRect.Visible := False;
 
   if _isMasterSynchronizer then
     _rowHeightSynchronizer.AfterRealignContent;

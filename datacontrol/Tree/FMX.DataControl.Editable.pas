@@ -61,6 +61,8 @@ type
   protected
 //    _checkBoxUpdateCount: Integer;
     procedure LoadDefaultDataIntoControl(const Cell: IDCTreeCell; const FlatColumn: IDCTreeLayoutColumn; const IsSubProp: Boolean); override;
+    function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; const IsSubProp: Boolean): CObject; override;
+
     procedure OnPropertyCheckBoxChange(Sender: TObject);
     procedure DoCellCheckChangedByUser(const Cell: IDCTreeCell);
 
@@ -98,6 +100,7 @@ type
 
     procedure StartEditCell(const Cell: IDCTreeCell; const UserValue: string = '');
     function  EndEditCell: Boolean;
+    procedure SafeForcedEndEdit;
 
     function  DoEditRowStart(const ARow: IDCTreeRow; var DataItem: CObject; IsNew: Boolean) : Boolean;
     function  DoEditRowEnd(const ARow: IDCTreeRow): Boolean;
@@ -127,6 +130,9 @@ type
     function  CopyToClipBoard: Boolean; virtual;
     function  PasteFromClipBoard: Boolean; virtual;
     function  TrySelectCheckBoxes: Boolean; virtual;
+
+    property EditingInfo: ITreeEditingInfo read _editingInfo;
+    property CellEditor: IDCCellEditor read _cellEditor;
 
   published
     property EditRowStart: RowEditEvent read _editRowStart write _editRowStart;
@@ -300,22 +306,23 @@ begin
       (not IsSubProp and (Cell.Column.InfoControlClass = TInfoControlClass.CheckBox)) or
       (IsSubProp and (Cell.Column.SubInfoControlClass = TInfoControlClass.CheckBox));
 
-    if not isCheckBox or Cell.Column.IsSelectionColumn then
-      Exit;
+    if isCheckBox and not Cell.Column.IsSelectionColumn then
+    begin
+      var ctrl := Cell.InfoControl;
+      var chkCtrl := (ctrl as IISChecked);
 
-    var ctrl := Cell.InfoControl;
-    var chkCtrl := (ctrl as IISChecked);
+      if Cell.Column.HasPropertyAttached then
+        UpdateColumnCheck(cell.Row.DataIndex, Cell.Column, chkCtrl.IsChecked);
 
-    if Cell.Column.HasPropertyAttached then
-      UpdateColumnCheck(cell.Row.DataIndex, Cell.Column, chkCtrl.IsChecked);
+      ctrl.Tag := Cell.Row.ViewListIndex;
 
-    ctrl.Tag := Cell.Row.ViewListIndex;
+      if ctrl is TCheckBox then
+        (ctrl as TCheckBox).OnChange := OnPropertyCheckBoxChange else
+        (ctrl as TRadioButton).OnChange := OnPropertyCheckBoxChange;
 
-    if ctrl is TCheckBox then
-      (ctrl as TCheckBox).OnChange := OnPropertyCheckBoxChange else
-      (ctrl as TRadioButton).OnChange := OnPropertyCheckBoxChange;
+      chkCtrl.IsChecked := _checkedItems.ContainsKey(Cell.Column) and _checkedItems[Cell.Column].Contains(cell.Row.DataIndex);
+    end;
 
-    chkCtrl.IsChecked := _checkedItems.ContainsKey(Cell.Column) and _checkedItems[Cell.Column].Contains(cell.Row.DataIndex);
   finally
     dec(_updateCount);
   end;
@@ -394,8 +401,7 @@ begin
   // therefor we need a little time untill we can EndEdit and free the editor
   TThread.ForceQueue(nil, procedure
   begin
-    if not EndEditCell then
-      CancelEdit(True);
+    SafeForcedEndEdit;
   end);
 end;
 
@@ -408,8 +414,7 @@ begin
   end
   else if Key = vkReturn then
   begin
-    if not EndEditCell then
-      CancelEdit;
+    SafeForcedEndEdit;
 
     Self.SetFocus;
   end
@@ -474,7 +479,8 @@ begin
   begin
     _tempCachedEditingColumnCustomWidth := Cell.Column.CustomWidth;
     Cell.Column.CustomWidth := MinColumnWidth;
-    RequestRealignContent;
+
+    FastColumnAlignAfterColumnChange;
   end else
     _tempCachedEditingColumnCustomWidth := -1;
 end;
@@ -485,7 +491,8 @@ begin
   begin
     Column.CustomWidth := _tempCachedEditingColumnCustomWidth;
     _tempCachedEditingColumnCustomWidth := -1;
-    AfterRealignContent;
+
+    FastColumnAlignAfterColumnChange;
   end;
 end;
 
@@ -644,6 +651,7 @@ begin
       if drv <> nil then
       begin
         _editingInfo.StartRowEdit(drv.Row.get_Index, drv, True);
+
         Current := drv.ViewIndex;
         _view.ResetView(Current);
       end;
@@ -663,11 +671,15 @@ begin
 
     Self.Current := crrnt;
     _editingInfo.StartRowEdit(_view.OriginalData.Count - 1, NewItem, True);
+
   end;
 
   Result := _editingInfo.IsNew;
   if Result then
   begin
+    // let the view know that we started with editing
+    _view.StartEdit(_editingInfo.EditItem);
+
     _forceRealignAfterAdding := True;
     try
       DoRealignContent;
@@ -860,6 +872,14 @@ begin
     Result := False;
 end;
 
+function TEditableDataControl.ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; const IsSubProp: Boolean): CObject;
+begin
+  Result := inherited;
+
+  if (Result = nil) and IsNew and (_cellEditor <> nil) and (_cellEditor.Cell = Cell) then
+    Result := _cellEditor.Value;
+end;
+
 function TEditableDataControl.EndEditCell: Boolean;
 begin
   // stop cell editing
@@ -869,7 +889,7 @@ begin
     if Assigned(_editCellEnd) then
     begin
       var endEditArgs: DCEndEditEventArgs;
-      AutoObject.Guard(DCEndEditEventArgs.Create(_cellEditor.Cell, _cellEditor.Value, _editingInfo.EditItem), endEditArgs);
+      AutoObject.Guard(DCEndEditEventArgs.Create(_cellEditor.Cell, _cellEditor.Value, _cellEditor.Editor, _editingInfo.EditItem), endEditArgs);
       endEditArgs.EndRowEdit := False;
 
       _editCellEnd(Self, endEditArgs);
@@ -905,10 +925,7 @@ begin
     Exit;
 
   if _editingInfo.CellIsEditing then
-  begin
-    if not EndEditCell then
-      CancelEdit(True);
-  end;
+    SafeForcedEndEdit;
 
   if _editingInfo.RowIsEditing then
     DoEditRowEnd(GetActiveCell.Row as IDCTreeRow);
@@ -968,18 +985,16 @@ begin
 
   UpdateMinColumnWidthOnShowEditor(Cell, startEditArgs.MinEditorWidth);
 
-  if StartEditArgs.PickList <> nil then
-    pickList := StartEditArgs.PickList else
-    pickList := nil;
-
   // checkboxes are special case, for they are already visualized in DataControl.Static
   // all other controls can be shown as plain text while not editing
 
-  if pickList <> nil then
+  if StartEditArgs.Editor <> nil then
+    _cellEditor := TDCCustomCellEditor.Create(Self, Cell, StartEditArgs.Editor)
+  else if StartEditArgs.PickList <> nil then
   begin
     Assert(Cell.Column.InfoControlClass in [TInfoControlClass.Text, TInfoControlClass.Custom]);
     _cellEditor := TDCCellDropDownEditor.Create(self, Cell);
-    (_cellEditor as IPickListSupport).PickList := pickList;
+    (_cellEditor as IPickListSupport).PickList := StartEditArgs.PickList;
   end
   else if Cell.Column.InfoControlClass = TInfoControlClass.CheckBox then
     _cellEditor := TDCCheckBoxCellEditor.Create(Self, Cell)
@@ -1022,12 +1037,24 @@ end;
 
 procedure TEditableDataControl.InternalSetCurrent(const Index: Integer; const EventTrigger: TSelectionEventTrigger; Shift: TShiftState; SortOrFilterChanged: Boolean);
 begin
-  if IsNew then
-    Exit;
+  Assert(CanRealignContent);
 
-  Assert(not IsEdit);
-//  if IsEditOrNew then
-//    Exit;
+  if IsNew then
+  begin
+    var ix := _view.GetViewListIndex(_editingInfo.EditItemDataIndex);
+
+    _selectionInfo.BeginUpdate;
+    try
+      _selectionInfo.UpdateSingleSelection(_editingInfo.EditItemDataIndex, ix, _editingInfo.EditItem);
+    finally
+      _selectionInfo.EndUpdate(True);
+    end;
+
+    for var row in _view.ActiveViewRows do
+      VisualizeRowSelection(row);
+
+    Exit;
+  end;
 
   inherited;
 end;
@@ -1234,6 +1261,20 @@ begin
     Result := True; // Continue with add new
 end;
 
+procedure TEditableDataControl.SafeForcedEndEdit;
+begin
+  try
+    if not EndEditCell then
+      CancelEdit(True);
+  except
+    on e: Exception do
+    begin
+      CancelEdit(True);
+      raise;
+    end;
+  end;
+end;
+
 procedure TEditableDataControl.SetCellData(const Cell: IDCTreeCell; const Data: CObject);
 var
   s: string;
@@ -1283,6 +1324,9 @@ end;
 procedure TEditableDataControl.SetSingleSelectionIfNotExists;
 begin
   if IsNew then
+    Exit;
+
+  if _selectionInfo.HasSelection and IsEdit then
     Exit;
 
   Assert(not IsEdit);
