@@ -100,6 +100,7 @@ type
 
     function  IsSelected(const Item: CObject): Boolean;
     procedure AddToMultiSelection(const Item: CObject);
+    procedure RemoveFromMultiSelection(const Item: CObject);
 
     property  Context: List<CObject> read get_Context write set_Context;
     property  IsActive: Boolean read get_IsActive write set_IsActive;
@@ -122,6 +123,7 @@ type
 
     function  IsSelected(const Item: CObject): Boolean;
     procedure AddToMultiSelection(const Item: CObject);
+    procedure RemoveFromMultiSelection(const Item: CObject);
 
     property  Context: List<CObject> read get_Context write set_Context;
     property  IsActive: Boolean read get_IsActive write set_IsActive;
@@ -304,6 +306,20 @@ begin
   Result := CObject.Equals(_objectModelContext.Context, Item);
   if not Result and _isActive and (get_Context <> nil) then
     Result := get_Context.Contains(Item);
+end;
+
+procedure TObjectModelMultiSelect.RemoveFromMultiSelection(const Item: CObject);
+begin
+  Assert(_isActive);
+
+  if (get_Context.Count = 1) then
+    Exit;
+
+  if get_Context.Contains(Item) then
+    get_Context.Remove(Item);
+
+  if CObject.Equals(_objectModelContext.Context, Item) then
+    _objectModelContext.Context := get_Context[0];
 end;
 
 procedure TObjectModelMultiSelect.set_IsActive(const Value: Boolean);
