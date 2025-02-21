@@ -163,7 +163,7 @@ begin
 
     var threadID := TThread.CurrentThread.ThreadID;
     var index := items.FindIndex(function(const Item: IFileTraceItem) : Boolean begin
-                                  Result := Item.ThreadID = threadID;
+                                  Result := (Item.ThreadID = NO_THREAD_ID) or (Item.ThreadID = threadID);
                                 end);
 
     if index <> -1 then
