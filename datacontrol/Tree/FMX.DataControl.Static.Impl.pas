@@ -1804,7 +1804,7 @@ begin
   for layoutClmn in get_FlatColumns do
     columnsToCalculate.Add(layoutClmn.Index);
 
-  var totalWidth := _columnsControl.Control.Width;
+  var totalWidth := _columnsControl.Content.Width;
   var widthLeft := totalWidth;
 
   for var round := 1 to 3 do
