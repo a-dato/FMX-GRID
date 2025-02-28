@@ -97,6 +97,7 @@ type
     procedure set_Context(const Value: List<CObject>);
     function  get_IsActive: Boolean;
     procedure set_IsActive(const Value: Boolean);
+    function  get_Delegate: ListContextChangedEventHandler;
 
     function  Count: Integer;
     function  IsSelected(const Item: CObject): Boolean;
@@ -105,22 +106,28 @@ type
 
     property  Context: List<CObject> read get_Context write set_Context;
     property  IsActive: Boolean read get_IsActive write set_IsActive;
+    property  Delegate: ListContextChangedEventHandler read get_Delegate;
   end;
 
   TObjectModelMultiSelect = class(TBaseInterfacedObject, IObjectModelMultiSelect)
   private
     [unsafe] _objectModelContext: IObjectModelContext;
+    [unsafe] _objectListModel: IObjectListModel;
 
-    _Context: List<CObject>;
+    _context: List<CObject>;
     _isActive: Boolean;
+    _eventHandler: ListContextChangedEventHandler;
 
     function  get_Context: List<CObject>;
     procedure set_Context(const Value: List<CObject>);
     function  get_IsActive: Boolean;
     procedure set_IsActive(const Value: Boolean);
+    function  get_Delegate: ListContextChangedEventHandler;
+
+    procedure DoInvokeDelegate;
 
   public
-    constructor Create(const ObjectModelContext: IObjectModelContext);
+    constructor Create(const ObjectListModel: IObjectListModel);
 
     function  Count: Integer;
     function  IsSelected(const Item: CObject): Boolean;
@@ -129,6 +136,7 @@ type
 
     property  Context: List<CObject> read get_Context write set_Context;
     property  IsActive: Boolean read get_IsActive write set_IsActive;
+    property  Delegate: ListContextChangedEventHandler read get_Delegate;
   end;
 
   IObjectListModel = interface(IBaseInterface)
@@ -152,6 +160,7 @@ type
     procedure ResetModelProperties;
     function  CreateObjectModelContext : IObjectModelContext;
 
+    function HasMultiSelection: Boolean;
     function ListHoldsObjectType: Boolean;
 
     property Context: IList read get_Context write set_Context;
@@ -286,10 +295,18 @@ begin
     Result := 0;
 end;
 
-constructor TObjectModelMultiSelect.Create(const ObjectModelContext: IObjectModelContext);
+constructor TObjectModelMultiSelect.Create(const ObjectListModel: IObjectListModel);
 begin
   inherited Create;
-  _objectModelContext := ObjectModelContext;
+  _objectListModel := ObjectListModel;
+
+  _objectModelContext := _objectListModel.ObjectModelContext;
+end;
+
+procedure TObjectModelMultiSelect.DoInvokeDelegate;
+begin
+  if Assigned(_eventHandler) then
+    _eventHandler.Invoke(_objectListModel, _objectListModel.MultiSelect.Context as IList);
 end;
 
 procedure TObjectModelMultiSelect.AddToMultiSelection(const Item: CObject);
@@ -297,7 +314,10 @@ begin
   Assert(_isActive);
 
   if not IsSelected(Item) then
+  begin
     get_Context.Add(Item);
+    DoInvokeDelegate;
+  end;
 end;
 
 function TObjectModelMultiSelect.get_IsActive: Boolean;
@@ -308,6 +328,14 @@ end;
 function TObjectModelMultiSelect.get_Context: List<CObject>;
 begin
   Result := _Context;
+end;
+
+function TObjectModelMultiSelect.get_Delegate: ListContextChangedEventHandler;
+begin
+  if _eventHandler = nil then
+    _eventHandler := ListContextChangedEventDelegate.Create;
+
+  Result := _eventHandler;
 end;
 
 function TObjectModelMultiSelect.IsSelected(const Item: CObject): Boolean;
@@ -321,11 +349,15 @@ procedure TObjectModelMultiSelect.RemoveFromMultiSelection(const Item: CObject);
 begin
   Assert(_isActive);
 
-  if get_Context.Contains(Item) then
+  var doRemove := get_Context.Contains(Item);
+  if doRemove then
     get_Context.Remove(Item);
 
   if (get_Context.Count > 0) and CObject.Equals(_objectModelContext.Context, Item) then
     _objectModelContext.Context := get_Context[0];
+
+  if doRemove then
+    DoInvokeDelegate;
 end;
 
 procedure TObjectModelMultiSelect.set_IsActive(const Value: Boolean);
@@ -342,10 +374,16 @@ begin
 
     var obj := _objectModelContext.Context;
     if (obj <> nil) and not _Context.Contains(obj) then
+    begin
       _Context.Add(obj);
+      DoInvokeDelegate;
+    end;
   end
   else if _Context <> nil then
+  begin
     _Context.Clear;
+    DoInvokeDelegate;
+  end;
 end;
 
 procedure TObjectModelMultiSelect.set_Context(const Value: List<CObject>);
