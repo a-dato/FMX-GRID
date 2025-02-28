@@ -98,6 +98,7 @@ type
     function  get_IsActive: Boolean;
     procedure set_IsActive(const Value: Boolean);
 
+    function  Count: Integer;
     function  IsSelected(const Item: CObject): Boolean;
     procedure AddToMultiSelection(const Item: CObject);
     procedure RemoveFromMultiSelection(const Item: CObject);
@@ -121,6 +122,7 @@ type
   public
     constructor Create(const ObjectModelContext: IObjectModelContext);
 
+    function  Count: Integer;
     function  IsSelected(const Item: CObject): Boolean;
     procedure AddToMultiSelection(const Item: CObject);
     procedure RemoveFromMultiSelection(const Item: CObject);
@@ -277,6 +279,13 @@ end;
 
 { TObjectModelMultiSelect }
 
+function TObjectModelMultiSelect.Count: Integer;
+begin
+  if _isActive and (_Context <> nil) then
+    Result := _Context.Count else
+    Result := 0;
+end;
+
 constructor TObjectModelMultiSelect.Create(const ObjectModelContext: IObjectModelContext);
 begin
   inherited Create;
@@ -312,13 +321,10 @@ procedure TObjectModelMultiSelect.RemoveFromMultiSelection(const Item: CObject);
 begin
   Assert(_isActive);
 
-  if (get_Context.Count = 1) then
-    Exit;
-
   if get_Context.Contains(Item) then
     get_Context.Remove(Item);
 
-  if CObject.Equals(_objectModelContext.Context, Item) then
+  if (get_Context.Count > 0) and CObject.Equals(_objectModelContext.Context, Item) then
     _objectModelContext.Context := get_Context[0];
 end;
 
@@ -337,7 +343,9 @@ begin
     var obj := _objectModelContext.Context;
     if (obj <> nil) and not _Context.Contains(obj) then
       _Context.Add(obj);
-  end;
+  end
+  else if _Context <> nil then
+    _Context.Clear;
 end;
 
 procedure TObjectModelMultiSelect.set_Context(const Value: List<CObject>);
