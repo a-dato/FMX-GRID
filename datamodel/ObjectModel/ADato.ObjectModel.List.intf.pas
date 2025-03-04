@@ -111,7 +111,6 @@ type
 
   TObjectModelMultiSelect = class(TBaseInterfacedObject, IObjectModelMultiSelect)
   private
-    [unsafe] _objectModelContext: IObjectModelContext;
     [unsafe] _objectListModel: IObjectListModel;
 
     _context: List<CObject>;
@@ -299,8 +298,6 @@ constructor TObjectModelMultiSelect.Create(const ObjectListModel: IObjectListMod
 begin
   inherited Create;
   _objectListModel := ObjectListModel;
-
-  _objectModelContext := _objectListModel.ObjectModelContext;
 end;
 
 procedure TObjectModelMultiSelect.DoInvokeDelegate;
@@ -340,7 +337,7 @@ end;
 
 function TObjectModelMultiSelect.IsSelected(const Item: CObject): Boolean;
 begin
-  Result := CObject.Equals(_objectModelContext.Context, Item);
+  Result := CObject.Equals(_objectListModel.ObjectContext, Item);
   if not Result and _isActive and (get_Context <> nil) then
     Result := get_Context.Contains(Item);
 end;
@@ -353,8 +350,8 @@ begin
   if doRemove then
     get_Context.Remove(Item);
 
-  if (get_Context.Count > 0) and CObject.Equals(_objectModelContext.Context, Item) then
-    _objectModelContext.Context := get_Context[0];
+  if (get_Context.Count > 0) and CObject.Equals(_objectListModel.ObjectContext, Item) then
+    _objectListModel.ObjectContext := get_Context[0];
 
   if doRemove then
     DoInvokeDelegate;
@@ -372,7 +369,7 @@ begin
     if (_Context = nil) then
       _Context := CList<CObject>.Create;
 
-    var obj := _objectModelContext.Context;
+    var obj := _objectListModel.ObjectContext;
     if (obj <> nil) and not _Context.Contains(obj) then
     begin
       _Context.Add(obj);
