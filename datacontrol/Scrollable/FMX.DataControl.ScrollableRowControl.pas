@@ -285,7 +285,13 @@ end;
 destructor TDCScrollableRowControl.Destroy;
 begin
   AtomicIncrement(_viewChangedIndex);
+
   _view := nil;
+
+  // remove events
+  if _model <> nil then
+    set_Model(nil);
+
   inherited;
 end;
 
