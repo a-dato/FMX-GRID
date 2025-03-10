@@ -1535,7 +1535,12 @@ begin
 
   var ctrl: TControl;
   if Cell.IsHeaderCell then
-    ctrl := CreateInfoControl(Cell, TInfoControlClass.Text) else
+  begin
+    ctrl := CreateInfoControl(Cell, TInfoControlClass.Text);
+
+    ctrl.Height := (Cell.Row as IDCHeaderRow).ContentControl.Height - _treeControl.HeaderTextTopMargin - _treeControl.HeaderTextBottomMargin;
+    ctrl.Position.Y := _treeControl.HeaderTextTopMargin;
+  end else
     ctrl := CreateInfoControl(Cell, Cell.Column.InfoControlClass);
 
   if ctrl <> nil then
@@ -2872,8 +2877,7 @@ begin
   var headerRect := TLayout.Create(_contentControl);
   headerRect.Stored := False;
   headerRect.Align := TAlignLayout.None;
-  headerRect.Height := _contentControl.Height - Owner.HeaderTextTopMargin - Owner.HeaderTextBottomMargin;
-  headerRect.Position.Y := Owner.HeaderTextTopMargin;
+  headerRect.Height := _contentControl.Height;
   headerRect.HitTest := False;
   _contentControl.AddObject(headerRect);
 

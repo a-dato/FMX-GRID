@@ -602,6 +602,10 @@ begin
   var widthChanged := not SameValue(_lastContentBottomRight.X, _content.Width);
   var heightChanged := not SameValue(_lastContentBottomRight.Y, _content.Height);
 
+  // in case header is removed and added.. Nothing actually changed..
+  if not widthChanged and not heightChanged then
+    Exit;
+
   DoContentResized(widthChanged, heightChanged);
 end;
 

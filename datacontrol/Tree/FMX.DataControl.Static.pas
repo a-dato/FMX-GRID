@@ -452,8 +452,13 @@ begin
   for var row in HeaderAndTreeRows do
   begin
     var treeRow := row as IDCTreeRow;
-    treeRow.Control.Width := rowWidth;
-    treeRow.Control.Position.X := startFromX;
+    try
+      treeRow.Control.Width := rowWidth;
+      treeRow.Control.Position.X := startFromX;
+    except
+      treeRow.Control.Width := rowWidth;
+      treeRow.Control.Position.X := startFromX;
+    end;
 
     if hasFrozenColumns then
     begin
@@ -1409,7 +1414,11 @@ end;
 function TStaticDataControl.DoCellCanChange(const OldCell, NewCell: IDCTreeCell): Boolean;
 begin
   if (_model <> nil) and not _model.ObjectModelContext.ContextCanChange then
-    Exit(False);
+  begin
+    // if row is not available anymore (after deletion), we must allow changing
+    if _view.GetDataIndex(_model.ObjectContext) <> -1 then
+      Exit(False);
+  end;
 
   Result := True;
   if Assigned(_cellCanChange) then
@@ -1760,64 +1769,64 @@ end;
 
 procedure TStaticDataControl.InitHeader;
 begin
-  var headerWasVisible := _headerRow <> nil;
-  if _headerRow <> nil then
-  begin
-    // make sure that the content does not execute a Resized
-    // see method DoContentResized
-    _content.BeginUpdate;
-    try
+  // make sure that the content does not execute a Resized
+  //avoid DoContentResized/OnContentResized in between
+  Self.BeginUpdate;
+  try
+    var headerWasVisible := _headerRow <> nil;
+    if _headerRow <> nil then
+    begin
       _headerRow.Control.Visible := False;
       _headerRow := nil;
-    finally
-      _content.EndUpdate;
     end;
-  end;
 
-  if (TDCTreeOption.ShowHeaders in _options) then
-  begin
-    _headerRow := TDCHeaderRow.Create;
-    _headerRow.DataIndex := -1;
-    _headerRow.CreateHeaderControls(Self);
-    _headerRow.ContentControl.OnMouseUp := OnHeaderMouseUp;
-
-    if _treeLayout.RecalcRequired then
-      _treeLayout.RecalcColumnWidthsBasic;
-
-    for var flatColumn in _treeLayout.FlatColumns do
+    if (TDCTreeOption.ShowHeaders in _options) then
     begin
-      var headerCell: IHeaderCell := THeaderCell.Create(_headerRow, flatColumn);
-      headerCell.OnHeaderCellResizeClicked := OnHeaderCellResizeClicked;
+      _headerRow := TDCHeaderRow.Create;
+      _headerRow.DataIndex := -1;
+      _headerRow.CreateHeaderControls(Self);
+      _headerRow.ContentControl.OnMouseUp := OnHeaderMouseUp;
 
-      var dummyManualHeight: Single := -1;
-      DoCellLoading(headerCell, False, {var} dummyManualHeight);
+      if _treeLayout.RecalcRequired then
+        _treeLayout.RecalcColumnWidthsBasic;
 
-      if headerCell.Control = nil then
-        flatColumn.CreateCellBaseControls(TreeOption_ShowHeaderGrid in _options, headerCell);
+      for var flatColumn in _treeLayout.FlatColumns do
+      begin
+        var headerCell: IHeaderCell := THeaderCell.Create(_headerRow, flatColumn);
+        headerCell.OnHeaderCellResizeClicked := OnHeaderCellResizeClicked;
 
-      headerCell.Control.Height := _headerRow.Height;
+        var dummyManualHeight: Single := -1;
+        DoCellLoading(headerCell, False, {var} dummyManualHeight);
 
-      flatColumn.UpdateCellControlsByRow(headerCell);
+        if headerCell.Control = nil then
+          flatColumn.CreateCellBaseControls(TreeOption_ShowHeaderGrid in _options, headerCell);
 
-      var txt := headerCell.InfoControl as ScrollableRowControl_DefaultTextClass;
-//      txt.VertTextAlign := TTextAlign.Trailing;
-      txt.Text := CStringToString(flatColumn.Column.Caption);
+        headerCell.Control.Height := _headerRow.Height;
 
-      DoCellLoaded(headerCell, False, {var} dummyManualHeight);
+        flatColumn.UpdateCellControlsByRow(headerCell);
 
-      var needsWidthCheckBasedOnColumn := flatColumn.Column.WidthType = TDCColumnWidthType.AlignToContent;
-      if needsWidthCheckBasedOnColumn then
-        _headerRow.ContentCellSizes[flatColumn.Index] := CalculateCellWidth(flatColumn, headerCell);
+        var txt := headerCell.InfoControl as ScrollableRowControl_DefaultTextClass;
+  //      txt.VertTextAlign := TTextAlign.Trailing;
+        txt.Text := CStringToString(flatColumn.Column.Caption);
 
-      _headerRow.Cells.Add(flatColumn.Index, headerCell);
+        DoCellLoaded(headerCell, False, {var} dummyManualHeight);
+
+        var needsWidthCheckBasedOnColumn := flatColumn.Column.WidthType = TDCColumnWidthType.AlignToContent;
+        if needsWidthCheckBasedOnColumn then
+          _headerRow.ContentCellSizes[flatColumn.Index] := CalculateCellWidth(flatColumn, headerCell);
+
+        _headerRow.Cells.Add(flatColumn.Index, headerCell);
+      end;
+
+      DoRowLoaded(_headerRow);
     end;
 
-    DoRowLoaded(_headerRow);
+    SetBasicVertScrollBarValues;
+    if headerWasVisible <> (_headerRow <> nil) then
+      CalculateScrollBarMax;
+  finally
+    Self.EndUpdate;
   end;
-
-  SetBasicVertScrollBarValues;
-  if headerWasVisible <> (_headerRow <> nil) then
-    CalculateScrollBarMax;
 end;
 
 procedure TStaticDataControl.LoadDefaultDataIntoControl(const Cell: IDCTreeCell; const FlatColumn: IDCTreeLayoutColumn; const IsSubProp: Boolean);

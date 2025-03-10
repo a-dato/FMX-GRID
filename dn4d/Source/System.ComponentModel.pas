@@ -707,6 +707,7 @@ constructor ListChangedEventArgs.Create(
 begin
   _ListChangedType := AListChangedType;
   _NewIndex := ANewIndex;
+  _OldIndex := -1;
 end;
 
 constructor ListChangedEventArgs.Create(

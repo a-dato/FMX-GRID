@@ -137,7 +137,6 @@ type
     procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
     procedure DoMouseLeave; override;
 
-    procedure ClearSelectionInfo; {virtual;}
     procedure OnSelectionInfoChanged; virtual;
     function  CreateSelectioninfoInstance: IRowSelectionInfo; virtual;
     procedure SetSingleSelectionIfNotExists; virtual;
@@ -208,6 +207,7 @@ type
     // start public selection
     procedure SelectAll; virtual;
     procedure ClearSelections; virtual;
+    procedure ClearCurrentSelection; {virtual;}
 
     procedure SelectItem(const DataItem: CObject; ClearOtherSelections: Boolean = False);
     procedure DeselectItem(const DataItem: CObject);
@@ -744,10 +744,10 @@ begin
   _vertScrollBar.Visible := (_view <> nil) and (not (TDCTreeOption.HideVScrollBar in _options)) and (_vertScrollBar.ViewPortSize + IfThen(_horzScrollBar.Visible, _horzScrollBar.Height, 0) < _vertScrollBar.Max);
 end;
 
-procedure TDCScrollableRowControl.ClearSelectionInfo;
+procedure TDCScrollableRowControl.ClearCurrentSelection;
 begin
   if _selectionInfo <> nil then
-    _selectionInfo.Clear;
+    _selectionInfo.UpdateSingleSelection(-1, -1, nil);
 end;
 
 procedure TDCScrollableRowControl.ClearSelections;
@@ -886,7 +886,7 @@ begin
   _dataList := Value;
   if _dataList <> nil then
   begin
-    ClearSelectionInfo;
+    _selectionInfo.Clear;
 
     inc(_scrollUpdateCount);
     try
@@ -1746,7 +1746,7 @@ procedure TDCScrollableRowControl.InternalSetCurrent(const Index: Integer; const
       Exit(TAlignDirection.Undetermined);
 
     if currentIndex < Index then
-      Result := TAlignDirection.BottomToTop else
+      CalculateDirectionOrder else
       Result := TAlignDirection.TopToBottom;
 
     _selectionInfo.ForceScrollToSelection := True;

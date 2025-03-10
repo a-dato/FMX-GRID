@@ -64,15 +64,18 @@ type
     function  ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; const IsSubProp: Boolean): CObject; override;
 
     procedure OnPropertyCheckBoxChange(Sender: TObject);
-    procedure DoCellCheckChangedByUser(const Cell: IDCTreeCell);
+
+    procedure UpdateColumnCheck(const DataIndex: Integer; const Column: IDCTreeColumn; IsChecked: Boolean); overload;
+    procedure DoCellCheckChangedByUser(const Cell: IDCTreeCell); overload;
 
   public
     function  ItemCheckedInColumn(const Item: CObject; const Column: IDCTreeColumn): Boolean;
     function  CheckedItemsInColumn(const Column: IDCTreeColumn): List<CObject>;
 
     procedure ClearCheckboxCache(const Column: IDCTreeColumn = nil);
-    procedure UpdateColumnCheck(const DataIndex: Integer; const Column: IDCTreeColumn; IsChecked: Boolean); overload;
+
     procedure UpdateColumnCheck(const DataItem: CObject; const Column: IDCTreeColumn; IsChecked: Boolean); overload;
+    procedure DoCellCheckChangedByUser(const DataItem: CObject; const Column: IDCTreeColumn; IsChecked: Boolean); overload;
 
   private
     procedure SetCellData(const Cell: IDCTreeCell; const Data: CObject);
@@ -411,12 +414,15 @@ begin
   begin
     CancelEdit;
     Self.SetFocus;
+
+    Key := 0;
   end
   else if Key = vkReturn then
   begin
     SafeForcedEndEdit;
-
     Self.SetFocus;
+
+    Key := 0;
   end
   else if (Key in [vkUp, vkDown, vkTab]) and EndEditCell then
   begin
@@ -1025,6 +1031,7 @@ end;
 procedure TEditableDataControl.HideEditor;
 begin
   var clmn := _cellEditor.Cell.Column;
+
   _cellEditor := nil;
 
   ResetColumnWidthOnHideEditor(clmn);
@@ -1098,6 +1105,35 @@ begin
   end;
 
   Result := inherited;
+end;
+
+procedure TEditableDataControl.DoCellCheckChangedByUser(const DataItem: CObject; const Column: IDCTreeColumn; IsChecked: Boolean);
+begin
+  var ix := _view.GetViewListIndex(DataItem);
+  if ix = -1 then Exit;
+
+  var row := _view.GetActiveRowIfExists(ix) as IDCTreeRow;
+  if (row = nil) then Exit;
+
+  var checkCell: IDCTreeCell := nil;
+  for var cell in row.Cells.Values do
+    if cell.Column = Column then
+    begin
+      checkCell := cell;
+      Break;
+    end;
+
+  if (checkCell = nil) or (checkCell.InfoControl = nil) or not checkCell.InfoControl.Visible or ((checkCell.InfoControl as TCheckBox).IsChecked = IsChecked) then
+    Exit;
+
+  inc(_updateCount);
+  try
+    (checkCell.InfoControl as TCheckBox).IsChecked := IsChecked;
+  finally
+    dec(_updateCount);
+  end;
+
+  DoCellCheckChangedByUser(checkCell);
 end;
 
 function TEditableDataControl.DoEditRowStart(const ARow: IDCTreeRow; var DataItem: CObject; IsNew: Boolean): Boolean;
