@@ -22,6 +22,8 @@ type
     procedure set_StoreChangedItems(const Value: Boolean);
     procedure set_MultiObjectContextSupport(const Value: Boolean);
 
+    procedure ResetContextFromChangedItems;
+
     property HasChangedItems: Boolean read get_HasChangedItems;
     property ChangedItems: Dictionary<CObject, TObjectListChangeType> read get_ChangedItems;
     property StoreChangedItems: Boolean write set_StoreChangedItems;
