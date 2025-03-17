@@ -106,6 +106,7 @@ type
 
     {$IFDEF DEBUG}
     _stopwatch2, _stopwatch3: TStopwatch;
+    _debugCheck: Boolean;
     {$ENDIF}
 
     procedure BeforeRealignContent; virtual;
@@ -171,6 +172,11 @@ begin
   inherited;
   _safeObj := TBaseInterfacedObject.Create;
   _realignState := TRealignState.Waiting;
+
+  {$IFDEF DEBUG}
+  _debugCheck := True;
+//  _debugCheck := False;
+  {$ENDIF}
 
 //  Self.ClipChildren := True;
   Self.HitTest := True;
@@ -365,6 +371,12 @@ begin
   {$IFDEF DEBUG}
   _stopwatch2 := TStopwatch.Create;
   _stopwatch3 := TStopwatch.Create;
+
+  _stopwatch2.Reset;
+  _stopwatch2.Start;
+
+  _stopwatch3.Reset;
+  _stopwatch3.Start;
   {$ENDIF}
 
   try
@@ -385,6 +397,9 @@ begin
   _realignContentTime := stopwatch.ElapsedMilliseconds;
 
   {$IFDEF DEBUG}
+  _stopwatch2.Stop;
+  _stopwatch3.Stop;
+
   Log('_stopwatch2: ' + _stopwatch2.ElapsedMilliseconds.ToString);
   Log('_stopwatch3: ' + _stopwatch3.ElapsedMilliseconds.ToString);
   {$ENDIF}
@@ -723,7 +738,7 @@ begin
   _mouseWheelDistanceToGo := _mouseWheelDistanceToGo + YChange;
 
   // stop smooth scrolling and go fast
-  if _mouseWheelSmoothScrollTimer.Enabled and goImmeditate then
+  if {$IFDEF DEBUG}_debugCheck or{$ENDIF} (_mouseWheelSmoothScrollTimer.Enabled and goImmeditate) then
   begin
     _scrollStopWatch_wheel_lastSpin := TStopWatch.StartNew;
 

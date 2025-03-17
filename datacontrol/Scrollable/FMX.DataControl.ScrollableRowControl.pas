@@ -384,7 +384,7 @@ end;
 
 procedure TDCScrollableRowControl.DoRealignContent;
 begin
-  var doRealignTimer := _scrollingType <> TScrollingType.None;
+//  var doRealignTimer := _scrollingType <> TScrollingType.None;
 
   if (_rowHeightSynchronizer <> nil) and not _rowHeightSynchronizer._isMasterSynchronizer then
   begin
@@ -406,9 +406,9 @@ begin
     _rowHeightSynchronizer._scrollingType := _scrollingType;
   end;
 
-  // during slow scrolling we don't want labels to flicker because visibility is set on and off
-  if doRealignTimer then
-    RestartWaitForRealignTimer(500);
+//  // during slow scrolling we don't want labels to flicker because visibility is set on and off
+//  if doRealignTimer then
+//    RestartWaitForRealignTimer(500);
 end;
 
 procedure TDCScrollableRowControl.UpdateRowHeightSynchronizerScrollbar;
@@ -1148,7 +1148,7 @@ begin
   // add one invisible row below view and InitRow it, so we know the height of that row
   // when we select from bottom of view the row below, and the height changes,
   // this will make sure the row gets on the correct position
-  var addOneRowBelow := True;
+  var addOneRowBelow := False; //True;
 
   while thisRow <> nil do
   begin
@@ -1197,7 +1197,7 @@ begin
   // add one invisible row above view and InitRow it, so we know the height of that row
   // when we select from top of view the row above, and the height changes,
   // this will make sure the row gets on the correct position
-  var addOneRowAbove := _selectionInfo.ViewListIndex <> -1;
+  var addOneRowAbove := False; //_selectionInfo.ViewListIndex <> -1;
 
   while thisRow <> nil do
   begin
@@ -1376,32 +1376,66 @@ procedure TDCScrollableRowControl.UpdateScrollAndSelectionByKey(var Key: Word; S
 begin
   if Key in [vkPrior, vkNext] then
   begin
-    // NOTE: in case of page down/up we don't know the height of the rows
-    // but we want to select the row at the other end of the line
-    // therefor we start with scrolling a page up
-    // after that we know the row heights and select the bottom/top row
     var viewListindex: Integer;
+
     if Key = vkPrior then
     begin
-      ScrollManualInstant(Round(_vertScrollBar.ViewportSize));
+      if _view.ActiveViewRows[0].ViewListIndex = 0 then
+      begin
+        Current := 0;
+        Exit;
+      end;
 
-      if _view.ActiveViewRows[1].ViewListIndex > 3 then
-        viewListindex := _view.ActiveViewRows[1].ViewListIndex else
-        viewListindex := 0;
+      viewListindex := _view.ActiveViewRows[0].ViewListIndex;
 
-      viewListindex := GetSelectableViewIndex(viewListindex, True);
-    end
-    else
-    begin
-      ScrollManualInstant(-Round(_vertScrollBar.ViewportSize));
+      var available := _vertScrollBar.ViewportSize;
+      var newViewListIndex := -1;
 
-      var ix := _view.ActiveViewRows.Count - 2;
-      if _view.ActiveViewRows[ix].ViewListIndex <= _view.ViewCount - 4 then
-        viewListindex := _view.ActiveViewRows[ix].ViewListIndex else
-        viewListindex := _view.ViewCount - 1;
+      for var ix := viewListindex - 1 downto 0 do
+      begin
+        var row := _view.InsertNewRowAbove;
+        InitRow(row, True);
 
-      viewListindex := GetSelectableViewIndex(viewListindex, False);
+        available := available - row.Height;
+        if available <= 0 then
+          Break;
+
+        newView ListIndex := ix;
+      end;
+
+      set_Current(newViewListIndex);
+//      InternalSetCurrent(newViewListIndex, TSelectionEventTrigger.Key, Shift);
+      Key := 0;
+      Exit;
     end;
+
+
+//    // NOTE: in case of page down/up we don't know the height of the rows
+//    // but we want to select the row at the other end of the line
+//    // therefor we start with scrolling a page up
+//    // after that we know the row heights and select the bottom/top row
+//    var viewListindex: Integer;
+//    if Key = vkPrior then
+//    begin
+//      ScrollManualInstant(Round(_vertScrollBar.ViewportSize));
+//
+//      if _view.ActiveViewRows[1].ViewListIndex > 3 then
+//        viewListindex := _view.ActiveViewRows[1].ViewListIndex else
+//        viewListindex := 0;
+//
+//      viewListindex := GetSelectableViewIndex(viewListindex, True);
+//    end
+//    else
+//    begin
+//      ScrollManualInstant(-Round(_vertScrollBar.ViewportSize));
+//
+//      var ix := _view.ActiveViewRows.Count - 2;
+//      if _view.ActiveViewRows[ix].ViewListIndex <= _view.ViewCount - 4 then
+//        viewListindex := _view.ActiveViewRows[ix].ViewListIndex else
+//        viewListindex := _view.ViewCount - 1;
+//
+//      viewListindex := GetSelectableViewIndex(viewListindex, False);
+//    end;
 
     InternalSetCurrent(viewListindex, TSelectionEventTrigger.Key, Shift);
 
@@ -1732,30 +1766,44 @@ end;
 
 procedure TDCScrollableRowControl.InternalSetCurrent(const Index: Integer; const EventTrigger: TSelectionEventTrigger; Shift: TShiftState; SortOrFilterChanged: Boolean = False);
 
-  function TryDetermineDirectionBeforeRealigning: TAlignDirection;
+  procedure TryDetermineDirectionBeforeRealigning;
   begin
     var currentIndex := get_Current;
 
+    {$IFDEF DEBUG}
+    if _debugCheck then
+    begin
+      _alignDirection := TAlignDirection.TopToBottom;
+      _selectionInfo.ForceScrollToSelection := True;
+      Exit;
+    end;
+    {$ENDIF}
+
     if currentIndex = -1 then
-      Exit(TAlignDirection.TopToBottom);
+      _alignDirection := TAlignDirection.TopToBottom
 
-    if SortOrFilterChanged then
-      Exit(TAlignDirection.Undetermined);
+    else if SortOrFilterChanged then
+      _alignDirection := TAlignDirection.Undetermined
 
-    if currentIndex = Index then
-      Exit(TAlignDirection.Undetermined);
+    else if currentIndex = Index then
+      _alignDirection := TAlignDirection.Undetermined
 
-    if currentIndex < Index then
-      CalculateDirectionOrder else
-      Result := TAlignDirection.TopToBottom;
-
-    _selectionInfo.ForceScrollToSelection := True;
+    else if currentIndex < Index then
+    begin
+      CalculateDirectionOrder;
+      _selectionInfo.ForceScrollToSelection := True;
+    end
+    else
+    begin
+      _alignDirection := TAlignDirection.TopToBottom;
+      _selectionInfo.ForceScrollToSelection := True;
+    end;
   end;
 
 begin
   _selectionInfo.LastSelectionEventTrigger := EventTrigger;
 
-  _alignDirection := TryDetermineDirectionBeforeRealigning;
+  TryDetermineDirectionBeforeRealigning;
 
   var requestedSelection := _selectionInfo.Clone;
   requestedSelection.UpdateLastSelection(_view.GetDataIndex(Index), Index, _view.GetViewList[Index]);
@@ -2052,6 +2100,14 @@ end;
 
 procedure TDCScrollableRowControl.CalculateDirectionOrder;
 begin
+  {$IFDEF DEBUG}
+  if _debugCheck then
+  begin
+    _alignDirection := TAlignDirection.TopToBottom;
+    Exit;
+  end;
+  {$ENDIF}
+
   if _vertScrollBar.Max <= _content.Height then
   begin  
     _alignDirection := TAlignDirection.TopToBottom;

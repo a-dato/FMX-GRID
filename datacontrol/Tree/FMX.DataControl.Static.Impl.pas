@@ -1486,15 +1486,13 @@ begin
       var rect := DataControlClassFactory.CreateHeaderCellRect(Cell.Row.Control);
 
       var headerCell := Cell as IHeaderCell;
-      if ShowVertGrid and (Cell.Index <> 0) then
-      begin
-        rect.Sides := [TSide.Left, TSide.Bottom];
 
-        if Cell.Column.AllowResize then
-          rect.Stroke.Dash := TStrokeDash.Dot else
-          rect.Stroke.Dash := TStrokeDash.Solid;
-      end else
-        rect.Sides := [TSide.Bottom];
+      if not ShowVertGrid then
+        rect.Sides := [TSide.Bottom]
+      else if (Cell.Index = 0) then
+        rect.Sides := [TSide.Left, TSide.Right, TSide.Bottom, TSide.Top]
+      else
+        rect.Sides := [TSide.Bottom, TSide.Top, TSide.Right];
 
       Cell.Control := rect;
 
