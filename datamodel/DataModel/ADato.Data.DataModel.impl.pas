@@ -3707,12 +3707,22 @@ var
     // When a row has been skipped, we feed all rows to the filter function
     // Maybe we want to re-insert these rows later
     if nextChildIsShowing or ((skipLow <> 999) and not skipped[skipLow].RowWasReadded) then
-      inc(rowIndex) else
-      inc(rowIndex, DataModel.ChildCount(dataModelRow) + 1);
-
-    if rowIndex <= lastRowIndex then
     begin
-      nextRow := dataModelRows.Item[rowIndex];
+      inc(rowIndex);
+      if rowIndex <= lastRowIndex then
+        nextRow := dataModelRows.Item[rowIndex] else
+        nextRow := nil;
+    end
+    else
+    begin
+      nextRow := DataModel.NextSibling(dataModelRow);
+      if nextRow <> nil then
+        rowIndex := nextRow.get_index;
+    end;
+
+    if nextRow <> nil then
+    begin
+      // nextRow := dataModelRows.Item[rowIndex];
 
       nextRowLevel := nextRow.Level;
 
@@ -3740,8 +3750,9 @@ var
 
       prevRowLevel := rowLevel;
       rowLevel := nextRowLevel;
-    end else
-      nextRow := nil;
+    end;
+//     else
+//      nextRow := nil;
   end;
 
   function CurrentRowIsHidden : Boolean;
@@ -3847,6 +3858,10 @@ begin
   skipLow := 999;
 
   repeat
+    {$IFDEF DEBUG}
+    var s: string := CStringToString(dataModelRow.Data.ToString);
+    {$ENDIF}
+
     rowProps := GetRowProperties(dataModelRow);
     Assert(rowProps <> nil);
 
@@ -3871,6 +3886,7 @@ begin
           prevRowLevel := rowLevel - 1 else
           prevRowLevel := 0;
 
+        // Reselect the parent for the current row, this row should be re-added
         dataModelRow := skipped[rowLevel].Row;
 
         if not skipped[rowLevel].RowWasReadded and ((rowLevel = 0) or rowIsShowing) then
