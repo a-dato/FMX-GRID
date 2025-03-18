@@ -1042,7 +1042,7 @@ begin
     var currentFlatColumn := _treeLayout.LayoutColumns[treeSelectionInfo.SelectedLayoutColumn];
     if not currentFlatColumn.Column.Frozen {those are always visible} then
     begin
-      if currentFlatColumn.Left < _horzScrollBar.Value then
+      if (currentFlatColumn.Width > _horzScrollBar.ViewportSize) or (currentFlatColumn.Left < _horzScrollBar.Value) then
         _horzScrollBar.Value := currentFlatColumn.Left
       else if currentFlatColumn.Left + currentFlatColumn.Width > _horzScrollBar.Value + _horzScrollBar.ViewportSize then
         _horzScrollBar.Value := _horzScrollBar.Value + ((currentFlatColumn.Left + currentFlatColumn.Width) - (_horzScrollBar.Value + _horzScrollBar.ViewportSize));
