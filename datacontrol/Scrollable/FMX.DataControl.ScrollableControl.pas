@@ -83,7 +83,7 @@ type
     procedure WaitForRealignEndedWithoutAnotherScrollTimer(Sender: TObject);
     procedure MouseWheelSmoothScrollingTimer(Sender: TObject);
 
-    function  DefaultMoveDistance: Single; virtual; abstract;
+    function  DefaultMoveDistance(ScrollDown: Boolean): Single; virtual; abstract;
     procedure UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single); virtual; abstract;
 
     procedure DoHorzScrollBarChanged; virtual;
@@ -121,7 +121,7 @@ type
 
     procedure CalculateScrollBarMax; virtual; abstract;
     procedure ScrollManualInstant(YChange: Integer);
-    procedure ScrollManualAnimated(YChange: Integer);
+    procedure ScrollManualTryAnimated(YChange: Integer);
 
     procedure UpdateScrollbarMargins;
 
@@ -362,7 +362,9 @@ begin
     Exit;
   end;
 
-  Log('DoRealignContent');
+//  Log('Value: ' + _vertScrollBar.Value.ToString);
+//  Log('Max 1: ' + _vertScrollBar.Max.ToString);
+
   _realignContentRequested := False;
   _checkWaitForRealignTimer.Enabled := False;
 
@@ -376,7 +378,6 @@ begin
   _stopwatch2.Start;
 
   _stopwatch3.Reset;
-  _stopwatch3.Start;
   {$ENDIF}
 
   try
@@ -391,6 +392,7 @@ begin
     _scrollingType := TScrollingType.None;
   end;
 
+
   inc(_threadIndex);
 
   stopwatch.Stop;
@@ -399,12 +401,12 @@ begin
   {$IFDEF DEBUG}
   _stopwatch2.Stop;
   _stopwatch3.Stop;
+//
+//  Log('_stopwatch3: ' + _stopwatch3.ElapsedMilliseconds.ToString);
 
-  Log('_stopwatch2: ' + _stopwatch2.ElapsedMilliseconds.ToString);
-  Log('_stopwatch3: ' + _stopwatch3.ElapsedMilliseconds.ToString);
+//  Log('Max 2: ' + _vertScrollBar.Max.ToString);
+//  Log('_stopwatch2: ' + _stopwatch2.ElapsedMilliseconds.ToString);
   {$ENDIF}
-
-  Log('DoRealignContent end');
 
   _scrollStopWatch_scrollbar := TStopwatch.StartNew;
 end;
@@ -573,8 +575,9 @@ begin
   if not goUp then
     offset := offset * -1; // make it positive
 
-  var cycles: Integer := Trunc(offset / DefaultMoveDistance) + 1;
-  ScrollManualAnimated(ifThen(goUp, 1, -1) * Round(cycles * DefaultMoveDistance));
+  var scrollDIstance := DefaultMoveDistance(not goUp);
+  var cycles: Integer := Trunc(offset / scrollDistance) + 1;
+  ScrollManualTryAnimated(ifThen(goUp, 1, -1) * Round(cycles * scrollDistance));
 end;
 
 procedure TDCScrollableControl.MouseWheelSmoothScrollingTimer(Sender: TObject);
@@ -648,7 +651,6 @@ begin
   begin
     _scrollingType := TScrollingType.WithScrollBar;
 
-    Log('OnScrollBarChange');
     DoRealignContent;
   end;
 
@@ -662,7 +664,6 @@ begin
   if _realignContentRequested and CanRealignContent then
   begin
     SetBasicVertScrollBarValues;
-    Log('Painting');
     DoRealignContent;
   end;
 
@@ -719,7 +720,7 @@ begin
     RestartWaitForRealignTimer(0);
 end;
 
-procedure TDCScrollableControl.ScrollManualAnimated(YChange: Integer);
+procedure TDCScrollableControl.ScrollManualTryAnimated(YChange: Integer);
 begin
   if (_scrollingType <> TScrollingType.None) then
     Exit;
@@ -730,24 +731,37 @@ begin
     _mouseWheelCycle := 0;
   end;
 
-  var goImmeditate: Boolean;
+  var scrollDown := _mouseWheelDistanceToGo + YChange < 0;
+  var oneRowHeight := DefaultMoveDistance(scrollDown);
+
+  var tryGoImmediate: Boolean;
+  var forceGoImmediate: Boolean;
   if YChange > 0 then
-    goImmeditate := _mouseWheelDistanceToGo < YChange else
-    goImmeditate := _mouseWheelDistanceToGo > YChange;
+  begin
+    forceGoImmediate := (_mouseWheelDistanceToGo + YChange > _vertScrollBar.ViewportSize*1.5);
+    tryGoImmediate := (_mouseWheelDistanceToGo < YChange) or (_mouseWheelDistanceToGo + YChange > oneRowHeight);
+  end
+  else
+  begin
+    forceGoImmediate := (_mouseWheelDistanceToGo + YChange < -_vertScrollBar.ViewportSize*1.5);
+    tryGoImmediate := (_mouseWheelDistanceToGo > YChange) or (_mouseWheelDistanceToGo + YChange < -oneRowHeight);
+  end;
 
   _mouseWheelDistanceToGo := _mouseWheelDistanceToGo + YChange;
 
   // stop smooth scrolling and go fast
-  if {$IFDEF DEBUG}_debugCheck or{$ENDIF} (_mouseWheelSmoothScrollTimer.Enabled and goImmeditate) then
+  if forceGoImmediate or (_mouseWheelSmoothScrollTimer.Enabled and tryGoImmediate) then
   begin
     _scrollStopWatch_wheel_lastSpin := TStopWatch.StartNew;
 
     ScrollManualInstant(_mouseWheelDistanceToGo);
     _mouseWheelDistanceToGo := 0;
+    Log('immidiate');
 
     Exit;
   end;
 
+  Log('animate');
   _scrollStopWatch_wheel_lastSpin.Reset;
 
   _mouseWheelSmoothScrollTimer.Enabled := True;

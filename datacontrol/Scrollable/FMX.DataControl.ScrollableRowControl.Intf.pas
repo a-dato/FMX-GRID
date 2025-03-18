@@ -94,7 +94,7 @@ type
     property DataItem: CObject read get_DataItem;
     property ViewListIndex: Integer read get_ViewListIndex;
     property IsMultiSelection: Boolean read get_IsMultiSelection;
-    property ForceScrollToSelection: Boolean read get_ForceScrollToSelection write set_ForceScrollToSelection;
+//    property ForceScrollToSelection: Boolean read get_ForceScrollToSelection write set_ForceScrollToSelection;
     property LastSelectionEventTrigger: TSelectionEventTrigger read get_EventTrigger write set_EventTrigger;
 
     property NotSelectableDataIndexes: TDataIndexArray read get_NotSelectableDataIndexes write set_NotSelectableDataIndexes;

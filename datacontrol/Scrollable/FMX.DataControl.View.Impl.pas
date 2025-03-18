@@ -67,7 +67,7 @@ type
     function  InsertNewRowBeneeth: IDCRow;
     function  InsertNewRowFromIndex(const ViewListIndex, ViewPortIndex: Integer): IDCRow;
     procedure ReindexActiveRow(const Row: IDCRow);
-    function  ProvideReferenceRowByPosition(VirtualYPosition: Single): IDCRow;
+    function  ProvideReferenceRowForViewRange(const StartY, StopY: Single; BottomTop: Boolean): IDCRow;
 
     function  GetSortDescriptions: List<IListSortDescription>;
     function  GetFilterDescriptions: List<IListFilterDescription>;
@@ -195,6 +195,13 @@ end;
 
 function TDataViewList.FastPerformanceDataIndexIsActive(const DataIndex: Integer): Boolean;
 begin
+  if (Length(_activeDataIndexes) = 0) and (_activeRows <> nil) and (_activeRows.Count > 0) then
+  begin
+    SetLength(_activeDataIndexes, _activeRows.Count);
+    for var ix := 0 to _activeRows.Count - 1 do
+      _activeDataIndexes[ix] := _activeRows[ix].DataIndex;
+  end;
+
   Result := TArray.Contains<Integer>(_activeDataIndexes, DataIndex);
 end;
 
@@ -511,8 +518,32 @@ begin
   AddNewRowToActiveRows(Result, 0);
 end;
 
-function TDataViewList.ProvideReferenceRowByPosition(VirtualYPosition: Single): IDCRow;
+function TDataViewList.ProvideReferenceRowForViewRange(const StartY, StopY: Single; BottomTop: Boolean): IDCRow;
+
+  function RowInRange(const Row: IDCRow): Boolean;
+  begin
+    Result :=
+      (Row.VirtualYPosition + Row.Height >= StartY) and
+      (Row.VirtualYPosition < StopY);
+  end;
+
 begin
+  if (_activeRows <> nil) and (_activeRows.Count > 0) then
+  begin
+    if not BottomTop and RowInRange(_activeRows[0]) then
+    begin
+      Exit(_activeRows[0])
+    end
+    else if RowInRange(_activeRows[_activeRows.Count - 1]) then
+    begin
+      Exit(_activeRows[_activeRows.Count - 1]);
+    end;
+  end;
+
+  var checkPos := StartY;
+  if BottomTop then
+    checkPos := StopY;
+
   Result := GetNewActiveRow;
 
   var defaultHeight := _defaultRowHeight;
@@ -526,7 +557,7 @@ begin
     if h = -1 then
       h := defaultHeight;
 
-    if ((VirtualYPosition >= pos) and (VirtualYPosition < pos + h)) or (ix = viewListCount - 1) then
+    if ((checkPos >= pos) and (checkPos < pos + h)) or (ix = viewListCount - 1) then
     begin
       Result.ViewListIndex := ix;
       Result.DataItem := GetDataItem(ix);
@@ -566,15 +597,12 @@ begin
   begin
     _performanceVar_activeStartViewListIndex := -1;
     _performanceVar_activeStopViewListIndex := -1;
-    SetLength(_activeDataIndexes, 0);
   end else begin
     _performanceVar_activeStartViewListIndex := _activeRows[0].ViewListIndex;
     _performanceVar_activeStopViewListIndex := _activeRows[_activeRows.Count - 1].ViewListIndex;
-
-    SetLength(_activeDataIndexes, _activeRows.Count);
-    for var ix := 0 to _activeRows.Count - 1 do
-      _activeDataIndexes[ix] := _activeRows[ix].DataIndex;
   end;
+
+  SetLength(_activeDataIndexes, 0);
 end;
 
 function TDataViewList.CachedRowHeight(const RowViewListIndex: Integer): Single;
@@ -734,6 +762,7 @@ end;
 procedure TDataViewList.ViewLoadingFinished;
 begin
   _isFirstAlign := False;
+  UpdatePerformanceIndexIndicators;
 end;
 
 procedure TDataViewList.RemoveRowFromActiveView(const Row: IDCRow);
