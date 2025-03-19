@@ -522,9 +522,7 @@ function TDataViewList.ProvideReferenceRowForViewRange(const StartY, StopY: Sing
 
   function RowInRange(const Row: IDCRow): Boolean;
   begin
-    Result :=
-      (Row.VirtualYPosition + Row.Height >= StartY) and
-      (Row.VirtualYPosition < StopY);
+    Result := (Row.VirtualYPosition + Row.Height > StartY) and (Row.VirtualYPosition < StopY);
   end;
 
 begin
