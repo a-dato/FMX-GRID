@@ -1361,6 +1361,13 @@ procedure TDCScrollableRowControl.UpdateScrollAndSelectionByKey(var Key: Word; S
 begin
   if Key in [vkPrior, vkNext] then
   begin
+    // in case the up/down button stays pressed, and the tree is not quick enough to repaint before it recalculates again
+    if RealignedButNotPainted then
+    begin
+      Key := 0;
+      Exit;
+    end;
+
     var viewListindex: Integer;
 
     if Key = vkPrior then
@@ -1407,7 +1414,10 @@ begin
   var rowViewListIndex := GetRowViewListIndexByKey(Key, Shift);
   if _selectionInfo.ViewListIndex <> rowViewListIndex then
   begin
-    InternalSetCurrent(rowViewListIndex, TSelectionEventTrigger.Key, Shift);
+    // in case the up/down button stays pressed, and the tree is not quick enough to repaint before it recalculates again
+    if not RealignedButNotPainted then
+      InternalSetCurrent(rowViewListIndex, TSelectionEventTrigger.Key, Shift);
+
     Key := 0;
   end;
 end;

@@ -97,6 +97,7 @@ type
     _updateCount: Integer;
 
     _realignContentTime: Int64;
+    _paintTime: Int64;
 
     _realignContentRequested: Boolean;
 
@@ -115,6 +116,7 @@ type
     procedure RealignFinished; virtual;
 
     procedure DoRealignContent; virtual;
+    function  RealignedButNotPainted: Boolean;
 
     procedure SetBasicVertScrollBarValues; virtual;
     procedure SetBasicHorzScrollBarValues; virtual;
@@ -140,6 +142,8 @@ type
     procedure RequestRealignContent;
 
     procedure Painting; override;
+    procedure Paint; override;
+    procedure PaintChildren; override;
     function  IsUpdating: Boolean; override;
     procedure RefreshControl(const DataChanged: Boolean = False); virtual;
 
@@ -315,7 +319,6 @@ begin
 
   _additionalTimerTime := 0;
   _checkWaitForRealignTimer.Enabled := False;
-  Log('WaitForRealignEndedWithoutAnotherScrollTimer');
   DoRealignContent;
 
   if restartAgain then
@@ -366,20 +369,30 @@ begin
 //  Log('Value: ' + _vertScrollBar.Value.ToString);
 //  Log('Max 1: ' + _vertScrollBar.Max.ToString);
 
+  {$IFDEF DEBUG}
+  _stopwatch2 := TStopwatch.Create;
+////  _stopwatch3 := TStopwatch.Create;
+//
+//  _stopwatch2.Reset;
+  _stopwatch2.Start;
+//
+  Log('total renewal time: ' + (_realignContentTime+_paintTime).ToString + ' ms');
+
+  if _stopwatch3.IsRunning then
+  begin
+    _stopwatch3.Stop;
+
+    Log('time since last realign: ' + _stopwatch3.ElapsedMilliseconds.ToString + ' ms');
+  end;
+
+  _stopwatch3 := TStopwatch.StartNew;
+  {$ENDIF}
+
   _realignContentRequested := False;
+  _paintTime := -1;
   _checkWaitForRealignTimer.Enabled := False;
 
   var stopwatch := TStopwatch.StartNew;
-
-  {$IFDEF DEBUG}
-  _stopwatch2 := TStopwatch.Create;
-//  _stopwatch3 := TStopwatch.Create;
-
-  _stopwatch2.Reset;
-  _stopwatch2.Start;
-
-//  _stopwatch3.Reset;
-  {$ENDIF}
 
   try
     BeforeRealignContent;
@@ -393,21 +406,24 @@ begin
     _scrollingType := TScrollingType.None;
   end;
 
-
   inc(_threadIndex);
 
   stopwatch.Stop;
   _realignContentTime := stopwatch.ElapsedMilliseconds;
 
   {$IFDEF DEBUG}
-  _stopwatch2.Stop;
-//  _stopwatch3.Stop;
-//
-//  Log('_stopwatch3: ' + _stopwatch3.ElapsedMilliseconds.ToString);
-
-//  Log('Max 2: ' + _vertScrollBar.Max.ToString);
-  Log('_stopwatch2: ' + _stopwatch2.ElapsedMilliseconds.ToString);
+//  Log('_realignContentTime: ' + _realignContentTime.ToString);
   {$ENDIF}
+
+//  {$IFDEF DEBUG}
+//  _stopwatch2.Stop;
+////  _stopwatch3.Stop;
+////
+////  Log('_stopwatch3: ' + _stopwatch3.ElapsedMilliseconds.ToString);
+//
+////  Log('Max 2: ' + _vertScrollBar.Max.ToString);
+//  Log('_stopwatch2: ' + _stopwatch2.ElapsedMilliseconds.ToString);
+//  {$ENDIF}
 
   _scrollStopWatch_scrollbar := TStopwatch.StartNew;
 end;
@@ -556,17 +572,6 @@ const
   ScrollBigStepsDivider = 5;
   WheelDeltaDivider = 120;
 begin
-  {$IFDEF DEBUG}
-  if _stopwatch3.IsRunning then
-  begin
-    _stopwatch3.Stop;
-
-    Log('Last MouseWheel: ' + _stopwatch3.ElapsedMilliseconds.ToString + ' ms ago');
-  end;
-
-  _stopwatch3 := TStopwatch.StartNew;
-  {$ENDIF}
-
   inherited;
 
   if Handled or (_scrollingType <> TScrollingType.None) then
@@ -671,6 +676,43 @@ begin
   RestartWaitForRealignTimer(0);
 end;
 
+procedure TDCScrollableControl.Paint;
+begin
+  inherited;
+
+
+  {$IFDEF DEBUG}
+  _stopwatch2.Stop;
+  Log('time between PaintCHildren and Paint done: ' + _stopwatch2.ElapsedMilliseconds.ToString + ' ms');
+  _stopwatch2 := TStopwatch.StartNew;
+  {$ENDIF}
+end;
+
+procedure TDCScrollableControl.PaintChildren;
+begin
+  {$IFDEF DEBUG}
+  _stopwatch2.Stop;
+  Log('time between realign and paint: ' + _stopwatch2.ElapsedMilliseconds.ToString + ' ms');
+  _stopwatch2 := TStopwatch.StartNew;
+  {$ENDIF}
+
+  var stopwatch := TStopwatch.StartNew;
+
+  inherited;
+
+  stopwatch.Stop;
+  _paintTime := stopwatch.ElapsedMilliseconds;
+
+//  {$IFDEF DEBUG}
+//  var w: Word := vkNext;
+//  KeyDown(w, '', []);
+//  {$ENDIF}
+
+//  {$IFDEF DEBUG}
+//  Log('_paintTime: ' + _paintTime.ToString);
+//  {$ENDIF}
+end;
+
 procedure TDCScrollableControl.Painting;
 begin
   if _realignContentRequested and CanRealignContent then
@@ -689,7 +731,12 @@ end;
 
 function TDCScrollableControl.RealignContentTime: Integer;
 begin
-  Result := Round(_realignContentTime * 1.1);
+  Result := Round((_realignContentTime+_paintTime) * 1.1);
+end;
+
+function TDCScrollableControl.RealignedButNotPainted: Boolean;
+begin
+  Result := _paintTime = -1;
 end;
 
 procedure TDCScrollableControl.RealignFinished;
@@ -772,12 +819,10 @@ begin
 
     ScrollManualInstant(_mouseWheelDistanceToGo);
     _mouseWheelDistanceToGo := 0;
-    Log('immidiate');
 
     Exit;
   end;
 
-  Log('animate');
   _scrollStopWatch_wheel_lastSpin.Reset;
 
   _mouseWheelSmoothScrollTimer.Enabled := True;
@@ -817,8 +862,6 @@ end;
 
 procedure TDCScrollableControl.RestartWaitForRealignTimer(const AdditionalContentTime: Integer; OnlyForRealignWhenScrollingStopped: Boolean = False);
 begin
-  Log('RestartWaitForRealignTimer');
-
   _additionalTimerTime := CMath.Max(_additionalTimerTime, AdditionalContentTime);
   _timerDoRealignWhenScrollingStopped := OnlyForRealignWhenScrollingStopped;
 
