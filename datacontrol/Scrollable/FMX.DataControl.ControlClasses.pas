@@ -45,14 +45,22 @@ type
     function CreateHeaderRect(const Owner: TComponent): TRectangle;
     function CreateRowRect(const Owner: TComponent): TRectangle;
 
+    function IsCustomFactory: Boolean;
+
     function CreateHeaderCellRect(const Owner: TComponent): TRectangle;
     function CreateRowCellRect(const Owner: TComponent): TRectangle;
   end;
 
   TDataControlClassFactory = class(TInterfacedObject, IDataControlClassFactory)
+  private
+    _isCustomFactory: Boolean;
   public
+    constructor Create; reintroduce;
+
     function CreateHeaderRect(const Owner: TComponent): TRectangle; virtual;
     function CreateRowRect(const Owner: TComponent): TRectangle; virtual;
+
+    function IsCustomFactory: Boolean;
 
     function CreateHeaderCellRect(const Owner: TComponent): TRectangle; virtual;
     function CreateRowCellRect(const Owner: TComponent): TRectangle; virtual;
@@ -159,6 +167,13 @@ begin
   Result.Sides := [];
 end;
 
+constructor TDataControlClassFactory.Create;
+begin
+  inherited;
+
+  _isCustomFactory := Self.ClassName <> 'TDataControlClassFactory';
+end;
+
 function TDataControlClassFactory.CreateHeaderCellRect(const Owner: TComponent): TRectangle;
 begin
   Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
@@ -182,6 +197,11 @@ begin
 
   Result.Fill.Color := DEFAULT_WHITE_COLOR;
   Result.Stroke.Color := DEFAULT_CELL_STROKE;
+end;
+
+function TDataControlClassFactory.IsCustomFactory: Boolean;
+begin
+  Result := _isCustomFactory;
 end;
 
 initialization

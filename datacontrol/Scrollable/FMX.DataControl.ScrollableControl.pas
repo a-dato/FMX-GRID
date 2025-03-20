@@ -441,7 +441,7 @@ end;
 
 function TDCScrollableControl.IsUpdating: Boolean;
 begin
-  Result := inherited or ((_content <> nil) and _content.IsUpdating) or (_updateCount > 0);
+  Result := inherited or ((_content <> nil) and _content.IsUpdating);
 end;
 
 procedure TDCScrollableControl.Log(const Message: CString);

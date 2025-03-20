@@ -364,7 +364,7 @@ end;
 
 procedure TEditableDataControl.OnPropertyCheckBoxChange(Sender: TObject);
 begin
-  if Self.IsUpdating then
+  if Self.IsUpdating or (_updateCount > 0) then
     Exit;
 
   var cell := GetCellByControl(Sender as TControl);

@@ -1040,7 +1040,7 @@ end;
 
 procedure TDCScrollableRowControl.ModelContextPropertyChanged(const Sender: IObjectModelContext; const Context: CObject; const AProperty: _PropertyInfo);
 begin
-  if not Self.IsUpdating then
+  if not Self.IsUpdating and (_updateCount = 0) then
     DoDataItemChangedInternal(Context);
 end;
 

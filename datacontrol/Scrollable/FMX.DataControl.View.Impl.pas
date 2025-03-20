@@ -621,20 +621,25 @@ end;
 
 procedure TDataViewList.ReindexActiveRow(const Row: IDCRow);
 begin
-  _activeRows.Remove(Row);
-
   var correctIndex := 0;
+  var doMinusOne := False;
   for var ix := 0 to _activeRows.Count - 1 do
   begin
     var r := _activeRows[ix];
     if r.ViewListIndex < Row.ViewListIndex then
-      correctIndex := ix + 1;
+      inc(correctIndex);
   end;
 
-  _activeRows.Insert(correctIndex, Row);
+  if Row.ViewListIndex <> correctIndex then
+  begin
+    _activeRows.Remove(Row);
+    _activeRows.Insert(correctIndex, Row);
 
-  for var ix := 0 to _activeRows.Count - 1 do
-    _activeRows[ix].ViewPortIndex := ix;
+    for var ix := 0 to _activeRows.Count - 1 do
+      _activeRows[ix].ViewPortIndex := ix;
+
+    UpdatePerformanceIndexIndicators;
+  end;
 end;
 
 procedure TDataViewList.ResetView(const FromViewListIndex: Integer = -1; ClearOneRowOnly: Boolean = False);
@@ -710,7 +715,7 @@ begin
     if row.ViewPortIndex = -1 then
       row := _activeRows[index];
 
-    if (row.VirtualYPosition + row.Control.Height < VirtualYPositionStart) or (row.VirtualYPosition >= VirtualYPositionStop) then
+    if (row.VirtualYPosition + row.Control.Height <= VirtualYPositionStart) or (row.VirtualYPosition >= VirtualYPositionStop) then
       RemoveRowFromActiveView(row);
   end;
 
