@@ -265,6 +265,9 @@ type
 
   TDCTreeOptions = set of TDCTreeOptionFlag;
 
+const
+  ROW_CONTENT_MARGIN = 3;
+
 implementation
 
 { TSelectionEventTrigger }

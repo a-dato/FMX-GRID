@@ -100,7 +100,6 @@ type
     procedure OnEditorKeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
     procedure OnEditorExit;
 
-
     procedure StartEditCell(const Cell: IDCTreeCell; const UserValue: string = '');
     function  EndEditCell: Boolean;
     procedure SafeForcedEndEdit;
@@ -121,7 +120,7 @@ type
     procedure EndEditFromExternal;
 
     procedure CancelEdit(CellOnly: Boolean = False); // canceling is difficult to only do the cell
-    function  EditActiveCell(SetFocus: Boolean): Boolean;
+    function  EditActiveCell(SetFocus: Boolean; const UserValue: string = ''): Boolean;
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -160,7 +159,7 @@ uses
   System.ComponentModel,
   FMX.DataControl.ControlClasses, FMX.StdCtrls, System.TypInfo, FMX.Controls,
   System.Math, ADato.Collections.Specialized,
-  System.Reflection, FMX.ActnList;
+  System.Reflection, FMX.ActnList, FMX.Platform;
 
 { TEditableDataControl }
 
@@ -283,6 +282,9 @@ begin
   // else inherited
   else
   begin
+    if ssAlt in Shift then
+      Exit;
+
     if Key <> 0 then
     begin
       if (Key in [vkUp, vkDown, vkPrior, vkEnd, vkTab]) and not CheckCanChangeRow then
@@ -294,7 +296,7 @@ begin
         Exit;
     end;
 
-    if not (Key in [vkUp, vkDown, vkLeft, vkRight, vkPrior, vkEnd, vkHome, vkEnd, vkShift, vkControl, vkTab, vkReturn]) then
+    if not (Key in [vkUp, vkDown, vkLeft, vkRight, vkPrior, vkEnd, vkHome, vkEnd, vkShift, vkControl, vkMenu, vkTab, vkReturn]) then
       StartEditCell(GetActiveCell, KeyChar);
   end;
 end;
@@ -849,9 +851,9 @@ begin
   DoDataItemChangedInternal(GetActiveRow.DataItem); //, GetActiveRow.DataIndex);
 end;
 
-function TEditableDataControl.EditActiveCell(SetFocus: Boolean): Boolean;
+function TEditableDataControl.EditActiveCell(SetFocus: Boolean; const UserValue: string = ''): Boolean;
 begin
-  StartEditCell(GetActiveCell);
+  StartEditCell(GetActiveCell, UserValue);
 
   Result := _cellEditor <> nil;
   if Result and SetFocus then
@@ -875,7 +877,12 @@ begin
     _pasteFromClipboard(Self);
     Result := True;
   end else
-    Result := False;
+  begin
+    var clipboard: IFMXClipboardService;
+    if TPlatformServices.Current.SupportsPlatformService(IFMXClipboardService, ClipBoard) then
+      Result := EditActiveCell(True, ClipBoard.GetClipboard.AsString) else
+      Result := False;
+  end;
 end;
 
 function TEditableDataControl.ProvideCellData(const Cell: IDCTreeCell; const PropName: CString; const IsSubProp: Boolean): CObject;

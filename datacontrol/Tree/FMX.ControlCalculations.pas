@@ -17,6 +17,12 @@ uses
 
   procedure ScrollControlInView(const Control: TControl; const ScrollBox: TCustomScrollBox; ControlMargin: Single = 10);
 
+  procedure BeginDefaultTextLayout;
+  procedure EndDefaultTextLayout;
+
+var
+  DefaultLayout: TTextLayout;
+
 implementation
 
 uses
@@ -26,9 +32,43 @@ uses
 
   FMX.Types;
 
+
+procedure BeginDefaultTextLayout;
+begin
+  if DefaultLayout = nil then
+  begin
+    DefaultLayout := TTextLayoutManager.DefaultTextLayout.Create;
+
+    DefaultLayout.BeginUpdate;
+    try
+      DefaultLayout.TopLeft := PointF(0, 0);
+      DefaultLayout.MaxSize := PointF(1000, 1000);
+      DefaultLayout.WordWrap := False; // we want the full text width
+      DefaultLayout.HorizontalAlign := TTextAlign.Leading;
+      DefaultLayout.VerticalAlign := TTextAlign.Leading;
+//      Layout.Color := Settings.FontColor;
+      DefaultLayout.RightToLeft := False; // TFillTextFlag.RightToLeft in Flags;
+    finally
+      DefaultLayout.EndUpdate;
+    end;
+  end;
+end;
+
+procedure EndDefaultTextLayout;
+begin
+  if DefaultLayout <> nil then
+  begin
+    DefaultLayout.Free;
+    DefaultLayout := nil;
+  end;
+end;
+
 function TextControlWidth(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinWidth: Single = -1; MaxWidth: Single = -1; TextHeight: Single = -1): Single;
 begin
-  var layout := TTextLayoutManager.DefaultTextLayout.Create;
+  var layout: TTextLayout;
+  if DefaultLayout <> nil then
+    layout := DefaultLayout else
+    layout := TTextLayoutManager.DefaultTextLayout.Create;
   try
     Layout.BeginUpdate;
     try
@@ -47,7 +87,8 @@ begin
 
     Result := Layout.TextRect.Right;
   finally
-    Layout.Free;
+    if DefaultLayout = nil then
+      Layout.Free;
   end;
 
   if MinWidth <> -1 then
@@ -59,7 +100,11 @@ end;
 
 function TextControlHeight(const TextControl: TControl; const Settings: TTextSettings; const Text: string; MinHeight: Single = -1; MaxHeight: Single = -1; TextWidth: Single = -1): Single;
 begin
-  var layout := TTextLayoutManager.DefaultTextLayout.Create;
+  var layout: TTextLayout;
+  if DefaultLayout <> nil then
+    layout := DefaultLayout else
+    layout := TTextLayoutManager.DefaultTextLayout.Create;
+
   try
     Layout.BeginUpdate;
     try
@@ -79,7 +124,8 @@ begin
 
     Result := Ceil(Layout.TextRect.Bottom);
   finally
-    Layout.Free;
+    if DefaultLayout = nil then
+      Layout.Free;
   end;
 
   if MinHeight <> -1 then

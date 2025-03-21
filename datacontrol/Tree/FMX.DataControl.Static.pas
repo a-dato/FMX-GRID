@@ -155,6 +155,7 @@ type
     procedure UpdateHorzScrollbar;
 
     procedure UpdateHoverRect(MousePos: TPointF); override;
+    function  ShowFlatColumnContent(const FlatColumn: IDCTreeLayoutColumn): Boolean;
 
     function  FlatColumnByColumn(const Column: IDCTreeColumn): IDCTreeLayoutColumn;
     function  FlatColumnIndexByLayoutIndex(const LayoutIndex: Integer): Integer;
@@ -171,8 +172,9 @@ type
     procedure UpdateScrollAndSelectionByKey(var Key: Word; Shift: TShiftState); override;
     procedure SetBasicHorzScrollBarValues; override;
 
+    function  GetSelectableFlatColumnByMouseX(const X: Single): IDCTreeLayoutColumn;
     function  GetFlatColumnByMouseX(const X: Single): IDCTreeLayoutColumn;
-    function  GetFlatColumnByKey(const Key: Word; Shift: TShiftState): IDCTreeLayoutColumn;
+    function  GetFlatColumnByKey(const Key: Word; Shift: TShiftState; FromColumnIndex: Integer): IDCTreeLayoutColumn;
 
     procedure HandleTreeOptionsChange(const OldFlags, NewFlags: TDCTreeOptions); override;
 
@@ -245,7 +247,7 @@ uses
   FMX.DataControl.ScrollableRowControl.Impl, ADato.Data.DataModel.impl,
   FMX.DataControl.SortAndFilter,
   FMX.DataControl.Static.PopupMenu,
-  FMX.ActnList;
+  FMX.ActnList, FMX.DataControl.ScrollableControl.Intf;
 
 { TStaticDataControl }
 
@@ -326,10 +328,15 @@ begin
 
   UpdateHorzScrollbar;
   SetBasicVertScrollBarValues;
+
+  EndDefaultTextLayout;
 end;
 
 procedure TStaticDataControl.AssignWidthsToAlignColumns;
 begin
+  if _scrollingType = TScrollingType.WithScrollBar then
+    Exit;
+  
   var fullRowList: List<IDCTreeRow> := HeaderAndTreeRows;
 
   for var flatClmn in _treeLayout.FlatColumns do
@@ -340,7 +347,13 @@ begin
       begin
         var treeRow := row as IDCTreeRow;
         try
-          var w := treeRow.ContentCellSizes[flatClmn.Index];
+          var w: Single;
+          if not treeRow.ContentCellSizes.TryGetValue(flatClmn.Index, w) then
+          begin
+            w := CalculateCellWidth(flatClmn, treeRow.Cells[flatClmn.Index]);
+            treeRow.ContentCellSizes.Add(flatClmn.Index, w);
+          end;
+
           if w > maxCellWidth then
             maxCellWidth := w;
         except
@@ -394,7 +407,7 @@ begin
 
   if (_hoverRect.Visible) and (_selectionType = TSelectionType.CellSelection) then
   begin
-    var clmn := GetFlatColumnByMouseX(MousePos.X);
+    var clmn := GetSelectableFlatColumnByMouseX(MousePos.X);
 
     _hoverRect.Visible := (clmn <> nil);
     if not _hoverRect.Visible then Exit;
@@ -504,6 +517,14 @@ begin
       if not treeRow.Cells.TryGetValue(flatClmn.Index, cell) then
         Continue;
 
+//      if not ShowFlatColumnContent(flatClmn) then
+//      begin
+//        cell.Control.Visible := False;
+//        Continue;
+//      end;
+//
+//      cell.Control.Visible := True;
+
       flatClmn.UpdateCellControlsPositions(cell);
 
       var leftPos := flatClmn.Left;
@@ -524,6 +545,21 @@ begin
         cell.ExpandButton.Position.Y := ((cell.Row.Height - cell.ExpandButton.Height) / 2) + 0.5;
     end;
   end;
+end;
+
+function TStaticDataControl.ShowFlatColumnContent(const FlatColumn: IDCTreeLayoutColumn): Boolean;
+begin
+  if FlatColumn.Column.Frozen then
+    Exit(True);
+
+  if (_scrollingType <> TScrollingType.None) and (FlatColumn.Index > 4) then
+    Exit(False);
+
+  var scrolledToRight := _horzScrollBar.Value - _horzScrollBar.Min;
+  var viewStart := scrolledToRight;
+  var viewStop := scrolledToRight + _content.Width;
+
+  Result := ((FlatColumn.Left + FlatColumn.Width) > viewStart) and (FlatColumn.Left < viewStop);
 end;
 
 procedure TStaticDataControl.GenerateView;
@@ -565,7 +601,7 @@ begin
   Result := (clickedRow as IDCTreeRow).Cells[FlatColumn.Index];
 end;
 
-function TStaticDataControl.GetFlatColumnByKey(const Key: Word; Shift: TShiftState): IDCTreeLayoutColumn;
+function TStaticDataControl.GetFlatColumnByKey(const Key: Word; Shift: TShiftState; FromColumnIndex: Integer): IDCTreeLayoutColumn;
 
   function CanSelectLayoutColumn(const LyColumn: IDCTreeLayoutColumn): Boolean;
   begin
@@ -576,7 +612,7 @@ begin
   var horzScroll := GetHorzScroll(Key, Shift);
   if horzScroll = TRightLeftScroll.None then
   begin
-    Result := _treeLayout.LayoutColumns[(_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn];
+    Result := _treeLayout.LayoutColumns[FromColumnIndex];
     Exit;
   end;
 
@@ -589,7 +625,7 @@ begin
     flatColumn := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1]
   else
   begin
-    var crrntFlatColumnIndex := FlatColumnIndexByLayoutIndex((_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn);
+    var crrntFlatColumnIndex := FlatColumnIndexByLayoutIndex(FromColumnIndex);
     if horzScroll = TRightLeftScroll.Left then
       flatColumn := _treeLayout.FlatColumns[CMath.Max(0, crrntFlatColumnIndex - 1)]
     else if horzScroll = TRightLeftScroll.Right then
@@ -604,12 +640,27 @@ begin
       dec(flatIndex);
 
     if (flatIndex < 0) or (flatIndex > _treeLayout.FlatColumns.Count - 1) then
-      Exit(_treeLayout.LayoutColumns[(_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn]); // nothing to do
+      Exit(_treeLayout.LayoutColumns[FromColumnIndex]); // nothing to do
 
     flatColumn := _treeLayout.FlatColumns[flatIndex];
   end;
 
   Result := flatColumn;
+end;
+
+function TStaticDataControl.GetSelectableFlatColumnByMouseX(const X: Single): IDCTreeLayoutColumn;
+begin
+  Result := GetFlatColumnByMouseX(X);
+
+  if (Result = nil) or not Result.Column.Selectable then
+  begin
+    if (Result <> nil) then
+      Result := GetFlatColumnByKey(vkLeft, [], Result.Index);
+
+    // if none found on the left of the mouse than try find first selectable column (on the right of mouse click)
+    if (Result = nil) or not Result.Column.Selectable then
+      Result := GetFlatColumnByKey(vkHome, [], 0);
+  end;
 end;
 
 function TStaticDataControl.GetFlatColumnByMouseX(const X: Single): IDCTreeLayoutColumn;
@@ -670,12 +721,20 @@ end;
 
 procedure TStaticDataControl.UserClicked(Button: TMouseButton; Shift: TShiftState; const X, Y: Single);
 begin
+  if _selectionType <> TSelectionType.CellSelection then
+  begin
+    (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn := GetFlatColumnByKey(vkHome, [], 0).Index;
+    inherited;
+
+    Exit;
+  end;
+
   var clickedRow := GetRowByMouseY(Y);
   if clickedRow = nil then Exit;
 
   _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.Click;
 
-  var flatColumn := GetFlatColumnByMouseX(X);
+  var flatColumn := GetSelectableFlatColumnByMouseX(X);
   if flatColumn = nil then
   begin
     var flatIx := (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn;
@@ -1103,7 +1162,7 @@ begin
   _selectionInfo.BeginUpdate;
   Try
     var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-    treeSelectionInfo.SelectedLayoutColumn := GetFlatColumnByKey(vkHome, []).Index; // get first valid column
+    treeSelectionInfo.SelectedLayoutColumn := GetFlatColumnByKey(vkHome, [], (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn).Index; // get first valid column
   finally
     _selectionInfo.EndUpdate(True {ignore events});
   end;
@@ -1149,16 +1208,7 @@ begin
 
   inherited;
 
-  // for the width check, also take header cells into account
-  if _headerRow <> nil then
-    for var flatColumn in _treeLayout.FlatColumns do
-    begin
-      if flatColumn.Column.WidthType <> TDCColumnWidthType.AlignToContent then
-        Continue;
-
-      var cell := _headerRow.Cells[flatColumn.Index];
-      _headerRow.ContentCellSizes[flatColumn.Index] := CalculateCellWidth(flatColumn, cell);
-    end;
+  BeginDefaultTextLayout;
 end;
 
 procedure TStaticDataControl.ColumnsChanged(Sender: TObject; e: NotifyCollectionChangedEventArgs);
@@ -1395,9 +1445,8 @@ end;
 
 destructor TStaticDataControl.Destroy;
 begin
+  _view := nil;
   _headerRow := nil;
-//  _treeLayout := nil;
-
   _treeLayout := nil;
 
 //  for var clmnIx := _columns.Count - 1 downto 0 do
@@ -1698,7 +1747,7 @@ end;
 procedure TStaticDataControl.UpdateScrollAndSelectionByKey(var Key: Word; Shift: TShiftState);
 begin
   var treeSelectionInfo := _selectionInfo as ITreeSelectionInfo;
-  var flatColumn := GetFlatColumnByKey(Key, Shift);
+  var flatColumn := GetFlatColumnByKey(Key, Shift, (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn);
   var rowViewListIndex := GetRowViewListIndexByKey(Key, Shift);
 
   if (treeSelectionInfo.SelectedLayoutColumn <> flatColumn.Index) then
@@ -1709,7 +1758,8 @@ begin
     requestedSelection.UpdateLastSelection(_view.GetDataIndex(rowViewListIndex), rowViewListIndex, _view.GetViewList[rowViewListIndex]);
     requestedSelection.SelectedLayoutColumn := flatColumn.Index;
 
-    TrySelectItem(requestedSelection, Shift);
+    if TrySelectItem(requestedSelection, Shift) then
+      Key := 0;
   end
   else
     inherited;
@@ -1810,10 +1860,6 @@ begin
         txt.Text := CStringToString(flatColumn.Column.Caption);
 
         DoCellLoaded(headerCell, False, {var} dummyManualHeight);
-
-        var needsWidthCheckBasedOnColumn := flatColumn.Column.WidthType = TDCColumnWidthType.AlignToContent;
-        if needsWidthCheckBasedOnColumn then
-          _headerRow.ContentCellSizes[flatColumn.Index] := CalculateCellWidth(flatColumn, headerCell);
 
         _headerRow.Cells.Add(flatColumn.Index, headerCell);
       end;
@@ -1934,17 +1980,13 @@ begin
     end;
 
     DoCellLoaded(cell, False, {var} manualHeight);
-
-    var needsWidthCheckBasedOnColumn := flatColumn.Column.WidthType = TDCColumnWidthType.AlignToContent;
-    if needsWidthCheckBasedOnColumn then
-      treeRow.ContentCellSizes[flatColumn.Index] := CalculateCellWidth(flatColumn, cell);
   end;
 
   if manualHeight <> -1 then
     Row.Control.Height := manualHeight else
     Row.Control.Height := CalculateRowHeight(Row as IDCTreeRow);
 
-  inherited;
+  inherited;           
 end;
 
 function TStaticDataControl.CalculateCellWidth(const LayoutColumn: IDCTreeLayoutColumn; const Cell: IDCTreeCell): Single;
@@ -1965,7 +2007,7 @@ begin
     if (ctrl.Margins.Left > 0) or (ctrl.Margins.Right > 0) then
       customMargins := ctrl.Margins.Left + ctrl.Margins.Right;
 
-    Result := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*CELL_CONTENT_MARGIN) + customMargins;
+    Result := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*ROW_CONTENT_MARGIN) + customMargins;
   end;
 
   if not Cell.IsHeaderCell and (Cell.Column.SubInfoControlClass = TInfoControlClass.Text) then
@@ -1976,7 +2018,7 @@ begin
     if (subCtrl.Margins.Left > 0) or (subCtrl.Margins.Right > 0) then
       customMargins := subCtrl.Margins.Left + subCtrl.Margins.Right;
 
-    var subWidth := TextControlWidth(subCtrl, subCtrl.TextSettings, subCtrl.Text) + (2*CELL_CONTENT_MARGIN) + customMargins;
+    var subWidth := TextControlWidth(subCtrl, subCtrl.TextSettings, subCtrl.Text) + (2*ROW_CONTENT_MARGIN) + customMargins;
 
     Result := CMath.Max(Result, subWidth);
   end;
@@ -1985,14 +2027,14 @@ begin
   begin
     var headerCell := Cell as IHeaderCell;
     if (headerCell.SortControl <> nil) then
-      Result := Result + headerCell.SortControl.Width + (2*CELL_CONTENT_MARGIN);
+      Result := Result + headerCell.SortControl.Width + (2*ROW_CONTENT_MARGIN);
 
     if (headerCell.FilterControl <> nil) then
-      Result := Result + headerCell.FilterControl.Width + (2*CELL_CONTENT_MARGIN);
+      Result := Result + headerCell.FilterControl.Width + (2*ROW_CONTENT_MARGIN);
   end
   else begin
     if Cell.ExpandButton <> nil then
-      Result := Result + Cell.ExpandButton.Width + CELL_CONTENT_MARGIN;
+      Result := Result + Cell.ExpandButton.Width + ROW_CONTENT_MARGIN;
   end;
 end;
 
@@ -2020,7 +2062,7 @@ begin
         Result := cellHeight;
     end;
 
-  Result := Result + 2*CELL_CONTENT_MARGIN;
+  Result := Result + 2*ROW_CONTENT_MARGIN;
 end;
 
 procedure TStaticDataControl.GetSortAndFilterImages(out ImageList: TCustomImageList; out FilterIndex, SortAscIndex, SortDescIndex: Integer);

@@ -520,6 +520,7 @@ type
   public
     destructor Destroy; override;
 
+    procedure ClearRowForReassignment; override;
     procedure UpdateSelectionVisibility(const SelectionInfo: IRowSelectionInfo; OwnerIsFocused: Boolean); override;
     procedure ResetCells;
   end;
@@ -1359,7 +1360,7 @@ begin
   if Cell.IsHeaderCell then
   begin
     var headerCell := Cell as IHeaderCell;
-    var startYPos := Cell.Control.Width - CELL_MIN_INDENT - (2*CELL_CONTENT_MARGIN);
+    var startYPos := Cell.Control.Width - CELL_MIN_INDENT - (2*ROW_CONTENT_MARGIN);
 
     if headerCell.FilterControl <> nil then
     begin
@@ -1368,7 +1369,7 @@ begin
       headerCell.FilterControl.Width := CELL_MIN_INDENT;
       headerCell.FilterControl.Height := CELL_MIN_INDENT;
 
-      startYPos := startYPos - CELL_MIN_INDENT - (2*CELL_CONTENT_MARGIN);
+      startYPos := startYPos - CELL_MIN_INDENT - (2*ROW_CONTENT_MARGIN);
     end;
     if headerCell.SortControl <> nil then
     begin
@@ -1379,19 +1380,19 @@ begin
     end;
   end
   else begin
-    var indentPerLevel := CMath.Max(Cell.Column.Indent, CELL_MIN_INDENT) + CELL_CONTENT_MARGIN;
+    var indentPerLevel := CMath.Max(Cell.Column.Indent, CELL_MIN_INDENT) + ROW_CONTENT_MARGIN;
 
     if Cell.ExpandButton <> nil then
     begin
-      cell.ExpandButton.Position.Y := CELL_CONTENT_MARGIN;
-      cell.ExpandButton.Position.X := CELL_CONTENT_MARGIN;
+      cell.ExpandButton.Position.Y := ROW_CONTENT_MARGIN;
+      cell.ExpandButton.Position.X := ROW_CONTENT_MARGIN;
       spaceUsed := indentPerLevel * (cell.Row.ParentCount {can be 0} + 1);
     end
     else if Cell.Column.ShowHierarchy then
       spaceUsed := indentPerLevel * (cell.Row.ParentCount {can be 0});
   end;
 
-  var textCtrlHeight := IfThen(Cell.IsHeaderCell, Cell.Row.Control.Height, (Cell.Row.Control.Height - 2*CELL_CONTENT_MARGIN));
+  var textCtrlHeight := IfThen(Cell.IsHeaderCell, Cell.Row.Control.Height, (Cell.Row.Control.Height - 2*ROW_CONTENT_MARGIN));
   var validSub := (Cell.SubInfoControl <> nil) and Cell.SubInfoControl.Visible;
   if validSub and (Cell.Column.SubInfoControlClass = TInfoControlClass.Text) then
     validSub := (Cell.SubInfoControl as TText).Text <> string.Empty;
@@ -1402,10 +1403,10 @@ begin
 
     if Cell.CustomSubInfoControlBounds.IsEmpty then
     begin
-      Cell.SubInfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
+      Cell.SubInfoControl.Width := get_Width - spaceUsed - (2*ROW_CONTENT_MARGIN);
       Cell.SubInfoControl.Height := textCtrlHeight;
-      Cell.SubInfoControl.Position.Y := CELL_CONTENT_MARGIN + textCtrlHeight + Cell.SubInfoControl.Margins.Top;
-      Cell.SubInfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN + Cell.SubInfoControl.Margins.Left;
+      Cell.SubInfoControl.Position.Y := ROW_CONTENT_MARGIN + textCtrlHeight + Cell.SubInfoControl.Margins.Top;
+      Cell.SubInfoControl.Position.X := spaceUsed + ROW_CONTENT_MARGIN + Cell.SubInfoControl.Margins.Left;
     end else
       Cell.SubInfoControl.BoundsRect := Cell.CustomSubInfoControlBounds;
   end;
@@ -1414,12 +1415,12 @@ begin
   begin
     if Cell.CustomInfoControlBounds.IsEmpty then
     begin
-      Cell.InfoControl.Width := get_Width - spaceUsed - (2*CELL_CONTENT_MARGIN);
+      Cell.InfoControl.Width := get_Width - spaceUsed - (2*ROW_CONTENT_MARGIN);
       Cell.InfoControl.Height := textCtrlHeight;
       // KV: 24/01/2025 Line is not used
       // Cell.InfoControl.Position.Y := (Cell.Control.Height - Cell.InfoControl.Height) / 2;
-      Cell.InfoControl.Position.Y := IfThen(Cell.IsHeaderCell, 0, CELL_CONTENT_MARGIN) + Cell.InfoControl.Margins.Top;
-      Cell.InfoControl.Position.X := spaceUsed + CELL_CONTENT_MARGIN + Cell.InfoControl.Margins.Left;
+      Cell.InfoControl.Position.Y := IfThen(Cell.IsHeaderCell, 0, ROW_CONTENT_MARGIN) + Cell.InfoControl.Margins.Top;
+      Cell.InfoControl.Position.X := spaceUsed + ROW_CONTENT_MARGIN + Cell.InfoControl.Margins.Left;
     end else
       Cell.InfoControl.BoundsRect := Cell.CustomInfoControlBounds;
   end;
@@ -1678,6 +1679,9 @@ begin
   _layoutColumns := CList<IDCTreeLayoutColumn>.Create;
   for var clmn in ColumnControl.ColumnList do
   begin
+//    clmn.WidthSettings.WidthType := TDCColumnWidthType.Pixel;
+//    clmn.WidthSettings.Width := 150;
+
     var lyColumn: IDCTreeLayoutColumn := TTreeLayoutColumn.Create(clmn, ColumnControl);
     _layoutColumns.Add(lyColumn);
   end;
@@ -2202,6 +2206,14 @@ end;
 
 { TDCTreeRow }
 
+procedure TDCTreeRow.ClearRowForReassignment;
+begin
+  inherited;
+
+  if _contentCellSizes <> nil then
+    _contentCellSizes.Clear;
+end;
+
 destructor TDCTreeRow.Destroy;
 begin
   inherited;
@@ -2260,7 +2272,7 @@ begin
     Exit;
 
   if rowIsSelected then
-    _selectionRect.Opacity := 0.15; // make cell selection more visible
+    _selectionRect.Opacity := 0.0; // make cell selection more visible
 
   for var cell in _cells.Values do
     cell.UpdateSelectionVisibility(rowIsSelected, SelectionInfo as ITreeSelectionInfo, OwnerIsFocused);

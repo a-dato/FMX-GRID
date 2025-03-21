@@ -551,7 +551,6 @@ type
 //  end;
 
 const
-  CELL_CONTENT_MARGIN = 3;
   CELL_MIN_INDENT = 10;
 
 resourcestring

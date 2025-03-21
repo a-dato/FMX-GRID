@@ -271,7 +271,7 @@ uses
 
   FMX.DataControl.View.Impl,
   FMX.DataControl.ScrollableControl.Intf, FMX.Graphics,
-  FMX.DataControl.ControlClasses;
+  FMX.DataControl.ControlClasses, FMX.ControlCalculations;
 
 { TDCScrollableRowControl }
 
@@ -279,15 +279,10 @@ function TDCScrollableRowControl.DefaultMoveDistance(ScrollDown: Boolean): Singl
 begin
   if _rowHeightFixed > 0 then
     Result := _rowHeightFixed
-  else if (_view <> nil) and (_view.ViewCount > 0) and (_view.ActiveViewRows[0].Control <> nil) then
-  begin
-    var rowOnTop := _view.ActiveViewRows[0];
-    if ScrollDown or (rowOnTop.ViewListIndex = 0) then
-      Result := rowOnTop.Height else
-      Result := _view.GetRowHeight(rowOnTop.ViewListIndex - 1);
-  end
+  else if get_rowHeightDefault <> 0 then
+    Result := _rowHeightDefault
   else
-    Result := _rowHeightDefault;
+    Result := 30;
 end;
 
 destructor TDCScrollableRowControl.Destroy;
@@ -847,8 +842,21 @@ end;
 function TDCScrollableRowControl.get_rowHeightDefault: Single;
 begin
   if _rowHeightFixed > 0 then
-    Result := _rowHeightFixed else
+    Result := _rowHeightFixed
+  else begin
+    if _rowHeightDefault = -1 {dynamic height} then
+    begin
+      var txt := ScrollableRowControl_DefaultTextClass.Create(Self);
+      try
+        txt.Text := 'Ag';
+        _rowHeightDefault := TextControlHeight(txt, txt.TextSettings, txt.Text) + (2*ROW_CONTENT_MARGIN);
+      finally
+        txt.Free;
+      end;
+    end;
+
     Result := _rowHeightDefault;
+  end;
 end;
 
 function TDCScrollableRowControl.get_RowHeightSynchronizer: TDCScrollableRowControl;
@@ -999,7 +1007,9 @@ begin
   if drv = nil then
     Exit;
 
-  DoCollapseOrExpandRow(drv.ViewIndex, RowFlag.Expanded in Args.NewProperties.Flags);
+  var doExpand := RowFlag.Expanded in Args.NewProperties.Flags;
+  if drv.DataView.IsExpanded[drv.Row] <> DoExpand then
+    DoCollapseOrExpandRow(drv.ViewIndex, doExpand);
 end;
 
 procedure TDCScrollableRowControl.DataModelViewRowChanged(const Sender: IBaseInterface; Args: RowChangedEventArgs);
@@ -1111,7 +1121,7 @@ begin
       begin
         _selectionInfo.BeginUpdate;
         try
-          _selectionInfo.UpdateLastSelection(_view.GetDataIndex(viewIndex), viewIndex, ConvertToDataItem(_view.GetViewList[viewIndex]));
+          _selectionInfo.UpdateLastSelection(_view.GetDataIndex(viewIndex), viewIndex, _view.GetViewList[viewIndex]);
         finally
           _selectionInfo.EndUpdate(True {ignore events});
         end;
@@ -1450,9 +1460,19 @@ end;
 
 procedure TDCScrollableRowControl.DoCollapseOrExpandRow(const ViewListIndex: Integer; DoExpand: Boolean);
 begin
+  if (_internalSelectCount > 0) or ((_rowHeightSynchronizer <> nil) and (_rowHeightSynchronizer._internalSelectCount > 0))then
+    Exit;
+
   var drv: IDataRowView;
   if not _view.GetViewList[ViewListIndex].TryAsType<IDataRowView>(drv) then
     Exit;
+
+  var virtualYPos: Single;
+  if DoExpand then
+  begin
+    var diDummy: CObject;
+    _view.GetFastPerformanceRowInfo(ViewListIndex, {out} diDummy, {out} virtualYPos);
+  end;
 
   inc(_internalSelectCount);
   try
@@ -1465,13 +1485,7 @@ begin
   ResetView(ViewListIndex+1);
 
   if DoExpand then
-  begin
-    var diDummy: CObject;
-    var virtualYPos: SIngle;
-    _view.GetFastPerformanceRowInfo(ViewListIndex, {out} diDummy, {out} virtualYPos);
-
     ScrollManualTryAnimated(-Trunc(virtualYPos - _vertScrollBar.Value))
-  end;
 end;
 
 procedure TDCScrollableRowControl.OnSelectionInfoChanged;
@@ -1571,7 +1585,12 @@ begin
     Exit;
 
   if (_rowHeightSynchronizer <> nil) and not _isMasterSynchronizer then
+  begin
+    if not _rowHeightSynchronizer._isMasterSynchronizer then
+      RefreshControl(True);
+
     Exit;
+  end;
 
   AtomicIncrement(_viewChangedIndex);
 
@@ -1675,12 +1694,14 @@ begin
   var clickedRow := GetRowByMouseY(Y);
   if clickedRow = nil then Exit;
 
+  _selectionInfo.LastSelectionEventTrigger := TSelectionEventTrigger.Click;
+
   InternalDoSelectRow(clickedRow, Shift);
 end;
 
 procedure TDCScrollableRowControl.InternalDoSelectRow(const Row: IDCRow; Shift: TShiftState);
 begin
-  if CObject.Equals(get_DataItem, Row.DataItem) and ((ssCtrl in Shift) = (_selectionInfo.SelectedRowCount > 1)) then
+  if CObject.Equals(get_DataItem, Row.DataItem) and ((ssCtrl in Shift) = (_selectionInfo.SelectedRowCount > 1)) and (_selectionInfo.ViewListIndex = Row.ViewListIndex {insert before and than go down}) then
   begin
     if _allowNoneSelected or (_selectionInfo.SelectedRowCount > 1) then
       _selectionInfo.Deselect(Row.DataIndex);
@@ -2033,7 +2054,7 @@ begin
       Exit; // current selection is still valid
 
     if viewListIndex = -1 then
-      viewListIndex := 0;
+      viewListIndex := CMath.Min(_selectionInfo.ViewListIndex - 1, _view.ViewCount - 1);
   end
   else if ViewIsDataModelView then
     viewListIndex := CMath.Max(0, GetDataModelView.CurrencyManager.Current);

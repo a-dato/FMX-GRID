@@ -295,10 +295,10 @@ end;
 
 procedure TDCCellEditor.BeginEdit(const EditValue: CObject);
 begin
-  _editor.Position.X := _cell.InfoControl.Position.X - CELL_CONTENT_MARGIN;
-  _editor.Position.Y := _cell.InfoControl.Position.Y - CELL_CONTENT_MARGIN;
-  _editor.Width := _cell.InfoControl.Width + (2*CELL_CONTENT_MARGIN);
-  _editor.Height := _cell.InfoControl.Height + (2*CELL_CONTENT_MARGIN);
+  _editor.Position.X := _cell.InfoControl.Position.X - ROW_CONTENT_MARGIN;
+  _editor.Position.Y := _cell.InfoControl.Position.Y - ROW_CONTENT_MARGIN;
+  _editor.Width := _cell.InfoControl.Width + (2*ROW_CONTENT_MARGIN);
+  _editor.Height := _cell.InfoControl.Height + (2*ROW_CONTENT_MARGIN);
 
   _cell.InfoControl.Visible := False;
 
