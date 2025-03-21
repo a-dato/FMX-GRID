@@ -266,7 +266,7 @@ type
   TDCTreeOptions = set of TDCTreeOptionFlag;
 
 const
-  ROW_CONTENT_MARGIN = 3;
+  ROW_CONTENT_MARGIN = 5;
 
 implementation
 
