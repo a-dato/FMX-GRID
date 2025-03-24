@@ -20,6 +20,8 @@ const
 
 type
   TLevel = (Normal, Verbose, ExtraVerbose);
+  TTraceOption = (WriteToStdOut, FormatAsJson);
+  TTraceOptions = set of TTraceOption;
 
   IEventTracer = interface
     ['{4BC8E544-161B-418A-AB6F-6F8FCEA44F27}']
@@ -32,8 +34,6 @@ type
     function  GetGroups: TStringList;
     function  GetLevel: TLevel;
     procedure SetLevel(const Value: TLevel);
-    function  GetSupportBeginEndTrace: Boolean;
-    procedure SetSupportBeginEndTrace(const Value: Boolean);
     function  get_UseCsvFormatting: Boolean;
     procedure set_UseCsvFormatting(const Value: Boolean);
     function  GetWriteToStdOut: Boolean;
@@ -58,13 +58,11 @@ type
     property Groups: TStringList read GetGroups;
     property Level: TLevel read GetLevel write SetLevel;
     property WriteToStdOut: Boolean read GetWriteToStdOut write SetWriteToStdOut;
-    property SupportBeginEndTrace: Boolean read GetSupportBeginEndTrace write SetSupportBeginEndTrace;
   end;
 
   TEmptyEventTracer = class(TInterfacedObject, IEventTracer)
   protected
     class var _WriteToStdOut: Boolean; // System wide property
-    class var _SupportBeginEndTrace: Boolean;
     class var _UseCsvFormatting: Boolean;
 
     var _HasException: Boolean;
@@ -81,8 +79,6 @@ type
     function  GetGroups: TStringList;  virtual;
     function  GetLevel: TLevel; virtual;
     procedure SetLevel(const Value: TLevel); virtual;
-    function  GetSupportBeginEndTrace: Boolean; virtual;
-    procedure SetSupportBeginEndTrace(const Value: Boolean); virtual;
     function  get_UseCsvFormatting: Boolean; virtual;
     procedure set_UseCsvFormatting(const Value: Boolean); virtual;
     function  GetWriteToStdOut: Boolean;
@@ -168,16 +164,6 @@ begin
   Result := TLevel.Normal;
 end;
 
-function TEmptyEventTracer.GetSupportBeginEndTrace: Boolean;
-begin
-  Result := _SupportBeginEndTrace;
-end;
-
-procedure TEmptyEventTracer.SetSupportBeginEndTrace(const Value: Boolean);
-begin
-  _SupportBeginEndTrace := Value;
-end;
-
 function TEmptyEventTracer.GetWriteToStdOut: Boolean;
 begin
   Result := _WriteToStdOut;
@@ -216,7 +202,7 @@ end;
 procedure TEmptyEventTracer.TraceMessageInternal(const Group: string; const AMessage: string; const Level: TLevel);
 begin
   if _WriteToStdOut then
-    WriteLn(FormatTraceMessage(Group, AMessage));
+    WriteLn(AMessage);
 end;
 
 procedure TEmptyEventTracer.TraceMessage(const Group, AMessage: string; const Level: TLevel);

@@ -86,9 +86,9 @@ type
     function  StartTimer(const Group: string; const TimerID: string; const Level: TLevel = TLevel.Normal) : Boolean; override;
     procedure StopTimer(const Group: string; const TimerID: string); override;
   public
-    constructor Create(const AppName: string; const FileName: string = string.Empty);
+    constructor Create(const AppName: string; const FileName: string = string.Empty; FormatAsJson: Boolean = True);
 
-    class procedure StartTrace(const AppName: string; const FileName: string; SupportBeginEndTrace: Boolean = True; WriteToStdOut: Boolean = False);
+    class procedure StartTrace(const AppName: string; const FileName: string; Options: TTraceOptions);
     class procedure StopTrace(CleanupTempFile: Boolean = False);
   end;
 
@@ -179,7 +179,7 @@ end;
 
 function TEventTraceToFile.StartGroup(const AGroup: string; FormatMessage: Boolean; PerThreadLogging: Boolean = False): Boolean;
 begin
-  if _SupportBeginEndTrace and IsActive(AGroup) then
+  if IsActive(AGroup) then
   begin
     GetTraceItem(AGroup, True, FormatMessage, PerThreadLogging);
     Result := True;
@@ -189,7 +189,7 @@ end;
 
 function TEventTraceToFile.StopGroup(const AGroup: string): Boolean;
 begin
-  if _SupportBeginEndTrace and IsActive(AGroup) then
+  if IsActive(AGroup) then
   begin
     Lock(FTraceFilenames);
     FTraceFilenames.Remove(AGroup);
@@ -203,7 +203,7 @@ begin
   RemoveTraceItem(AGroup, DeleteFile);
 end;
 
-constructor TEventTraceToFile.Create(const AppName: string; const FileName: string = string.Empty);
+constructor TEventTraceToFile.Create(const AppName: string; const FileName: string = string.Empty; FormatAsJson: Boolean = True);
 begin
   FAppName := AppName + '_' + TGUID.NewGuid.ToString.SubString(1, 4).ToLower;
 
@@ -236,7 +236,7 @@ begin
     f := ChangeFileExt(name, '.log');
   end;
 
-  FDefaultTraceItem := TFileTraceItem.Create(f, TPath.Combine(FPath, f), True, NO_THREAD_ID);
+  FDefaultTraceItem := TFileTraceItem.Create(f, TPath.Combine(FPath, f), FormatAsJson, NO_THREAD_ID);
   FTraceFilenames := CDictionary<string {Group name}, List<IFileTraceItem>>.Create;
 
   TraceMessage('General', 'Log started', TLevel.Normal);
@@ -294,11 +294,10 @@ begin
 
 end;
 
-class procedure TEventTraceToFile.StartTrace(const AppName: string; const FileName: string; SupportBeginEndTrace: Boolean = True; WriteToStdOut: Boolean = False);
+class procedure TEventTraceToFile.StartTrace(const AppName: string; const FileName: string; Options: TTraceOptions);
 begin
-  EventTracer := TEventTraceToFile.Create(AppName, FileName);
-  EventTracer.SupportBeginEndTrace := SupportBeginEndTrace;
-  EventTracer.WriteToStdOut := WriteToStdOut;
+  EventTracer := TEventTraceToFile.Create(AppName, FileName, TTraceOption.FormatAsJson in Options);
+  EventTracer.WriteToStdOut := TTraceOption.WriteToStdOut in Options;
 end;
 
 class procedure TEventTraceToFile.StopTrace(CleanupTempFile: Boolean = False);

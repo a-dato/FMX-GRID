@@ -11119,8 +11119,6 @@ class function Number.FormatInt32(
   value: Integer;
   const format: CString;
   info: IBaseInterface {NumberFormatInfo}): CString;
-var
-  p: CString;
 
 begin
   if not CString.IsNullOrEmpty(format) then
