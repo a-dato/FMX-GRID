@@ -1355,6 +1355,7 @@ begin
                       brush,
                       tmpRect,
                       _stringFormat);
+
   if cssStyle.Rotation <> 0 then
   begin
     context.ResetTransform;
