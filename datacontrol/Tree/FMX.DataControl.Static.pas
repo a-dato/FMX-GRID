@@ -769,6 +769,8 @@ begin
     (_selectionInfo as ITreeSelectionInfo).SelectedLayoutColumn := GetFlatColumnByKey(vkHome, [], 0).Index;
     inherited;
 
+    DoCellSelected(GetActiveCell, TSelectionEventTrigger.Click);
+
     Exit;
   end;
 
