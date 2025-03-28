@@ -28,6 +28,8 @@ type
   TDoLog = procedure(const Message: CString) of object;
   TOnViewportPositionChange = procedure(Sender: TObject; const OldViewportPosition, NewViewportPosition: TPointF; const ContentSizeChanged: Boolean) of object;
 
+  TPointFArray = array of CDatetime;
+
   TDCScrollableControl = class(TLayout, IRefreshControl)
   private
     _clickEnable: Boolean;
@@ -62,11 +64,12 @@ type
     _scrollbarPositionsOnMouseDown: TPointF;
     _mouseRollingBoostTimer: TTimer;
     _mouseRollingBoostDistanceToGo: Integer;
-    _mouseRollingBoostPercPerScroll: Single;
+    _mouseRollingLastPoints: array of TPointF;
 
     _mouseWheelDistanceToGo: Integer;
     _mouseWheelCycle: Integer;
     _mouseWheelSmoothScrollTimer: TTimer;
+    _mouseWheelSmoothScrollSpeedUp: Single;
 
     procedure MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
@@ -88,6 +91,10 @@ type
 
     procedure DoHorzScrollBarChanged; virtual;
     function  GetViewPortPosition: TPointF;
+
+    function  TryExecuteMouseScrollBoostOnMouseEventStopped: Boolean;
+    function  MouseScrollingBoostDistance: Single;
+    procedure UpdateMouseScrollingLastMoves(Reset: Boolean; LastPoint: TPointF);
 
   protected
     _vertScrollBar: TSmallScrollBar;
@@ -238,6 +245,9 @@ begin
   _mouseWheelSmoothScrollTimer.OnTimer := MouseWheelSmoothScrollingTimer;
   _mouseWheelSmoothScrollTimer.Interval := 25;
   _mouseWheelSmoothScrollTimer.Enabled := False;
+
+  SetLength(_mouseRollingLastPoints, 3);
+  UpdateMouseScrollingLastMoves(True, TPointF.Zero)
 end;
 
 destructor TDCScrollableControl.Destroy;
@@ -351,8 +361,7 @@ procedure TDCScrollableControl.DoMouseLeave;
 begin
   inherited;
 
-  if _scrollStopWatch_mouse.IsRunning then
-    _scrollStopWatch_mouse.Reset
+  TryExecuteMouseScrollBoostOnMouseEventStopped;
 end;
 
 procedure TDCScrollableControl.DoRealignContent;
@@ -367,7 +376,14 @@ begin
   end;
 
   {$IFDEF DEBUG}
-  _stopwatch3 := TStopwatch.Create;
+  if _stopwatch3.IsRunning then
+  begin
+    _stopwatch3.Stop;
+    Log('total repaint time: ' + _stopwatch3.ElapsedMilliseconds.ToString + ' ms');
+  end;
+
+  _stopwatch3 := TStopwatch.StartNew;
+//  _stopwatch3 := TStopwatch.Create;
 
 //  Log('total realign time: ' + (_realignContentTime).ToString + ' ms');
   Log('total renewal time: ' + (_realignContentTime+_paintTime).ToString + ' ms');
@@ -398,7 +414,7 @@ begin
 
   {$IFDEF DEBUG}
 //  Log('total realign time: ' + (_realignContentTime).ToString + ' ms');
-  Log('_stopwatch3: ' + _stopwatch3.ElapsedMilliseconds.ToString + ' ms');
+//  Log('_stopwatch3: ' + _stopwatch3.ElapsedMilliseconds.ToString + ' ms');
   {$ENDIF}
 
   _scrollStopWatch_scrollbar := TStopwatch.StartNew;
@@ -431,6 +447,19 @@ begin
   Result := _realignState <> TRealignState.Waiting;
 end;
 
+function TDCScrollableControl.MouseScrollingBoostDistance: Single;
+begin
+  for var item in _mouseRollingLastPoints do
+    if item.IsZero then
+      Exit(0);
+
+  var latestYChanges := _mouseRollingLastPoints[2].Y + _mouseRollingLastPoints[1].Y - (2*_mouseRollingLastPoints[0].Y);
+
+  if (latestYChanges < -10) or (latestYChanges > 10) then
+    Result := latestYChanges else
+    Result := 0; // no mouse boost
+end;
+
 function TDCScrollableControl.IsUpdating: Boolean;
 begin
   Result := inherited or ((_content <> nil) and _content.IsUpdating);
@@ -442,6 +471,21 @@ begin
   if Assigned(_onLog) then
     _onLog(Self.Name + ': ' + Message);
   {$ENDIF}
+end;
+
+procedure TDCScrollableControl.UpdateMouseScrollingLastMoves(Reset: Boolean; LastPoint: TPointF);
+begin
+  if Reset or LastPoint.IsZero then
+  begin
+    _mouseRollingLastPoints[0] := TPointF.Zero;
+    _mouseRollingLastPoints[1] := TPointF.Zero;
+  end else
+  begin
+    _mouseRollingLastPoints[0] := _mouseRollingLastPoints[1];
+    _mouseRollingLastPoints[1] := _mouseRollingLastPoints[2];
+  end;
+
+  _mouseRollingLastPoints[2] := LastPoint;
 end;
 
 procedure TDCScrollableControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
@@ -459,6 +503,8 @@ begin
     _scrollStopWatch_mouse.Reset;
 
   _scrollStopWatch_mouse.Start;
+
+  UpdateMouseScrollingLastMoves(True, PointF(X, Y));
 end;
 
 procedure TDCScrollableControl.MouseMove(Shift: TShiftState; X, Y: Single);
@@ -471,13 +517,15 @@ begin
 
   if _vertScrollBar.Visible then
   begin
+    UpdateMouseScrollingLastMoves(False, PointF(X, Y));
+
     var yDiffSinceLastMove := ((Y - _content.Position.Y) - _mousePositionOnMouseDown.Y);
-    var yAlreadyMovedSInceMouseDown := _scrollbarPositionsOnMouseDown.Y - _vertScrollBar.Value;
+    var yAlreadyMovedSinceMouseDown := _scrollbarPositionsOnMouseDown.Y - _vertScrollBar.Value;
 
     _scrollStopWatch_mouse_lastMove := TStopwatch.StartNew;
 
     if (yDiffSinceLastMove < -1) or (yDiffSinceLastMove > 1) then
-      ScrollManualInstant(Round(yDiffSinceLastMove - yAlreadyMovedSInceMouseDown));
+      ScrollManualInstant(Round(yDiffSinceLastMove - yAlreadyMovedSinceMouseDown));
   end;
 end;
 
@@ -492,32 +540,7 @@ begin
     var pixelsPerSecond := 0.0;
 
     if _vertScrollBar.Visible then
-    begin
-      var time := _scrollStopWatch_mouse.ElapsedMilliseconds;
-      var distance := (Y - _content.Position.Y) - _mousePositionOnMouseDown.Y;
-      pixelsPerSecond := (distance / time) * 50;
-
-      if _scrollStopWatch_mouse_lastMove.ElapsedMilliseconds > 200 then
-      begin
-        _scrollStopWatch_mouse_lastMove.Reset;
-  //      _scrollStopWatch_mouse.Reset;
-      end;
-
-      if _scrollStopWatch_mouse.IsRunning then
-      begin
-        if (pixelsPerSecond < -10) or (pixelsPerSecond > 10) then
-        begin
-          // give scrolling a boost after faste scroll
-          _mouseRollingBoostDistanceToGo := Round(pixelsPerSecond * 25);
-          _mouseRollingBoostPercPerScroll := 0.01;
-          _mouseRollingBoostTimer.Enabled := True;
-
-          doMouseClick := False;
-        end;
-
-  //      _scrollStopWatch_mouse.Reset;
-      end;
-    end;
+      doMouseClick := not TryExecuteMouseScrollBoostOnMouseEventStopped;
 
     // determine the mouseUp as a click event
     if doMouseClick and (pixelsPerSecond > -2) and (pixelsPerSecond < 2) then
@@ -532,9 +555,10 @@ end;
 
 procedure TDCScrollableControl.MouseRollingBoostTimer(Sender: TObject);
 begin
-  var scrollBy := Round(_mouseRollingBoostDistanceToGo * _mouseRollingBoostPercPerScroll);
+  var scrollBy := Round(_mouseRollingBoostDistanceToGo * 0.1);
+  if scrollBy < (_mouseRollingBoostDistanceToGo / 2) then
+    scrollBy := _mouseRollingBoostDistanceToGo;
 
-  _mouseRollingBoostPercPerScroll := CMath.Min(0.3, _mouseRollingBoostPercPerScroll + 0.05);
   _mouseRollingBoostDistanceToGo := _mouseRollingBoostDistanceToGo - scrollBy;
 
   ScrollManualInstant(scrollBy);
@@ -556,6 +580,9 @@ begin
   if not CanRealignContent then
     Exit;
 
+  if not CanRealignScrollCheck then
+    Exit;
+
   Handled := True;
 
   // Delphi way of calculating wheel distance
@@ -573,6 +600,8 @@ begin
 
   var scrollDIstance := Round(DefaultMoveDistance(not goUp));
 //  var cycles: Integer := Trunc(offset / scrollDistance) + 1;
+
+  _mouseWheelSmoothScrollSpeedUp := CMath.Min(_mouseWheelSmoothScrollSpeedUp + 1, 8);
   ScrollManualTryAnimated(ifThen(goUp, 1, -1) * scrollDistance); // Round(cycles * scrollDistance));
 end;
 
@@ -791,19 +820,22 @@ begin
   //forceGoImmediate := True;
   {$ENDIF}
 
-  _mouseWheelDistanceToGo := _mouseWheelDistanceToGo + YChange;
-
   // stop smooth scrolling and go fast
   if forceGoImmediate or (_mouseWheelSmoothScrollTimer.Enabled and tryGoImmediate) then
   begin
+    _mouseWheelDistanceToGo := _mouseWheelDistanceToGo + IfThen((_mouseWheelSmoothScrollTimer.Enabled and tryGoImmediate), Round((YChange*_mouseWheelSmoothScrollSpeedUp)), YChange);
     _scrollStopWatch_wheel_lastSpin := TStopWatch.StartNew;
 
+    Log('mousewheel: ' + _mouseWheelDistanceToGo.ToString);
     ScrollManualInstant(_mouseWheelDistanceToGo);
     _mouseWheelDistanceToGo := 0;
 
     Exit;
   end;
 
+  Log('mousewheel: reset');
+  _mouseWheelSmoothScrollSpeedUp := 0;
+  _mouseWheelDistanceToGo := _mouseWheelDistanceToGo + YChange;
   _scrollStopWatch_wheel_lastSpin.Reset;
 
   _mouseWheelSmoothScrollTimer.Enabled := True;
@@ -824,6 +856,24 @@ procedure TDCScrollableControl.SetBasicVertScrollBarValues;
 begin
   _vertScrollBar.Min := 0;
   _vertScrollBar.ViewportSize := _content.Height;
+end;
+
+function TDCScrollableControl.TryExecuteMouseScrollBoostOnMouseEventStopped: Boolean;
+begin
+  Result := False;
+
+  var pixelPerSecond := MouseScrollingBoostDistance;
+  if not SameValue(pixelPerSecond, 0) and _scrollStopWatch_mouse.IsRunning and (_scrollStopWatch_mouse_lastMove.ElapsedMilliseconds < 150) then
+  begin
+    // give scrolling a boost after faste scroll
+    _mouseRollingBoostDistanceToGo := Round(pixelPerSecond * 10);
+    _mouseRollingBoostTimer.Enabled := True;
+
+    Result := True;
+  end;
+
+  if _scrollStopWatch_mouse.IsRunning then
+    _scrollStopWatch_mouse.Reset
 end;
 
 function TDCScrollableControl.TryHandleKeyNavigation(var Key: Word; Shift: TShiftState): Boolean;

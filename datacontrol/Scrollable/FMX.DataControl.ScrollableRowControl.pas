@@ -271,7 +271,7 @@ uses
 
   FMX.DataControl.View.Impl,
   FMX.DataControl.ScrollableControl.Intf, FMX.Graphics,
-  FMX.DataControl.ControlClasses, FMX.ControlCalculations;
+  FMX.DataControl.ControlClasses, FMX.ControlCalculations, FMX.ActnList;
 
 { TDCScrollableRowControl }
 
@@ -279,10 +279,13 @@ function TDCScrollableRowControl.DefaultMoveDistance(ScrollDown: Boolean): Singl
 begin
   if _rowHeightFixed > 0 then
     Result := _rowHeightFixed
-  else if get_rowHeightDefault <> 0 then
+  else if get_rowHeightDefault > 0 then
     Result := _rowHeightDefault
   else
     Result := 30;
+
+  while (Result < 45) do
+    Result := Result * 2;
 end;
 
 destructor TDCScrollableRowControl.Destroy;
@@ -848,8 +851,8 @@ begin
     begin
       var txt := ScrollableRowControl_DefaultTextClass.Create(Self);
       try
-        txt.Text := 'Ag';
-        _rowHeightDefault := TextControlHeight(txt, txt.TextSettings, txt.Text) + (2*ROW_CONTENT_MARGIN);
+        (txt as ICaption).Text := 'Ag';
+        _rowHeightDefault := TextControlHeight(txt, (txt as ITextSettings).TextSettings, 'Ag') + (2*ROW_CONTENT_MARGIN);
       finally
         txt.Free;
       end;
@@ -1256,7 +1259,16 @@ var
   oldRowHeight: Single;
 begin
   var rowInfo := _view.RowLoadedInfo(Row.ViewListIndex);
-  var rowNeedsReload := Row.IsScrollingIntoView or not rowInfo.InnerCellsAreApplied or (rowInfo.ControlNeedsResize and (_scrollingType <> TScrollingType.WithScrollBar));
+  var rowNeedsReload := Row.IsScrollingIntoView or not rowInfo.InnerCellsAreApplied or (rowInfo.ControlNeedsResizeSoft and (_scrollingType = TScrollingType.None));
+
+  if rowInfo.ControlNeedsResizeForced then
+  begin
+    rowInfo := _view.NotifyRowControlsNeedReload(Row, False {reset force realign this row});
+    rowNeedsReload := True;
+  end;
+
+  Row.OwnerIsScrolling := _scrollingType <> TScrollingType.None;
+
   if rowNeedsReload then
   begin
     oldRowHeight := _view.GetRowHeight(Row.ViewListIndex);
@@ -1292,15 +1304,10 @@ begin
     end;
 
     Row.Control.Position.X := 0;
-    Row.Control.Width := _content.Width;
 
-  //  var rowInfo := _view.RowLoadedInfo(Row.ViewListIndex);
-
-    if not rowInfo.ControlNeedsResize then
+    if not rowInfo.ControlNeedsResizeSoft then
       Row.Control.Height := oldRowHeight else
       Row.Control.Height := get_rowHeightDefault;
-
-    Row.OwnerIsScrolling := _scrollingType <> TScrollingType.None;
 
     if rowNeedsReload then
     begin
@@ -1309,6 +1316,7 @@ begin
     end;
   end;
 
+  Row.Control.Width := _content.Width;
   CreateAndSynchronizeSynchronizerRow(Row);
 
   if rowNeedsReload then
@@ -1343,8 +1351,13 @@ begin
     end;
   end;
 
-  var rowHeightNeedsResizeAfterScrolling := rowInfo.ControlNeedsResize and (_scrollingType = TScrollingType.WithScrollBar);
-  _view.RowLoaded(Row, rowHeightNeedsResizeAfterScrolling);
+  rowInfo := _view.RowLoadedInfo(Row.ViewListIndex) {reload the rowInfo, for it can be changed};
+
+  var softRowHeightNeedsResizeAfterScrolling := rowInfo.ControlNeedsResizeSoft and (_scrollingType = TScrollingType.WithScrollBar); //(_scrollingType = TScrollingType.WithScrollBar);
+  _view.RowLoaded(Row, softRowHeightNeedsResizeAfterScrolling);
+
+  if rowInfo.ControlNeedsResizeForced then
+    RestartWaitForRealignTimer(250, True {only realign when scrolling stopped});
 end;
 
 procedure TDCScrollableRowControl.UpdateHoverRect(MousePos: TPointF);
@@ -1784,7 +1797,9 @@ end;
 
 procedure TDCScrollableRowControl.RealignFromSelectionChange(const StartY, StopY: Single; CalculateViewFrom: TCalculateViewFrom);
 begin
+  _scrollingType := TScrollingType.Other;
   InnerRealignContent(StartY, StopY, CalculateViewFrom);
+  _scrollingType := TScrollingType.None;
 
   if _realignState = TRealignState.RealignDone then
   begin
@@ -2183,6 +2198,24 @@ begin
 
   if _isMasterSynchronizer then
     _rowHeightSynchronizer.AfterRealignContent;
+
+//  if _view <> nil then
+//    for var rowIx := 0 to _view.ActiveViewRows.Count - 1 do
+//    begin
+//      var row := _view.ActiveViewRows[rowIx];
+//      if (_scrollingType = TScrollingType.None) or (rowIx < 10) then
+//      begin
+//        row.Control.Visible := True;
+//        row.Control.Opacity := 1;
+//      end
+//      else if (rowIx >= 15) then
+//        row.Control.Visible := False
+//      else
+//      begin
+//        row.Control.Visible := True;
+//        row.Control.Opacity := (15 - rowIx) * 0.15;
+//      end;
+//    end;
 end;
 
 // endof sorting and filtering

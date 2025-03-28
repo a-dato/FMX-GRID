@@ -17,15 +17,19 @@ type
     NeedsResize: Boolean;
     CellsApplied: Boolean;
     RowInActiveView: Boolean;
+    ForceReloadAfterScroll: Boolean;
 
   public
     function GetCalculatedHeight: Single;
-    function ControlNeedsResize: Boolean;
+    function ControlNeedsResizeSoft: Boolean;
+    function ControlNeedsResizeForced: Boolean;
     function InnerCellsAreApplied: Boolean;
     function RowIsInActiveView: Boolean;
 
     function OnViewLoading: TRowInfoRecord;
     function OnRowOutOfView: TRowInfoRecord;
+    function UpdateForceReloadAfterScrolling(DoForce: Boolean): TRowInfoRecord;
+
     function AfterCellsApplies(const RowHeight: Single; const HeightNeedsRecalc: Boolean): TRowInfoRecord;
 
     function IsNull: Boolean;
@@ -39,6 +43,7 @@ type
 
     function  RowLoadedInfo(const ViewListIndex: Integer): TRowInfoRecord;
     procedure RowLoaded(const Row: IDCRow; const NeedsResize: Boolean);
+    function  NotifyRowControlsNeedReload(const Row: IDCRow; DoForceReload: Boolean): TRowInfoRecord;
 
     function  InsertNewRowAbove: IDCRow;
     function  InsertNewRowBeneeth: IDCRow;
@@ -90,7 +95,12 @@ implementation
 
 { TRowInfoRecord }
 
-function TRowInfoRecord.ControlNeedsResize: Boolean;
+function TRowInfoRecord.ControlNeedsResizeForced: Boolean;
+begin
+  Result := ForceReloadAfterScroll;
+end;
+
+function TRowInfoRecord.ControlNeedsResizeSoft: Boolean;
 begin
   Result := NeedsResize or (CalculatedHeight <= 0);
 end;
@@ -126,6 +136,7 @@ begin
   Result.NeedsResize := True;
   Result.CellsApplied := False;
   Result.RowInActiveView := False;
+  Result.ForceReloadAfterScroll := False;
 end;
 
 function TRowInfoRecord.AfterCellsApplies(const RowHeight: Single; const HeightNeedsRecalc: Boolean): TRowInfoRecord;
@@ -134,12 +145,24 @@ begin
   Result.NeedsResize := HeightNeedsRecalc;
   Result.CellsApplied := True;
   Result.RowInActiveView := True;
+  Result.ForceReloadAfterScroll := Self.ForceReloadAfterScroll;
+end;
+
+function TRowInfoRecord.UpdateForceReloadAfterScrolling(DoForce: Boolean): TRowInfoRecord;
+begin
+  Result.ForceReloadAfterScroll := DoForce;
+
+  Result.CalculatedHeight := Self.CalculatedHeight;
+  Result.NeedsResize := Self.NeedsResize;
+  Result.CellsApplied := Self.CellsApplied;
+  Result.RowInActiveView := Self.RowInActiveView;
 end;
 
 function TRowInfoRecord.OnRowOutOfView: TRowInfoRecord;
 begin
   Result.CalculatedHeight := Self.CalculatedHeight;
   Result.NeedsResize := Self.NeedsResize;
+  Result.ForceReloadAfterScroll := Self.ForceReloadAfterScroll;
 
   Result.RowInActiveView := False;
   Result.CellsApplied := False;
@@ -150,6 +173,7 @@ begin
   Result.CalculatedHeight := Self.CalculatedHeight;
   Result.NeedsResize := Self.NeedsResize;
   Result.CellsApplied := Self.CellsApplied;
+  Result.ForceReloadAfterScroll := Self.ForceReloadAfterScroll;
 
   Result.RowInActiveView := False;
 end;

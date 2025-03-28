@@ -41,20 +41,30 @@ type
   DCCellEventArgs = class(BasicEventArgs)
   private
     _customRowHeight: Single;
+
   public
     constructor Create(const ACell: IDCTreeCell); reintroduce;
 
     property Cell: IDCTreeCell read _cell;
     property OverrideRowHeight: Single read _customRowHeight write _customRowHeight;
+
     // if multiple OverrideRowHeight are done in a row, the heighest is taken into account
   end;
 
   DCCellLoadEventArgs = class(DCCellEventArgs)
   private
     _showVertGrid: Boolean;
+    _treeIsScrolling: Boolean;
+    _realignAfterScrolling: Boolean;
+
   public
-    constructor Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean); reintroduce;
+    constructor Create(const ACell: IDCTreeCell; ShowVertGrid, ATreeIsScrolling: Boolean); reintroduce;
+
     function AssignCellStyleLookUp(const StyleLookUp: CString): TStyledControl;
+    function AssignCellCustomInfoControl(const Control: TControl): TControl;
+
+    property TreeIsScrolling: Boolean read _treeIsScrolling;
+    property RealignTreeAfterScrolling: Boolean read _realignAfterScrolling write _realignAfterScrolling;
   end;
 
   DCCellLoadingEventArgs = class(DCCellLoadEventArgs)
@@ -64,7 +74,7 @@ type
       Tree calls CellFormatting event where user is able to set a custom text.
       LoadDefaulData = False: CellFormatting will not be triggered. }
 
-    constructor Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean); reintroduce;
+    constructor Create(const ACell: IDCTreeCell; ShowVertGrid, ATreeIsScrolling: Boolean); reintroduce;
   end;
 
   DCCellLoadedEventArgs = DCCellLoadEventArgs;
@@ -313,7 +323,7 @@ end;
 
 { DCCellLoadingEventArgs }
 
-constructor DCCellLoadingEventArgs.Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean);
+constructor DCCellLoadingEventArgs.Create(const ACell: IDCTreeCell; ShowVertGrid, ATreeIsScrolling: Boolean);
 begin
   inherited;
   LoadDefaultData := True;
@@ -391,16 +401,28 @@ end;
 
 { DCCellLoadEventArgs }
 
+function DCCellLoadEventArgs.AssignCellCustomInfoControl(const Control: TControl): TControl;
+begin
+  _cell.LayoutColumn.CreateCellBase(_showVertGrid, _cell);
+  _cell.Control.AddObject(Control);
+  _cell.InfoControl := Control;
+
+  Result := _cell.InfoControl;
+end;
+
 function DCCellLoadEventArgs.AssignCellStyleLookUp(const StyleLookUp: CString): TStyledControl;
 begin
   _cell.LayoutColumn.CreateCellStyleControl(StyleLookUp, _showVertGrid, _cell);
   Result := _cell.InfoControl as TStyledControl;
 end;
 
-constructor DCCellLoadEventArgs.Create(const ACell: IDCTreeCell; ShowVertGrid: Boolean);
+constructor DCCellLoadEventArgs.Create(const ACell: IDCTreeCell; ShowVertGrid, ATreeIsScrolling: Boolean);
 begin
   inherited Create(ACell);
   _showVertGrid := ShowVertGrid;
+
+  _realignAfterScrolling := False;
+  _treeIsScrolling := ATreeIsScrolling;
 end;
 
 { DCCellSelectedEventArgs }

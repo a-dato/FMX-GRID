@@ -23,6 +23,8 @@ uses
 type
   TRightLeftScroll = (None, FullLeft, Left, Right, FullRight);
 
+  TShowFlatColumnType = (Fully, Partly75, Partly50, Partly25, Hide);
+
   TStaticDataControl = class(TDCScrollableRowControl, IRowAndCellCompare, IColumnsControl)
   private
     _headerRow: IDCHeaderRow;
@@ -73,6 +75,7 @@ type
     _headerHeight: Single;
     _headerTextTopMargin: Single;
     _headerTextBottomMargin: Single;
+    _scrollingHideColumnsFromIndex: Integer;
 
     procedure set_AutoFitColumns(const Value: Boolean);
     function  get_headerHeight: Single;
@@ -81,6 +84,8 @@ type
     procedure set_headerTextTopMargin(const Value: Single);
     function  get_headerTextBottomMargin: Single;
     procedure set_headerTextBottomMargin(const Value: Single);
+
+    function  IsScrollingHideColumnsFromIndexStored: Boolean;
 
   // events
   protected
@@ -128,6 +133,8 @@ type
     procedure set_AutoExtraColumnSizeMax(const Value: Single);
 
   protected
+    _forceRealignRowAfterScrolling: Boolean;
+
     procedure FastColumnAlignAfterColumnChange;
 
     function  DoCreateNewRow: IDCRow; override;
@@ -155,7 +162,8 @@ type
     procedure UpdateHorzScrollbar;
 
     procedure UpdateHoverRect(MousePos: TPointF); override;
-    function  ShowFlatColumnContent(const FlatColumn: IDCTreeLayoutColumn): Boolean;
+    function  ScrollPerformanceShouldHideColumns: Boolean;
+    function  ShowFlatColumnContent(const FlatColumn: IDCTreeLayoutColumn; out IsOutOfView: Boolean): TShowFlatColumnType;
 
     function  FlatColumnByColumn(const Column: IDCTreeColumn): IDCTreeLayoutColumn;
     function  FlatColumnIndexByLayoutIndex(const LayoutIndex: Integer): Integer;
@@ -220,6 +228,7 @@ type
     property HeaderTextTopMargin: Single read get_headerTextTopMargin write set_headerTextTopMargin;
     property HeaderTextBottomMargin: Single read get_headerTextBottomMargin write set_headerTextBottomMargin;
     property AutoExtraColumnSizeMax: Single read get_AutoExtraColumnSizeMax write set_AutoExtraColumnSizeMax;
+    property ScrollingHideColumnsFromIndex: integer read _scrollingHideColumnsFromIndex write _scrollingHideColumnsFromIndex stored IsScrollingHideColumnsFromIndexStored;
 
     // events
     property CellLoading: CellLoadingEvent read _cellLoading write _cellLoading;
@@ -299,7 +308,7 @@ end;
 
 procedure TStaticDataControl.RefreshColumn(const Column: IDCTreeColumn);
 begin
-  if _view = nil then
+  if (_view = nil) or (_treeLayout = nil) then
     Exit;
 
   var clmn := FlatColumnByColumn(Column);
@@ -348,9 +357,10 @@ begin
         var treeRow := row as IDCTreeRow;
         try
           var w: Single;
-          if not treeRow.ContentCellSizes.TryGetValue(flatClmn.Index, w) then
+          var cell: IDCTreeCell;
+          if not treeRow.ContentCellSizes.TryGetValue(flatClmn.Index, w) and treeRow.Cells.TryGetValue(flatClmn.Index, cell) then
           begin
-            w := CalculateCellWidth(flatClmn, treeRow.Cells[flatClmn.Index]);
+            w := CalculateCellWidth(flatClmn, cell);
             treeRow.ContentCellSizes.Add(flatClmn.Index, w);
           end;
 
@@ -462,6 +472,7 @@ begin
     rowWidth := CMath.Min(_content.Width, lastFlatColumn.Left + lastFlatColumn.Width);
   end;
 
+  var repaintWhenChill: Boolean := False;
   for var row in HeaderAndTreeRows do
   begin
     var treeRow := row as IDCTreeRow;
@@ -517,13 +528,23 @@ begin
       if not treeRow.Cells.TryGetValue(flatClmn.Index, cell) then
         Continue;
 
-//      if not ShowFlatColumnContent(flatClmn) then
-//      begin
-//        cell.Control.Visible := False;
-//        Continue;
-//      end;
-//
-//      cell.Control.Visible := True;
+      var isOutOfView: Boolean;
+      var showColumnType := ShowFlatColumnContent(flatClmn, {out} isOutOfView);
+      repaintWhenChill := repaintWhenChill or ((showColumnType <> TShowFlatColumnType.Fully) and not isOutOfView);
+
+      if showColumnType = TShowFlatColumnType.Hide then
+      begin
+        cell.Control.Visible := False;
+        Continue;
+      end;
+
+      cell.Control.Visible := True;
+      case showColumnType of
+        TShowFlatColumnType.Fully: cell.Control.Opacity := 1;
+        TShowFlatColumnType.Partly75: cell.Control.Opacity := 0.5;
+        TShowFlatColumnType.Partly50: cell.Control.Opacity := 0.3;
+        TShowFlatColumnType.Partly25: cell.Control.Opacity := 0.15;
+      end;
 
       flatClmn.UpdateCellControlsPositions(cell);
 
@@ -536,7 +557,7 @@ begin
       begin
         cell.Control.Parent := treeRow.NonFrozenColumnRowControl;
 
-        if _horzScrollBar.Visible then
+        if _horzScrollBar.Visible and (_horzScrollBar.Opacity > 0) then
           cell.Control.Position.X := leftPos - {frozenColumnWidth - }_horzScrollBar.Value else
           cell.Control.Position.X := leftPos - frozenColumnWidth;
       end;
@@ -545,21 +566,43 @@ begin
         cell.ExpandButton.Position.Y := ((cell.Row.Height - cell.ExpandButton.Height) / 2) + 0.5;
     end;
   end;
+
+  if repaintWhenChill then
+    RestartWaitForRealignTimer(100, True);
 end;
 
-function TStaticDataControl.ShowFlatColumnContent(const FlatColumn: IDCTreeLayoutColumn): Boolean;
+function TStaticDataControl.ShowFlatColumnContent(const FlatColumn: IDCTreeLayoutColumn; out IsOutOfView: Boolean): TShowFlatColumnType;
 begin
+  {out} IsOutOfView := False;
   if FlatColumn.Column.Frozen then
-    Exit(True);
+    Exit(TShowFlatColumnType.Fully);
 
-  if (_scrollingType <> TScrollingType.None) and (FlatColumn.Index > 4) then
-    Exit(False);
+  if (FlatColumn.Index >= _scrollingHideColumnsFromIndex - 3) and ScrollPerformanceShouldHideColumns then
+  begin
+    if FlatColumn.Index = _scrollingHideColumnsFromIndex - 3 then
+      Exit(TShowFlatColumnType.Partly75)
+    else if FlatColumn.Index = _scrollingHideColumnsFromIndex - 2 then
+      Exit(TShowFlatColumnType.Partly50)
+    else if FlatColumn.Index = _scrollingHideColumnsFromIndex - 1 then
+      Exit(TShowFlatColumnType.Partly25)
+    else
+      Exit(TShowFlatColumnType.Hide);
+  end;
+
+  if SameValue(FlatColumn.Width, 0 {not calculated yet}) then
+    Exit(TShowFlatColumnType.Fully);
 
   var scrolledToRight := _horzScrollBar.Value - _horzScrollBar.Min;
   var viewStart := scrolledToRight;
   var viewStop := scrolledToRight + _content.Width;
 
-  Result := ((FlatColumn.Left + FlatColumn.Width) > viewStart) and (FlatColumn.Left < viewStop);
+  if ((FlatColumn.Left + FlatColumn.Width) > viewStart) and (FlatColumn.Left < viewStop) then
+    Result := TShowFlatColumnType.Fully
+  else
+  begin
+    Result := TShowFlatColumnType.Hide;
+    {out} IsOutOfView := True;
+  end;
 end;
 
 procedure TStaticDataControl.GenerateView;
@@ -1111,6 +1154,21 @@ begin
   DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionEventTrigger);
 end;
 
+function TStaticDataControl.ScrollPerformanceShouldHideColumns: Boolean;
+begin
+  if _scrollingType = TScrollingType.None then
+    Exit(False)
+  else if _scrollingType = TScrollingType.WithScrollBar then
+    Exit(True)
+  else // if _scrollingType = TScrollingType.Other then
+  begin
+    if _view.ActiveViewRows.Count = 0 then
+      Exit(False);
+
+    Result := (Self.Content.Height > 850) and (Self.Layout.FlatColumns.Count >= _scrollingHideColumnsFromIndex);
+  end;
+end;
+
 procedure TStaticDataControl.SelectAll;
 begin
   var selInfo := _selectionInfo as ITreeSelectionInfo;
@@ -1308,6 +1366,8 @@ begin
   _headerTextBottomMargin := 0;
   _autoExtraColumnSizeMax := -1;
 
+  _scrollingHideColumnsFromIndex := 5;
+
 //  _hoverCellRect := TRectangle.Create(_hoverRect);
 //  _hoverCellRect.Stored := False;
 //  _hoverCellRect.Align := TAlignLayout.Client;
@@ -1472,10 +1532,12 @@ begin
   Result := True;
   if Assigned(_cellCanChange) then
   begin
-    var args: DCCellCanChangeEventArgs;
-    AutoObject.Guard(DCCellCanChangeEventArgs.Create(OldCell, NewCell), args);
-
-    Result := _cellCanChange(Self, args);
+    var args := DCCellCanChangeEventArgs.Create(OldCell, NewCell);
+    try
+      Result := _cellCanChange(Self, args);
+    finally
+      args.Free;
+    end;
   end;
 end;
 
@@ -1483,10 +1545,12 @@ procedure TStaticDataControl.DoCellChanged(const OldCell, NewCell: IDCTreeCell);
 begin
   if Assigned(_cellChanged) then
   begin
-    var args: DCCellChangedEventArgs;
-    AutoObject.Guard(DCCellChangedEventArgs.Create(OldCell, NewCell), args);
-
-    _cellChanged(Self, args);
+    var args := DCCellChangedEventArgs.Create(OldCell, NewCell);
+    try
+      _cellChanged(Self, args);
+    finally
+      args.Free;
+    end;
   end;
 end;
 
@@ -1494,10 +1558,12 @@ procedure TStaticDataControl.DoCellChanging(const OldCell, NewCell: IDCTreeCell)
 begin
   if Assigned(_cellChanging) then
   begin
-    var args: DCCellChangeEventArgs;
-    AutoObject.Guard(DCCellChangeEventArgs.Create(OldCell, NewCell), args);
-
-    _cellChanging(Self, args);
+    var args := DCCellChangeEventArgs.Create(OldCell, NewCell);
+    try
+      _cellChanging(Self, args);
+    finally
+      args.Free;
+    end;
   end;
 end;
 
@@ -1506,13 +1572,16 @@ begin
   FormatApplied := False;
   if Assigned(_cellFormatting) then
   begin
-    var args: DCCellFormattingEventArgs;
-    AutoObject.Guard(DCCellFormattingEventArgs.Create(Cell, Value), args);
-    args.RequestValueForSorting := RequestForSort;
+    var args := DCCellFormattingEventArgs.Create(Cell, Value);
+    try
+      args.RequestValueForSorting := RequestForSort;
 
-    _cellFormatting(Self, args);
-    Value := args.Value;
-    FormatApplied := args.FormattingApplied;
+      _cellFormatting(Self, args);
+      Value := args.Value;
+      FormatApplied := args.FormattingApplied;
+    finally
+      args.Free;
+    end;
   end;
 end;
 
@@ -1520,14 +1589,20 @@ procedure TStaticDataControl.DoCellLoaded(const Cell: IDCTreeCell; RequestForSor
 begin
   if Assigned(_CellLoaded) then
   begin
-    var args: DCCellLoadedEventArgs;
-    AutoObject.Guard(DCCellLoadedEventArgs.Create(Cell, TDCTreeOption.ShowVertGrid in  _options), args);
-    args.RequestValueForSorting := RequestForSort;
+    var args := DCCellLoadedEventArgs.Create(Cell, TDCTreeOption.ShowVertGrid in  _options, _scrollingType <> TScrollingType.None);
+    try
+      args.RequestValueForSorting := RequestForSort;
 
-    _CellLoaded(Self, args);
+      _CellLoaded(Self, args);
 
-    if args.OverrideRowHeight > ManualRowHeight then
-      ManualRowHeight := args.OverrideRowHeight;
+      if args.OverrideRowHeight > ManualRowHeight then
+        ManualRowHeight := args.OverrideRowHeight;
+
+      if args.RealignTreeAfterScrolling then
+        _forceRealignRowAfterScrolling := True;
+    finally
+      args.Free;
+    end;
   end;
 end;
 
@@ -1537,15 +1612,21 @@ begin
 
   if Assigned(_CellLoading) then
   begin
-    var args: DCCellLoadingEventArgs;
-    AutoObject.Guard(DCCellLoadingEventArgs.Create(Cell, TDCTreeOption.ShowVertGrid in  _options), args);
-    args.RequestValueForSorting := RequestForSort;
+    var args := DCCellLoadingEventArgs.Create(Cell, TDCTreeOption.ShowVertGrid in  _options, _scrollingType <> TScrollingType.None);
+    try
+      args.RequestValueForSorting := RequestForSort;
 
-    _CellLoading(Self, args);
-    Result := args.LoadDefaultData;
+      _CellLoading(Self, args);
+      Result := args.LoadDefaultData;
 
-    if args.OverrideRowHeight > ManualRowHeight then
-      ManualRowHeight := args.OverrideRowHeight;
+      if args.OverrideRowHeight > ManualRowHeight then
+        ManualRowHeight := args.OverrideRowHeight;
+
+      if args.RealignTreeAfterScrolling then
+        _forceRealignRowAfterScrolling := True;
+    finally
+      args.Free;
+    end;
   end;
 end;
 
@@ -1553,10 +1634,12 @@ procedure TStaticDataControl.DoCellSelected(const Cell: IDCTreeCell; EventTrigge
 begin
   if Assigned(_cellSelected) then
   begin
-    var args: DCCellSelectedEventArgs;
-    AutoObject.Guard(DCCellSelectedEventArgs.Create(Cell, EventTrigger), args);
-
-    _cellSelected(Self, args);
+    var args := DCCellSelectedEventArgs.Create(Cell, EventTrigger);
+    try
+      _cellSelected(Self, args);
+    finally
+      args.Free;
+    end;
   end;
 end;
 
@@ -1572,8 +1655,12 @@ begin
     if (flatColumn <> nil) then
       newWidth := Column.CustomWidth; // = -1 when nothing chanegd
 
-    AutoObject.Guard(ColumnChangedByUserEventArgs.Create(Column, newWidth), args);
-    _onColumnsChanged(Self, args);
+    args := ColumnChangedByUserEventArgs.Create(Column, newWidth);
+    try
+      _onColumnsChanged(Self, args);
+    finally
+      args.Free;
+    end;
   end;
 end;
 
@@ -1584,10 +1671,14 @@ var
 begin
   if Assigned(_SortingGetComparer) then
   begin
-    AutoObject.Guard(DCColumnComparerEventArgs.Create(SortDescription{, ReturnSortComparer}), args);
-    args.Comparer := SortDescription.Comparer;
-    _SortingGetComparer(Self, args);
-    Result := args.Comparer;
+    args := DCColumnComparerEventArgs.Create(SortDescription{, ReturnSortComparer});
+    try
+      args.Comparer := SortDescription.Comparer;
+      _SortingGetComparer(Self, args);
+      Result := args.Comparer;
+    finally
+      args.Free;
+    end;
   end else
     Result := SortDescription.Comparer;
 end;
@@ -1601,9 +1692,10 @@ function TStaticDataControl.FlatColumnByColumn(const Column: IDCTreeColumn): IDC
 begin
   Result := nil;
 
-  for var flatClmn in _treeLayout.FlatColumns do
-    if flatClmn.Column = Column then
-      Exit(flatClmn);
+  if _treeLayout <> nil then
+    for var flatClmn in _treeLayout.FlatColumns do
+      if flatClmn.Column = Column then
+        Exit(flatClmn);
 end;
 
 function TStaticDataControl.DoOnCompareColumnCells(const Column: IDCTreeColumn; const Left, Right: CObject): Integer;
@@ -1812,6 +1904,11 @@ begin
   end;
 end;
 
+function TStaticDataControl.IsScrollingHideColumnsFromIndexStored: Boolean;
+begin
+  Result := _scrollingHideColumnsFromIndex <> 5;
+end;
+
 function TStaticDataControl.IsSortingOrFiltering: Boolean;
 begin
   Result := _isSortingOrFiltering > 0;
@@ -1857,7 +1954,7 @@ begin
 
         var txt := headerCell.InfoControl as ScrollableRowControl_DefaultTextClass;
   //      txt.VertTextAlign := TTextAlign.Trailing;
-        txt.Text := CStringToString(flatColumn.Column.Caption);
+        (txt as ICaption).Text := CStringToString(flatColumn.Column.Caption);
 
         DoCellLoaded(headerCell, False, {var} dummyManualHeight);
 
@@ -1906,7 +2003,7 @@ begin
 
   var formattedValue := FlatColumn.Column.GetDefaultCellData(cell, cellValue, formatApplied);
   case cell.Column.InfoControlClass of
-    TInfoControlClass.Text: (ctrl as ScrollableRowControl_DefaultTextClass).Text := CStringToString(formattedValue.ToString(True));
+    TInfoControlClass.Text: (ctrl as ICaption).Text := CStringToString(formattedValue.ToString(True));
     TInfoControlClass.CheckBox: (ctrl as IIsChecked).IsChecked := formattedValue.AsType<Boolean>;
   end;
 end;
@@ -1924,7 +2021,7 @@ begin
     var xDiffSinceLastMove := (X - _mousePositionOnMouseDown.X);
     var xAlreadyMovedSinceMouseDown := _scrollbarPositionsOnMouseDown.X - _horzScrollBar.Value;
 
-    if (xDiffSinceLastMove < -1) or (xDiffSinceLastMove > 1) then
+    if (xDiffSinceLastMove < -10) or (xDiffSinceLastMove > 10) then
       _horzScrollBar.Value := _horzScrollBar.Value - (xDiffSinceLastMove - xAlreadyMovedSinceMouseDown);
   end;
 end;
@@ -1950,8 +2047,17 @@ begin
   end else
     l := _treeLayout.FlatColumns;
 
+  _forceRealignRowAfterScrolling := False;
   for var flatColumn in l do
   begin
+    var isOutOfView: Boolean;
+    if (ShowFlatColumnContent(flatColumn, {out dummy} isOutOfView) = TShowFlatColumnType.Hide) then
+    begin
+      if not isOutOfView then
+        _forceRealignRowAfterScrolling := True;
+      Continue;
+    end;
+
     if not treeRow.Cells.TryGetValue(flatColumn.Index, cell) then
     begin
       cell := TDCTreeCell.Create(Row, flatColumn);
@@ -1982,9 +2088,10 @@ begin
     DoCellLoaded(cell, False, {var} manualHeight);
   end;
 
-  if manualHeight <> -1 then
-    Row.Control.Height := manualHeight else
-    Row.Control.Height := CalculateRowHeight(Row as IDCTreeRow);
+  if _forceRealignRowAfterScrolling then
+    _view.NotifyRowControlsNeedReload(Row, True {force reload after scrolling is done});
+
+  Row.Control.Height := CMath.Max(manualHeight, CalculateRowHeight(Row as IDCTreeRow));
 
   inherited;           
 end;
@@ -2001,24 +2108,24 @@ begin
 
   if Cell.IsHeaderCell or (LayoutColumn.Column.InfoControlClass = TInfoControlClass.Text) then
   begin
-    var ctrl := Cell.InfoControl as TText;
+    var ctrl := Cell.InfoControl;
 
     var customMargins := 6.0;
     if (ctrl.Margins.Left > 0) or (ctrl.Margins.Right > 0) then
       customMargins := ctrl.Margins.Left + ctrl.Margins.Right;
 
-    Result := TextControlWidth(ctrl, ctrl.TextSettings, ctrl.Text) + (2*ROW_CONTENT_MARGIN) + customMargins;
+    Result := TextControlWidth(ctrl, (ctrl as ITextSettings).TextSettings, (ctrl as ICaption).Text) + (2*ROW_CONTENT_MARGIN) + customMargins;
   end;
 
   if not Cell.IsHeaderCell and (Cell.Column.SubInfoControlClass = TInfoControlClass.Text) then
   begin
-    var subCtrl := Cell.SubInfoControl as TText;
+    var subCtrl := Cell.SubInfoControl;
 
     var customMargins := 6.0;
     if (subCtrl.Margins.Left > 0) or (subCtrl.Margins.Right > 0) then
       customMargins := subCtrl.Margins.Left + subCtrl.Margins.Right;
 
-    var subWidth := TextControlWidth(subCtrl, subCtrl.TextSettings, subCtrl.Text) + (2*ROW_CONTENT_MARGIN) + customMargins;
+    var subWidth := TextControlWidth(subCtrl, (subCtrl as ITextSettings).TextSettings, (subCtrl as ICaption).Text) + (2*ROW_CONTENT_MARGIN) + customMargins;
 
     Result := CMath.Max(Result, subWidth);
   end;
@@ -2057,7 +2164,7 @@ begin
     if cell.Column.InfoControlClass = TInfoControlClass.Text then
     begin
       var txt := cell.InfoControl as ScrollableRowControl_DefaultTextClass;
-      var cellHeight := TextControlHeight(txt, txt.TextSettings, txt.Text);
+      var cellHeight := TextControlHeight(txt, (txt as ITextSettings).TextSettings, (txt as ICaption).Text);
       if cellHeight > Result then
         Result := cellHeight;
     end;
@@ -2221,7 +2328,7 @@ begin
     end else
     begin
       DoCellLoaded(Cell, True, dummyHeightVar);
-      Result := (Cell.InfoControl as ScrollableRowControl_DefaultTextClass).Text;
+      Result := (Cell.InfoControl as ICaption).Text;
     end;
 
     if Cell.Column.SortType = TSortType.Displaytext then

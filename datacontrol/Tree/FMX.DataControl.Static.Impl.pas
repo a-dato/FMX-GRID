@@ -352,14 +352,13 @@ type
     function  get_HideColumnInView: Boolean;
     procedure set_HideColumnInView(const Value: Boolean);
 
-    procedure CreateCellBase(const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
-
   public
     constructor Create(const AColumn: IDCTreeColumn; const ColumnControl: IColumnsControl);
     destructor Destroy; override;
 
     function  CreateInfoControl(const Cell: IDCTreeCell; const ControlClassType: TInfoControlClass): TControl;
 
+    procedure CreateCellBase(const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
     procedure CreateCellBaseControls(const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
     procedure CreateCellStyleControl(const StyleLookUp: CString; const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
 
@@ -1333,6 +1332,7 @@ begin
       Cell.ExpandButton.HitTest := True;
       Cell.ExpandButton.Width := 8;
       Cell.ExpandButton.Height := 8;
+      Cell.ExpandButton.TouchTargetExpansion.Rect := RectF(4, 4, 4, 4);
 
       Cell.Control.AddObject(Cell.ExpandButton);
     end;
@@ -1395,7 +1395,7 @@ begin
   var textCtrlHeight := IfThen(Cell.IsHeaderCell, Cell.Row.Control.Height, (Cell.Row.Control.Height - 2*ROW_CONTENT_MARGIN));
   var validSub := (Cell.SubInfoControl <> nil) and Cell.SubInfoControl.Visible;
   if validSub and (Cell.Column.SubInfoControlClass = TInfoControlClass.Text) then
-    validSub := (Cell.SubInfoControl as TText).Text <> string.Empty;
+    validSub := (Cell.SubInfoControl as ICaption).Text <> string.Empty;
 
   if validSub then
   begin
@@ -1435,11 +1435,13 @@ begin
 
     Text: begin
       var txt := ScrollableRowControl_DefaultTextClass.Create(Cell.Control);
-      txt.HorzTextAlign := TTextAlign.Leading;
-      txt.VertTextAlign := TTextAlign.Center;
+      var settings: ITextSettings := txt as ITextSettings;
+      settings.TextSettings.HorzAlign := TTextAlign.Leading;
+      settings.TextSettings.VertAlign := TTextAlign.Center;
+      settings.TextSettings.WordWrap := False;
+
       txt.HitTest := False;
       txt.Align := TAlignLayout.None;
-      txt.WordWrap := False;
 
       Result := txt;
     end;

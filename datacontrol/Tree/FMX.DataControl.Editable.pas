@@ -521,16 +521,15 @@ begin
   if clickedRow = nil then Exit;
 
   var crrntCell := GetActiveCell;
-  if IsEditOrNew then
+  if IsEditOrNew and not CObject.Equals(_editingInfo.EditItem, clickedRow.DataItem) then
   begin
-    var clickedRowDataItem := clickedRow.DataIndex;
-
+    var clickedRowDataIndex := clickedRow.DataIndex;
     if CheckCanChangeRow then
     begin
       if _realignContentRequested then
         DoRealignContent;
 
-      var findClickedRowBackViewIndex := _view.GetViewListIndex(clickedRowDataItem);
+      var findClickedRowBackViewIndex := _view.GetViewListIndex(clickedRowDataIndex);
       if findClickedRowBackViewIndex = -1 then Exit;
 
       var findClickedRowBack := _view.GetActiveRowIfExists(findClickedRowBackViewIndex);

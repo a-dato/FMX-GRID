@@ -511,13 +511,15 @@ end;
 
 function TDCCellDropDownEditor.get_Value: CObject;
 begin
-  var ce := TComboEdit(_editor);
-  var index := ce.ItemIndex;
-  if index <> -1 then
-    _Value := _PickList[index];
+//  var ce := TComboEdit(_editor);
+//  var index := ce.ItemIndex;
+//  if index <> -1 then
+//    _Value := _PickList[index];
+//
+//  if _Value <> nil then
+//    Result := _Value;
 
-  if _Value <> nil then
-    Result := _Value;
+  Result := _Value;
 end;
 
 procedure TDCCellDropDownEditor.OnDropdownEditorChange(Sender: TObject);

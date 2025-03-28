@@ -60,6 +60,7 @@ type
 
     function  RowLoadedInfo(const ViewListIndex: Integer): TRowInfoRecord;
     procedure RowLoaded(const Row: IDCRow; const NeedsResize: Boolean);
+    function  NotifyRowControlsNeedReload(const Row: IDCRow; DoForceReload: Boolean): TRowInfoRecord;
 
     procedure RemoveRowFromActiveView(const Row: IDCRow);
 
@@ -497,6 +498,12 @@ begin
   Result := _isFirstAlign;
 end;
 
+function TDataViewList.NotifyRowControlsNeedReload(const Row: IDCRow; DoForceReload: Boolean): TRowInfoRecord;
+begin
+  Result := _viewRowHeights[Row.ViewListIndex].UpdateForceReloadAfterScrolling(DoForceReload);
+  _viewRowHeights[Row.ViewListIndex] := Result;
+end;
+
 function TDataViewList.InsertNewRowABove: IDCRow;
 begin
   Result := GetNewActiveRow;
@@ -606,7 +613,7 @@ end;
 function TDataViewList.CachedRowHeight(const RowViewListIndex: Integer): Single;
 begin
   var rowInfo := _viewRowHeights[RowViewListIndex];
-  if not rowInfo.ControlNeedsResize then
+  if not rowInfo.ControlNeedsResizeSoft then
     Result := rowInfo.GetCalculatedHeight else
     Result := -1;
 end;
@@ -786,7 +793,7 @@ begin
   var totalAbsoluteHeight := 0.0;
 
   for var value in _viewRowHeights do
-    if not value.ControlNeedsResize then
+    if not value.ControlNeedsResizeSoft then
     begin
       totalAbsoluteHeight := totalAbsoluteHeight + value.GetCalculatedHeight;
       inc(rowsWithValidHeights);

@@ -19,7 +19,7 @@ uses
   System_;
 
 type
-  TTextClass = class of TText;
+  TTextClass = class of TControl;
 //  TControlClass = class of TControl;
   TCheckBoxClass = class of TCheckBox;
   TRadioButtonClass = class of TRadioButton;

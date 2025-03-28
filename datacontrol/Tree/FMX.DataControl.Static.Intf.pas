@@ -337,6 +337,7 @@ type
     procedure set_ActiveSort(const Value: IListSortDescription);
 
     function  CreateInfoControl(const Cell: IDCTreeCell; const ControlClassType: TInfoControlClass): TControl;
+    procedure CreateCellBase(const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
     procedure CreateCellBaseControls(const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
     procedure CreateCellStyleControl(const StyleLookUp: CString; const ShowVertGrid: Boolean; const Cell: IDCTreeCell);
 
