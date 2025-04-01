@@ -2196,18 +2196,18 @@ type
     class function Abs(const A: Extended): Extended; overload;
     class function Ceiling(const X: Extended): Int64;
 
-    class function Max(const A: Integer; const B: Integer): Integer; overload;
-    class function Max(const A: Int64; const B: Int64): Int64; overload;
-    class function Max(const A: Single; const B: Single): Single; overload;
-    class function Max(const A: Double; const B: Double): Double; overload;
+    class function Max(const A: Integer; const B: Integer): Integer; overload; inline;
+    class function Max(const A: Int64; const B: Int64): Int64; overload; inline;
+    class function Max(const A: Single; const B: Single): Single; overload; inline;
+    class function Max(const A: Double; const B: Double): Double; overload; inline;
     class function Max(const A: CDateTime; const B: CDateTime): CDateTime; overload;
     class function Max(const A: CTimeSpan; const B: CTimeSpan): CTimeSpan; overload;
     class function Max(const A: Extended; const B: Extended): Extended; overload;
 
-    class function Min(const A: Integer; const B: Integer): Integer; overload;
-    class function Min(const A: Int64; const B: Int64): Int64; overload;
-    class function Min(const A: Single; const B: Single): Single; overload;
-    class function Min(const A: Double; const B: Double): Double; overload;
+    class function Min(const A: Integer; const B: Integer): Integer; overload; inline;
+    class function Min(const A: Int64; const B: Int64): Int64; overload; inline;
+    class function Min(const A: Single; const B: Single): Single; overload; inline;
+    class function Min(const A: Double; const B: Double): Double; overload; inline;
     class function Min(const A: CDateTime; const B: CDateTime): CDateTime; overload;
     class function Min(const A: CTimeSpan; const B: CTimeSpan): CTimeSpan; overload;
     class function Min(const A: Extended; const B: Extended): Extended; overload;
