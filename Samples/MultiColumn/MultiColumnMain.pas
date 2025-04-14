@@ -17,7 +17,7 @@ uses
   System.Bindings.Outputs, Fmx.Bind.Editors, Data.Bind.EngExt,
   Fmx.Bind.DBEngExt, Data.Bind.Components, Data.Bind.DBScope, FireDAC.UI.Intf,
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys,
-  FireDAC.Phys.MSSQL, FireDAC.Phys.MSSQLDef, FireDAC.FMXUI.Wait, FireDAC.DApt,
+  FireDAC.FMXUI.Wait, FireDAC.DApt,
   FMX.Grid.Style, Fmx.Bind.Grid, Data.Bind.Grid, FMX.ScrollBox, FMX.Grid,
   ADato.Controls.FMX.Tree.Intf, FMX.DateTimeCtrls,
   FMX.DataControl.ScrollableControl, FMX.DataControl.ScrollableRowControl,
@@ -54,6 +54,7 @@ type
     { Public declarations }
   end;
 
+  {$M+}
   ICompany = interface(IBaseInterface)
     ['{21E9FA90-85E1-4173-9DCB-019A489AFB18}']
     function  get_Location: string;
@@ -67,6 +68,7 @@ type
     property Founded: CDateTime read get_Founded write set_Founded;
     property Location: string read get_Location write set_Location;
   end;
+  {$M-}
 
   TCompany = class(TBaseInterfacedObject, ICompany)
   private
@@ -83,6 +85,11 @@ type
 
   public
     function ToString: CString; override;
+
+  published
+    property Name: string read get_Name write set_Name;
+    property Founded: CDateTime read get_Founded write set_Founded;
+    property Location: string read get_Location write set_Location;
   end;
 
 var

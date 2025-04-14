@@ -1131,12 +1131,18 @@ begin
       if not IsSubProp then
       begin
         if (_cachedProp = nil) then
+        begin
           _cachedProp := _cachedType.PropertyByName(PropName);
+          Assert(_cachedProp <> nil, 'Please make sure property is published and {M+} is assigned');
+        end;
 
         data := _cachedProp.GetValue(dataItem, []);
       end else begin
         if (_cachedSubProp = nil) then
+        begin
           _cachedSubProp := _cachedType.PropertyByName(PropName);
+          Assert(_cachedProp <> nil, 'Please make sure property is published and {M+} is assigned');
+        end;
 
         data := _cachedSubProp.GetValue(dataItem, []);
       end;
