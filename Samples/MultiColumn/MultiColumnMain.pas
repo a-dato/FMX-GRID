@@ -19,7 +19,9 @@ uses
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys,
   FireDAC.Phys.MSSQL, FireDAC.Phys.MSSQLDef, FireDAC.FMXUI.Wait, FireDAC.DApt,
   FMX.Grid.Style, Fmx.Bind.Grid, Data.Bind.Grid, FMX.ScrollBox, FMX.Grid,
-  ADato.Controls.FMX.Tree.Intf, FMX.DateTimeCtrls;
+  ADato.Controls.FMX.Tree.Intf, FMX.DateTimeCtrls,
+  FMX.DataControl.ScrollableControl, FMX.DataControl.ScrollableRowControl,
+  FMX.DataControl.Static, FMX.DataControl.Editable, FMX.DataControl.Impl;
 
 type
   {$M+}
@@ -40,6 +42,7 @@ type
     lblLocation: TLabel;
     edFounded: TDateEdit;
     Founded: TLabel;
+    DataControl1: TDataControl;
     procedure Button2Click(Sender: TObject);
     procedure FMXTreeControl1EditStart(const Sender: TObject; e:
         StartEditEventArgs);
@@ -112,6 +115,7 @@ begin
   model.ObjectModelContext.Bind('Founded', bind);
 
   FMXTreeControl1.Model := model;
+  DataControl1.Model := model;
 end;
 
 function TForm1.CreateCompanyList: List<ICompany>;

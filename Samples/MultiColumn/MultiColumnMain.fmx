@@ -9,9 +9,10 @@ object Form1: TForm1
   FormFactor.Devices = [Desktop]
   DesignerMasterStyle = 0
   object FMXTreeControl1: TFMXTreeControl
-    Align = Client
-    Size.Width = 500.000000000000000000
-    Size.Height = 446.000000000000000000
+    Align = Bottom
+    Position.Y = 329.000000000000000000
+    Size.Width = 699.000000000000000000
+    Size.Height = 158.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 1
     AcceptsTab = False
@@ -22,40 +23,40 @@ object Form1: TForm1
     Indent = 20
     AlwaysShowFocus = False
     IncrementalSearch = False
-    Options = [TreeOption_ShowHeaders, TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
+    Options = [TreeOption_AutoCommit, TreeOption_AllowCellSelection, TreeOption_AlternatingRowBackground, TreeOption_ShowDragImage, TreeOption_ShowHeaders, TreeOption_CheckPropertyNames, TreeOption_MultiSelect, TreeOption_ColumnsCanResize, TreeOption_ColumnsCanMove, TreeOption_RefreshOnEndEdit]
     ScrollPerRow = False
-        HighlightRows = True
     EditStart = FMXTreeControl1EditStart
-    Viewport.Width = 498.000000000000000000
-    Viewport.Height = 419.000000000000000000
+    Viewport.Width = 697.000000000000000000
+    Viewport.Height = 131.000000000000000000
     Columns_ = 
       '<Columns><Item type="TFMXTreeColumn"><AllowHide>True</AllowHide>' +
       '<AllowMove>True</AllowMove><AllowResize>True</AllowResize><AutoS' +
       'izeToContent>True</AutoSizeToContent><Caption>Name</Caption><Fro' +
-      'zen>False</Frozen><MaxWidth>0</MaxWidth><MultilineEdit>False</Mu' +
-      'ltilineEdit><PropertyName>Name</PropertyName><ReadOnly>False</Re' +
-      'adOnly><Selectable>True</Selectable><ShowSortMenu>True</ShowSort' +
-      'Menu><ShowFilterMenu>True</ShowFilterMenu><ShowHierarchy>False</' +
-      'ShowHierarchy><Sort>None</Sort><Visible>True</Visible><Width>0</' +
-      'Width><WidthType>Pixel</WidthType></Item><Item type="TFMXTreeCol' +
-      'umn"><AllowHide>True</AllowHide><AllowMove>True</AllowMove><Allo' +
-      'wResize>True</AllowResize><AutoSizeToContent>True</AutoSizeToCon' +
-      'tent><Caption>Location</Caption><Frozen>False</Frozen><MaxWidth>' +
-      '0</MaxWidth><MultilineEdit>False</MultilineEdit><PropertyName>Lo' +
-      'cation</PropertyName><ReadOnly>False</ReadOnly><Selectable>True<' +
-      '/Selectable><ShowSortMenu>True</ShowSortMenu><ShowFilterMenu>Tru' +
-      'e</ShowFilterMenu><ShowHierarchy>False</ShowHierarchy><Sort>Cell' +
-      'Data</Sort><Visible>True</Visible><Width>0</Width><WidthType>Pix' +
-      'el</WidthType></Item><Item type="TFMXTreeColumn"><AllowHide>True' +
-      '</AllowHide><AllowMove>True</AllowMove><AllowResize>True</AllowR' +
-      'esize><AutoSizeToContent>True</AutoSizeToContent><Caption>Founde' +
-      'd</Caption><Frozen>False</Frozen><MaxWidth>0</MaxWidth><Multilin' +
-      'eEdit>False</MultilineEdit><PropertyName>Founded</PropertyName><' +
-      'ReadOnly>False</ReadOnly><Selectable>True</Selectable><ShowSortM' +
-      'enu>True</ShowSortMenu><ShowFilterMenu>True</ShowFilterMenu><Sho' +
-      'wHierarchy>False</ShowHierarchy><Sort>None</Sort><Visible>True</' +
-      'Visible><Width>0</Width><WidthType>Pixel</WidthType></Item></Col' +
-      'umns>'#13#10
+      'zen>False</Frozen><MinWidth>0</MinWidth><MaxWidth>0</MaxWidth><M' +
+      'ultilineEdit>False</MultilineEdit><PropertyName>Name</PropertyNa' +
+      'me><ReadOnly>False</ReadOnly><Selectable>True</Selectable><ShowS' +
+      'ortMenu>True</ShowSortMenu><ShowFilterMenu>True</ShowFilterMenu>' +
+      '<ShowHierarchy>False</ShowHierarchy><Sort>None</Sort><Visible>Tr' +
+      'ue</Visible><Width>0</Width><WidthType>Pixel</WidthType></Item><' +
+      'Item type="TFMXTreeColumn"><AllowHide>True</AllowHide><AllowMove' +
+      '>True</AllowMove><AllowResize>True</AllowResize><AutoSizeToConte' +
+      'nt>True</AutoSizeToContent><Caption>Location</Caption><Frozen>Fa' +
+      'lse</Frozen><MinWidth>0</MinWidth><MaxWidth>0</MaxWidth><Multili' +
+      'neEdit>False</MultilineEdit><PropertyName>Location</PropertyName' +
+      '><ReadOnly>False</ReadOnly><Selectable>True</Selectable><ShowSor' +
+      'tMenu>True</ShowSortMenu><ShowFilterMenu>True</ShowFilterMenu><S' +
+      'howHierarchy>False</ShowHierarchy><Sort>CellData</Sort><Visible>' +
+      'True</Visible><Width>0</Width><WidthType>Pixel</WidthType></Item' +
+      '><Item type="TFMXTreeColumn"><AllowHide>True</AllowHide><AllowMo' +
+      've>True</AllowMove><AllowResize>True</AllowResize><AutoSizeToCon' +
+      'tent>True</AutoSizeToContent><Caption>Founded</Caption><Frozen>F' +
+      'alse</Frozen><MinWidth>0</MinWidth><MaxWidth>0</MaxWidth><Multil' +
+      'ineEdit>False</MultilineEdit><PropertyName>Founded</PropertyName' +
+      '><ReadOnly>False</ReadOnly><Selectable>True</Selectable><ShowSor' +
+      'tMenu>True</ShowSortMenu><ShowFilterMenu>True</ShowFilterMenu><S' +
+      'howHierarchy>False</ShowHierarchy><Sort>None</Sort><Visible>True' +
+      '</Visible><Width>0</Width><WidthType>Pixel</WidthType></Item></C' +
+      'olumns>'#13#10
   end
   object Layout1: TLayout
     Align = Top
@@ -80,7 +81,7 @@ object Form1: TForm1
     Position.X = 500.000000000000000000
     Position.Y = 41.000000000000000000
     Size.Width = 199.000000000000000000
-    Size.Height = 446.000000000000000000
+    Size.Height = 288.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 3
     object edName: TEdit
@@ -128,6 +129,54 @@ object Form1: TForm1
         TabOrder = 15
       end
     end
+  end
+  object DataControl1: TDataControl
+    Align = Client
+    HitTest = True
+    Size.Width = 500.000000000000000000
+    Size.Height = 288.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 6
+    Options = [TreeOption_ShowHeaders, TreeOption_ShowHeaderGrid]
+    RowHeightDefault = 30.000000000000000000
+    HeaderHeight = 24.000000000000000000
+    AutoExtraColumnSizeMax = -1.000000000000000000
+    Columns_ = 
+      '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
+      'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
+      'lass><WidthSettings><WidthType>Pixel</WidthType><Width>50</Width' +
+      '><WidthMin>50</WidthMin><WidthMax>50</WidthMax></WidthSettings><' +
+      'Visualisation><Visible>True</Visible><Frozen>False</Frozen><Read' +
+      'Only>False</ReadOnly><Selectable>True</Selectable><AllowResize>F' +
+      'alse</AllowResize><AllowHide>False</AllowHide></Visualisation><S' +
+      'ortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortMenu>' +
+      '<ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubContro' +
+      'lSettings><SubInfoControlClass>Custom</SubInfoControlClass></Sub' +
+      'ControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarchy><' +
+      'Indent>0</Indent></Hierarchy></Item><Item type="TDCTreeColumn"><' +
+      'Caption>Location</Caption><PropertyName>Location</PropertyName><' +
+      'InfoControlClass>Text</InfoControlClass><WidthSettings><WidthTyp' +
+      'e>Pixel</WidthType><Width>50</Width><WidthMin>50</WidthMin><Widt' +
+      'hMax>50</WidthMax></WidthSettings><Visualisation><Visible>True</' +
+      'Visible><Frozen>False</Frozen><ReadOnly>False</ReadOnly><Selecta' +
+      'ble>True</Selectable><AllowResize>False</AllowResize><AllowHide>' +
+      'False</AllowHide></Visualisation><SortAndFilter><Sort>None</Sort' +
+      '><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>False</ShowFi' +
+      'lterMenu></SortAndFilter><SubControlSettings><SubInfoControlClas' +
+      's>Custom</SubInfoControlClass></SubControlSettings><Hierarchy><S' +
+      'howHierarchy>False</ShowHierarchy><Indent>0</Indent></Hierarchy>' +
+      '</Item><Item type="TDCTreeColumn"><Caption>Founded</Caption><Pro' +
+      'pertyName>Founded</PropertyName><InfoControlClass>Text</InfoCont' +
+      'rolClass><WidthSettings><WidthType>Pixel</WidthType><Width>50</W' +
+      'idth><WidthMin>50</WidthMin><WidthMax>50</WidthMax></WidthSettin' +
+      'gs><Visualisation><Visible>True</Visible><Frozen>False</Frozen><' +
+      'ReadOnly>False</ReadOnly><Selectable>True</Selectable><AllowResi' +
+      'ze>False</AllowResize><AllowHide>False</AllowHide></Visualisatio' +
+      'n><SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortM' +
+      'enu><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubCo' +
+      'ntrolSettings><SubInfoControlClass>Custom</SubInfoControlClass><' +
+      '/SubControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarc' +
+      'hy><Indent>0</Indent></Hierarchy></Item></Columns>'#13#10
   end
   object ActionList1: TActionList
     Left = 427
