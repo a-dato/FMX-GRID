@@ -1883,8 +1883,8 @@ begin
   end;
 
   _view.ResetView(FromViewListIndex, ClearOneRowOnly);
-  if _isMasterSynchronizer and (_rowHeightSynchronizer.View <> nil) then
-    _rowHeightSynchronizer.View.ResetView(FromViewListIndex, ClearOneRowOnly);
+  if (_rowHeightSynchronizer <> nil) and not _rowHeightSynchronizer._isMasterSynchronizer and (_rowHeightSynchronizer.View <> nil) then
+      _rowHeightSynchronizer.View.ResetView(FromViewListIndex, ClearOneRowOnly);
 
   if _resetViewRec.RecalcSortedRows then
   begin
