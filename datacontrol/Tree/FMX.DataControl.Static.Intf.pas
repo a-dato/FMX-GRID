@@ -102,6 +102,8 @@ type
     procedure set_AllowResize(const Value: Boolean);
     function  get_AllowHide: Boolean;
     procedure set_AllowHide(const Value: Boolean);
+    function  get_HideWhenEmpty: Boolean;
+    procedure set_HideWhenEmpty(const Value: Boolean);
     function  get_Format: CString;
     procedure set_Format(const Value: CString);
 
@@ -113,6 +115,7 @@ type
     property Selectable: Boolean read get_Selectable write set_Selectable;
     property AllowResize: Boolean read get_AllowResize write set_AllowResize;
     property AllowHide: Boolean read get_AllowHide write set_AllowHide;
+    property HideWhenEmpty: Boolean read get_HideWhenEmpty write set_HideWhenEmpty;
     property Format: CString read get_Format write set_Format;
   end;
 
@@ -316,6 +319,8 @@ type
     property FilterValues: List<CObject> read get_filterValues write set_filterValues;
   end;
 
+  TColumnContainsData = (Unknown, No, Yes);
+
   IDCTreeLayoutColumn = interface(IBaseInterface)
   { IDCTreeLayoutColumn describes the presentation of the control.
     Comparing to IDCTreeColumn which describes the design of the tree control. }
@@ -330,6 +335,8 @@ type
 
     function  get_HideColumnInView: Boolean;
     procedure set_HideColumnInView(const Value: Boolean);
+    function  get_ContainsData: TColumnContainsData;
+    procedure set_ContainsData(const Value: TColumnContainsData);
 
     function  get_ActiveFilter: ITreeFilterDescription;
     procedure set_ActiveFilter(const Value: ITreeFilterDescription);
@@ -349,6 +356,8 @@ type
     property Left: Single read get_Left write set_Left;
     property Width: Single read get_Width write set_Width;
     property HideColumnInView: Boolean read get_HideColumnInView write set_HideColumnInView;  // calculated in AfterRealignContent
+
+    property ContainsData: TColumnContainsData read get_ContainsData write set_ContainsData;
 
     property ActiveFilter: ITreeFilterDescription read get_ActiveFilter write set_ActiveFilter;
     property ActiveSort: IListSortDescription read get_ActiveSort write set_ActiveSort;

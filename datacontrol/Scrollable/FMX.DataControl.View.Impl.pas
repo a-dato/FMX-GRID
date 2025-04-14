@@ -74,6 +74,7 @@ type
     function  GetFilterDescriptions: List<IListFilterDescription>;
     procedure ApplySort(const Sorts: List<IListSortDescription>);
     procedure ApplyFilter(const Filters: List<IListFilterDescription>);
+    function  ItemIsFilteredOut(const DataItem: CObject): Boolean;
 
     procedure ViewLoadingStart(const VirtualYPositionStart, VirtualYPositionStop, DefaultRowHeight: Single); overload;
     procedure ViewLoadingStart(const SynchronizeFromView: IDataViewList); overload;
@@ -262,7 +263,7 @@ end;
 
 function TDataViewList.GetDataIndex(const ViewListIndex: Integer): Integer;
 begin
-  if ViewListIndex = -1 then
+  if (ViewListIndex = -1) then
     Exit(-1);
 
   if _comparer <> nil then
@@ -496,6 +497,18 @@ end;
 function TDataViewList.IsFirstAlign: Boolean;
 begin
   Result := _isFirstAlign;
+end;
+
+function TDataViewList.ItemIsFilteredOut(const DataItem: CObject): Boolean;
+begin
+  var filters := GetFilterDescriptions;
+  if filters = nil then Exit(False);
+
+  for var filter in GetFilterDescriptions do
+    if not filter.IsMatch(DataItem) then
+      Exit(True);
+
+  Result := False;
 end;
 
 function TDataViewList.NotifyRowControlsNeedReload(const Row: IDCRow; DoForceReload: Boolean): TRowInfoRecord;

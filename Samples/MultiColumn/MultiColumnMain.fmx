@@ -144,39 +144,40 @@ object Form1: TForm1
     Columns_ = 
       '<Columns><Item type="TDCTreeColumn"><Caption>Name</Caption><Prop' +
       'ertyName>Name</PropertyName><InfoControlClass>Text</InfoControlC' +
-      'lass><WidthSettings><WidthType>Pixel</WidthType><Width>50</Width' +
-      '><WidthMin>50</WidthMin><WidthMax>50</WidthMax></WidthSettings><' +
-      'Visualisation><Visible>True</Visible><Frozen>False</Frozen><Read' +
-      'Only>False</ReadOnly><Selectable>True</Selectable><AllowResize>F' +
-      'alse</AllowResize><AllowHide>False</AllowHide></Visualisation><S' +
-      'ortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortMenu>' +
-      '<ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubContro' +
-      'lSettings><SubInfoControlClass>Custom</SubInfoControlClass></Sub' +
-      'ControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarchy><' +
-      'Indent>0</Indent></Hierarchy></Item><Item type="TDCTreeColumn"><' +
-      'Caption>Location</Caption><PropertyName>Location</PropertyName><' +
-      'InfoControlClass>Text</InfoControlClass><WidthSettings><WidthTyp' +
-      'e>Pixel</WidthType><Width>50</Width><WidthMin>50</WidthMin><Widt' +
-      'hMax>50</WidthMax></WidthSettings><Visualisation><Visible>True</' +
-      'Visible><Frozen>False</Frozen><ReadOnly>False</ReadOnly><Selecta' +
-      'ble>True</Selectable><AllowResize>False</AllowResize><AllowHide>' +
-      'False</AllowHide></Visualisation><SortAndFilter><Sort>None</Sort' +
-      '><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>False</ShowFi' +
-      'lterMenu></SortAndFilter><SubControlSettings><SubInfoControlClas' +
-      's>Custom</SubInfoControlClass></SubControlSettings><Hierarchy><S' +
-      'howHierarchy>False</ShowHierarchy><Indent>0</Indent></Hierarchy>' +
-      '</Item><Item type="TDCTreeColumn"><Caption>Founded</Caption><Pro' +
-      'pertyName>Founded</PropertyName><InfoControlClass>Text</InfoCont' +
-      'rolClass><WidthSettings><WidthType>Pixel</WidthType><Width>50</W' +
-      'idth><WidthMin>50</WidthMin><WidthMax>50</WidthMax></WidthSettin' +
-      'gs><Visualisation><Visible>True</Visible><Frozen>False</Frozen><' +
-      'ReadOnly>False</ReadOnly><Selectable>True</Selectable><AllowResi' +
-      'ze>False</AllowResize><AllowHide>False</AllowHide></Visualisatio' +
-      'n><SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSortM' +
-      'enu><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><SubCo' +
-      'ntrolSettings><SubInfoControlClass>Custom</SubInfoControlClass><' +
-      '/SubControlSettings><Hierarchy><ShowHierarchy>False</ShowHierarc' +
-      'hy><Indent>0</Indent></Hierarchy></Item></Columns>'#13#10
+      'lass><WidthSettings><WidthType>AlignToContent</WidthType><Width>' +
+      '0</Width><WidthMin>0</WidthMin><WidthMax>0</WidthMax></WidthSett' +
+      'ings><Visualisation><Visible>True</Visible><Frozen>False</Frozen' +
+      '><ReadOnly>False</ReadOnly><Selectable>True</Selectable><AllowRe' +
+      'size>False</AllowResize><AllowHide>False</AllowHide></Visualisat' +
+      'ion><SortAndFilter><Sort>None</Sort><ShowSortMenu>False</ShowSor' +
+      'tMenu><ShowFilterMenu>False</ShowFilterMenu></SortAndFilter><Sub' +
+      'ControlSettings><SubInfoControlClass>Custom</SubInfoControlClass' +
+      '></SubControlSettings><Hierarchy><ShowHierarchy>False</ShowHiera' +
+      'rchy><Indent>0</Indent></Hierarchy></Item><Item type="TDCTreeCol' +
+      'umn"><Caption>Location</Caption><PropertyName>Location</Property' +
+      'Name><InfoControlClass>Text</InfoControlClass><WidthSettings><Wi' +
+      'dthType>AlignToContent</WidthType><Width>0</Width><WidthMin>0</W' +
+      'idthMin><WidthMax>0</WidthMax></WidthSettings><Visualisation><Vi' +
+      'sible>True</Visible><Frozen>False</Frozen><ReadOnly>False</ReadO' +
+      'nly><Selectable>True</Selectable><AllowResize>False</AllowResize' +
+      '><AllowHide>False</AllowHide></Visualisation><SortAndFilter><Sor' +
+      't>None</Sort><ShowSortMenu>False</ShowSortMenu><ShowFilterMenu>F' +
+      'alse</ShowFilterMenu></SortAndFilter><SubControlSettings><SubInf' +
+      'oControlClass>Custom</SubInfoControlClass></SubControlSettings><' +
+      'Hierarchy><ShowHierarchy>False</ShowHierarchy><Indent>0</Indent>' +
+      '</Hierarchy></Item><Item type="TDCTreeColumn"><Caption>Founded</' +
+      'Caption><PropertyName>Founded</PropertyName><InfoControlClass>Te' +
+      'xt</InfoControlClass><WidthSettings><WidthType>AlignToContent</W' +
+      'idthType><Width>0</Width><WidthMin>0</WidthMin><WidthMax>0</Widt' +
+      'hMax></WidthSettings><Visualisation><Visible>True</Visible><Froz' +
+      'en>False</Frozen><ReadOnly>False</ReadOnly><Selectable>True</Sel' +
+      'ectable><AllowResize>False</AllowResize><AllowHide>False</AllowH' +
+      'ide></Visualisation><SortAndFilter><Sort>None</Sort><ShowSortMen' +
+      'u>False</ShowSortMenu><ShowFilterMenu>False</ShowFilterMenu></So' +
+      'rtAndFilter><SubControlSettings><SubInfoControlClass>Custom</Sub' +
+      'InfoControlClass></SubControlSettings><Hierarchy><ShowHierarchy>' +
+      'False</ShowHierarchy><Indent>0</Indent></Hierarchy></Item></Colu' +
+      'mns>'#13#10
   end
   object ActionList1: TActionList
     Left = 427

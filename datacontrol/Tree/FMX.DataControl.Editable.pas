@@ -159,7 +159,8 @@ uses
   System.ComponentModel,
   FMX.DataControl.ControlClasses, FMX.StdCtrls, System.TypInfo, FMX.Controls,
   System.Math, ADato.Collections.Specialized,
-  System.Reflection, FMX.ActnList, FMX.Platform;
+  System.Reflection, FMX.ActnList, FMX.Platform,
+  FMX.DataControl.ScrollableRowControl;
 
 { TEditableDataControl }
 
@@ -524,10 +525,23 @@ begin
   if IsEditOrNew and not CObject.Equals(_editingInfo.EditItem, clickedRow.DataItem) then
   begin
     var clickedRowDataIndex := clickedRow.DataIndex;
-    if CheckCanChangeRow then
+    if not CheckCanChangeRow then
+      Exit;
+
+    var filteredOut := _view.ItemIsFilteredOut(_editingInfo.EditItem);
+    var sortCouldBeChanged := ((_view.GetSortDescriptions <> nil) and (_view.GetSortDescriptions.Count > 0));
+
+    if filteredOut or sortCouldBeChanged then
     begin
-      if _realignContentRequested then
-        DoRealignContent;
+      // changing the data can cause a row to become filtered out of the view
+      // in that case we have to redirect the click to the updated click position
+      if filteredOut then
+        ResetView(crrntCell.Row.ViewListIndex) else
+        ResetView;
+
+      // ResetView requests a Realign content..
+      // we execute that calculations directly
+      DoRealignContent;
 
       var findClickedRowBackViewIndex := _view.GetViewListIndex(clickedRowDataIndex);
       if findClickedRowBackViewIndex = -1 then Exit;
@@ -537,9 +551,10 @@ begin
 
       // click again with correct Y values in case a row has filtered out
       UserClicked(Button, Shift, X, findClickedRowBack.VirtualYPosition + 1 - _vertScrollBar.Value);
-    end;
+      VisualizeRowSelection(findClickedRowBack);
 
-    Exit;
+      Exit;
+    end;
   end;
 
   inherited;
@@ -548,17 +563,15 @@ begin
   var newCell := GetActiveCell;
   if (newCell <> nil) and (newCell.Row = clickedRow) and not newCell.Column.ReadOnly then
   begin
-    if ssDouble in Shift then
-      StartEditCell(newCell)
-    else if not newCell.Column.IsSelectionColumn and (newCell.Column.InfoControlClass = TInfoControlClass.CheckBox) then
+    if not newCell.Column.IsSelectionColumn and (newCell.Column.InfoControlClass = TInfoControlClass.CheckBox) then
     begin
       if (ssShift in Shift) or (ssCtrl in Shift) then
         Exit; // do nothing
 
       (newCell.InfoControl as IIsChecked).IsChecked := not (newCell.InfoControl as IIsChecked).IsChecked;
-    end;
-
-    Exit;
+    end
+    else if (ssDouble in Shift) and not _editingInfo.CellIsEditing then
+      StartEditCell(newCell);
   end;
 end;
 
@@ -936,11 +949,19 @@ begin
   if _internalSelectCount > 0 then
     Exit;
 
+  var crrCell := GetActiveCell;
+  if crrCell = nil then
+  begin
+    _editingInfo.CellEditingFinished;
+    _editingInfo.RowEditingFinished;
+    Exit;
+  end;
+
   if _editingInfo.CellIsEditing then
     SafeForcedEndEdit;
 
   if _editingInfo.RowIsEditing then
-    DoEditRowEnd(GetActiveCell.Row as IDCTreeRow);
+    DoEditRowEnd(crrCell.Row as IDCTreeRow);
 end;
 
 procedure TEditableDataControl.FollowCheckThroughChildren(const Cell: IDCTreeCell);
