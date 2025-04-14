@@ -996,7 +996,7 @@ begin
             if S2.IsString then
             begin
               var s := results[i].ToString;
-              Result := not CString.IsNullOrEmpty(s) and s.Contains(S2.ToString);
+              Result := Result.AsType<Boolean> or (not CString.IsNullOrEmpty(s) and s.Contains(S2.ToString));
             end
             else if CObject.Equals(results[i], S2) then
             begin

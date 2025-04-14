@@ -114,8 +114,8 @@ type
     _isMasterSynchronizer: Boolean;
 
     _hoverRect: TRectangle;
-    _viewChangedIndex: Integer;
-    _waitingForViewChange: Boolean;
+//    _viewChangedIndex: Integer;
+//    _waitingForViewChange: Boolean;
     _resetViewRec: TResetViewRec;
 
     _tryFindNewSelectionInDataModel: Boolean;
@@ -290,7 +290,7 @@ end;
 
 destructor TDCScrollableRowControl.Destroy;
 begin
-  AtomicIncrement(_viewChangedIndex);
+//  AtomicIncrement(_viewChangedIndex);
 
   _view := nil;
 
@@ -475,9 +475,9 @@ begin
   else if (ssCtrl in Shift) and (Key in [vkDown, vkEnd]) then
     Exit(GetSelectableViewIndex(_view.ViewCount - 1, False))
   else if (Key = vkUp) then
-    Exit(GetSelectableViewIndex(CMath.Max(_selectionInfo.ViewListIndex-1, 0), False))
+    Exit(GetSelectableViewIndex(_selectionInfo.ViewListIndex-1, False))
   else if (Key = vkDown) then
-    Exit(GetSelectableViewIndex(CMath.Min(_selectionInfo.ViewListIndex+1, _view.ViewCount - 1), True));
+    Exit(GetSelectableViewIndex(_selectionInfo.ViewListIndex+1, True));
 
   // no change
   Result := _selectionInfo.ViewListIndex;
@@ -486,6 +486,8 @@ end;
 function TDCScrollableRowControl.GetSelectableViewIndex(const FromViewListIndex: Integer; const Increase: Boolean; const FirstRound: Boolean = True): Integer;
 begin
   Result := FromViewListIndex;
+  if (Result < 0) or (Result > _view.ViewCount - 1) then
+    Exit(-1);
 
   var di := _view.GetDataIndex(Result);
   while not _selectionInfo.CanSelect(di) do
@@ -1101,26 +1103,27 @@ begin
 
   if _waitForRepaintInfo <> nil then
   begin
+    var repInfo := _waitForRepaintInfo;
     if sortChanged then
-      _view.ApplySort(_waitForRepaintInfo.SortDescriptions);
+      _view.ApplySort(repInfo.SortDescriptions);
 
     if filterChanged then
-      _view.ApplyFilter(_waitForRepaintInfo.FilterDescriptions);
+      _view.ApplyFilter(repInfo.FilterDescriptions);
 
     // reset view
     if (sortChanged or filterChanged) then
       ResetView;
 
-    if TTreeRowState.RowChanged in _waitForRepaintInfo.RowStateFlags then
+    if TTreeRowState.RowChanged in repInfo.RowStateFlags then
     begin
       // check scrollToPosition
       // note: item can be filtered out
       var viewIndex: Integer;
-      if _waitForRepaintInfo.DataItem <> nil then
-        viewIndex := _view.GetViewListIndex(_waitForRepaintInfo.DataItem) else
-        viewIndex := _waitForRepaintInfo.Current;
+      if repInfo.DataItem <> nil then
+        viewIndex := _view.GetViewListIndex(repInfo.DataItem) else
+        viewIndex := repInfo.Current;
 
-      if (viewIndex <> -1) then
+      if (viewIndex <> -1) and (_view.ViewCount > 0) then
       begin
         _selectionInfo.BeginUpdate;
         try
@@ -1128,10 +1131,6 @@ begin
         finally
           _selectionInfo.EndUpdate(True {ignore events});
         end;
-
-////        if (_view.GetActiveRowIfExists(newViewListIndex) <> nil) then
-//          InternalSetCurrent(newViewListIndex, TSelectionEventTrigger.External, [], sortChanged or filterChanged);// else
-////          _tryFindNewSelectionInDataModel := True;
       end;
     end;
   end;
@@ -1503,6 +1502,9 @@ end;
 
 procedure TDCScrollableRowControl.OnSelectionInfoChanged;
 begin
+  if (_realignState in [TRealignState.Waiting, TRealignState.BeforeRealign]) then
+    Exit;
+
   ScrollSelectedIntoView(_selectionInfo);
 
   AtomicIncrement(_internalSelectCount);
@@ -1520,9 +1522,6 @@ begin
   finally
     AtomicDecrement(_internalSelectCount);
   end;
-
-  if (_realignState in [TRealignState.Waiting, TRealignState.BeforeRealign]) then
-    Exit;
 
   for var row in _view.ActiveViewRows do
     VisualizeRowSelection(row);
@@ -1553,46 +1552,6 @@ begin
 end;
 
 procedure TDCScrollableRowControl.OnViewChanged;
-
-  procedure OnViewChangeExecute(const IX: Integer);
-  begin
-    TThread.ForceQueue(nil, procedure
-    begin
-      if (IX <> _viewChangedIndex) or not _waitingForViewChange then
-        Exit;
-
-      // when sort is applied in RealignContent it is done before other calculations
-      if not (_realignState in [TRealignState.Waiting, TRealignState.RealignDone]) then
-        Exit;
-
-      ResetView;
-      AtomicIncrement(_viewChangedIndex);
-
-      if _selectionInfo.DataItem <> nil then
-      begin
-        var newViewListIndex := _view.GetViewListIndex(_selectionInfo.DataItem);
-
-        // in case of sorting/filtering this is always the same
-        // in case of deleting/adding this can vary
-        var dataIndex: Integer;
-
-        if newViewListIndex <> -1 then
-          dataIndex := _view.GetDataIndex(_selectionInfo.DataItem) else
-          dataIndex := -1;
-
-        _selectionInfo.BeginUpdate;
-        try
-          if dataIndex <> -1 then
-            _selectionInfo.UpdateSingleSelection(dataIndex {not changed}, newViewListIndex, _selectionInfo.DataItem {not changed}) else
-            _selectionInfo.ClearAllSelections;  // when all items are deleted
-
-        finally
-          _selectionInfo.EndUpdate(True {ignore change event});
-        end;
-      end;
-    end);
-  end;
-
 begin
   if _updateCount > 0 then
     Exit;
@@ -1605,11 +1564,31 @@ begin
     Exit;
   end;
 
-  AtomicIncrement(_viewChangedIndex);
+  ResetView;
+  DoRealignContent;
 
-  var ix := _viewChangedIndex;
-  _waitingForViewChange := True;
-  OnViewChangeExecute(ix);
+  if _selectionInfo.DataItem <> nil then
+  begin
+    var newViewListIndex := _view.GetViewListIndex(_selectionInfo.DataItem);
+
+    // in case of sorting/filtering this is always the same
+    // in case of deleting/adding this can vary
+    var dataIndex: Integer;
+
+    if newViewListIndex <> -1 then
+      dataIndex := _view.GetDataIndex(_selectionInfo.DataItem) else
+      dataIndex := -1;
+
+    _selectionInfo.BeginUpdate;
+    try
+      if dataIndex <> -1 then
+        _selectionInfo.UpdateSingleSelection(dataIndex {not changed}, newViewListIndex, _selectionInfo.DataItem {not changed}) else
+        _selectionInfo.ClearAllSelections;  // when all items are deleted
+
+    finally
+      _selectionInfo.EndUpdate(True {ignore change event});
+    end;
+  end;
 end;
 
 procedure TDCScrollableRowControl.UpdateScrollBarValues(const CalculateViewFrom: TCalculateViewFrom);
@@ -1797,6 +1776,8 @@ end;
 
 procedure TDCScrollableRowControl.RealignFromSelectionChange(const StartY, StopY: Single; CalculateViewFrom: TCalculateViewFrom);
 begin
+  Assert(StartY >= 0);
+
   _scrollingType := TScrollingType.Other;
   InnerRealignContent(StartY, StopY, CalculateViewFrom);
   _scrollingType := TScrollingType.None;
@@ -1810,7 +1791,7 @@ end;
 
 procedure TDCScrollableRowControl.InnerRealignContent(const StartY, StopY: Single; CalculateViewFrom: TCalculateViewFrom);
 begin
-  AtomicIncrement(_viewChangedIndex);
+//  AtomicIncrement(_viewChangedIndex);
 
   var setSynchronizerInternally := (_rowHeightSynchronizer <> nil) and not _rowHeightSynchronizer._isMasterSynchronizer and not _isMasterSynchronizer;
   if setSynchronizerInternally then
@@ -1856,8 +1837,8 @@ begin
   if _view = nil then
     Exit;
 
-  if _waitingForViewChange then
-    ResetView;
+//  if _waitingForViewChange then
+//    ResetView;
 
   try
     inherited;
@@ -1885,7 +1866,10 @@ end;
 procedure TDCScrollableRowControl.RefreshControl(const DataChanged: Boolean = False);
 begin
   if DataChanged then
+  begin
+    _resetViewRec := TResetViewRec.CreateFrom(-1, False, True, _resetViewRec);
     ResetView;
+  end;
 
   inherited;
 end;
@@ -1916,7 +1900,7 @@ begin
     RefreshControl;
 
   _resetViewRec := TResetViewRec.CreateNull;
-  _waitingForViewChange := False;
+//  _waitingForViewChange := False;
 end;
 
 function TDCScrollableRowControl.RowIsExpanded(const ViewListIndex: Integer): Boolean;
@@ -1965,9 +1949,18 @@ begin
       _view.GetSlowPerformanceRowInfo(_selectionInfo.ViewListIndex, {out} dataItem, {out} virtualYPos);
       var h := _view.GetRowHeight(_selectionInfo.ViewListIndex);
 
-      if virtualYPos < _vertScrollBar.Value then
-        RealignFromSelectionChange(virtualYPos + h - 1, virtualYPos + _vertScrollBar.ViewportSize, TCalculateViewFrom.Top) else
-        RealignFromSelectionChange(virtualYPos + 2 - _vertScrollBar.ViewportSize, virtualYPos + 2, TCalculateViewFrom.Bottom);
+      if virtualYPos <= _vertScrollBar.Value then
+      begin
+        var startY := CMath.Max(virtualYPos + h - 1, 0);
+        var stopY := CMath.Min(virtualYPos + _vertScrollBar.ViewportSize, _vertScrollBar.Max);
+        RealignFromSelectionChange(startY, stopY, TCalculateViewFrom.Top)
+      end
+      else //if virtualYPos > _vertScrollBar.Value then
+      begin
+        var startY := CMath.Max(virtualYPos + 2 - _vertScrollBar.ViewportSize, 0);
+        var stopY := CMath.Min(virtualYPos + 2, _vertScrollBar.Max);
+        RealignFromSelectionChange(startY, stopY, TCalculateViewFrom.Bottom);
+      end;
     end;
 
     var selRow := _view.GetActiveRowIfExists(_selectionInfo.ViewListIndex);

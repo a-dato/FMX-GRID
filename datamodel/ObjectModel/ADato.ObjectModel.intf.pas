@@ -168,6 +168,7 @@ type
     procedure RemoveBinding(const ABinding: IPropertyBinding);
     procedure Unbind(const Context: IObjectModelContext);
     procedure AddLink(const ABinding: IPropertyBinding);
+    function  IsLink(const ABinding: IPropertyBinding): Boolean;
     procedure RemoveLink(const ABinding: IPropertyBinding);
     procedure NotifyBindings(const Context, Value: CObject; NotifyLinks: Boolean);
 

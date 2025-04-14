@@ -123,6 +123,7 @@ type
     _selectable: Boolean;
     _allowResize: Boolean;
     _allowHide: Boolean;
+    _hideWhenEmpty: Boolean;
     _format: CString;
 
     function  get_Visible: Boolean;
@@ -137,6 +138,8 @@ type
     procedure set_AllowResize(const Value: Boolean);
     function  get_AllowHide: Boolean;
     procedure set_AllowHide(const Value: Boolean);
+    function  get_HideWhenEmpty: Boolean;
+    procedure set_HideWhenEmpty(const Value: Boolean);
     function  get_Format: CString;
     procedure set_Format(const Value: CString);
 
@@ -153,6 +156,7 @@ type
     property Selectable: Boolean read get_Selectable write set_Selectable;
     property AllowResize: Boolean read get_AllowResize write set_AllowResize;
     property AllowHide: Boolean read get_AllowHide write set_AllowHide;
+    property HideWhenEmpty: Boolean read get_HideWhenEmpty write set_HideWhenEmpty;
     property Format: CString read get_Format write set_Format;
 
   end;
@@ -332,7 +336,8 @@ type
     _left: Single;
     _width: Single;
 
-    _HideColumnInView: Boolean;
+    _hideColumnInView: Boolean;
+    _containsData: TColumnContainsData;
 
     [weak] _activeFilter: ITreeFilterDescription;
     [weak] _activeSort: IListSortDescription;
@@ -351,6 +356,8 @@ type
     procedure set_ActiveSort(const Value: IListSortDescription);
     function  get_HideColumnInView: Boolean;
     procedure set_HideColumnInView(const Value: Boolean);
+    function  get_ContainsData: TColumnContainsData;
+    procedure set_ContainsData(const Value: TColumnContainsData);
 
   public
     constructor Create(const AColumn: IDCTreeColumn; const ColumnControl: IColumnsControl);
@@ -1226,7 +1233,7 @@ begin
   _viewStateFlags := _viewStateFlags + [TTreeViewState.ColumnsChanged];
 
   if _owner.IsInitialized then
-    _owner.RefreshControl;
+    _owner.RefreshControl(True);
 end;
 
 function TDataControlWaitForRepaintInfo.get_CellSizeUpdates: Dictionary<Integer, Single>;
@@ -1260,6 +1267,7 @@ begin
   _column := AColumn;
   _treeControl := ColumnControl;
   _index := -1;
+  _containsData := TColumnContainsData.Unknown;
 
   _hideColumnInView := not AColumn.Visible;
 end;
@@ -1600,9 +1608,17 @@ begin
   Result := _column;
 end;
 
+function TTreeLayoutColumn.get_ContainsData: TColumnContainsData;
+begin
+  Result := _containsData;
+end;
+
 function TTreeLayoutColumn.get_HideColumnInView: Boolean;
 begin
   Result := _HideColumnInView;
+
+  if _column.Visualisation.HideWhenEmpty and (_containsData <> TColumnContainsData.Unknown) and not Result then
+    Result := _containsData = TColumnContainsData.No;
 end;
 
 function TTreeLayoutColumn.get_Index: Integer;
@@ -1630,6 +1646,11 @@ end;
 procedure TTreeLayoutColumn.set_ActiveSort(const Value: IListSortDescription);
 begin
   _activeSort := Value;
+end;
+
+procedure TTreeLayoutColumn.set_ContainsData(const Value: TColumnContainsData);
+begin
+  _containsData := Value;
 end;
 
 //procedure TTreeLayoutColumn.set_CustomHidden(const Value: Boolean);
@@ -1903,8 +1924,16 @@ begin
         if SameValue(layoutClmn.Column.CustomWidth, -1) then
           minColumnWidth := layoutClmn.Column.WidthMin else
           minColumnWidth := layoutClmn.Width;
-      else
+      Pixel:
         minColumnWidth := layoutClmn.Width;
+      AlignToContent:
+      begin
+        var available := _columnsControl.Control.Width - minimumTotalWidth;
+        if (available < layoutClmn.Width) and (available >= layoutClmn.Column.WidthMin) and (layoutClmn.Column.WidthMin > 0) then
+          layoutClmn.Width := available;
+
+        minColumnWidth := layoutClmn.Width;
+      end;
     end;
 
     if minimumTotalWidth + minColumnWidth > _columnsControl.Control.Width then
@@ -2416,7 +2445,7 @@ end;
 
 function TDCTreeCheckboxColumn.get_Selectable: Boolean;
 begin
-  Result := False;
+  Result := True;
 end;
 
 function TDCTreeCheckboxColumn.IsSelectionColumn: Boolean;
@@ -2689,6 +2718,11 @@ begin
   Result := _frozen;
 end;
 
+function TDCColumnVisualisation.get_HideWhenEmpty: Boolean;
+begin
+  Result := _hideWhenEmpty;
+end;
+
 function TDCColumnVisualisation.get_ReadOnly: Boolean;
 begin
   Result := _readOnly;
@@ -2722,6 +2756,11 @@ end;
 procedure TDCColumnVisualisation.set_Frozen(const Value: Boolean);
 begin
   _frozen := Value;
+end;
+
+procedure TDCColumnVisualisation.set_HideWhenEmpty(const Value: Boolean);
+begin
+  _hideWhenEmpty := Value;
 end;
 
 procedure TDCColumnVisualisation.set_ReadOnly(const Value: Boolean);

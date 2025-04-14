@@ -69,6 +69,7 @@ type
     function  GetFilterDescriptions: List<IListFilterDescription>;
     procedure ApplySort(const Sorts: List<IListSortDescription>);
     procedure ApplyFilter(const Filters: List<IListFilterDescription>);
+    function  ItemIsFilteredOut(const DataItem: CObject): Boolean;
 
     procedure ViewLoadingStart(const TotalStartYPosition, TotalStopYPosition, DefaultRowHeight: Single); overload;
     procedure ViewLoadingStart(const SynchronizeFromView: IDataViewList); overload;

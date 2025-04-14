@@ -317,6 +317,7 @@ begin
   Result._doResetView := True;
   Result._resetViewIndex := Index;
   Result._resetViewOneRowOnly := OneRowOnly;
+  Result._doRecalcSortedRows := RecalcSortedRows;
 end;
 
 class function TResetViewRec.CreateNull: TResetViewRec;
@@ -324,6 +325,7 @@ begin
   Result._doResetView := False;
   Result._resetViewIndex := -1;
   Result._resetViewOneRowOnly := True;
+  Result._doRecalcSortedRows := False;
 end;
 
 function TResetViewRec.DoResetView: Boolean;

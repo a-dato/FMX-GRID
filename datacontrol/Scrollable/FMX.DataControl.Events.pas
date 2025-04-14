@@ -244,6 +244,14 @@ type
     property NewWidth: Single read _newWidth write _newWidth;
   end;
 
+  DCTreePositionArgs = class(EventArgs)
+  public
+    TotalColumnWidth: Single;
+
+    constructor Create(const ATotalColumnWidth: Single);
+    function GetMaxY(const LastRow: IDCRow; const ControlMaxY: Single): Single;
+  end;
+
   CellLoadingEvent = procedure(const Sender: TObject; e: DCCellLoadingEventArgs) of object;
   CellLoadedEvent  = procedure(const Sender: TObject; e: DCCellLoadedEventArgs) of object;
   CellFormattingEvent  = procedure (const Sender: TObject; e: DCCellFormattingEventArgs) of object;
@@ -270,6 +278,8 @@ type
 
   RowAddedEvent = procedure(const Sender: TObject; e: DCAddingNewEventArgs) of object;
   RowDeletingEvent = procedure(const Sender: TObject; e: DCDeletingEventArgs) of object;
+
+  TreePositionedEvent = procedure(const Sender: TObject; e: DCTreePositionArgs) of object;
 
 implementation
 
@@ -465,6 +475,19 @@ end;
 function DCCheckChangedEventArgs.CheckControl: TControl;
 begin
   Result := _cell.InfoControl;
+end;
+
+{ DCTreePositionArgs }
+
+constructor DCTreePositionArgs.Create(const ATotalColumnWidth: Single);
+begin
+  inherited Create;
+  TotalColumnWidth := ATotalColumnWidth;
+end;
+
+function DCTreePositionArgs.GetMaxY(const LastRow: IDCRow; const ControlMaxY: Single): Single;
+begin
+  Result := CMath.Min(LastRow.Control.Position.Y + LastRow.Height, ControlMaxY);
 end;
 
 end.

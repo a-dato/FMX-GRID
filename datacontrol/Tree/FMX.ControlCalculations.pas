@@ -109,7 +109,7 @@ begin
     Layout.BeginUpdate;
     try
       Layout.TopLeft := PointF(0, 0);
-      Layout.MaxSize := PointF(IfThen(TextWidth <> -1, TextWidth, TextControl.Width), 9999);
+      Layout.MaxSize := PointF(IfThen(TextWidth <> -1, TextWidth, TextControl.Width - 6 {inner padding}), 9999);
       Layout.WordWrap := Settings.WordWrap;
       Layout.Font := Settings.Font;
       Layout.RightToLeft := False; // TFillTextFlag.RightToLeft in Flags;
