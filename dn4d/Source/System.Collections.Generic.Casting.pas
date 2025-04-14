@@ -548,13 +548,13 @@ procedure CastFrom_Binary(Inst: PTypedInstance; const Value; out Obj: CObject);
 begin
   var v: TValue;
   var p: Pointer := @Value;
+
   var size := Inst.TypeInfo.TypeData.elSize;
-  if size <= SizeOf(Pointer) then
+  if size <= 4 then
     // Record is passed as value, p actually holds the internal data of the record passed in
     TValue.Make(@p, Inst.TypeInfo, v) else
     // Record is passed as reference, Value holds a reference to the record passed in
     TValue.Make(p, Inst.TypeInfo, v);
-
   Obj := CObject.From<TValue>(v);
 end;
 
