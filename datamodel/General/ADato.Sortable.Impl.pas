@@ -43,6 +43,7 @@ type
     procedure set_Item(Index: Integer; const Value: T);
     function  IndexOf(const item: T): Integer; reintroduce; overload;
     procedure Insert(index: Integer; const item: T); reintroduce; overload;
+    function  RawArray: TArray<T>;
     function  InnerArray: TArray<T>;
     function  ToArray: TArray<T>;
     procedure RemoveAt(index: Integer); override;
@@ -206,6 +207,11 @@ begin
 end;
 
 procedure CComparableList<T>.Insert(index: Integer; const item: T);
+begin
+  raise NotImplementedException.Create;
+end;
+
+function CComparableList<T>.RawArray: TArray<T>;
 begin
   raise NotImplementedException.Create;
 end;
