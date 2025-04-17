@@ -556,6 +556,7 @@ type
     function  PickList(const Column: IDataModelColumn; const Row: IDataRow) : IList; {$IFDEF DELPHI}overload;{$ENDIF} virtual;
     function  PickList(const PropertyName: CString; const Row: IDataRow) : IList; {$IFDEF DELPHI}overload;{$ENDIF} virtual;
     procedure &Remove(const Row: IDataRow); {$IFDEF DELPHI}reintroduce;{$ENDIF} virtual;
+    procedure ReplaceKey(const OldKey, NewKey: CObject);
     function  RowIndex(const Row: IDataRow): Integer; virtual;
     function  GetRowType(const Row: IDataRow): RowTypeFlag;
     procedure SetFieldValue(const Column: IDataModelColumn; const Row: IDataRow; const Data: CObject); virtual;
@@ -2277,6 +2278,17 @@ function TDataModel.FindByKey(const AValue: CObject): IDataRow;
 begin
   if not _keys.TryGetValue(AValue, Result) then
     Result := nil;
+end;
+
+procedure TDataModel.ReplaceKey(const OldKey, NewKey: CObject);
+begin
+  var dr: IDataRow;
+
+  if not _keys.TryGetValue(OldKey, dr) then
+    raise Exception.Create('Key not found');
+
+  _keys.Remove(OldKey);
+  _keys.Add(NewKey, dr);
 end;
 
 function TDataModel.IndexOf(const AValue: CObject): Integer;

@@ -3,25 +3,13 @@ unit MultiColumnMain;
 interface
 
 uses
+  System_,
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.Layouts,
-  System.Collections.Generic,
-  ADato.FMX.Controls.ScrollableControl.Impl,
-  ADato.FMX.Controls.ScrollableRowControl.Impl, ADato.Controls.FMX.Tree.Impl,
-  FMX.Controls.Presentation, FMX.StdCtrls, System_, FMX.Edit,
-  ADato.Data.DataModel.intf, System.Actions, FMX.ActnList, FireDAC.Stan.Intf,
-  FireDAC.Stan.Option, FireDAC.Stan.Param, FireDAC.Stan.Error, FireDAC.DatS,
-  FireDAC.Phys.Intf, FireDAC.DApt.Intf, Data.DB, FireDAC.Comp.DataSet,
-  FireDAC.Comp.Client, Delphi.Extensions.VirtualDataset,
-  ADato.Data.VirtualDatasetDataModel, ADato.Data.DatasetDataModel, System.Rtti,
-  System.Bindings.Outputs, Fmx.Bind.Editors, Data.Bind.EngExt,
-  Fmx.Bind.DBEngExt, Data.Bind.Components, Data.Bind.DBScope, FireDAC.UI.Intf,
-  FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys,
-  FireDAC.FMXUI.Wait, FireDAC.DApt,
-  FMX.Grid.Style, Fmx.Bind.Grid, Data.Bind.Grid, FMX.ScrollBox, FMX.Grid,
-  ADato.Controls.FMX.Tree.Intf, FMX.DateTimeCtrls,
+  System.Collections.Generic, System.Actions, FMX.ActnList,
   FMX.DataControl.ScrollableControl, FMX.DataControl.ScrollableRowControl,
-  FMX.DataControl.Static, FMX.DataControl.Editable, FMX.DataControl.Impl;
+  FMX.DataControl.Static, FMX.DataControl.Editable, FMX.DataControl.Impl,
+  FMX.DateTimeCtrls, FMX.StdCtrls, FMX.Edit, FMX.Controls.Presentation;
 
 type
   {$M+}
@@ -29,7 +17,6 @@ type
   {$M-}
 
   TForm1 = class(TForm)
-    FMXTreeControl1: TFMXTreeControl;
     Layout1: TLayout;
     Button2: TButton;
     Layout2: TLayout;
@@ -44,13 +31,10 @@ type
     Founded: TLabel;
     DataControl1: TDataControl;
     procedure Button2Click(Sender: TObject);
-    procedure FMXTreeControl1EditStart(const Sender: TObject; e:
-        StartEditEventArgs);
   private
     function CreateCompanyList: List<ICompany>;
   protected
   public
-    dm: IDataModel;
     { Public declarations }
   end;
 
@@ -68,6 +52,7 @@ type
     property Location: string read get_Location write set_Location;
   end;
 
+  {$M+}
   TCompany = class(TBaseInterfacedObject, ICompany)
   private
     _Location: string;
@@ -83,6 +68,11 @@ type
 
   public
     function ToString: CString; override;
+
+  published
+    property Name: string read get_Name write set_Name;
+    property Founded: CDateTime read get_Founded write set_Founded;
+    property Location: string read get_Location write set_Location;
   end;
 
 var
@@ -114,7 +104,6 @@ begin
   bind := TPropertyBinding.CreateBindingByControl(edFounded);
   model.ObjectModelContext.Bind('Founded', bind);
 
-  FMXTreeControl1.Model := model;
   DataControl1.Model := model;
 end;
 
@@ -130,12 +119,6 @@ begin
     c.Founded := CDateTime.Now.AddDays(i);
     Result.Add(c);
   end;
-end;
-
-procedure TForm1.FMXTreeControl1EditStart(const Sender: TObject; e:
-    StartEditEventArgs);
-begin
-
 end;
 
 { TCompany }
