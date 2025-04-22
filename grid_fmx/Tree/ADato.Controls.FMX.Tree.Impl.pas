@@ -5151,7 +5151,7 @@ begin
 
     // create a default comparer.. Can be overwritten (in OnSortApplied )
     _listComparer := TListComparer.Create(get_SortDescriptions, get_FilterDescriptions, function: Boolean begin Result := View.ListHoldsOrdinalType; end);
-    _listComparer.OnComparingChanged := Self.OnSortApplied;
+    _listComparer.OnComparingChanged.Add(OnSortApplied);
     _listComparer.FuncDataList :=
       function: IList begin
         Result := _datalist;
@@ -5498,7 +5498,7 @@ begin
   if (Value <> nil) and interfaces.Supports<IComparableList>(Value, su) then
   begin
     _listComparer := su.Comparer;
-    _listComparer.OnComparingChanged := Self.OnSortApplied;
+    _listComparer.OnComparingChanged.Add(OnSortApplied);
   end;
 
   Data := Value;

@@ -167,6 +167,8 @@ type
   public
     procedure BeginEdit(const EditValue: CObject); override;
 
+//    function  TryBeginEditWithUserKey(UserKey: string): Boolean; override;
+
     property PickList: IList read get_PickList write set_PickList;
     property SaveData: Boolean read _saveData write _saveData;
   end;
@@ -390,7 +392,7 @@ begin
   // TODO: We say here that Owner is nil, but since we add _editor to control it means
   // when parent control is freed _editor's lifetime is dependant on that control.
   // So trying to free with _editor.Free fails in destroy.
-  _editor := ScrollableRowControl_DefaultEditClass.Create(nil);
+  _editor := DataControlClassFactory.CreateEdit(nil);
   _cell.Control.AddObject(_editor);
 
   TEdit(_editor).OnChangeTracking := OnTextCellEditorChangeTracking;
@@ -431,7 +433,7 @@ end;
 
 procedure TDCCellDateTimeEditor.BeginEdit(const EditValue: CObject);
 begin
-  _editor := ScrollableRowControl_DefaultDateEditClass.Create(nil);
+  _editor := DataControlClassFactory.CreateEdit(nil);
   _cell.Control.AddObject(_editor);
 
   _editor.TabStop := false;
@@ -486,7 +488,7 @@ end;
 
 procedure TDCCellDropDownEditor.BeginEdit(const EditValue: CObject);
 begin
-  _editor := ScrollableRowControl_DefaultComboEditClass.Create(nil);
+  _editor := DataControlClassFactory.CreateComboEdit(nil);
   _cell.Control.AddObject(_editor);
 
   var ce := TComboEdit(_editor);
@@ -511,15 +513,13 @@ end;
 
 function TDCCellDropDownEditor.get_Value: CObject;
 begin
-//  var ce := TComboEdit(_editor);
-//  var index := ce.ItemIndex;
-//  if index <> -1 then
-//    _Value := _PickList[index];
-//
-//  if _Value <> nil then
-//    Result := _Value;
+  var ce := TComboEdit(_editor);
+  var index := ce.ItemIndex;
+  if index <> -1 then
+    _Value := _PickList[index];
 
-  Result := _Value;
+  if _Value <> nil then
+    Result := _Value;
 end;
 
 procedure TDCCellDropDownEditor.OnDropdownEditorChange(Sender: TObject);
@@ -653,6 +653,17 @@ begin
     ce.Text := val2;
 end;
 
+//function TDCCellDropDownEditor.TryBeginEditWithUserKey( UserKey: string): Boolean;
+//begin
+//  var ce := TComboEdit(_editor);
+//  ce.DropDown;
+//
+//  var ix := ce.Items.IndexOf(UserKey);
+//  Result := ix <> -1;
+//  if Result then
+//    ce.ItemIndex := ix;
+//end;
+
 { TDCTextCellMultilineEditor }
 
 procedure TDCTextCellMultilineEditor.BeginEdit(const EditValue: CObject);
@@ -671,7 +682,7 @@ end;
 
 procedure TDCTextCellMultilineEditor.InternalBeginEdit(const EditValue: CObject);
 begin
-  _editor := ScrollableRowControl_DefaultMemoClass.Create(nil);
+  _editor := DataControlClassFactory.CreateMemo(nil);
   _cell.Control.AddObject(_editor);
 
   TMemo(_editor).ShowScrollBars := false;
@@ -716,18 +727,21 @@ end;
 
 procedure TObjectListModelItemChangedDelegate.AddingNew(const Value: CObject; var Index: Integer; Position: InsertPosition);
 begin
-  _Owner.View.RecalcSortedRows;
+  _Owner.OnItemAddedByUser(Value, Index);
 end;
 
 procedure TObjectListModelItemChangedDelegate.Removed(const Value: CObject; const Index: Integer);
 begin
-  _Owner.View.RecalcSortedRows;
+  _Owner.OnItemRemovedByUser(Value, Index)
 end;
 
 procedure TObjectListModelItemChangedDelegate.SetItemInCurrentView(const DataItem: CObject);
 begin
   if (_UpdateCount <> 0) then
     Exit;
+
+  if _Owner.View.HasCustomDataList then
+    _Owner.View.RecreateCustomDataList(_Owner.Model.Context);
 
   var current: IDCRow := nil;
   for var row in _Owner.View.ActiveViewRows do
@@ -755,6 +769,9 @@ end;
 
 procedure TObjectListModelItemChangedDelegate.CancelEdit(const Item: CObject);
 begin
+  if (_UpdateCount = 0) then
+    _Owner.CancelEditFromExternal;
+
   SetItemInCurrentView(Item);
 end;
 

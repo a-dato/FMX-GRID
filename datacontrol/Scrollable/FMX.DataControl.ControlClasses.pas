@@ -19,17 +19,17 @@ uses
   System_;
 
 type
-  TTextClass = class of TControl;
+//  TTextClass = class of TControl;
 //  TControlClass = class of TControl;
-  TCheckBoxClass = class of TCheckBox;
-  TRadioButtonClass = class of TRadioButton;
-  TButtonClass = class of TButton;
-  TGlyphClass = class of TGlyph;
-  TEditClass = class of TEdit;
-  TMemoClass = class of TMemo;
-  TDateEditClass = class of TDateEdit;
-  TComboEditClass = class of TComboEdit;
-  TRectangleClass = class of TRectangle;
+//  TCheckBoxClass = class of TCheckBox;
+//  TRadioButtonClass = class of TRadioButton;
+//  TButtonClass = class of TButton;
+//  TGlyphClass = class of TGlyph;
+//  TEditClass = class of TEdit;
+//  TMemoClass = class of TMemo;
+//  TDateEditClass = class of TDateEdit;
+//  TComboEditClass = class of TComboEdit;
+//  TRectangleClass = class of TRectangle;
 //  TLineClass = class of TLine;
 
   TDateTimeEditOnKeyDownOverride = class(TDateEdit)
@@ -49,6 +49,16 @@ type
 
     function CreateHeaderCellRect(const Owner: TComponent): TRectangle;
     function CreateRowCellRect(const Owner: TComponent): TRectangle;
+
+    function CreateText(const Owner: TComponent): TText;
+    function CreateCheckBox(const Owner: TComponent): TCheckBox;
+    function CreateRadioButton(const Owner: TComponent): TRadioButton;
+    function CreateButton(const Owner: TComponent): TButton;
+    function CreateGlyph(const Owner: TComponent): TGlyph;
+    function CreateEdit(const Owner: TComponent): TEdit;
+    function CreateMemo(const Owner: TComponent): TMemo;
+    function CreateDateEdit(const Owner: TComponent): TDateEdit;
+    function CreateComboEdit(const Owner: TComponent): TComboEdit;
   end;
 
   TDataControlClassFactory = class(TInterfacedObject, IDataControlClassFactory)
@@ -64,6 +74,16 @@ type
 
     function CreateHeaderCellRect(const Owner: TComponent): TRectangle; virtual;
     function CreateRowCellRect(const Owner: TComponent): TRectangle; virtual;
+
+    function CreateText(const Owner: TComponent): TText; virtual;
+    function CreateCheckBox(const Owner: TComponent): TCheckBox; virtual;
+    function CreateRadioButton(const Owner: TComponent): TRadioButton; virtual;
+    function CreateButton(const Owner: TComponent): TButton; virtual;
+    function CreateGlyph(const Owner: TComponent): TGlyph; virtual;
+    function CreateEdit(const Owner: TComponent): TEdit; virtual;
+    function CreateMemo(const Owner: TComponent): TMemo; virtual;
+    function CreateDateEdit(const Owner: TComponent): TDateEdit; virtual;
+    function CreateComboEdit(const Owner: TComponent): TComboEdit; virtual;
   end;
 
 
@@ -71,16 +91,12 @@ var
   // see Initialization section
   DataControlClassFactory: IDataControlClassFactory;
 
-  ScrollableRowControl_DefaultTextClass: TTextClass;
-  ScrollableRowControl_DefaultCheckboxClass: TCheckBoxClass;
-  ScrollableRowControl_DefaultRadioButtonClass: TRadioButtonClass;
-  ScrollableRowControl_DefaultButtonClass: TButtonClass;
-  ScrollableRowControl_DefaultGlyphClass: TGlyphClass;
-  ScrollableRowControl_DefaultEditClass: TEditClass;
-  ScrollableRowControl_DefaultMemoClass: TMemoClass;
-  ScrollableRowControl_DefaultDateEditClass: TDateEditClass;
-  ScrollableRowControl_DefaultComboEditClass: TComboEditClass;
-  ScrollableRowControl_DefaultRectangleClass: TRectangleClass;
+//  ScrollableRowControl_DefaultTextClass: TTextClass;
+//  ScrollableRowControl_DefaultCheckboxClass: TCheckBoxClass;
+//  ScrollableRowControl_DefaultRadioButtonClass: TRadioButtonClass;
+//  ScrollableRowControl_DefaultButtonClass: TButtonClass;
+//  ScrollableRowControl_DefaultGlyphClass: TGlyphClass;
+//  ScrollableRowControl_DefaultRectangleClass: TRectangleClass;
 //  ScrollableRowControl_LineClass: TLineClass;
 
 
@@ -100,48 +116,6 @@ implementation
 uses
   System.SysUtils;
 
-
-//function CreateDefaultTextClassControl(AOwner: TComponent): TControl;
-//begin
-//  Result := ScrollableRowControl_DefaultTextClass.Create(AOwner);
-//  Result.Align := TAlignLayout.Client;
-//  Result.HitTest := False;
-//
-//  var ts: ITextSettings;
-//  if interfaces.Supports<ITextSettings>(Result, ts) then
-//  begin
-//    ts.TextSettings.HorzAlign := TTextAlign.Leading;
-//    ts.TextSettings.WordWrap := False;
-//    ts.TextSettings.Trimming := TTextTrimming.Character;
-//  end;
-//end;
-//
-//function GetCellInfoControl(CellControl: TControl; IsCheckBox: Boolean): IControl; //TText, TAdatoLabel
-//
-//  function ScrollThroughControl(ParentControl: TControl): TControl;
-//  begin
-//    for var i := 0 to ParentControl.Controls.Count - 1 do
-//    begin
-//      var ctrl := ParentControl.Controls.List[i];
-//
-//      var validText := not IsCheckBox and System.SysUtils.Supports(ctrl, ICaption);
-//      var validCheckBox := IsCheckBox and System.SysUtils.Supports(ctrl, IIsChecked);
-//
-//      if validText or validCheckBox then
-//        Exit(ctrl);
-//
-//      var cc := ScrollThroughControl(ctrl);
-//      if cc <> nil then
-//        Exit(cc);
-//    end;
-//
-//    Result := nil;
-//  end;
-//
-//begin
-//  Result := ScrollThroughControl(CellControl);
-//end;
-//
 { TDateTimeEditOnKeyDownOverride }
 
 procedure TDateTimeEditOnKeyDownOverride.KeyDown(var Key: Word; var KeyChar: System.WideChar; Shift: TShiftState);
@@ -159,7 +133,7 @@ end;
 
 function TDataControlClassFactory.CreateHeaderRect(const Owner: TComponent): TRectangle;
 begin
-  Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
+  Result := TRectangle.Create(Owner);
 
   Result.HitTest := True;
   Result.Fill.Color := DEFAULT_HEADER_BACKGROUND;
@@ -171,12 +145,47 @@ constructor TDataControlClassFactory.Create;
 begin
   inherited;
 
-  _isCustomFactory := Self.ClassName <> 'TDataControlClassFactory';
+  _isCustomFactory := Self.ClassType <> TDataControlClassFactory;
+end;
+
+function TDataControlClassFactory.CreateMemo(const Owner: TComponent): TMemo;
+begin
+  Result := TMemo.Create(Owner);
+end;
+
+function TDataControlClassFactory.CreateButton(const Owner: TComponent): TButton;
+begin
+  Result := TButton.Create(Owner);
+end;
+
+function TDataControlClassFactory.CreateCheckBox(const Owner: TComponent): TCheckBox;
+begin
+  Result := TCheckBox.Create(Owner);
+end;
+
+function TDataControlClassFactory.CreateComboEdit(const Owner: TComponent): TComboEdit;
+begin
+  Result := TComboEdit.Create(Owner);
+end;
+
+function TDataControlClassFactory.CreateDateEdit(const Owner: TComponent): TDateEdit;
+begin
+  Result := TDateTimeEditOnKeyDownOverride.Create(Owner);
+end;
+
+function TDataControlClassFactory.CreateEdit(const Owner: TComponent): TEdit;
+begin
+  Result := TEdit.Create(Owner);
+end;
+
+function TDataControlClassFactory.CreateGlyph(const Owner: TComponent): TGlyph;
+begin
+  Result := TGlyph.Create(Owner);
 end;
 
 function TDataControlClassFactory.CreateHeaderCellRect(const Owner: TComponent): TRectangle;
 begin
-  Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
+  Result := TRectangle.Create(Owner);
 
   Result.Fill.Kind := TBrushKind.None;
   Result.Fill.Color := TAlphaColors.Null;
@@ -184,19 +193,28 @@ begin
   Result.Sides := [TSide.Bottom];
 end;
 
+function TDataControlClassFactory.CreateRadioButton(const Owner: TComponent): TRadioButton;
+begin
+  Result := TRadioButton.Create(Owner);
+end;
+
 function TDataControlClassFactory.CreateRowCellRect(const Owner: TComponent): TRectangle;
 begin
-  Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
+  Result := TRectangle.Create(Owner);
   Result.Fill.Kind := TBrushKind.None;
   Result.Stroke.Color := DEFAULT_CELL_STROKE;
 end;
 
 function TDataControlClassFactory.CreateRowRect(const Owner: TComponent): TRectangle;
 begin
-  Result := ScrollableRowControl_DefaultRectangleClass.Create(Owner);
-
+  Result := TRectangle.Create(Owner);
   Result.Fill.Color := DEFAULT_WHITE_COLOR;
   Result.Stroke.Color := DEFAULT_CELL_STROKE;
+end;
+
+function TDataControlClassFactory.CreateText(const Owner: TComponent): TText;
+begin
+  Result := TText.Create(Owner);
 end;
 
 function TDataControlClassFactory.IsCustomFactory: Boolean;
@@ -206,17 +224,6 @@ end;
 
 initialization
   DataControlClassFactory := TDataControlClassFactory.Create;
-
-  ScrollableRowControl_DefaultTextClass := TText;
-  ScrollableRowControl_DefaultCheckboxClass := TCheckBox;
-  ScrollableRowControl_DefaultRadioButtonClass := TRadioButton;
-  ScrollableRowControl_DefaultButtonClass := TButton;
-  ScrollableRowControl_DefaultGlyphClass := TGlyph;
-  ScrollableRowControl_DefaultEditClass := TEdit;
-  ScrollableRowControl_DefaultMemoClass := TMemo;
-  ScrollableRowControl_DefaultDateEditClass := TDateTimeEditOnKeyDownOverride;
-  ScrollableRowControl_DefaultComboEditClass := TComboEdit;
-  ScrollableRowControl_DefaultRectangleClass := TRectangle;
 
   DEFAULT_GREY_COLOR := TAlphaColor($FFF5F6FB);
   DEFAULT_WHITE_COLOR := TAlphaColors.Null;

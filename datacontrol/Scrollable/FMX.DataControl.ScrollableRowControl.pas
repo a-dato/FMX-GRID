@@ -184,6 +184,10 @@ type
     function  GetRowViewListIndexByKey(const Key: Word; Shift: TShiftState): Integer;
     function  GetActiveRow: IDCRow;
 
+  public
+    procedure OnItemAddedByUser(const Item: CObject; Index: Integer);
+    procedure OnItemRemovedByUser(const Item: CObject; Index: Integer);
+
   protected
     _itemType: &Type;
     function  GetItemType: &Type;
@@ -211,6 +215,8 @@ type
     procedure SelectAll; virtual;
     procedure ClearSelections; virtual;
     procedure ClearCurrentSelection; {virtual;}
+
+    function  CanRealignContent: Boolean; override;
 
     procedure SelectItem(const DataItem: CObject; ClearOtherSelections: Boolean = False);
     procedure DeselectItem(const DataItem: CObject);
@@ -555,8 +561,14 @@ begin
   end;
 
   if _dataModelView <> nil then
-    _view := TDataViewList.Create(_dataModelView, DoCreateNewRow, OnViewChanged) else
-    _view := TDataViewList.Create(_dataList, DoCreateNewRow, OnViewChanged);
+    _view := TDataViewList.Create(_dataModelView, DoCreateNewRow, OnViewChanged)
+  else begin
+    var aType := GetItemType;
+    if aType.IsUnknown and (_dataList.Count > 0) then
+      aType := _dataList[0].GetType;
+
+    _view := TDataViewList.Create(_dataList, DoCreateNewRow, OnViewChanged, aType);
+  end;
 
   if ViewIsDataModelView and (GetDataModelView.CurrencyManager.Current <> -1) and (_view.ActiveViewRows.Count > 0) then
     InternalSetCurrent(GetDataModelView.CurrencyManager.Current, TSelectionEventTrigger.External, []);
@@ -706,6 +718,25 @@ begin
   _vertScrollBar.Visible := (_view <> nil) and (not (TDCTreeOption.HideVScrollBar in _options)) and (_vertScrollBar.ViewPortSize + IfThen(_horzScrollBar.Visible, _horzScrollBar.Height, 0) < _vertScrollBar.Max);
 end;
 
+function TDCScrollableRowControl.CanRealignContent: Boolean;
+begin
+  Result := inherited;
+
+  if Result and (_rowHeightSynchronizer <> nil) and not _rowHeightSynchronizer._isMasterSynchronizer then
+  begin
+    // avoid circular loop
+    var setMaster := not _isMasterSynchronizer;
+    if setMaster then
+      _isMasterSynchronizer := True;
+    try
+      Result := _rowHeightSynchronizer.CanRealignContent;
+    finally
+      if setMaster then
+        _isMasterSynchronizer := False;
+    end;
+  end;
+end;
+
 procedure TDCScrollableRowControl.ClearCurrentSelection;
 begin
   if _selectionInfo <> nil then
@@ -851,7 +882,7 @@ begin
   else begin
     if _rowHeightDefault = -1 {dynamic height} then
     begin
-      var txt := ScrollableRowControl_DefaultTextClass.Create(Self);
+      var txt := DataControlClassFactory.CreateText(Self);
       try
         (txt as ICaption).Text := 'Ag';
         _rowHeightDefault := TextControlHeight(txt, (txt as ITextSettings).TextSettings, 'Ag') + (2*ROW_CONTENT_MARGIN);
@@ -1500,6 +1531,38 @@ begin
     ScrollManualTryAnimated(-Trunc(virtualYPos - _vertScrollBar.Value))
 end;
 
+procedure TDCScrollableRowControl.OnItemAddedByUser(const Item: CObject; Index: Integer);
+begin
+  if (_dataList <> nil) and ((_dataList.Count - 1 < Index) or not CObject.Equals(_dataList[Index], Item)) then
+    _dataList.Insert(Index, Item);
+
+  if (_view <> nil) then
+  begin
+    _resetViewRec := TResetViewRec.CreateFrom(Index, False, True {recalculate the view}, _resetViewRec);
+    ResetView(Index);
+
+    if _view.HasCustomDataList then
+      _view.RecreateCustomDataList(_dataList);
+
+    _view.RecalcSortedRows;
+  end;
+end;
+
+procedure TDCScrollableRowControl.OnItemRemovedByUser(const Item: CObject; Index: Integer);
+begin
+  if (_dataList <> nil) and (_dataList.Count > Index) and CObject.Equals(_dataList[Index], Item) then
+    _dataList.RemoveAt(Index);
+
+  if (_view <> nil) then
+  begin
+    _resetViewRec := TResetViewRec.CreateFrom(Index, False, True {recalculate the view}, _resetViewRec);
+    ResetView(Index);
+
+    if _view.HasCustomDataList then
+      _view.RecreateCustomDataList(_dataList);
+  end;
+end;
+
 procedure TDCScrollableRowControl.OnSelectionInfoChanged;
 begin
   if (_realignState in [TRealignState.Waiting, TRealignState.BeforeRealign]) then
@@ -1553,7 +1616,7 @@ end;
 
 procedure TDCScrollableRowControl.OnViewChanged;
 begin
-  if _updateCount > 0 then
+  if not CanRealignContent then
     Exit;
 
   if (_rowHeightSynchronizer <> nil) and not _isMasterSynchronizer then
@@ -1801,18 +1864,19 @@ begin
   try
     DoViewLoadingStart(StartY, StopY);
     try
-      if _view.ViewCount = 0 then
-        Exit;
-
-      var alignBottomTop := (StartY > 0) and
-        ((StopY > _vertScrollBar.Max - _view.GetRowHeight(_view.ViewCount - 1)) or
-        (CalculateViewFrom = TCalculateViewFrom.Bottom));
-
-      var referenceRow := _view.ProvideReferenceRowForViewRange(StartY, StopY, alignBottomTop);
       var topVirtualYPosition: Single := -1;
 
-      AlignRowsFromReferenceToBottom(referenceRow, StartY, StopY);
-      AlignRowsFromReferenceToTop(referenceRow, StartY, StopY, {out} topVirtualYPosition);
+      if _view.ViewCount > 0 then
+      begin
+        var alignBottomTop := (StartY > 0) and
+          ((StopY > _vertScrollBar.Max - _view.GetRowHeight(_view.ViewCount - 1)) or
+          (CalculateViewFrom = TCalculateViewFrom.Bottom));
+
+        var referenceRow := _view.ProvideReferenceRowForViewRange(StartY, StopY, alignBottomTop);
+
+        AlignRowsFromReferenceToBottom(referenceRow, StartY, StopY);
+        AlignRowsFromReferenceToTop(referenceRow, StartY, StopY, {out} topVirtualYPosition);
+      end;
 
       // only needed once
       UpdateVirtualYPositions(topVirtualYPosition);
@@ -2114,7 +2178,7 @@ begin
     Result := get_Model.ObjectModel.GetType
   else if not _itemType.IsUnknown then
     Result := _itemType
-  else if {(TreeOption.AssumeObjectTypesDiffer in tree.Options) or} (_view.OriginalData.Count = 0) then
+  else if {(TreeOption.AssumeObjectTypesDiffer in tree.Options) or} (_view = nil) or (_view.OriginalData.Count = 0) then
     Result := &Type.Unknown
   else
     Result := _view.OriginalData[0].GetType;

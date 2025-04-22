@@ -276,7 +276,7 @@ end;
 
 function TDCScrollableControl.CanRealignContent: Boolean;
 begin
-  Result := True;
+  Result := (_updateCount = 0);
 end;
 
 function TDCScrollableControl.CanRealignScrollCheck: Boolean;

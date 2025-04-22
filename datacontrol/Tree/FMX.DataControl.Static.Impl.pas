@@ -1124,28 +1124,26 @@ begin
     else if Cell.Row.DataItem.TryAsType<IDataRow>(dr) then
       data := dr.Table.GetPropertyValue(PropName, dr)
     else begin
-      var dataItem: CObject := Cell.Row.DataItem;
-      if (_cachedType <> dataItem.GetType)then
-        _cachedType := dataItem.GetType;
+      var aType := _treeControl.GetItemType;
+      var prop: _PropertyInfo := nil;
+      var resetProp := _cachedType <> aType;
+      _cachedType := aType;
 
       if not IsSubProp then
+        prop := _cachedProp else
+        prop := _cachedSubProp;
+
+      if resetProp or (prop = nil) then
       begin
-        if (_cachedProp = nil) then
-        begin
-          _cachedProp := _cachedType.PropertyByName(PropName);
-          Assert(_cachedProp <> nil, 'Please make sure property is published and {M+} is assigned');
-        end;
+        prop := _cachedType.PropertyByName(PropName);
+        Assert(prop <> nil, 'Please make sure property is published and {M+} is assigned');
 
-        data := _cachedProp.GetValue(dataItem, []);
-      end else begin
-        if (_cachedSubProp = nil) then
-        begin
-          _cachedSubProp := _cachedType.PropertyByName(PropName);
-          Assert(_cachedProp <> nil, 'Please make sure property is published and {M+} is assigned');
-        end;
-
-        data := _cachedSubProp.GetValue(dataItem, []);
+        if not IsSubProp then
+          _cachedProp := prop else
+          _cachedSubProp := prop;
       end;
+
+      data := prop.GetValue(Cell.Row.DataItem, []);
     end;
   end
   else if not Cell.Column.HasPropertyAttached and (Cell.Column.InfoControlClass = TInfoControlClass.CheckBox) then
@@ -1448,7 +1446,7 @@ begin
       Exit;
 
     Text: begin
-      var txt := ScrollableRowControl_DefaultTextClass.Create(Cell.Control);
+      var txt := DataControlClassFactory.CreateText(Cell.Control);
       var settings: ITextSettings := txt as ITextSettings;
       settings.TextSettings.HorzAlign := TTextAlign.Leading;
       settings.TextSettings.VertAlign := TTextAlign.Center;
@@ -1463,8 +1461,8 @@ begin
     CheckBox: begin
       var check: IIsChecked;
       if Cell.Column.IsSelectionColumn and _treeControl.RadioInsteadOfCheck  then
-        check := ScrollableRowControl_DefaultRadioButtonClass.Create(Cell.Control) else
-        check := ScrollableRowControl_DefaultCheckboxClass.Create(Cell.Control);
+        check := DataControlClassFactory.CreateRadioButton(Cell.Control) else
+        check := DataControlClassFactory.CreateCheckBox(Cell.Control);
 
       Result := check as TControl;
       Result.Align := TAlignLayout.None;
@@ -1472,13 +1470,13 @@ begin
     end;
 
     Button: begin
-      var btn := ScrollableRowControl_DefaultButtonClass.Create(Cell.Control);
+      var btn := DataControlClassFactory.CreateButton(Cell.Control);
       btn.Align := TAlignLayout.None;
       Result := btn;
     end;
 
     Glyph: begin
-      var glyph := ScrollableRowControl_DefaultGlyphClass.Create(Cell.Control);
+      var glyph := DataControlClassFactory.CreateGlyph(Cell.Control);
       glyph.Align := TAlignLayout.None;
       Result := glyph;
     end;

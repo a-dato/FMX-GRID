@@ -147,7 +147,7 @@ begin
 
   // user can direct assign values to InfoControl in cellloading / cellloaded
   // we need to call cellloading / cellloaded, therefor we create this infocontrol
-  _dummyCell.InfoControl := ScrollableRowControl_DefaultTextClass.Create(nil);
+  _dummyCell.InfoControl := DataControlClassFactory.CreateText(nil);
   _dummyCell.InfoControl.Visible := False;
 
   _dummyRow.Cells[_flatColumn.Index] := _dummyCell;

@@ -18,7 +18,7 @@ uses
   FMX.DataControl.Events, FMX.DataControl.ControlClasses,
   FMX.DataControl.ScrollableControl, System.UITypes, System.SysUtils,
   System.Generics.Defaults, FMX.Controls, System.Types, FMX.Forms, FMX.ImgList,
-  ADato.Data.DataModel.intf;
+  ADato.Data.DataModel.intf, System.Diagnostics, FMX.Types;
 
 type
   TRightLeftScroll = (None, FullLeft, Left, Right, FullRight);
@@ -136,6 +136,7 @@ type
 
   protected
     _forceRealignRowAfterScrolling: Boolean;
+    _totalColumnWidth: Single;
 
     procedure FastColumnAlignAfterColumnChange;
 
@@ -174,7 +175,6 @@ type
     function  CalculateCellWidth(const LayoutColumn: IDCTreeLayoutColumn; const Cell: IDCTreeCell): Single;
 
     procedure AssignWidthsToAlignColumns;
-    procedure PositionTree;
 
     procedure UpdatePositionAndWidthCells;
     procedure LoadDefaultDataIntoControl(const Cell: IDCTreeCell; const FlatColumn: IDCTreeLayoutColumn; const IsSubProp: Boolean); virtual;
@@ -202,6 +202,12 @@ type
     function  Control: TControl;
     function  Content: TControl;
     function  ColumnList: IDCTreeColumnList;
+
+  protected
+    _positionTreeTimer: TTimer;
+
+    procedure OnPositionTreeTimer(Sender: TObject);
+    procedure PositionTree;
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -254,7 +260,7 @@ type
 implementation
 
 uses
-  FMX.DataControl.Static.Impl, FMX.Types,
+  FMX.DataControl.Static.Impl,
   System.Math,
   FMX.ControlCalculations, FMX.Graphics, FMX.StdCtrls,
   FMX.DataControl.ScrollableRowControl.Impl, ADato.Data.DataModel.impl,
@@ -336,25 +342,28 @@ end;
 procedure TStaticDataControl.PositionTree;
 begin
   var startFromX := 0.0;
-  var totalColumnWidth := 0.0;
 
-  if _autoCenterTree and (_treeLayout <> nil) and (_treeLayout.FlatColumns.Count > 0) then
+  if (_treeLayout <> nil) and (_treeLayout.FlatColumns.Count > 0) then
   begin
-//    var widthLeft := Self.Width;
-
     var lastClmn := _treeLayout.FlatColumns[_treeLayout.FlatColumns.Count - 1];
-    totalColumnWidth := lastClmn.Left + lastClmn.Width;
+    var newColumnsWidth := lastClmn.Left + lastClmn.Width;
 
-//    for var clmn in _treeLayout.FlatColumns do
-//      widthLeft := widthLeft - clmn.Width;
+    if not SameValue(_totalColumnWidth, newColumnsWidth) then
+    begin
+      _totalColumnWidth := newColumnsWidth;
 
-    startFromX := CMath.Max((Self.Width-totalColumnWidth)/2, 0);
-  end;
+      // execute "OnPositionTreeTimer" outside the paint methods..
+      _positionTreeTimer.Enabled := False;
+      _positionTreeTimer.Enabled := True;
+    end;
+
+    if _autoCenterTree then
+      startFromX := CMath.Max((Self.Width-_totalColumnWidth)/2, 0);
+  end else
+    _totalColumnWidth := 0.0;
 
   for var row in HeaderAndTreeRows do
     row.Control.Position.X := startFromX;
-
-  DoTreePositioned(totalColumnWidth);
 end;
 
 procedure TStaticDataControl.AfterRealignContent;
@@ -607,20 +616,20 @@ begin
       Exit(TShowFlatColumnType.Hide);
   end;
 
-  if SameValue(FlatColumn.Width, 0 {not calculated yet}) then
+//  if SameValue(FlatColumn.Width, 0 {not calculated yet}) then
     Exit(TShowFlatColumnType.Fully);
 
-  var scrolledToRight := _horzScrollBar.Value - _horzScrollBar.Min;
-  var viewStart := scrolledToRight;
-  var viewStop := scrolledToRight + _content.Width;
-
-  if ((FlatColumn.Left + FlatColumn.Width) > viewStart) and (FlatColumn.Left < viewStop) then
-    Result := TShowFlatColumnType.Fully
-  else
-  begin
-    Result := TShowFlatColumnType.Hide;
-    {out} IsOutOfView := True;
-  end;
+//  var scrolledToRight := _horzScrollBar.Value - _horzScrollBar.Min;
+//  var viewStart := scrolledToRight;
+//  var viewStop := scrolledToRight + _content.Width;
+//
+//  if ((FlatColumn.Left + FlatColumn.Width) > viewStart) and (FlatColumn.Left < viewStop) then
+//    Result := TShowFlatColumnType.Fully
+//  else
+//  begin
+//    Result := TShowFlatColumnType.Hide;
+//    {out} IsOutOfView := True;
+//  end;
 end;
 
 procedure TStaticDataControl.GenerateView;
@@ -874,6 +883,13 @@ begin
     sortDirection := ListSortDirection.Ascending;
 
   UpdateColumnSort(flatColumn.Column, sortDirection, not (ssCtrl in Shift));
+end;
+
+procedure TStaticDataControl.OnPositionTreeTimer(Sender: TObject);
+begin
+  DoTreePositioned(_totalColumnWidth);
+
+  _positionTreeTimer.Enabled := False;
 end;
 
 procedure TStaticDataControl.UpdateColumnSort(const Column: IDCTreeColumn; SortDirection: ListSortDirection; ClearOtherSort: Boolean);
@@ -1421,6 +1437,11 @@ begin
 
   _columns := TDCTreeColumnList.Create(Self);
   (_columns as INotifyCollectionChanged).CollectionChanged.Add(ColumnsChanged);
+
+  _positionTreeTimer := TTimer.Create(Self);
+  _positionTreeTimer.OnTimer := OnPositionTreeTimer;
+  _positionTreeTimer.Interval := 100;
+  _positionTreeTimer.Enabled := False;
 end;
 
 function TStaticDataControl.CreateSelectioninfoInstance: IRowSelectionInfo;
@@ -1837,6 +1858,11 @@ begin
 
     DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionEventTrigger);
     Exit(True);
+  end
+  else if not rowChange and not clmnChange then
+  begin
+    DoCellSelected(GetActiveCell, _selectionInfo.LastSelectionEventTrigger);
+    Exit(True);
   end;
 
   var customShift := Shift;
@@ -2012,7 +2038,7 @@ begin
 
         flatColumn.UpdateCellControlsByRow(headerCell);
 
-        var txt := headerCell.InfoControl as ScrollableRowControl_DefaultTextClass;
+        var txt := headerCell.InfoControl as TText;
   //      txt.VertTextAlign := TTextAlign.Trailing;
         (txt as ICaption).Text := CStringToString(flatColumn.Column.Caption);
 
@@ -2229,7 +2255,7 @@ begin
   for var cell in Row.Cells.Values do
     if cell.Column.InfoControlClass = TInfoControlClass.Text then
     begin
-      var txt := cell.InfoControl as ScrollableRowControl_DefaultTextClass;
+      var txt := cell.InfoControl as TText;
       var cellHeight := TextControlHeight(txt, (txt as ITextSettings).TextSettings, (txt as ICaption).Text);
       if cellHeight > Result then
         Result := cellHeight;

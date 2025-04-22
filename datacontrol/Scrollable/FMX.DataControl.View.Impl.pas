@@ -39,6 +39,7 @@ type
     _editItem: CObject;
 
     _isFirstAlign: Boolean;
+    _isCustomDataList: Boolean;
 
     _performanceVar_activeStartViewListIndex, _performanceVar_activeStopViewListIndex: Integer;
 
@@ -53,7 +54,7 @@ type
     procedure UpdatePerformanceIndexIndicators;
 
   public
-    constructor Create(const DataList: IList; DoCreateNewRow: TDoCreateNewRow; OnViewChanged: TProc); reintroduce; overload;
+    constructor Create(const DataList: IList; DoCreateNewRow: TDoCreateNewRow; AOnViewChanged: TProc; const ItemType: &Type); reintroduce; overload;
     constructor Create(const DataModelView: IDataModelView; DoCreateNewRow: TDoCreateNewRow; OnViewChanged: TProc); reintroduce; overload;
 
     destructor Destroy; override;
@@ -102,6 +103,9 @@ type
     function  GetRowHeight(const ViewListIndex: Integer): Single;
     function  GetActiveRowIfExists(const ViewListIndex: Integer): IDCRow;
 
+    function  HasCustomDataList: Boolean;
+    procedure RecreateCustomDataList(const Context: IList);
+
     function ActiveViewRows: List<IDCRow>;
     function CachedRowHeight(const RowViewListIndex: Integer): Single;
     function ViewCount: Integer;
@@ -124,17 +128,18 @@ uses
 
 { TDataViewList }
 
-constructor TDataViewList.Create(const DataList: IList; DoCreateNewRow: TDoCreateNewRow; OnViewChanged: TProc);
+constructor TDataViewList.Create(const DataList: IList; DoCreateNewRow: TDoCreateNewRow; AOnViewChanged: TProc; const ItemType: &Type);
 begin
   inherited Create;
 
   _doCreateNewRow := DoCreateNewRow;
-  _onViewChanged := OnViewChanged;
+  _onViewChanged := AOnViewChanged;
   _isFirstAlign := True;
 
   var dm: IDataModel;
   var cmp: IComparableList;
 
+  _isCustomDataList := False;
   if Interfaces.Supports<IDataModel>(DataList, dm) then
   begin
     _dataModelView := dm.DefaultView;
@@ -144,14 +149,22 @@ begin
   begin
     if not Interfaces.Supports<IComparableList>(DataList, _comparer) then
     begin
-      var data: IList<CObject> := CList<CObject>.Create(DataList.Count);
-      for var item in DataList do
-        data.Add(item);
+      if ItemType.IsInterfaceType then
+        _comparer := CComparableList<IInterface>.Create(DataList as IList<IInterface>, CComparableList<CObject>.CreateReusableComparer)
+      else if ItemType.IsObjectType then
+        _comparer := CComparableList<TObject>.Create(DataList as IList<TObject>, CComparableList<CObject>.CreateReusableComparer)
+      else
+      begin
+        var data: IList<CObject> := CList<CObject>.Create(DataList.Count);
+        for var item in DataList do
+          data.Add(item);
 
-      _comparer := CComparableList<CObject>.Create(data, CComparableList<CObject>.CreateReusableComparer);
+        _comparer := CComparableList<CObject>.Create(data, CComparableList<CObject>.CreateReusableComparer);
+        _isCustomDataList := True;
+      end;
     end;
 
-    _comparer.Comparer.OnComparingChanged := procedure begin OnViewChanged end;
+    _comparer.Comparer.OnComparingChanged.Add(OnViewChanged);
   end;
 
   ResetView;
@@ -164,6 +177,7 @@ begin
   _doCreateNewRow := DoCreateNewRow;
   _onViewChanged := OnViewChanged;
   _isFirstAlign := True;
+  _isCustomDataList := False;
 
   _dataModelView := DataModelView;
   _dataModelView.ViewChanged.Add(DataModelViewChanged);
@@ -179,7 +193,9 @@ end;
 destructor TDataViewList.Destroy;
 begin
   if _dataModelView <> nil then
-    _dataModelView.ViewChanged.Remove(DataModelViewChanged);
+    _dataModelView.ViewChanged.Remove(DataModelViewChanged)
+  else if _comparer <> nil then
+    _comparer.Comparer.OnComparingChanged.Remove(OnViewChanged);
 
   _activeRows := nil;
   _cachedrows := nil;
@@ -319,6 +335,22 @@ begin
   end;
 
   Result := _originalData;
+end;
+
+function TDataViewList.HasCustomDataList: Boolean;
+begin
+  Result := _isCustomDataList;
+end;
+
+procedure TDataViewList.RecreateCustomDataList(const Context: IList);
+begin
+  Assert(HasCustomDataList and (_comparer <> nil));
+
+  _comparer.Data.Clear;
+  for var item in Context do
+    _comparer.Data.Add(item);
+
+  _comparer.Comparer.ResetSortedRows(False);
 end;
 
 function TDataViewList.GetNewActiveRow: IDCRow;
@@ -557,6 +589,25 @@ begin
       Exit(_activeRows[_activeRows.Count - 1]);
     end;
   end;
+
+//  if (_activeRows <> nil) and (_activeRows.Count > 0) then
+//  begin
+//    if not BottomTop and RowInRange(_activeRows[0]) then
+//    begin
+//      for var ix := 0 to _activeRows.Count - 1 do
+//      begin
+//        var row := _activeRows[ix];
+//        if RowInRange(row) and GetViewListIndex(row.DataItem) {use dataitem, for it can be removed} then
+//          Exit(_activeRows[ix])
+//      end;
+//    end
+//    else if RowInRange(_activeRows[_activeRows.Count - 1]) then
+//    begin
+//      for var ix := _activeRows.Count - 1 downto 0 do
+//        if RowInRange(_activeRows[ix]) then
+//          Exit(_activeRows[ix])
+//    end;
+//  end;
 
   var checkPos := StartY;
   if BottomTop then

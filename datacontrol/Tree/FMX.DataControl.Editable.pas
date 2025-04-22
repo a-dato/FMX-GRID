@@ -118,6 +118,7 @@ type
 
   public
     procedure EndEditFromExternal;
+    procedure CancelEditFromExternal;
 
     procedure CancelEdit(CellOnly: Boolean = False); // canceling is difficult to only do the cell
     function  EditActiveCell(SetFocus: Boolean; const UserValue: string = ''): Boolean;
@@ -937,6 +938,8 @@ begin
     var row := _cellEditor.Cell.Row as IDCTreeRow;
     HideEditor;
 
+    DoDataItemChangedInternal(row.DataItem);
+
     if EditRowEnd then
       Exit(DoEditRowEnd(row));
   end;
@@ -944,9 +947,28 @@ begin
   Result := True;
 end;
 
+procedure TEditableDataControl.CancelEditFromExternal;
+begin
+  if (_internalSelectCount > 0) or not IsEditOrNew then
+    Exit;
+
+  var crrCell := GetActiveCell;
+
+  if (crrCell = nil) or _editingInfo.CellIsEditing then
+  begin
+    _editingInfo.CellEditingFinished;
+    HideEditor;
+  end;
+
+  _view.EndEdit;
+  _editingInfo.RowEditingFinished;
+
+  DoDataItemChangedInternal(GetActiveRow.DataItem); //, GetActiveRow.DataIndex);
+end;
+
 procedure TEditableDataControl.EndEditFromExternal;
 begin
-  if _internalSelectCount > 0 then
+  if (_internalSelectCount > 0) or not IsEditOrNew then
     Exit;
 
   var crrCell := GetActiveCell;
@@ -1281,6 +1303,7 @@ begin
 
     _view.EndEdit;
     _editingInfo.RowEditingFinished;
+    DoDataItemChanged(editItem, dataIndex);
 
     // it can be that the EditRowStart is activated by user event that triggers this EditRowEnd
     // therefor we have to wait a little

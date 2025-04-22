@@ -293,6 +293,7 @@ type
     function  Control: TControl;
     function  Content: TControl;
     function  ColumnList: IDCTreeColumnList;
+    function  GetItemType: &Type;
 
     function  RadioInsteadOfCheck: Boolean;
 

@@ -11,11 +11,28 @@ uses
   System_,
   System.Collections,
   System.ComponentModel,
-  System.Collections.Generic;
+  System.Collections.Generic,
+  System.SysUtils;
 
 type
+  TOnChangeProc = procedure of object;
+
+  IOnDataChangeDelegate = interface(IDelegate)
+    procedure Add(Value: TOnChangeProc);
+    function  Contains(Value: TOnChangeProc) : Boolean;
+    procedure Remove(value: TOnChangeProc);
+    procedure Invoke;
+  end;
+
+  TOnDataChangeDelegate = class(Delegate, IOnDataChangeDelegate)
+  private
+    procedure Add(Value: TOnChangeProc);
+    function  Contains(Value: TOnChangeProc) : Boolean;
+    procedure Remove(value: TOnChangeProc);
+    procedure Invoke;
+  end;
+
   IListComparer = interface;
-  TOnComparingChanged = reference to procedure;
   TGetDataList = reference to function:IList;
   TlistHoldsOrdinalType = reference to function: Boolean;
 
@@ -31,8 +48,7 @@ type
     function  get_SortedRows: List<Integer>;
     function  get_SortDescriptions: List<IListSortDescription>;
     function  get_FilterDescriptions: List<IListFilterDescription>;
-    function  get_OnComparingChanged: TOnComparingChanged;
-    procedure set_OnComparingChanged(const Value: TOnComparingChanged);
+    function  get_OnComparingChanged: IOnDataChangeDelegate;
 
     procedure ResetSortedRows(ExecuteSortFilterChange: Boolean);
     function  SortCompleted: Boolean;
@@ -46,7 +62,7 @@ type
     property  SortDescriptions: List<IListSortDescription> read get_SortDescriptions;
     property  FilterDescriptions: List<IListFilterDescription> read get_FilterDescriptions;
     property  FuncDataList: TGetDataList read get_FuncDataList write set_FuncDataList;
-    property  OnComparingChanged: TOnComparingChanged read get_OnComparingChanged write set_OnComparingChanged;
+    property  OnComparingChanged: IOnDataChangeDelegate read get_OnComparingChanged;
   end;
 
   IComparableList = interface(ISortable)
@@ -59,5 +75,34 @@ type
   end;
 
 implementation
+
+{ TOnDataChangeDelegate }
+
+procedure TOnDataChangeDelegate.Add(Value: TOnChangeProc);
+begin
+  inherited Add(TMethod(Value));
+end;
+
+function TOnDataChangeDelegate.Contains(Value: TOnChangeProc): Boolean;
+begin
+  Result := inherited Contains(TMethod(Value));
+end;
+
+procedure TOnDataChangeDelegate.Invoke;
+var
+  cnt: Integer;
+begin
+  cnt := 0;
+  while cnt < _events.Count do
+  begin
+    TOnChangeProc(_events[cnt]^)();
+    inc(cnt);
+  end;
+end;
+
+procedure TOnDataChangeDelegate.Remove(Value: TOnChangeProc);
+begin
+  inherited Remove(TMethod(Value));
+end;
 
 end.

@@ -41,7 +41,7 @@ type
   private
     _funcDataList: TGetDatalist;
     _sortedRows: List<Integer>;
-    _OnComparingChanged: TOnComparingChanged;
+    _onDataChangedDelegate: IOnDataChangeDelegate;
     _listHoldsOrdinalType: TlistHoldsOrdinalType;
     _loading: Boolean;
     _sorts: List<TSortItem>;
@@ -53,8 +53,7 @@ type
     function  get_SortedRows: List<Integer>;
     function  get_SortDescriptions: List<IListSortDescription>;
     function  get_FilterDescriptions: List<IListFilterDescription>;
-    function  get_OnComparingChanged: TOnComparingChanged;
-    procedure set_OnComparingChanged(const Value: TOnComparingChanged);
+    function  get_OnComparingChanged: IOnDataChangeDelegate;
     function  get_FuncDataList: TGetDataList;
     procedure set_FuncDataList(const Value: TGetDataList);
 
@@ -187,9 +186,12 @@ begin
   Result := _funcDataList;
 end;
 
-function TListComparer.get_OnComparingChanged: TOnComparingChanged;
+function TListComparer.get_OnComparingChanged: IOnDataChangeDelegate;
 begin
-  Result := _OnComparingChanged;
+  if _onDataChangedDelegate = nil then
+    _onDataChangedDelegate := TOnDataChangeDelegate.Create;
+
+  Result := _onDataChangedDelegate;
 end;
 
 function TListComparer.get_SortDescriptions: List<IListSortDescription>;
@@ -295,18 +297,13 @@ procedure TListComparer.ResetSortedRows(ExecuteSortFilterChange: Boolean);
 begin
   _sortedRows := nil;
 
-  if ExecuteSortFilterChange and Assigned(_OnComparingChanged) then
-    _OnComparingChanged;
+  if ExecuteSortFilterChange and (_onDataChangedDelegate <> nil) then
+    _onDataChangedDelegate.Invoke();
 end;
 
 procedure TListComparer.set_FuncDataList(const Value: TGetDataList);
 begin
   _funcDataList := Value;
-end;
-
-procedure TListComparer.set_OnComparingChanged(const Value: TOnComparingChanged);
-begin
-  _OnComparingChanged := Value;
 end;
 
 function TListComparer.SortCompleted: Boolean;

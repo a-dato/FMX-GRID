@@ -83,6 +83,9 @@ type
     procedure StartEdit(const EditItem: CObject);
     procedure EndEdit;
 
+    function  HasCustomDataList: Boolean;
+    procedure RecreateCustomDataList(const Context: IList);
+
     function ActiveViewRows: List<IDCRow>;
     function ViewCount: Integer;
     function TotalDataHeight(DefaultRowHeight: Single): Single;
